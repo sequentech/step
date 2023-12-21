@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect} from "react"
+import React, {useState, useEffect, useContext} from "react"
 import Typography from "@mui/material/Typography"
 import Button from "@mui/material/Button"
 import {Link as RouterLink} from "react-router-dom"
@@ -25,6 +25,7 @@ import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
+import { TenantEventContext } from '..'
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -134,6 +135,7 @@ export const HomeScreen: React.FC<IProps> = ({
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
     const navigate = useNavigate()
+    const {tenantId, eventId} = useContext(TenantEventContext)
 
     useEffect(() => {
         const newIsNextActive = !!confirmationBallot && !!ballotId
@@ -272,9 +274,7 @@ export const HomeScreen: React.FC<IProps> = ({
                     disabled={!isNextActive}
                     onClick={() =>
                         isNextActive &&
-                        navigate(
-                            `/confirmation`
-                        )
+                        navigate(`/tenant/${tenantId}/event/${eventId}/confirmation`)
                     }
                 >
                     <span>{t("homeScreen.nextButton")}</span>

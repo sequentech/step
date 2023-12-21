@@ -6,7 +6,7 @@ import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useNavigate} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
-import {TenantEventContext} from ".."
+import { TenantEventContext } from '..'
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -15,9 +15,8 @@ export const LoginScreen: React.FC = () => {
 
     useEffect(() => {
         if (authContext.isAuthenticated) {
-            console.log(`navigate to: /tenant/${tenantId}/event/${eventId}/start`)
-            // navigate(`/tenant/${tenantId}/event/${eventId}/start`)
-            navigate(`/start`)
+            console.log(`navigate to: /start`)
+            navigate(`/tenant/${tenantId}/event/${eventId}/start`)
         }
     }, [authContext.isAuthenticated, navigate])
 

@@ -43,7 +43,7 @@ const App = () => {
 
     useEffect(() => {
         if (DISABLE_AUTH) {
-            navigate(`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/election-chooser`)
+            navigate(`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/start`)
         }
     }, [navigate])
 
@@ -62,7 +62,7 @@ const App = () => {
                         }
                     />
                     <Route
-                        path="/login"
+                        path="/tenant/:tenantId/event/:eventId/login"
                         element={
                             <RouteParameterProvider>
                                 <ApolloContextProvider>
@@ -74,7 +74,7 @@ const App = () => {
                         }
                     />
                     <Route
-                        path="/start"
+                        path="/tenant/:tenantId/event/:eventId/start"
                         element={
                             <RouteParameterProvider>
                                 <ApolloContextProvider>
@@ -94,7 +94,7 @@ const App = () => {
                         }
                     />
                     <Route
-                        path="/confirmation"
+                        path="/tenant/:tenantId/event/:eventId/confirmation"
                         element={
                             <RouteParameterProvider>
                                 <ApolloContextProvider>
