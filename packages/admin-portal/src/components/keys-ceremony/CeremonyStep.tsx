@@ -28,7 +28,7 @@ import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {useGetOne} from "react-admin"
 import {Logs} from "../Logs"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status == EStatus.NOT_STARTED) {

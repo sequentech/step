@@ -22,7 +22,7 @@ import {
     TableCell,
     TableHead,
 } from "@mui/material"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string

@@ -8,7 +8,7 @@ import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null

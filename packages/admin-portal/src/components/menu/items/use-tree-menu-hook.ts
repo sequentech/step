@@ -4,7 +4,7 @@ import {useQuery} from "@apollo/client"
 import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()

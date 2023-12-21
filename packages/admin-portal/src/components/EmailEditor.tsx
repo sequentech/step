@@ -4,7 +4,7 @@ import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface Email {
     subject: string

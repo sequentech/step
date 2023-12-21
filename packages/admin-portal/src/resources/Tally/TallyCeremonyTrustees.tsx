@@ -26,7 +26,7 @@ import {
 } from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const WizardSteps = {
     Start: 0,

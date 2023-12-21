@@ -19,7 +19,7 @@ import {CandidateContextProvider} from "./providers/CandidateContextProvider"
 import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyProvider"
 import NewResourceContextProvider from "./providers/NewResourceProvider"
 import {PublishContextProvider} from "./providers/PublishContextProvider"
-import { SettingsWrapper } from "./providers/SettingsContextProvider"
+import {SettingsWrapper} from "./providers/SettingsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 

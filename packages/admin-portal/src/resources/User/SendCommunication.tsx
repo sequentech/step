@@ -26,7 +26,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
 import {CreateScheduledEventMutation} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",

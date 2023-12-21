@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Box, CircularProgress } from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import React, {createContext, useContext, useEffect, useState} from "react"
 
 export interface GlobalSettings {
@@ -39,7 +39,7 @@ const defaultSettingsValues: SettingsContextValues = {
         DEFAULT_SMS_MESSAGE: {
             en: "Enter in {{vote_url}} to vote",
         },
-    }
+    },
 }
 
 export const SettingsContext = createContext<SettingsContextValues>(defaultSettingsValues)
@@ -53,7 +53,9 @@ interface SettingsContextProviderProps {
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const [loaded, setLoaded] = useState<boolean>(false)
-    const [globalSettings, setSettings] = useState<GlobalSettings>(defaultSettingsValues.globalSettings)
+    const [globalSettings, setSettings] = useState<GlobalSettings>(
+        defaultSettingsValues.globalSettings
+    )
 
     const loadSettings = async () => {
         try {
@@ -88,16 +90,17 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
 export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {loaded} = useContext(SettingsContext)
 
-    return loaded
-    ? <>{children}</>
-    : <Box>
-        <CircularProgress />
-    </Box>
+    return loaded ? (
+        <>{children}</>
+    ) : (
+        <Box>
+            <CircularProgress />
+        </Box>
+    )
 }
 
-export const SettingsWrapper: React.FC<React.PropsWithChildren> = ({children}) =>
-<SettingsContextProvider>
-    <SettingsGate>
-        {children}
-    </SettingsGate>
-</SettingsContextProvider>
+export const SettingsWrapper: React.FC<React.PropsWithChildren> = ({children}) => (
+    <SettingsContextProvider>
+        <SettingsGate>{children}</SettingsGate>
+    </SettingsContextProvider>
+)

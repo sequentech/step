@@ -22,7 +22,7 @@ import {
     TableBody,
     Typography,
 } from "@mui/material"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined

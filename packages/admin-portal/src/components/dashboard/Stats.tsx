@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useContext } from "react"
+import React, {useContext} from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useGetList, useGetOne, useRecordContext} from "react-admin"
@@ -18,7 +18,7 @@ import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
 import {IElectionEventStatistics} from "@/types/CoreTypes"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const CardList = styled(Box)`
     display: flex;

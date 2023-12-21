@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useContext } from "react"
+import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
-import { SettingsContext } from "./SettingsContextProvider"
-
+import {SettingsContext} from "./SettingsContextProvider"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.

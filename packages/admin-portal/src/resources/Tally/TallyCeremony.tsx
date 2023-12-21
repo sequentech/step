@@ -41,7 +41,7 @@ import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const WizardSteps = {
     Start: 0,

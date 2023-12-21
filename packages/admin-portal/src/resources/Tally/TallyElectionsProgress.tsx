@@ -15,7 +15,7 @@ import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export const TallyElectionsProgress: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()

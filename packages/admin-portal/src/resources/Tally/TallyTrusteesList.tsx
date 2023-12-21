@@ -20,7 +20,7 @@ import {useTranslation} from "react-i18next"
 import {Box, Icon, Typography} from "@mui/material"
 import ElectionHeader from "@/components/ElectionHeader"
 import KeyIcon from "@mui/icons-material/Key"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyTrusteesListProps {
     tally: Sequent_Backend_Tally_Session | undefined

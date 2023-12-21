@@ -31,7 +31,7 @@ import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
 import {useTenantStore} from "../providers/TenantContextProvider"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const Horizontal = styled(Box)`
     display: flex;

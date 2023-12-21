@@ -36,7 +36,7 @@ import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const NotificationLink = styled.span`
     text-decoration: underline;

@@ -6,8 +6,8 @@ import {
     GET_CAST_VOTES_BY_DATERANGE,
     GET_CAST_VOTES_FOR_ELECTION,
 } from "@/queries/GetCastVotes"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
-import { useContext } from "react"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useContext} from "react"
 
 export function useVotesHook({
     electionEventId,
