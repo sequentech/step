@@ -71,17 +71,35 @@ export default function BallotLocator() {
                     />
                 </Box>
 
-                <StyledTitle variant="h1">
-                    {!hasBallotId ? (
-                        <Box>{t("ballotLocator.title")}</Box>
-                    ) : (
-                        <Box>{t("ballotLocator.titleResult")}</Box>
-                    )}
-                </StyledTitle>
+                <Box sx={{display: "flex", justifyContent: "space-between"}}>
+                    <Box>
+                        <StyledTitle variant="h1">
+                            {!hasBallotId ? (
+                                <Box>{t("ballotLocator.title")}</Box>
+                            ) : (
+                                <Box>{t("ballotLocator.titleResult")}</Box>
+                            )}
+                        </StyledTitle>
 
-                <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                    {t("ballotLocator.description")}
-                </Typography>
+                        <Typography
+                            variant="body1"
+                            sx={{color: theme.palette.customGrey.contrastText}}
+                        >
+                            {t("ballotLocator.description")}
+                        </Typography>
+                    </Box>
+                    <Box sx={{marginTop: "20px"}}>
+                        <Link to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
+                            <Button
+                                variant="secondary"
+                                className="secondary"
+                                onClick={() => locate(true)}
+                            >
+                                {t("votingScreen.backButton")}
+                            </Button>
+                        </Link>
+                    </Box>
+                </Box>
 
                 {hasBallotId && !loading && (
                     <Box>
@@ -124,11 +142,6 @@ export default function BallotLocator() {
                         </Button>
                     </>
                 )}
-                <Box sx={{marginTop: "32px"}}>
-                    <Link to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
-                        {t("votingScreen.backButton")}
-                    </Link>
-                </Box>
             </PageLimit>
         </>
     )

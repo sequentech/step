@@ -22,6 +22,7 @@ export const GET_CAST_VOTE = gql`
             }
         ) {
             ballot_id
+            content
         }
     }
 `
