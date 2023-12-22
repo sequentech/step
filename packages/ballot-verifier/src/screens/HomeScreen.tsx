@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect} from "react"
+import React, {useState, useEffect, useContext} from "react"
 import Typography from "@mui/material/Typography"
 import Button from "@mui/material/Button"
 import {Link as RouterLink} from "react-router-dom"
@@ -21,11 +21,11 @@ import {
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {AuditableBallot} from "../fixtures/ballot"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
+import {TenantEventContext} from ".."
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -135,6 +135,7 @@ export const HomeScreen: React.FC<IProps> = ({
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
     const navigate = useNavigate()
+    const {tenantId, eventId} = useContext(TenantEventContext)
 
     useEffect(() => {
         const newIsNextActive = !!confirmationBallot && !!ballotId
@@ -271,7 +272,10 @@ export const HomeScreen: React.FC<IProps> = ({
                 <StyledButton
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     disabled={!isNextActive}
-                    onClick={() => isNextActive && navigate("/confirmation")}
+                    onClick={() =>
+                        isNextActive &&
+                        navigate(`/tenant/${tenantId}/event/${eventId}/confirmation`)
+                    }
                 >
                     <span>{t("homeScreen.nextButton")}</span>
                     <Icon icon={faAngleRight} size="sm" />

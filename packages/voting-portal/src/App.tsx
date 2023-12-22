@@ -4,7 +4,7 @@
 import React, {useEffect, useContext} from "react"
 import {Routes, Route, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {StartScreen} from "./screens/StartScreen"
 import {VotingScreen} from "./screens/VotingScreen"
@@ -55,6 +55,7 @@ const App = () => {
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
+                    <Route path="*" element={<NotFoundScreen />} />
                     <Route
                         path="/"
                         element={

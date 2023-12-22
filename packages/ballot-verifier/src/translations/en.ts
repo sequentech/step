@@ -4,6 +4,10 @@
 const englishTranslation = {
     translations: {
         welcome: "Hello <br/> <strong>World</strong>",
+        404: {
+            title: "Page not found",
+            subtitle: "The page you are looking for does not exist",
+        },
         homeScreen: {
             step1: "Step 1: Import your ballot",
             description1:
