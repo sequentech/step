@@ -174,7 +174,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     notify(t("electionScreen.common.fileLoaded"), {type: "success"})
 
                     setImageId(data.get_upload_url.document_id)
-
                 } catch (e) {
                     console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})

@@ -36,7 +36,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
-import { ListSupportMaterials } from '../SupportMaterials/ListSuportMaterial'
+import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()

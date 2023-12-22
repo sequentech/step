@@ -142,8 +142,14 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source={`data.title_i18n[${i18n.language}]`} label={t("common.label.title")} />
-                    <TextField source={`data.subtitle_i18n[${i18n.language}]`} label={t("common.label.subtitle")} />
+                    <TextField
+                        source={`data.title_i18n[${i18n.language}]`}
+                        label={t("common.label.title")}
+                    />
+                    <TextField
+                        source={`data.subtitle_i18n[${i18n.language}]`}
+                        label={t("common.label.subtitle")}
+                    />
 
                     {/* <FunctionField
                         label={t("areas.sequent_backend_area_contest")}

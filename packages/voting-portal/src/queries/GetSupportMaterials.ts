@@ -6,12 +6,7 @@ import {gql} from "@apollo/client"
 export const GET_SUPPORT_MATERIALS = gql`
     query GetSupportMaterials($electionEventId: uuid!, $tenantId: uuid!) {
         sequent_backend_support_material(
-            where: {
-                _and: {
-                    election_event_id: {_eq: $electionEventId}
-                    tenant_id: {_eq: $tenantId}
-                }
-            }
+            where: {_and: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}}
         ) {
             data
             document_id

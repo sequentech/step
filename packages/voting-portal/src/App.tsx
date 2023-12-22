@@ -18,7 +18,7 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
-import { SupportMaterialsScreen } from './screens/SupporMaterialsScreen'
+import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;

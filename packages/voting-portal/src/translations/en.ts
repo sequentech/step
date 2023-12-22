@@ -147,8 +147,8 @@ const englishTranslation = {
             common: {
                 label: "Support Materials",
                 back: "Back to Election List",
-            }
-        }
+            },
+        },
     },
 }
 

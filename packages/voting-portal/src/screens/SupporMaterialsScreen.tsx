@@ -35,7 +35,7 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
-import { GET_SUPPORT_MATERIALS } from '../queries/GetSupportMaterials'
+import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -62,14 +62,14 @@ interface ElectionWrapperProps {
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
     console.log("ElectionWrapper", material)
-    
+
     // const election = useAppSelector(selectElectionById(electionId))
     const {tenantId, eventId} = useContext(TenantEventContext)
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
     const onClickToVote = () => {
-        console.log("onClickToVote");
+        console.log("onClickToVote")
     }
 
     return (
@@ -202,7 +202,6 @@ export const SupportMaterialsScreen: React.FC = () => {
     console.log("dataMaterials", dataMaterials?.sequent_backend_support_material)
     console.log("errorMaterials", errorMaterials)
     console.log("loadingMaterials", loadingMaterials)
-    
 
     const {
         loading: loadingElectionEvent,

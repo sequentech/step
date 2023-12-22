@@ -895,7 +895,7 @@ const englishTranslation = {
             error: {
                 title: "Title is required",
                 document: "Document is required",
-            }
+            },
         },
     },
 }
