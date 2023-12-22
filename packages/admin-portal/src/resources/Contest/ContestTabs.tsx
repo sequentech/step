@@ -17,7 +17,6 @@ export const ContestTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
     )

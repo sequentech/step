@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::anyhow;
+use immu_board::assign_value;
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
@@ -28,4 +31,19 @@ pub enum OrderDirection {
 pub struct DataList<T> {
     pub items: Vec<T>,
     pub total: TotalAggregate,
+}
+
+impl TryFrom<&Row> for Aggregate {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut count = 0;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            match column.as_str() {
+                _ => assign_value!(Value::N, value, count),
+            }
+        }
+        Ok(Aggregate { count })
+    }
 }

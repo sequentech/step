@@ -10,27 +10,26 @@ use std::{
 };
 
 use sequent_core::{
-    ballot::{BallotStyle, Candidate, Contest},
+    ballot::{Candidate, Contest},
     services::{pdf, reports},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::pipes::{
-    do_tally::invalid_vote::InvalidVote,
-    error::{Error, Result},
-};
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
-    pipe_inputs::{PipeInputs, PREFIX_ELECTION},
+    pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
 
 const OUTPUT_PDF: &str = "report.pdf";
+const OUTPUT_HTML: &str = "report.html";
+const OUTPUT_JSON: &str = "report.json";
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -39,7 +38,7 @@ pub struct GenerateReports {
 }
 
 impl GenerateReports {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs
             .cli
@@ -101,43 +100,39 @@ impl GenerateReports {
     }
 
     #[instrument(skip_all)]
-    pub fn generate_report(
-        &self,
-        ballot_style: &BallotStyle,
-        reports: Vec<ReportData>,
-    ) -> Result<Vec<u8>> {
+    pub fn generate_report(&self, reports: Vec<ReportData>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         let reports = self.compute_reports(reports)?;
+        let reports = serde_json::to_value(reports)?;
 
         let mut map = Map::new();
-        map.insert(
-            "ballot_style".to_owned(),
-            serde_json::to_value(ballot_style)?,
-        );
-        map.insert("reports".to_owned(), serde_json::to_value(reports)?);
+
+        map.insert("reports".to_owned(), reports.clone());
 
         let html = include_str!("../../resources/report.hbs");
+
         let render = reports::render_template_text(html, map).map_err(|e| {
             Error::UnexpectedError(format!(
                 "Error during render_template_text from report.hbs template file: {}",
-                e.to_string()
+                e
             ))
         })?;
 
-        let bytes = pdf::html_to_pdf(render).map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during html_to_pdf conversion: {}",
-                e.to_string()
-            ))
+        let bytes_pdf = pdf::html_to_pdf(render.clone()).map_err(|e| {
+            Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
-        Ok(bytes)
+        Ok((
+            bytes_pdf,
+            render.as_bytes().to_vec(),
+            reports.to_string().as_bytes().to_vec(),
+        ))
     }
 
     #[instrument(skip(self))]
     fn read_contest_result(
         &self,
         election_id: &Uuid,
-        contest_id: &Uuid,
+        contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
     ) -> Result<ContestResult> {
         let path = PipeInputs::build_path(
@@ -164,7 +159,7 @@ impl GenerateReports {
     fn read_winners(
         &self,
         election_id: &Uuid,
-        contest_id: &Uuid,
+        contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
     ) -> Result<Vec<WinnerResult>> {
         let path = PipeInputs::build_path(
@@ -194,9 +189,10 @@ impl GenerateReports {
             let mut reports = vec![];
             for contest_input in &election_input.contest_list {
                 let contest_result =
-                    self.read_contest_result(&election_input.id, &contest_input.id, None)?;
+                    self.read_contest_result(&election_input.id, Some(&contest_input.id), None)?;
 
-                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                let winners =
+                    self.read_winners(&election_input.id, Some(&contest_input.id), None)?;
 
                 reports.push(ReportData {
                     contest: contest_input.contest.clone(),
@@ -204,15 +200,19 @@ impl GenerateReports {
                     area_id: None,
                     winners,
                 });
+
                 for area in &contest_input.area_list {
                     let contest_result = self.read_contest_result(
                         &election_input.id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area.id),
                     )?;
 
-                    let winners =
-                        self.read_winners(&election_input.id, &contest_input.id, Some(&area.id))?;
+                    let winners = self.read_winners(
+                        &election_input.id,
+                        Some(&contest_input.id),
+                        Some(&area.id),
+                    )?;
 
                     reports.push(ReportData {
                         contest: contest_input.contest.clone(),
@@ -222,7 +222,9 @@ impl GenerateReports {
                     });
                 }
             }
+
             let computed_reports = self.compute_reports(reports)?;
+
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
                 area_id: None,
@@ -231,6 +233,69 @@ impl GenerateReports {
         }
         Ok(election_reports)
     }
+
+    fn make_report(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+        contest: Contest,
+    ) -> Result<ReportData> {
+        let contest_result = self.read_contest_result(election_id, contest_id, area_id)?;
+
+        let winners = self.read_winners(election_id, contest_id, area_id)?;
+
+        let report = ReportData {
+            contest,
+            contest_result,
+            area_id: None,
+            winners,
+        };
+
+        self.write_report(election_id, contest_id, area_id, vec![report.clone()])?;
+
+        Ok(report)
+    }
+
+    fn write_report(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+        reports: Vec<ReportData>,
+    ) -> Result<()> {
+        let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
+
+        let path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+
+        fs::create_dir_all(&path)?;
+
+        let file = path.join(OUTPUT_PDF);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file)?;
+        file.write_all(&bytes_pdf)?;
+
+        let file = path.join(OUTPUT_HTML);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file)?;
+        file.write_all(&bytes_html)?;
+
+        let file = path.join(OUTPUT_JSON);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file)?;
+        file.write_all(&bytes_json)?;
+
+        Ok(())
+    }
 }
 
 impl Pipe for GenerateReports {
@@ -238,56 +303,35 @@ impl Pipe for GenerateReports {
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
-            for contest_input in &election_input.contest_list {
-                let mut contest_result =
-                    self.read_contest_result(&election_input.id, &contest_input.id, None)?;
 
-                let defaults = default_invalid_votes();
-                for (key, value) in defaults {
-                    contest_result.invalid_votes.entry(key).or_insert(value);
+            for contest_input in &election_input.contest_list {
+                for area_input in &contest_input.area_list {
+                    let _report = self.make_report(
+                        &election_input.id,
+                        Some(&contest_input.id),
+                        Some(&area_input.id),
+                        contest_input.contest.clone(),
+                    )?;
                 }
 
-                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                let report = self.make_report(
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    None,
+                    contest_input.contest.clone(),
+                )?;
 
-                reports.push(ReportData {
-                    contest: contest_input.contest.clone(),
-                    contest_result,
-                    area_id: None,
-                    winners,
-                })
+                reports.push(report)
             }
 
-            let bytes = self.generate_report(&election_input.ballot_style, reports)?;
-
-            let path = &self
-                .output_dir
-                .join(format!("{}{}", PREFIX_ELECTION, election_input.id));
-            fs::create_dir_all(path)?;
-
-            let file = path.join(OUTPUT_PDF);
-            let mut file = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .create(true)
-                .open(&file)?;
-
-            file.write_all(&bytes)?;
-            serde_json::to_writer(file, &bytes)?;
+            self.write_report(&election_input.id, None, None, reports)?;
         }
 
         Ok(())
     }
 }
 
-fn default_invalid_votes() -> HashMap<InvalidVote, u64> {
-    let mut map = HashMap::new();
-    map.insert(InvalidVote::Implicit, 0);
-    map.insert(InvalidVote::Explicit, 0);
-    map.insert(InvalidVote::Blank, 0);
-    map
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReportData {
     pub contest: Contest,
     pub area_id: Option<String>,
@@ -302,7 +346,7 @@ pub struct ElectionReportDataComputed {
     pub reports: Vec<ReportDataComputed>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
     pub area_id: Option<String>,
@@ -310,7 +354,7 @@ pub struct ReportDataComputed {
     pub candidate_result: Vec<CandidateResultForReport>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
