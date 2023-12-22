@@ -12414,6 +12414,7 @@ export type Sequent_Backend_Support_Material = {
   annotations: Scalars['jsonb']['output'];
   created_at: Scalars['timestamptz']['output'];
   data: Scalars['jsonb']['output'];
+  document_id?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   kind: Scalars['String']['output'];
@@ -12477,6 +12478,7 @@ export type Sequent_Backend_Support_Material_Bool_Exp = {
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   data?: InputMaybe<Jsonb_Comparison_Exp>;
+  document_id?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   kind?: InputMaybe<String_Comparison_Exp>;
@@ -12517,6 +12519,7 @@ export type Sequent_Backend_Support_Material_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   data?: InputMaybe<Scalars['jsonb']['input']>;
+  document_id?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   kind?: InputMaybe<Scalars['String']['input']>;
@@ -12529,6 +12532,7 @@ export type Sequent_Backend_Support_Material_Insert_Input = {
 export type Sequent_Backend_Support_Material_Max_Fields = {
   __typename?: 'sequent_backend_support_material_max_fields';
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  document_id?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   kind?: Maybe<Scalars['String']['output']>;
@@ -12540,6 +12544,7 @@ export type Sequent_Backend_Support_Material_Max_Fields = {
 export type Sequent_Backend_Support_Material_Min_Fields = {
   __typename?: 'sequent_backend_support_material_min_fields';
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  document_id?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   kind?: Maybe<Scalars['String']['output']>;
@@ -12568,6 +12573,7 @@ export type Sequent_Backend_Support_Material_Order_By = {
   annotations?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   data?: InputMaybe<Order_By>;
+  document_id?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   kind?: InputMaybe<Order_By>;
@@ -12599,6 +12605,8 @@ export enum Sequent_Backend_Support_Material_Select_Column {
   /** column name */
   Data = 'data',
   /** column name */
+  DocumentId = 'document_id',
+  /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
   Id = 'id',
@@ -12617,6 +12625,7 @@ export type Sequent_Backend_Support_Material_Set_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   data?: InputMaybe<Scalars['jsonb']['input']>;
+  document_id?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   kind?: InputMaybe<Scalars['String']['input']>;
@@ -12638,6 +12647,7 @@ export type Sequent_Backend_Support_Material_Stream_Cursor_Value_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   data?: InputMaybe<Scalars['jsonb']['input']>;
+  document_id?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   kind?: InputMaybe<Scalars['String']['input']>;
@@ -12654,6 +12664,8 @@ export enum Sequent_Backend_Support_Material_Update_Column {
   CreatedAt = 'created_at',
   /** column name */
   Data = 'data',
+  /** column name */
+  DocumentId = 'document_id',
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */

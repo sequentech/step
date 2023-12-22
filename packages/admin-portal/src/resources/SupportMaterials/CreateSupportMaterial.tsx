@@ -84,7 +84,7 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
         updateImage("sequent_backend_support_material", {
             id: data.id,
             data: {
-                image_document_id: imageId,
+                document_id: imageId,
             },
         })
 
@@ -102,10 +102,6 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
             close()
         }
     }
-
-    useEffect(() => {
-        console.log("valueMaterials", valueMaterials)
-    }, [valueMaterials])
 
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
@@ -156,7 +152,6 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
 
         setImageType(theFile?.type)
 
-        // TODO: change with support materials
         if (theFile) {
             let {data, errors} = await getUploadUrl({
                 variables: {
@@ -203,13 +198,14 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
     }
 
     const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
-        if (!values?.data?.title_i18n.en) {
+        const errors: {[key: string]: string} = {}
+        if (!values?.data?.title_i18n?.en) {
             errors.data = t("materials.error.title")
         }
-        if (imageId) {
+        if (!imageId) {
             errors.document_id = t("materials.error.document")
         }
+        console.log("errors", errors)
         return errors
     }
 
