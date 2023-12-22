@@ -230,6 +230,15 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 </Box>
             </DatesUrlWrap>
             <Box sx={{display: "flex"}}>
+                {displayBallotLocator && (
+                    <StyledButton
+                        sx={{marginRight: "16px"}}
+                        variant="secondary"
+                        onClick={onClickBallotLocator}
+                    >
+                        {t("selectElection.ballotLocator")}
+                    </StyledButton>
+                )}
                 {isOpen ? (
                     <StyledButton onClick={handleClickToVote}>
                         {t("selectElection.voteButton")}
@@ -237,15 +246,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 ) : (
                     <StyledButton variant="secondary" onClick={handleClickElectionResults}>
                         {t("selectElection.resultsButton")}
-                    </StyledButton>
-                )}
-                {displayBallotLocator && (
-                    <StyledButton
-                        sx={{marginLeft: "16px"}}
-                        variant="secondary"
-                        onClick={onClickBallotLocator}
-                    >
-                        {t("selectElection.ballotLocator")}
                     </StyledButton>
                 )}
             </Box>
