@@ -25,6 +25,7 @@ query GetLastTallySessionExecution(
         tally_session_id
         status
         results_event_id
+        session_ids
     }
     sequent_backend_tally_session(
         where: {
