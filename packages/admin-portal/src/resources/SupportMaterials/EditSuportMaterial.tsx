@@ -89,13 +89,11 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     }
 
     const onError = async (res: any) => {
-        console.log("res :>> ", res.message)
-
         refresh()
 
         // react-admin bug: https://stackoverflow.com/questions/54729867/cannot-read-property-hasownproperty-of-undefined-during-writing-my-own-datap
         // It seems to be caused by validateResponseFormat in fetch. When an options request is triggered prior to a put it provides an empty response and cannot be parsed
-        
+
         if (res?.message?.includes("hasOwnProperty")) {
             notify(t("materials.updateMaterialSuccess"), {type: "success"})
         } else {
@@ -211,7 +209,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     }
 
     const parseValues = (incoming: any) => {
-        console.log("parsedValue :>> ", incoming)
         const temp = {...incoming}
         return temp
     }
