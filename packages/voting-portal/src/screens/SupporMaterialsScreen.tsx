@@ -23,7 +23,7 @@ import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSl
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetElectionsQuery, Sequent_Backend_Area} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
@@ -35,6 +35,7 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import { GET_SUPPORT_MATERIALS } from '../queries/GetSupportMaterials'
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -56,40 +57,26 @@ const ElectionContainer = styled(Box)`
 `
 
 interface ElectionWrapperProps {
-    electionId: string
+    material: any
 }
 
-const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
-    const election = useAppSelector(selectElectionById(electionId))
+const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
+    console.log("ElectionWrapper", material)
+    
+    // const election = useAppSelector(selectElectionById(electionId))
     const {tenantId, eventId} = useContext(TenantEventContext)
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
     const onClickToVote = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
-    }
-
-    const formatDate = (dateStr: string): string => {
-        let date = new Date(dateStr)
-        let dateFormat = new Intl.DateTimeFormat("en", {
-            hour12: false,
-            day: "numeric",
-            month: "short",
-            hour: "numeric",
-            minute: "2-digit",
-        })
-        return dateFormat.format(date)
-    }
-
-    if (!election) {
-        return null
+        console.log("onClickToVote");
     }
 
     return (
         <SelectElection
             isActive={true}
             isOpen={true}
-            title={translateElection(election, "name", i18n.language) || ""}
+            title={translate(material, "title", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={false}
             onClickToVote={onClickToVote}
@@ -200,6 +187,24 @@ export const SupportMaterialsScreen: React.FC = () => {
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
 
     const {
+        loading: loadingMaterials,
+        error: errorMaterials,
+        data: dataMaterials,
+    } = useQuery<any>(GET_SUPPORT_MATERIALS, {
+        variables: {
+            electionEventId: eventId || "",
+            tenantId: tenantId || "",
+        },
+    })
+
+    console.log("eventId", eventId)
+    console.log("tenantId", tenantId)
+    console.log("dataMaterials", dataMaterials?.sequent_backend_support_material)
+    console.log("errorMaterials", errorMaterials)
+    console.log("loadingMaterials", loadingMaterials)
+    
+
+    const {
         loading: loadingElectionEvent,
         error: errorElectionEvent,
         data: dataElectionEvent,
@@ -303,8 +308,8 @@ export const SupportMaterialsScreen: React.FC = () => {
                 </Button>
             </Box>
             <ElectionContainer>
-                {electionIds.map((electionId) => (
-                    <ElectionWrapper electionId={electionId} key={electionId} />
+                {dataMaterials?.sequent_backend_support_material?.map((material: any) => (
+                    <ElectionWrapper material={material} key={material.id} />
                 ))}
             </ElectionContainer>
         </PageLimit>
