@@ -132,10 +132,20 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub async fn post_key_insertion(&self, event_id: String) -> Result<()> {
+    pub async fn post_key_insertion_start(&self, event_id: String) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::key_insertion_message(event, &self.sd)?;
+        let message = Message::key_insertion_start(event, &self.sd)?;
+
+        self.post(message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_key_insertion(&self, event_id: String, trustee_name: String) -> Result<()> {
+        let event = EventIdString(event_id);
+        let trustee_name = TrusteeNameString(trustee_name);
+
+        let message = Message::key_insertion_message(event, trustee_name, &self.sd)?;
 
         self.post(message).await
     }

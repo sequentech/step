@@ -30,7 +30,9 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
     GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::ElectoralLog;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
 use anyhow::{anyhow, Context, Result};
@@ -368,6 +370,24 @@ pub async fn create_tally_ceremony(
     )
     .await?;
 
+    // get the election event
+    let election_event = get_election_event_helper(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?;
+
+    // Save this in the electoral log
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    electoral_log
+        .post_key_insertion_start(election_event_id.clone())
+        .await
+        .with_context(|| "error posting to the electoral log")?;
+
     Ok(tally_session_id.clone())
 }
 
@@ -468,6 +488,24 @@ pub async fn update_tally_ceremony(
                 .await?;
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         }
+
+        // get the election event
+        let election_event = get_election_event_helper(
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+        )
+        .await?;
+
+        // Save this in the electoral log
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+        electoral_log
+            .post_tally_open(election_event_id.to_string(), None)
+            .await
+            .with_context(|| "error posting to the electoral log")?;
     }
 
     Ok(())
@@ -595,6 +633,24 @@ pub async fn set_private_key(
         )
         .await?;
     }
+
+    // get the election event
+    let election_event = get_election_event_helper(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+    )
+    .await?;
+
+    // Save this in the electoral log
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    electoral_log
+        .post_key_insertion(election_event_id.to_string(), found_trustee.name.clone())
+        .await
+        .with_context(|| "error posting to the electoral log")?;
 
     Ok(true)
 }

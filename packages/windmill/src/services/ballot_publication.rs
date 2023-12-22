@@ -204,7 +204,11 @@ pub async fn update_publish_ballot(
 
     let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     electoral_log
-        .post_election_open(election_event_id.clone(), None)
+        .post_election_published(
+            election_event_id.clone(),
+            None,
+            ballot_publication_id.clone(),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 

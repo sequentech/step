@@ -6,18 +6,27 @@ use strand::hash::{Hash, HashWrapper};
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct EventIdString(pub String);
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct ElectionIdString(pub Option<String>);
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct ContestIdString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct TrusteeNameString(pub String);
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct BallotPublicationIdString(pub String);
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]

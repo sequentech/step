@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use board_messages::braid::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
@@ -11,8 +11,12 @@ use serde_json;
 use std::env;
 use tracing::instrument;
 
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
+
+use crate::hasura::election_event::get_election_event_helper;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -185,9 +189,9 @@ pub async fn set_tally_session_completed(
     tally_session_id: String,
 ) -> Result<Response<set_tally_session_completed::ResponseData>> {
     let variables = set_tally_session_completed::Variables {
-        tenant_id,
-        election_event_id,
-        tally_session_id,
+        tenant_id: tenant_id.clone(),
+        election_event_id: election_event_id.clone(),
+        tally_session_id: tally_session_id.clone(),
         execution_status: Some(TallyExecutionStatus::SUCCESS.to_string()),
     };
     let hasura_endpoint =
@@ -197,12 +201,34 @@ pub async fn set_tally_session_completed(
     let client = reqwest::Client::new();
     let res = client
         .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
+        .header(auth_headers.key.clone(), auth_headers.value.clone())
         .json(&request_body)
         .send()
         .await?;
     let response_body: Response<set_tally_session_completed::ResponseData> = res.json().await?;
-    response_body.ok()
+    let ret = response_body.ok();
+
+    if (ret.is_ok()) {
+        // get the election event
+        let election_event = get_election_event_helper(
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+        )
+        .await?;
+
+        // Save this in the electoral log
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+        electoral_log
+            .post_tally_close(election_event_id.to_string(), None)
+            .await
+            .with_context(|| "error posting to the electoral log")?;
+    }
+
+    ret
 }
 
 #[derive(GraphQLQuery)]

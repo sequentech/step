@@ -32,7 +32,8 @@ impl StatementHead {
             StatementBody::ElectionPeriodPause(_) => StatementType::ElectionPeriodPause,
             StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
-            StatementBody::KeyInsertionCeremony => StatementType::KeyInsertionCeremony,
+            StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
+            StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
         };
@@ -76,7 +77,8 @@ pub enum StatementBody {
     // routes::tally_ceremony::restore_private_key
     //
     // "Ingreso de los fragmentos de la llave privada"
-    KeyInsertionCeremony,
+    KeyInsertionStart,
+    KeyInsertionCeremony(TrusteeNameString),
     // /workspaces/backend-services/packages/windmill/src/celery_app.rs
     // tally_election_event
     //
@@ -98,6 +100,7 @@ pub enum StatementType {
     ElectionPeriodClose,
     ElectionPeriodPause,
     KeyGeneration,
+    KeyInsertionStart,
     KeyInsertionCeremony,
     TallyOpen,
     TallyClose,

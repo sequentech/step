@@ -89,8 +89,17 @@ impl Message {
         Self::from_body(event, body, sd)
     }
 
-    pub fn key_insertion_message(event: EventIdString, sd: &SigningData) -> Result<Self> {
-        let body = StatementBody::KeyInsertionCeremony;
+    pub fn key_insertion_start(event: EventIdString, sd: &SigningData) -> Result<Self> {
+        let body = StatementBody::KeyInsertionStart;
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn key_insertion_message(
+        event: EventIdString,
+        trustee_name: TrusteeNameString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::KeyInsertionCeremony(trustee_name);
         Self::from_body(event, body, sd)
     }
 

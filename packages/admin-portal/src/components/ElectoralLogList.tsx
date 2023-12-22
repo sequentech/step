@@ -58,7 +58,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside}) => {
                         }
                     />
                     <TextField source="statement_kind" />
-                    <TextField source="message" sx={{wordBreak: 'break-word'}} />
+                    <TextField source="message" sx={{wordBreak: "break-word"}} />
                 </DatagridConfigurable>
             </List>
         </>
