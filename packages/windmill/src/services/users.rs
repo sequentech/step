@@ -15,7 +15,7 @@ use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::database::{get_keycloak_pool, get_hasura_pool, PgConfig};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
@@ -74,7 +74,9 @@ pub async fn list_users(
                 .await
                 .with_context(|| "Error acquiring hasura db client")?;
 
-            let areas_statement = hasura_db_client.prepare(r#"
+            let areas_statement = hasura_db_client
+                .prepare(
+                    r#"
                 SELECT DISTINCT
                     a.id
                 FROM
@@ -84,25 +86,20 @@ pub async fn list_users(
                 JOIN
                     sequent_backend.contest c ON ac.contest_id = c.id
                 WHERE c.election_id = $1;
-            "#).await?;
-            let rows: Vec<Row> = hasura_db_client
-                .query(
-                    &areas_statement,
-                    &[election_id]
+            "#,
                 )
+                .await?;
+            let rows: Vec<Row> = hasura_db_client
+                .query(&areas_statement, &[election_id])
                 .await
                 .map_err(|err| anyhow!("{}", err))?;
             let area_ids: Vec<String> = rows
                 .into_iter()
-                .map(|row| -> Result<String> {
-                    Ok(row
-                        .try_get::<&str, String>("id")?
-                    )
-                })
+                .map(|row| -> Result<String> { Ok(row.try_get::<&str, String>("id")?) })
                 .collect::<Result<Vec<String>>>()?;
 
             Some(area_ids)
-        },
+        }
         None => None,
     };
     let statement = transaction.prepare(r#"
