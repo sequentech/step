@@ -11,6 +11,7 @@ pub enum Error {
     IDNotFound,
     ElectionConfigNotFound(Uuid),
     ContestConfigNotFound(Uuid),
+    AreaConfigNotFound(Uuid),
     FileAccess(std::path::PathBuf, std::io::Error),
     IO(std::io::Error),
     JsonParse(serde_json::Error),

@@ -4,11 +4,9 @@
 
 mod cli;
 mod config;
+mod fixtures;
 mod pipes;
 mod utils;
-
-#[cfg(test)]
-mod fixtures;
 
 use clap::Parser;
 use cli::{state::State, Cli, Commands};

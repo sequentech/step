@@ -26,7 +26,7 @@ pub struct DecodeBallots {
 }
 
 impl DecodeBallots {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
@@ -41,8 +41,18 @@ impl DecodeBallots {
 
         for line in reader.lines() {
             let line = line?;
-            let plaintext = BigUint::from_str(&line)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+
+            let plaintext = BigUint::from_str(&line);
+
+            if let Err(error) = &plaintext {
+                if error.to_string() == "cannot parse integer from empty string" {
+                    continue;
+                }
+            }
+
+            let plaintext =
+                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+
             let decoded_vote = contest
                 .decode_plaintext_contest_bigint(&plaintext)
                 .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
@@ -63,7 +73,7 @@ impl Pipe for DecodeBallots {
                     let path_ballots = PipeInputs::build_path(
                         self.pipe_inputs.root_path_ballots.as_path(),
                         &election_input.id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     )
                     .join(BALLOTS_FILE);
@@ -80,6 +90,7 @@ impl Pipe for DecodeBallots {
                             file.display()
                         );
                     }
+
                     match res {
                         Ok(decoded_ballots) => {
                             let mut output_path = PipeInputs::build_path(
@@ -89,7 +100,7 @@ impl Pipe for DecodeBallots {
                                     .join(PipeNameOutputDir::DecodeBallots.as_ref())
                                     .as_path(),
                                 &election_input.id,
-                                &contest_input.id,
+                                Some(&contest_input.id),
                                 Some(&area_input.id),
                             );
 

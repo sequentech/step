@@ -23,7 +23,7 @@ pub struct MarkWinners {
 }
 
 impl MarkWinners {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
@@ -85,7 +85,7 @@ impl Pipe for MarkWinners {
                     let contest_result_file = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     )
                     .join(OUTPUT_CONTEST_RESULT_FILE);
@@ -99,7 +99,7 @@ impl Pipe for MarkWinners {
                     let mut file = PipeInputs::build_path(
                         &output_dir,
                         &contest_input.election_id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     );
 
@@ -113,7 +113,7 @@ impl Pipe for MarkWinners {
                 let contest_result_file = PipeInputs::build_path(
                     &input_dir,
                     &contest_input.election_id,
-                    &contest_input.id,
+                    Some(&contest_input.id),
                     None,
                 )
                 .join(OUTPUT_CONTEST_RESULT_FILE);
@@ -127,7 +127,7 @@ impl Pipe for MarkWinners {
                 let mut file = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
-                    &contest_input.id,
+                    Some(&contest_input.id),
                     None,
                 );
 
