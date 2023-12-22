@@ -15,7 +15,7 @@ use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::database::{get_database_pool, PgConfig};
+use crate::services::database::{get_keycloak_pool, get_hasura_pool, PgConfig};
 use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
@@ -27,6 +27,7 @@ pub async fn list_users(
     admin: &KeycloakAdminClient,
     tenant_id: String,
     election_event_id: Option<String>,
+    election_id: Option<String>,
     realm: &str,
     search: Option<String>,
     first_name: Option<String>,
@@ -64,6 +65,45 @@ pub async fn list_users(
         Some(format!("%{username_val}%"))
     } else {
         None
+    };
+    let area_ids: Option<Vec<String>> = match election_id {
+        Some(ref election_id) => {
+            let mut hasura_db_client: DbClient = get_keycloak_pool()
+                .await
+                .get()
+                .await
+                .with_context(|| "Error acquiring hasura db client")?;
+
+            let areas_statement = hasura_db_client.prepare(r#"
+                SELECT DISTINCT
+                    a.id
+                FROM
+                    sequent_backend.area a
+                JOIN
+                    sequent_backend.area_contest ac ON a.id = ac.area_id
+                JOIN
+                    sequent_backend.contest c ON ac.contest_id = c.id
+                WHERE c.election_id = $1;
+            "#).await?;
+            let rows: Vec<Row> = hasura_db_client
+                .query(
+                    &areas_statement,
+                    &[election_id]
+                )
+                .await
+                .map_err(|err| anyhow!("{}", err))?;
+            let area_ids: Vec<String> = rows
+                .into_iter()
+                .map(|row| -> Result<String> {
+                    Ok(row
+                        .try_get::<&str, String>("id")?
+                    )
+                })
+                .collect::<Result<Vec<String>>>()?;
+
+            Some(area_ids)
+        },
+        None => None,
     };
     let statement = transaction.prepare(r#"
         WITH realm_cte AS (

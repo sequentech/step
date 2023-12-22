@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
-use windmill::services::database::get_database_pool;
+use windmill::services::database::get_keycloak_pool;
 use windmill::services::users::list_users;
 
 use crate::services::authorization::authorize;
@@ -153,22 +153,23 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let mut db_client: DbClient = get_database_pool()
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let transaction = db_client
+    let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
         auth_headers.clone(),
-        &transaction,
+        &keycloak_transaction,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
+        /* election_id = */ None,
         &realm,
         input.search,
         input.first_name,
