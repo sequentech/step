@@ -135,7 +135,7 @@ impl<C: Ctx> Ballots<C> {
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Mix<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,
-    pub proof: ShuffleProof<C>,
+    pub proof: Option<ShuffleProof<C>>,
     pub mix_number: MixNumber,
 }
 impl<C: Ctx> Mix<C> {
@@ -146,7 +146,14 @@ impl<C: Ctx> Mix<C> {
     ) -> Mix<C> {
         Mix {
             ciphertexts: StrandVectorC(ciphertexts),
-            proof,
+            proof: Some(proof),
+            mix_number,
+        }
+    }
+    pub fn null(mix_number: MixNumber) -> Mix<C> {
+        Mix {
+            ciphertexts: StrandVectorC(vec![]),
+            proof: None,
             mix_number,
         }
     }

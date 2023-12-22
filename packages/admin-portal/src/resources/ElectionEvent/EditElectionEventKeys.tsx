@@ -36,7 +36,7 @@ import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
-import globalSettings from "@/global-settings"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -108,6 +108,7 @@ export const EditElectionEventKeys: React.FC = () => {
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
 
     const {data: keysCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",

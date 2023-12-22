@@ -1,10 +1,10 @@
-import React, {useRef, useState} from "react"
+import React, {useContext, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import globalSettings from "@/global-settings"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface Email {
     subject: string
@@ -19,6 +19,7 @@ type EmailEditorProps = {
 
 export default function EmailEditor({record, setRecord}: EmailEditorProps) {
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [tab, setTab] = useState<number>(0)
 

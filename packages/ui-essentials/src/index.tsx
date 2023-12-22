@@ -36,3 +36,4 @@ export {default as SelectElection} from "./components/SelectElection/SelectElect
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
 export {default as Tree} from "./components/Tree/Tree"
 export {translate, translateElection} from "./services/translate"
+export {NotFoundScreen} from "./components/NotFoundScreen"
