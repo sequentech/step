@@ -1,27 +1,97 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useContext} from "react"
 import ReactDOM from "react-dom/client"
-import {BrowserRouter} from "react-router-dom"
+import {BrowserRouter, useParams} from "react-router-dom"
 import "./index.css"
 import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {SettingsWrapper} from "./providers/SettingsContextProvider"
+import AuthContextProvider from "./providers/AuthContextProvider"
+import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
+
+SequentCoreLibInit().then(set_hooks)
+
+interface TenantEventContextValues {
+    tenantId: string | null
+    eventId: string | null
+}
+
+export const TenantEventContext = React.createContext<TenantEventContextValues>({
+    tenantId: null,
+    eventId: null,
+})
+
+// This component will be used to provide tenantId and eventId to the context
+export const TenantEventProvider: React.FC<{
+    tenantId: string | null
+    eventId: string | null
+    children: React.ReactNode
+}> = ({tenantId, eventId, children}) => {
+    console.log(`TenantEventProvider: tenantId=${tenantId}, eventId=${eventId}`)
+    return (
+        <TenantEventContext.Provider value={{tenantId, eventId}}>
+            {children}
+        </TenantEventContext.Provider>
+    )
+}
+interface TenantEventContextValues {
+    tenantId: string | null
+    eventId: string | null
+}
+
+export interface KeycloakProviderProps extends React.PropsWithChildren {
+    disable: boolean
+}
+
+const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) => {
+    const {tenantId, eventId} = useContext(TenantEventContext)
+    console.log(`KeycloakProvider: tenantId=${tenantId}, eventId=${eventId}`)
+
+    return disable ? (
+        <>{children}</>
+    ) : (
+        <AuthContextProvider>
+            <>{children}</>
+        </AuthContextProvider>
+    )
+}
+
+export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
+    const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
+    console.log(`RouteParameterProvider: tenantId=${tenantId}, eventId=${eventId}`)
+
+    return (
+        <TenantEventProvider
+            tenantId={tenantId ? tenantId : null}
+            eventId={eventId ? eventId : null}
+        >
+            {children}
+        </TenantEventProvider>
+    )
+}
+
+export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
+    const {globalSettings} = useContext(SettingsContext)
+    return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
+}
 
 root.render(
     <React.StrictMode>
         <SettingsWrapper>
-            <BrowserRouter>
-                <ThemeProvider theme={theme}>
-                    <App />
-                </ThemeProvider>
-            </BrowserRouter>
+            <KeycloakProviderContainer>
+                <BrowserRouter>
+                    <ThemeProvider theme={theme}>
+                        <App />
+                    </ThemeProvider>
+                </BrowserRouter>
+            </KeycloakProviderContainer>
         </SettingsWrapper>
     </React.StrictMode>
 )

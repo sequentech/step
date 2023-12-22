@@ -9,11 +9,14 @@ use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
+use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
+use std::path::PathBuf;
 use tracing::{event, instrument, Level};
+use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
 #[instrument(skip_all)]
@@ -134,32 +137,49 @@ async fn create_results_event(
 }
 
 #[instrument(skip_all)]
-pub async fn generate_results_if_necessary(
+pub async fn generate_results_id_if_necessary(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
     election_event_id: &str,
-    tally_status: &TallyCeremonyStatus,
+    session_ids_opt: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
-) -> Result<(Option<String>, bool)> {
-    let previous_status = get_tally_ceremony_status(previous_execution.status)?;
-    let previous_election_ids: Vec<String> = previous_status
-        .elections_status
-        .iter()
-        .filter(|status| TallyElectionStatus::SUCCESS == status.status)
-        .map(|status| status.election_id.clone())
-        .collect();
-    let current_election_ids: Vec<String> = tally_status
-        .elections_status
-        .iter()
-        .filter(|status| TallyElectionStatus::SUCCESS == status.status)
-        .map(|status| status.election_id.clone())
-        .collect();
-    let is_new = current_election_ids.len() > previous_election_ids.len();
-    if is_new {
-        let results_event_id =
-            create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
-        Ok((Some(results_event_id), is_new))
+) -> Result<Option<String>> {
+    let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
+    let session_ids = session_ids_opt.unwrap_or(vec![]);
+
+    if !(session_ids.len() > previous_session_ids.len()) {
+        return Ok(None);
+    }
+    let results_event_id =
+        create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
+    Ok(Some(results_event_id))
+}
+
+pub async fn populate_results_tables(
+    base_tally_path: PathBuf,
+    state: State,
+    tenant_id: &str,
+    election_event_id: &str,
+    session_ids: Option<Vec<i64>>,
+    previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+) -> Result<Option<String>> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    let results_event_id_opt = generate_results_id_if_necessary(
+        &auth_headers,
+        tenant_id,
+        election_event_id,
+        session_ids,
+        previous_execution.clone(),
+    )
+    .await?;
+
+    if let Some(results_event_id) = results_event_id_opt.clone() {
+        if let Ok(results) = state.get_results() {
+            save_results(results, tenant_id, election_event_id, &results_event_id).await?;
+        }
+        Ok(results_event_id_opt)
     } else {
-        Ok((previous_execution.results_event_id, is_new))
+        Ok(previous_execution.results_event_id)
     }
 }
