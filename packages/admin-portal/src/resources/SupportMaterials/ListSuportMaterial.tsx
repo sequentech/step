@@ -17,8 +17,8 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
-import {EditArea} from "./EditSuportMaterial"
-import {CreateArea} from "./CreateSupportMaterial"
+import {EditSupportMaterial} from "./EditSuportMaterial"
+import {CreateSupportMaterial} from "./CreateSupportMaterial"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
@@ -120,9 +120,17 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 actions={
                     <ListActions
                         withImport={false}
+                        withExport={false}
+                        withFilter={false}
+                        withColumns={false}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
+                        Component={
+                            <CreateSupportMaterial
+                                record={record}
+                                close={handleCloseCreateDrawer}
+                            />
+                        }
                     />
                 }
                 empty={false}
@@ -135,13 +143,13 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="name" />
-                    <TextField source="description" />
+                    <TextField source="title" />
+                    <TextField source="subtitle" />
 
-                    <FunctionField
+                    {/* <FunctionField
                         label={t("areas.sequent_backend_area_contest")}
                         render={(record: any) => <AreaContestItems record={record} />}
-                    />
+                    /> */}
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
@@ -156,7 +164,11 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
+                <EditSupportMaterial
+                    id={recordId}
+                    electionEventId={id}
+                    close={handleCloseEditDrawer}
+                />
             </Drawer>
             <Dialog
                 variant="warning"

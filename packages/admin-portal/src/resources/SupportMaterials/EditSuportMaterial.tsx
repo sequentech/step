@@ -28,7 +28,7 @@ interface EditAreaProps {
     close?: () => void
 }
 
-export const EditArea: React.FC<EditAreaProps> = (props) => {
+export const EditSupportMaterial: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
 
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
