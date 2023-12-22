@@ -257,6 +257,7 @@
       "security-admin-console" : [ ],
       "voting-portal" : [ ],
       "admin-cli" : [ ],
+      "onsite-voting-portal" : [ ],
       "account-console" : [ ],
       "broker" : [ {
         "id" : "72463bec-2632-4f45-93ec-018613e66c74",
@@ -370,7 +371,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
+  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -411,9 +412,9 @@
       "secretData" : "{\"value\":\"IWVbCXtJNqzMp2drtcsvG5neVc1DUsHMwmx2s1Ut8II=\",\"salt\":\"TcRqjCUDCiklXQZqTXQxjg==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
     }, {
-      "id" : "ab98f4f6-b753-4aaa-8af5-9fccb21b6581",
+      "id" : "21e6d6e8-e7c2-429c-843f-b6df53e0571c",
       "type" : "message-otp",
-      "createdDate" : 1702059751272,
+      "createdDate" : 1703255678759,
       "secretData" : "{\"nothing\":\"nothing\"}",
       "credentialData" : "{\"setup\":true}"
     } ],
@@ -566,6 +567,116 @@
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
   }, {
+    "id" : "4e90ee5a-e314-47b7-9e93-a69447c8ee99",
+    "clientId" : "onsite-voting-portal",
+    "name" : "${client_onsite-voting-portal}",
+    "description" : "",
+    "rootUrl" : "http://127.0.0.1:3003/",
+    "adminUrl" : "http://127.0.0.1:3003/",
+    "baseUrl" : "http://127.0.0.1:3003/",
+    "surrogateAuthRequired" : false,
+    "enabled" : true,
+    "alwaysDisplayInConsole" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "redirectUris" : [ "*" ],
+    "webOrigins" : [ "*" ],
+    "notBefore" : 0,
+    "bearerOnly" : false,
+    "consentRequired" : false,
+    "standardFlowEnabled" : true,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : true,
+    "serviceAccountsEnabled" : false,
+    "publicClient" : true,
+    "frontchannelLogout" : true,
+    "protocol" : "openid-connect",
+    "attributes" : {
+      "oidc.ciba.grant.enabled" : "false",
+      "backchannel.logout.session.required" : "true",
+      "login_theme" : "sequent",
+      "post.logout.redirect.uris" : "*",
+      "oauth2.device.authorization.grant.enabled" : "false",
+      "display.on.consent.screen" : "false",
+      "backchannel.logout.revoke.offline.tokens" : "false"
+    },
+    "authenticationFlowBindingOverrides" : { },
+    "fullScopeAllowed" : true,
+    "nodeReRegistrationTimeout" : -1,
+    "protocolMappers" : [ {
+      "id" : "231390d8-0f29-437e-972d-e7a06929e149",
+      "name" : "x-hasura-allowed-roles",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-realm-role-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "multivalued" : "true",
+        "userinfo.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "4620d5bf-1de6-494a-8f96-8e6369dcc91b",
+      "name" : "x-hasura-tenant-id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-attribute-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "tenant-id",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "0ace4e7e-4c0e-463c-b1dd-c666f842b8d6",
+      "name" : "x-hasura-default-role",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.value" : "user",
+        "userinfo.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-default-role",
+        "jsonType.label" : "String",
+        "access.tokenResponse.claim" : "false"
+      }
+    }, {
+      "id" : "0a6fdd55-a16a-47de-b4da-6aaf72de3097",
+      "name" : "x-hasura-user-id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-property-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "id",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "263bbb5b-ae1e-4d0e-87fa-92bfabcdd913",
+      "name" : "x-hasura-area-id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-attribute-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "area-id",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-area-id",
+        "jsonType.label" : "String"
+      }
+    } ],
+    "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
+    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+  }, {
     "id" : "0ffb2d0c-ad6e-4351-83f5-53278059116c",
     "clientId" : "realm-management",
     "name" : "${client_realm-management}",
@@ -642,7 +753,7 @@
   }, {
     "id" : "cb6b40d8-6c21-4b9e-ad88-eb98825ecdc9",
     "clientId" : "voting-portal",
-    "name" : "",
+    "name" : "${client_voting-portal}",
     "description" : "",
     "rootUrl" : "http://127.0.0.1:3000/",
     "adminUrl" : "http://127.0.0.1:3000/",
@@ -666,6 +777,7 @@
     "attributes" : {
       "oidc.ciba.grant.enabled" : "false",
       "backchannel.logout.session.required" : "true",
+      "login_theme" : "sequent",
       "post.logout.redirect.uris" : "*",
       "display.on.consent.screen" : "false",
       "oauth2.device.authorization.grant.enabled" : "false",
@@ -1244,7 +1356,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "oidc-address-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "saml-user-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper" ]
       }
     }, {
       "id" : "a26aaeed-f109-40ab-ada2-c2cec32986bf",
@@ -1278,7 +1390,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "oidc-usermodel-attribute-mapper", "oidc-address-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-usermodel-property-mapper", "oidc-address-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper" ]
       }
     }, {
       "id" : "0d7794fa-2e22-499b-8aa6-7fde4d9c446d",
