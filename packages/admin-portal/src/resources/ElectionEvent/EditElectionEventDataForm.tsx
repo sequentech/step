@@ -221,12 +221,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <div style={{marginTop: "16px"}}>
                             <TextInput
                                 disabled={!canEdit}
-                                source={`presentation.i18n[${lang}].materials.title`}
+                                source={`presentation.i18n[${lang}].materialsTitle`}
                                 label={t("electionEventScreen.field.materialTitle")}
                             />
                             <TextInput
                                 disabled={!canEdit}
-                                source={`presentation.i18n[${lang}].materials.subtitle`}
+                                source={`presentation.i18n[${lang}].materialsSubtitle`}
                                 label={t("electionEventScreen.field.materialSubTitle")}
                             />
                         </div>

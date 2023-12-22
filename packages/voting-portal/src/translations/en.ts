@@ -143,6 +143,12 @@ const englishTranslation = {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
             },
         },
+        materials: {
+            common: {
+                label: "Support Materials",
+                back: "Back to Election List",
+            }
+        }
     },
 }
 

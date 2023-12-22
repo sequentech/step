@@ -13,6 +13,7 @@ import {
     isString,
     stringToHtml,
     theme,
+    translate,
     translateElection,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -32,6 +33,7 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 
 const StyledTitle = styled(Typography)`
@@ -178,10 +180,8 @@ const convertToElection = (input: IElectionDTO): IElection => ({
     tenant_id: input.id,
 })
 
-export const ElectionSelectionScreen: React.FC = () => {
+export const SupportMaterialsScreen: React.FC = () => {
     const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
-    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
-
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
         loading: loadingElections,
@@ -234,6 +234,10 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [loading, error, data, dispatch])
 
     useEffect(() => {
+        console.log("i18n.language", i18n.language)
+    }, [i18n.language])
+
+    useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             setElectionIds(ELECTIONS_LIST.map((election) => election.id))
         }
@@ -244,17 +248,20 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     }, [])
 
+    const [materialsTitles, setMaterialsTitles] = useState<any>({})
+
     useEffect(() => {
         if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            setIsMaterialsActivated(
-                dataElectionEvent?.sequent_backend_election_event?.[0]?.presentation?.materials
-                    ?.activated || false
+            console.log(
+                "dataElectionEvent",
+                dataElectionEvent?.sequent_backend_election_event?.[0]?.presentation
             )
+            setMaterialsTitles(dataElectionEvent?.sequent_backend_election_event?.[0])
         }
     }, [dataElectionEvent])
 
     const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
 
     return (
@@ -281,30 +288,19 @@ export const ElectionSelectionScreen: React.FC = () => {
             >
                 <Box>
                     <StyledTitle variant="h1">
-                        <Box>{t("electionSelectionScreen.title")}</Box>
-                        <IconButton
-                            icon={faCircleQuestion}
-                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                            fontSize="16px"
-                            onClick={() => setOpenChooserHelp(true)}
-                        />
-                        <Dialog
-                            handleClose={() => setOpenChooserHelp(false)}
-                            open={openChooserHelp}
-                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
-                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
-                            variant="info"
-                        >
-                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                        </Dialog>
+                        <Box>
+                            {translateElection(materialsTitles, "materialsTitle", i18n.language)}
+                        </Box>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {stringToHtml(t("electionSelectionScreen.description"))}
+                        {stringToHtml(
+                            translateElection(materialsTitles, "materialsSubtitle", i18n.language)
+                        )}
                     </Typography>
                 </Box>
-                {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
-                ) : null}
+                <Button startIcon={<ChevronLeftIcon />} onClick={handleNavigateMaterials}>
+                    {t("materials.common.back")}
+                </Button>
             </Box>
             <ElectionContainer>
                 {electionIds.map((electionId) => (
