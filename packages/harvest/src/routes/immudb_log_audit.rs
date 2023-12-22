@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,8 +7,8 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
+use immu_board::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use regex::Regex;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
@@ -18,30 +19,27 @@ use strum_macros::{Display, EnumString, ToString};
 use tracing::instrument;
 use windmill::services::database::PgConfig;
 
+#[instrument(err)]
+pub async fn get_immudb_client() -> Result<Client> {
+    let username =
+        env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password =
+        env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL")
+        .context("IMMUDB_SERVER_URL must be set")?;
+
+    let mut client = Client::new(&server_url, &username, &password).await?;
+    client.login().await?;
+
+    Ok(client)
+}
+
 // Helper function to create a NamedParam
-fn create_named_param(name: String, value: Value) -> NamedParam {
+pub fn create_named_param(name: String, value: Value) -> NamedParam {
     NamedParam {
         name,
         value: Some(SqlValue { value: Some(value) }),
     }
-}
-
-macro_rules! assign_value {
-    ($enum_variant:path, $value:expr, $target:ident) => {
-        match $value.value.as_ref() {
-            Some($enum_variant(inner)) => {
-                $target = inner.clone();
-            }
-            _ => {
-                return Err(
-                    anyhow!(
-                        r#"invalid column value for `$enum_variant`, `$value`, 
-                        `$target`"#
-                    )
-                );
-            }
-        }
-    };
 }
 
 // Enumeration for the valid fields in the immudb table
@@ -89,7 +87,6 @@ impl GetPgauditBody {
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
-        let invalid_chars_re = Regex::new(r"['-/]")?;
 
         // Handle filters
         if let Some(filters_map) = &self.filter {
@@ -108,13 +105,11 @@ impl GetPgauditBody {
                     }
                     OrderField::ServerTimestamp => {} // Not supported
                     _ => {
-                        let sanitized_value =
-                            invalid_chars_re.replace_all(value, "");
                         where_clauses
                             .push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(
                             param_name,
-                            Value::S(sanitized_value.to_string()),
+                            Value::S(value.to_string()),
                         ));
                     }
                 }
@@ -246,37 +241,14 @@ impl TryFrom<&Row> for PgAuditRow {
     }
 }
 
-impl TryFrom<&Row> for Aggregate {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut count = 0;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
-            }
-        }
-        Ok(Aggregate { count })
-    }
-}
-
 #[instrument]
 #[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
 pub async fn list_pgaudit(
     body: Json<GetPgauditBody>,
     auth_headers: connection::AuthHeaders,
 ) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
-    let server_url = env::var("IMMUDB_SERVER_URL")
-        .context("IMMUDB_SERVER_URL env var not set")?;
-    let username =
-        env::var("IMMUDB_USER").context("IMMUDB_USER env var not set")?;
-    let password = env::var("IMMUDB_PASSWORD")
-        .context("IMMUDB_PASSWORD env var not set")?;
     let input = body.into_inner();
-
-    let mut client = Client::new(&server_url, &username, &password).await?;
-    client.login().await?;
+    let mut client = get_immudb_client().await?;
 
     client.open_session(&input.election_event_id).await?;
     let (clauses, params) = input.as_sql(false)?;

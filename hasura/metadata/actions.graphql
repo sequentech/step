@@ -178,6 +178,17 @@ type Query {
 }
 
 type Query {
+  listElectoralLog (
+    limit: Int
+    offset: Int
+    election_event_id: String
+    filter: ElectoralLogFilter 
+    order_by: ElectoralLogOrderBy
+  ): DataListElectoralLog
+}
+
+
+type Query {
   list_user_roles (
     tenant_id: String!
     user_id: String!
@@ -273,6 +284,18 @@ input PgAuditOrderBy {
   session_id : OrderDirection
   statement : OrderDirection
   user : OrderDirection
+}
+
+input ElectoralLogFilter {
+  id : String
+  StatementKind : String
+}
+
+input ElectoralLogOrderBy {
+  id : OrderDirection
+  created : OrderDirection
+  statement_timestamp : OrderDirection
+  statement_kind : OrderDirection
 }
 
 input SampleInput {
@@ -473,6 +496,19 @@ type DataListPgAudit {
 
 type TotalAggregate {
   aggregate : Aggregate!
+}
+
+type ElectoralLogRow {
+  id : Int!
+  created : Int!
+  statement_timestamp : Int!
+  statement_kind : String!
+  message: String!
+}
+
+type DataListElectoralLog {
+  items : [ElectoralLogRow]!
+  total : TotalAggregate!
 }
 
 type ScheduledEventOutput2 {

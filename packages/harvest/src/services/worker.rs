@@ -3,19 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::routes::scheduled_event;
-use crate::services::authorization::authorize;
 use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::{anyhow, Result};
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::create_keys;
 use windmill::tasks::render_report;
 use windmill::tasks::send_communication::*;
 use windmill::tasks::set_public_key::*;
-use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 

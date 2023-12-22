@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use log::info;
 use tracing::{event, instrument, Level};
 
+use crate::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 
@@ -40,24 +41,6 @@ pub struct Board {
     pub id: i64,
     pub database_name: String,
     pub is_archived: bool,
-}
-
-macro_rules! assign_value {
-    ($enum_variant:path, $value:expr, $target:ident) => {
-        match $value.value.as_ref() {
-            Some($enum_variant(inner)) => {
-                $target = inner.clone();
-            }
-            _ => {
-                return Err(
-                    anyhow!(
-                        r#"invalid column value for `$enum_variant`, `$value`, 
-                        `$target`"#
-                    )
-                );
-            }
-        }
-    };
 }
 
 impl TryFrom<&Row> for BoardMessage {
