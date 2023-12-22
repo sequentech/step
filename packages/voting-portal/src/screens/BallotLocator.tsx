@@ -66,16 +66,17 @@ export default function BallotLocator() {
             <PageLimit maxWidth="lg">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
-                        labels={[
-                            "ballotLocator.steps.lookup",
-                            "ballotLocator.steps.result",
-                        ]}
+                        labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
                         selected={2}
                     />
                 </Box>
 
                 <StyledTitle variant="h1">
-                    <Box>{t("ballotLocator.title")}</Box>
+                    {!hasBallotId ? (
+                        <Box>{t("ballotLocator.title")}</Box>
+                    ) : (
+                        <Box>{t("ballotLocator.titleResult")}</Box>
+                    )}
                 </StyledTitle>
 
                 <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>

@@ -148,7 +148,8 @@ const spanishTranslation: TranslationType = {
         },
         ballotLocator: {
             title: "Localiza tu Voto",
-            description: "Ingresa tu ID de Voto aquí para localizarla",
+            titleResult: "Resultado de la búsqueda de tu Boleta",
+            description: "Verify that your Voto has been correctly emitted",
             locate: "Localiza tu Voto",
             locateAgain: "Localiza otra Voto",
             found: "Tu ID de voto {{ballotId}} ha sido localizada",

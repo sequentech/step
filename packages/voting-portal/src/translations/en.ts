@@ -145,7 +145,8 @@ const englishTranslation = {
         },
         ballotLocator: {
             title: "Locate your Ballot",
-            description: "Put your Ballot ID here to locate it",
+            titleResult: "Result of your Ballot lookup",
+            description: "Verify that your Ballot has been correctly emitted",
             locate: "Locate your Ballot",
             locateAgain: "Locate another Ballot",
             found: "Your ballot ID {{ballotId}} has been located",
