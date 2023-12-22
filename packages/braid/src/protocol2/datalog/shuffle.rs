@@ -68,7 +68,7 @@ crepe! {
     // Previous mix must have been signed by all selected trustees before next mix
     MixNumberSignedUpTo(cfg_h, batch, mix_number, threshold - 1),
     !Mix(cfg_h, batch, ciphertexts_h, _, mix_number + 1, self_p),
-    // If mix_number == threshold, there is no next mix. 
+    // If mix_number == threshold, there is no next mix.
     // (This check must be performed first to avoid index out of bounds below)
     (mix_number < threshold),
     // Detects that we (self_p) are the trustee assigned to perform the next mix

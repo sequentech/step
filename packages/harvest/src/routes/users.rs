@@ -14,6 +14,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
 use tracing::instrument;
 use windmill::services::database::get_database_pool;
 use windmill::services::users::list_users;
@@ -216,7 +217,7 @@ pub async fn create_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+    let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
@@ -225,8 +226,21 @@ pub async fn create_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let (attributes, groups) = if input.election_event_id.is_some() {
+        let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        (
+            Some(HashMap::from([(
+                TENANT_ID_ATTR_NAME.to_string(),
+                serde_json::to_value(input.tenant_id.clone()).unwrap(),
+            )])),
+            Some(vec![voter_group_name]),
+        )
+    } else {
+        (None, None)
+    };
     let user = client
-        .create_user(&realm, &input.user)
+        .create_user(&realm, &input.user, attributes, groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 

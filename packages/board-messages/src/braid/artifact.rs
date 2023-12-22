@@ -150,9 +150,7 @@ impl<C: Ctx> Mix<C> {
             mix_number,
         }
     }
-    pub fn null(
-        mix_number: MixNumber,
-    ) -> Mix<C> {
+    pub fn null(mix_number: MixNumber) -> Mix<C> {
         Mix {
             ciphertexts: StrandVectorC(vec![]),
             proof: None,
