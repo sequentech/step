@@ -8,8 +8,8 @@ extern crate rocket;
 use dotenv::dotenv;
 use sequent_core::services::probe::ProbeHandler;
 use sequent_core::util::init_log::init_log;
-use tracing::warn;
 use std::net::SocketAddr;
+use tracing::warn;
 
 mod pdf;
 mod routes;
@@ -20,7 +20,7 @@ mod types;
 async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
-    
+
     setup_probe();
 
     rocket::build()
@@ -74,9 +74,12 @@ async fn rocket() -> _ {
 }
 
 fn setup_probe() {
-    let addr_s = std::env::var("HARVEST_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
-    let live_path = std::env::var("HARVEST_PROBE_LIVE_PATH").unwrap_or("live".to_string());
-    let ready_path = std::env::var("HARVEST_PROBE_READY_PATH").unwrap_or("ready".to_string());
+    let addr_s = std::env::var("HARVEST_PROBE_ADDR")
+        .unwrap_or("0.0.0.0:3030".to_string());
+    let live_path =
+        std::env::var("HARVEST_PROBE_LIVE_PATH").unwrap_or("live".to_string());
+    let ready_path = std::env::var("HARVEST_PROBE_READY_PATH")
+        .unwrap_or("ready".to_string());
 
     let addr: Result<SocketAddr, _> = addr_s.parse();
 
@@ -85,8 +88,7 @@ fn setup_probe() {
         let f = ph.future();
         ph.set_live(move || true);
         tokio::spawn(f);
-    }
-    else {
+    } else {
         warn!("Could not parse address for probe '{}'", addr_s);
     }
 }

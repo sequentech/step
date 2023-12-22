@@ -85,8 +85,7 @@ fn setup_probe() {
         let f = ph.future();
         ph.set_live(move || true);
         tokio::spawn(f);
-    }
-    else {
+    } else {
         tracing::warn!("Could not parse address for probe '{}'", addr_s);
     }
 }
