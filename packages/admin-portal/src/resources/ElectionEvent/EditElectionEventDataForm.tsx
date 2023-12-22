@@ -222,12 +222,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <TextInput
                                 disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].materials.title`}
-                                label={t("electionEventScreen.field.title")}
+                                label={t("electionEventScreen.field.materialTitle")}
                             />
                             <TextInput
                                 disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].materials.subTitle`}
-                                label={t("electionEventScreen.field.subTitle")}
+                                label={t("electionEventScreen.field.materialSubTitle")}
                             />
                         </div>
                     </CustomTabPanel>

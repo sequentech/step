@@ -201,6 +201,8 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
                 materialActivated: "Materiales de Soporte activados",
+                materialTitle: "Titulo",
+                materialSubTitle: "Subtitulo",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",

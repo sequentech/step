@@ -199,6 +199,8 @@ const englishTranslation = {
                 language: "Language",
                 votingChannels: "Voting Channels",
                 materialActivated: "Support Materials Activated",
+                materialTitle: "Title",
+                materialSubTitle: "Subtitle",
             },
             error: {
                 endDate: "End date must be after start date",
