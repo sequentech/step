@@ -110,7 +110,7 @@ select_permissions:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
       - voter_id_string:
-          _eq: X-Hasura-User_id
+          _eq: X-Hasura-User-Id
   role: user
 delete_permissions:
 - comment: ""

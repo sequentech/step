@@ -32,6 +32,7 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import { GET_CAST_VOTES } from "../queries/GetCastVotes"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -189,6 +190,7 @@ export const ElectionSelectionScreen: React.FC = () => {
             electionIds: ballotStyleElectionIds,
         },
     })
+    const {data: castVotes} = useQuery<GetElectionsQuery>(GET_CAST_VOTES)
     const dispatch = useAppDispatch()
     const {globalSettings} = useContext(SettingsContext)
     const {t, i18n} = useTranslation()
