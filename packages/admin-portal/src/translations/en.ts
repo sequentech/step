@@ -188,6 +188,7 @@ const englishTranslation = {
                 dates: "Dates",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
+                materials: "Support Materials",
             },
             field: {
                 name: "Name",
@@ -197,6 +198,7 @@ const englishTranslation = {
                 endDateTime: "End Date and Time",
                 language: "Language",
                 votingChannels: "Voting Channels",
+                materialActivated: "Support Materials Activated",
             },
             error: {
                 endDate: "End date must be after start date",

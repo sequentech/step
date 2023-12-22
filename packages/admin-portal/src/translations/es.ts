@@ -190,6 +190,7 @@ const spanishTranslation: TranslationType = {
                 dates: "Fechas",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
+                materials: "Materiales de Soporte",
             },
             field: {
                 name: "Nombre",
@@ -199,6 +200,7 @@ const spanishTranslation: TranslationType = {
                 endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
+                materialActivated: "Materiales de Soporte activados",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
