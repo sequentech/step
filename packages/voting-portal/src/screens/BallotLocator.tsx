@@ -28,24 +28,38 @@ const StyledTitle = styled(Typography)`
 `
 
 const StyledError = styled(Typography)`
+    position: absolute;
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
 `
 
-const StyleParagraphSuccess = styled(Typography)`
-    margin-top: 16px;
-    padding: 8px 16px;
+const MessageSuccess = styled(Box)`
+    display: flex;
+    padding: 10px 22px;
+    color: ${({theme}) => theme.palette.green.dark};
     background-color: ${({theme}) => theme.palette.green.light};
+    gap: 8px;
+    border-radius: 4px;
+    border: 1px solid ${({theme}) => theme.palette.green.dark};
+    align-items: center;
+    margin-right: auto;
+    margin-left: auto;
 `
 
-const StyleParagraphDanger = styled(Typography)`
-    margin-top: 16px;
-    padding: 8px 16px;
+const MessageFailed = styled(Box)`
+    display: flex;
+    padding: 10px 22px;
+    color: ${({theme}) => theme.palette.red.dark};
     background-color: ${({theme}) => theme.palette.red.light};
+    gap: 8px;
+    border-radius: 4px;
+    border: 1px solid ${({theme}) => theme.palette.red.dark};
+    align-items: center;
+    margin-right: auto;
+    margin-left: auto;
 `
 
 function isHex(str: string) {
-    console.log("LS -> src/screens/BallotLocator.tsx:47 -> str: ", str)
     if (str.trim() === "") {
         return true
     }
@@ -125,13 +139,9 @@ export default function BallotLocator() {
                 {hasBallotId && !loading && (
                     <Box>
                         {hasBallotId && !!ballotContent ? (
-                            <StyleParagraphSuccess>
-                                {t("ballotLocator.found", {ballotId})}
-                            </StyleParagraphSuccess>
+                            <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
                         ) : (
-                            <StyleParagraphDanger>
-                                {t("ballotLocator.notFound", {ballotId})}
-                            </StyleParagraphDanger>
+                            <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
                         )}
                     </Box>
                 )}
