@@ -24,13 +24,13 @@ const StyledTitle = styled(Typography)`
 `
 
 const StyleParagraphSuccess = styled(Typography)`
-    margin-top: 25.5px;
+    margin-top: 16px;
     padding: 8px 16px;
     background-color: ${({theme}) => theme.palette.green.light};
 `
 
 const StyleParagraphDanger = styled(Typography)`
-    margin-top: 25.5px;
+    margin-top: 16px;
     padding: 8px 16px;
     background-color: ${({theme}) => theme.palette.red.light};
 `
@@ -60,6 +60,10 @@ export default function BallotLocator() {
             ballotId,
         },
     })
+
+    const ballotContent =
+        data?.["sequent_backend_cast_vote"]?.find((item: any) => item.ballot_id === ballotId)
+            ?.content ?? null
 
     return (
         <>
@@ -103,10 +107,7 @@ export default function BallotLocator() {
 
                 {hasBallotId && !loading && (
                     <Box>
-                        {data &&
-                        data["sequent_backend_cast_vote"]
-                            .map((item: any) => item.ballot_id)
-                            .some((id: string) => id === ballotId) ? (
+                        {hasBallotId && !!ballotContent ? (
                             <StyleParagraphSuccess>
                                 {t("ballotLocator.found", {ballotId})}
                             </StyleParagraphSuccess>
@@ -130,12 +131,25 @@ export default function BallotLocator() {
                             label="Ballot ID"
                             placeholder={t("ballotLocator.description")}
                         />
-                        <Button className="normal" onClick={() => locate(true)}>
-                            <span>{t("ballotLocator.locate")}</span>
-                        </Button>
                     </>
                 )}
-                {hasBallotId && (
+
+                <Box sx={{height: "250px"}}>
+                    {hasBallotId && ballotContent && (
+                        <>
+                            <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                            <Box sx={{wordWrap: "break-word", fontFamily: "monospace"}}>
+                                {ballotContent}
+                            </Box>
+                        </>
+                    )}
+                </Box>
+
+                {!hasBallotId ? (
+                    <Button className="normal" onClick={() => locate(true)}>
+                        <span>{t("ballotLocator.locate")}</span>
+                    </Button>
+                ) : (
                     <>
                         <Button className="normal" onClick={() => locate()}>
                             <span>{t("ballotLocator.locateAgain")}</span>

@@ -154,6 +154,7 @@ const spanishTranslation: TranslationType = {
             locateAgain: "Localiza otra Voto",
             found: "Tu ID de voto {{ballotId}} ha sido localizada",
             notFound: "Tu ID de voto {{ballotId}} no ha sido localizada",
+            contentDesc: "Este es el contenido de tu Voto: ",
             steps: {
                 lookup: "Localiza tu Voto",
                 result: "Result",
