@@ -11,6 +11,10 @@ import {Link, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
 
+const StyledLink = styled(Link)`
+    text-decoration: none;
+`
+
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
     display: flex;
@@ -93,11 +97,11 @@ export default function BallotLocator() {
                         </Typography>
                     </Box>
                     <Box sx={{marginTop: "20px"}}>
-                        <Link to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
+                        <StyledLink to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
                             <Button variant="secondary" className="secondary">
                                 {t("votingScreen.backButton")}
                             </Button>
-                        </Link>
+                        </StyledLink>
                     </Box>
                 </Box>
 
