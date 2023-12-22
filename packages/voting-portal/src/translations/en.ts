@@ -152,6 +152,7 @@ const englishTranslation = {
             found: "Your ballot ID {{ballotId}} has been located",
             notFound: "Your ballot ID {{ballotId}} has not been located",
             contentDesc: "This is your Ballot content: ",
+            wrongFormatBallotId: "Wrong format for Ballot ID",
             steps: {
                 lookup: "Locate your Ballot",
                 result: "Result",

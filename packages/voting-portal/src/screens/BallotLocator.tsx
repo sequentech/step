@@ -27,6 +27,11 @@ const StyledTitle = styled(Typography)`
     margin-bottom: 16px;
 `
 
+const StyledError = styled(Typography)`
+    margin-top: -12px;
+    color: ${({theme}) => theme.palette.red.main};
+`
+
 const StyleParagraphSuccess = styled(Typography)`
     margin-top: 16px;
     padding: 8px 16px;
@@ -131,6 +136,7 @@ export default function BallotLocator() {
                             label="Ballot ID"
                             placeholder={t("ballotLocator.description")}
                         />
+                        <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
                     </>
                 )}
 
