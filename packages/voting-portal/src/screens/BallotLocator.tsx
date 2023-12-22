@@ -44,20 +44,22 @@ const StyleParagraphDanger = styled(Typography)`
     background-color: ${({theme}) => theme.palette.red.light};
 `
 
+function isHex(str: string) {
+    console.log("LS -> src/screens/BallotLocator.tsx:47 -> str: ", str)
+    if (str.trim() === "") {
+        return true
+    }
+
+    const regex = /^[0-9a-fA-F]+$/
+    return regex.test(str)
+}
+
 export default function BallotLocator() {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const navigate = useNavigate()
     const {t} = useTranslation()
 
     const [inputBallotId, setInputBallotId] = useState<string>("")
-
-    function locate(withBallotId = false) {
-        let id = withBallotId ? inputBallotId : ""
-
-        setInputBallotId("")
-
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
-    }
 
     const hasBallotId = !!ballotId
 
@@ -70,9 +72,19 @@ export default function BallotLocator() {
         },
     })
 
+    const validatedBallotId = isHex(inputBallotId ?? "")
+
     const ballotContent =
         data?.["sequent_backend_cast_vote"]?.find((item: any) => item.ballot_id === ballotId)
             ?.content ?? null
+
+    function locate(withBallotId = false) {
+        let id = withBallotId ? inputBallotId : ""
+
+        setInputBallotId("")
+
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
+    }
 
     return (
         <>
@@ -136,7 +148,9 @@ export default function BallotLocator() {
                             label="Ballot ID"
                             placeholder={t("ballotLocator.description")}
                         />
-                        <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                        {!validatedBallotId && (
+                            <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                        )}
                     </>
                 )}
 
@@ -152,7 +166,11 @@ export default function BallotLocator() {
                 </Box>
 
                 {!hasBallotId ? (
-                    <Button className="normal" onClick={() => locate(true)}>
+                    <Button
+                        disabled={!validatedBallotId || inputBallotId.trim() === ""}
+                        className="normal"
+                        onClick={() => locate(true)}
+                    >
                         <span>{t("ballotLocator.locate")}</span>
                     </Button>
                 ) : (
