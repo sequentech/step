@@ -381,6 +381,29 @@ actions:
   - role: immudb:log:read
   - role: admin-user
   comment: List PostgreSQL audit logs
+- name: listElectoralLog
+  definition:
+    kind: ""
+    handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: |-
+          {
+            "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
+            "election_event_id": {{ $body.input?.election_event_id }},
+            "limit": {{$body.input?.limit}},
+            "offset": {{$body.input?.offset}},
+            "filter": {{$body.input?.filter}},
+            "order_by": {{$body.input?.order_by}}
+          }
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: immudb:log:read
+  - role: admin-user
+  comment: List Electoral Log
 - name: list_user_roles
   definition:
     kind: ""
@@ -512,6 +535,8 @@ custom_types:
   - name: TemplateInput
   - name: PgAuditFilter
   - name: PgAuditOrderBy
+  - name: ElectoralLogFilter
+  - name: ElectoralLogOrderBy
   - name: SampleInput
   - name: CreateElectionEventInput
   - name: GetUsersInput
