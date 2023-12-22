@@ -136,10 +136,13 @@ pub(crate) fn sign_mix<C: Ctx>(
         assert_eq!(mix.ciphertexts.0.len(), 0);
         assert!(mix.proof.is_none());
         let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
-        return Ok(vec![m])
+        return Ok(vec![m]);
     }
-    assert!(mix.proof.is_some(), "Mix cannot be null if there are source ciphertexts");
-    
+    assert!(
+        mix.proof.is_some(),
+        "Mix cannot be null if there are source ciphertexts"
+    );
+
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
         .with_context(|| "Could not retrieve public key for mixing")?;
@@ -150,7 +153,12 @@ pub(crate) fn sign_mix<C: Ctx>(
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
-    let ok = shuffler.check_proof(&mix.proof.expect("Should not be a null mix"), &source_cs.0, &mix.ciphertexts.0, &label)?;
+    let ok = shuffler.check_proof(
+        &mix.proof.expect("Should not be a null mix"),
+        &source_cs.0,
+        &mix.ciphertexts.0,
+        &label,
+    )?;
     info!(
         "SignMix verifying shuffle [{}] => [{}] ok = {}",
         dbg_hash(&source_h.0),
