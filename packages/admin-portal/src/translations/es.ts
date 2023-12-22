@@ -886,8 +886,10 @@ const spanishTranslation: TranslationType = {
             },
         },
         materials: {
-            createMaterialSuccess: "Material de soporte creada",
+            createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Error creando material de soporte",
+            updateMaterialSuccess: "Material de soporte actualizado",
+            updateMaterialError: "Error actualizando material de soporte",
             common: {
                 title: "Materiales de Soporte",
                 subtitle: "Entrar datos del material de soporte.",

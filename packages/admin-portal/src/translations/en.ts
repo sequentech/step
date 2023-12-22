@@ -886,6 +886,8 @@ const englishTranslation = {
         materials: {
             createMaterialSuccess: "Support material created",
             createMaterialError: "Error creating support material",
+            updateMaterialSuccess: "Support material updated",
+            updateMaterialError: "Error updating support material",
             common: {
                 title: "Support Material",
                 subtitle: "Enter suppot material data.",

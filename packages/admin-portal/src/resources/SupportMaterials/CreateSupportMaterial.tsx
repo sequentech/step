@@ -29,7 +29,7 @@ import {
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 
-interface CreateAreaProps {
+interface CreateSupportMaterialProps {
     record: any
     close?: () => void
 }
@@ -49,7 +49,7 @@ const Hidden = styled(Box)`
     display: none;
 `
 
-export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
+export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (props) => {
     const {record, close} = props
     const refresh = useRefresh()
     const notify = useNotify()
@@ -175,8 +175,6 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
 
                     setImageId(data.get_upload_url.document_id)
 
-                    refetchImage()
-                    refresh()
                 } catch (e) {
                     console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})
@@ -189,9 +187,6 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
     }
 
     const transform = (data: any) => {
-        console.log("transform", data)
-        console.log("values", valueMaterials)
-        console.log("imageType", imageType)
         data.data = {...valueMaterials}
         data.kind = imageType
         return data
@@ -199,13 +194,12 @@ export const CreateSupportMaterial: React.FC<CreateAreaProps> = (props) => {
 
     const formValidator = (values: any): any => {
         const errors: {[key: string]: string} = {}
-        if (!values?.data?.title_i18n?.en) {
+        if (!valueMaterials.title_i18n.en) {
             errors.data = t("materials.error.title")
         }
         if (!imageId) {
             errors.document_id = t("materials.error.document")
         }
-        console.log("errors", errors)
         return errors
     }
 
