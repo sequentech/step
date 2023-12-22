@@ -22,7 +22,7 @@ import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSl
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVotesQuery, GetElectionsQuery} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
@@ -33,6 +33,7 @@ import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import { GET_CAST_VOTES } from "../queries/GetCastVotes"
+import { addCastVotes } from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -190,7 +191,7 @@ export const ElectionSelectionScreen: React.FC = () => {
             electionIds: ballotStyleElectionIds,
         },
     })
-    const {data: castVotes} = useQuery<GetElectionsQuery>(GET_CAST_VOTES)
+    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
     const dispatch = useAppDispatch()
     const {globalSettings} = useContext(SettingsContext)
     const {t, i18n} = useTranslation()
@@ -218,6 +219,13 @@ export const ElectionSelectionScreen: React.FC = () => {
             setBallotStyleElectionIds(electionIds)
         }
     }, [loading, error, data, dispatch])
+
+    useEffect(() => {
+        if (!castVotes?.sequent_backend_cast_vote) {
+            return
+        }
+        dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
+    }, [castVotes, dispatch])
 
     useEffect(() => {
         console.log("i18n.language", i18n.language)
