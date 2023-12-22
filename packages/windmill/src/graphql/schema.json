@@ -78475,6 +78475,18 @@
             "deprecationReason": null
           },
           {
+            "name": "document_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -78838,6 +78850,16 @@
             "defaultValue": null
           },
           {
+            "name": "document_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -79103,6 +79125,16 @@
             "defaultValue": null
           },
           {
+            "name": "document_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -79179,6 +79211,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "document_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -79262,6 +79306,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "document_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -79478,6 +79534,16 @@
             "defaultValue": null
           },
           {
+            "name": "document_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -79663,6 +79729,12 @@
             "deprecationReason": null
           },
           {
+            "name": "document_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": "column name",
             "isDeprecated": false,
@@ -79733,6 +79805,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "document_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -79874,6 +79956,16 @@
             "defaultValue": null
           },
           {
+            "name": "document_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -79960,6 +80052,12 @@
           },
           {
             "name": "data",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "document_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
