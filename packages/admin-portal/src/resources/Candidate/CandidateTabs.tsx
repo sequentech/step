@@ -17,7 +17,6 @@ export const CandidateTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label="Data">
                     <EditCandidateData />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
     )

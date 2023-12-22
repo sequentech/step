@@ -35,7 +35,6 @@ export const ElectionTabs: React.FC = () => {
                         type={EPublishType.Election}
                     />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label={t("electionScreen.tabs.logs")}>a</TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
     )
