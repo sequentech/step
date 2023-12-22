@@ -44,7 +44,7 @@ export interface ListAreaProps {
 }
 
 export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {id} = useParams()
     const refresh = useRefresh()
 
@@ -115,8 +115,7 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
     return (
         <>
             <List
-                // resource="sequent_backend_support_material"
-                resource="sequent_backend_area"
+                resource="sequent_backend_support_material"
                 actions={
                     <ListActions
                         withImport={false}
@@ -143,8 +142,8 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="title" />
-                    <TextField source="subtitle" />
+                    <TextField source={`data.title_i18n[${i18n.language}]`} label={t("common.label.title")} />
+                    <TextField source={`data.subtitle_i18n[${i18n.language}]`} label={t("common.label.subtitle")} />
 
                     {/* <FunctionField
                         label={t("areas.sequent_backend_area_contest")}

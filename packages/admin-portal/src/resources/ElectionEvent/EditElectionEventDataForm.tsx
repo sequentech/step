@@ -217,7 +217,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
                 tabNodes.push(
-                    <CustomTabPanel key={lang} value={value} index={index}>
+                    <CustomTabPanel key={lang} value={valueMaterials} index={index}>
                         <div style={{marginTop: "16px"}}>
                             <TextInput
                                 disabled={!canEdit}
@@ -226,7 +226,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             />
                             <TextInput
                                 disabled={!canEdit}
-                                source={`presentation.i18n[${lang}].materials.subTitle`}
+                                source={`presentation.i18n[${lang}].materials.subtitle`}
                                 label={t("electionEventScreen.field.materialSubTitle")}
                             />
                         </div>

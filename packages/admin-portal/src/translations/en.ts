@@ -516,6 +516,8 @@ const englishTranslation = {
                 exportFormat: "Export '{{item}}' results in {{format}} format",
                 allResults: "election event",
                 globalAreaResults: "all areas",
+                title: "Title",
+                subtitle: "Subtitle",
             },
             language: {
                 es: "Spanish",
@@ -880,6 +882,18 @@ const englishTranslation = {
             email: {
                 subject: "Subject",
             },
+        },
+        materials: {
+            createMaterialSuccess: "Support material created",
+            createMaterialError: "Error creating support material",
+            common: {
+                title: "Support Material",
+                subtitle: "Enter suppot material data.",
+            },
+            error: {
+                title: "Title is required",
+                document: "Document is required",
+            }
         },
     },
 }

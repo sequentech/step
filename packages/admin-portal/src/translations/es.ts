@@ -518,6 +518,8 @@ const spanishTranslation: TranslationType = {
                 exportFormat: "Exportar resultados de '{{item}}' en formato {{format}}",
                 allResults: "del evento electoral",
                 globalAreaResults: "de todas las áreas",
+                title: "Título",
+                subtitle: "Subtítulo",
             },
             language: {
                 es: "Español",
@@ -881,6 +883,18 @@ const spanishTranslation: TranslationType = {
             },
             email: {
                 subject: "Subject",
+            },
+        },
+        materials: {
+            createMaterialSuccess: "Material de soporte creada",
+            createMaterialError: "Error creando material de soporte",
+            common: {
+                title: "Materiales de Soporte",
+                subtitle: "Entrar datos del material de soporte.",
+            },
+            error: {
+                title: "El título es obligatorio",
+                document: "El documento es obligatorio",
             },
         },
     },
