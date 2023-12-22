@@ -147,12 +147,16 @@ const spanishTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Localiza tu boleta",
-            description: "Ingresa tu ID de voto aquí para localizarla",
-            locate: "Localiza tu voto",
-            locateAgain: "Localiza otra voto",
+            title: "Localiza tu Voto",
+            description: "Ingresa tu ID de Voto aquí para localizarla",
+            locate: "Localiza tu Voto",
+            locateAgain: "Localiza otra Voto",
             found: "Tu ID de voto {{ballotId}} ha sido localizada",
             notFound: "Tu ID de voto {{ballotId}} no ha sido localizada",
+            steps: {
+                lookup: "Localiza tu Voto",
+                result: "Result",
+            },
         },
     },
 }

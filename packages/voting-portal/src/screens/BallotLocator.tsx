@@ -4,7 +4,7 @@
 
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, PageLimit, theme} from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useNavigate, useParams} from "react-router-dom"
@@ -64,15 +64,23 @@ export default function BallotLocator() {
     return (
         <>
             <PageLimit maxWidth="lg">
-                <Box marginTop="48px"></Box>
+                <Box marginTop="48px">
+                    <BreadCrumbSteps
+                        labels={[
+                            "ballotLocator.steps.lookup",
+                            "ballotLocator.steps.result",
+                        ]}
+                        selected={2}
+                    />
+                </Box>
+
                 <StyledTitle variant="h1">
                     <Box>{t("ballotLocator.title")}</Box>
                 </StyledTitle>
-                {
-                    // <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                    //     {t("ballotLocator.description")}
-                    // </Typography>
-                }
+
+                <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
+                    {t("ballotLocator.description")}
+                </Typography>
 
                 {hasBallotId && !loading && (
                     <Box>
@@ -90,7 +98,6 @@ export default function BallotLocator() {
                         )}
                     </Box>
                 )}
-
                 {!hasBallotId && (
                     <>
                         <TextField
@@ -109,7 +116,6 @@ export default function BallotLocator() {
                         </Button>
                     </>
                 )}
-
                 {hasBallotId && (
                     <>
                         <Button className="normal" onClick={() => locate()}>
@@ -117,7 +123,6 @@ export default function BallotLocator() {
                         </Button>
                     </>
                 )}
-
                 <Box sx={{marginTop: "32px"}}>
                     <Link to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
                         {t("votingScreen.backButton")}

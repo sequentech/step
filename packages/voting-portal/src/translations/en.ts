@@ -144,12 +144,16 @@ const englishTranslation = {
             },
         },
         ballotLocator: {
-            title: "Locate your ballot",
-            description: "Put your ballot ID here to locate it",
-            locate: "Locate your ballot",
-            locateAgain: "Locate another ballot",
+            title: "Locate your Ballot",
+            description: "Put your Ballot ID here to locate it",
+            locate: "Locate your Ballot",
+            locateAgain: "Locate another Ballot",
             found: "Your ballot ID {{ballotId}} has been located",
             notFound: "Your ballot ID {{ballotId}} has not been located",
+            steps: {
+                lookup: "Locate your Ballot",
+                result: "Result",
+            },
         },
     },
 }
