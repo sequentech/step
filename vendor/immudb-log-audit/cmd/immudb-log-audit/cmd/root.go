@@ -105,11 +105,23 @@ func rootPost(cmd *cobra.Command, args []string) {
 }
 
 func Execute() {
-	http.HandleFunc("/live", liveHandler)
+	live_path := os.Getenv("IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH")
+	if live_path == "" {
+		live_path = "live"
+	}
+	http.HandleFunc("/" + live_path, liveHandler)
 
+	addr := os.Getenv("IMMUDB_LOG_AUDIT_PROBE_ADDR")
+	if addr == "" {
+		addr = ":3030"
+	}
+	
 	go func() {
-        fmt.Println("Live probe handler listening on 3030/live")
-        log.Fatal(http.ListenAndServe(":8080", nil))
+        fmt.Println("Live probe handler listening on %s", addr)
+        err := http.ListenAndServe(addr, nil)
+		if err != nil {
+			fmt.Println("Live probe handler failed to run: %g", err)
+		}
     }()
 	
 	if err := rootCmd.Execute(); err != nil {
