@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
+import {isUndefined} from "@sequentech/ui-essentials"
 
 export interface ICastVote {
     id: string
@@ -38,8 +39,8 @@ export const castVotesSlice = createSlice({
                     continue
                 }
                 state[castVote.election_id] = [
-                    ...((state[castVote.election_id] || []).filter(cv => castVote.id !== cv.id)),
-                    castVote
+                    ...(state[castVote.election_id] || []).filter((cv) => castVote.id !== cv.id),
+                    castVote,
                 ]
             }
             return state
@@ -50,6 +51,20 @@ export const castVotesSlice = createSlice({
 export const {addCastVotes} = castVotesSlice.actions
 
 export const selectCastVotesByElectionId = (electionId: string) => (state: RootState) =>
-    state.castVotes[electionId]
+    state.castVotes[electionId] || []
+
+export const hasVotedAllElections = (currentElectionId: string) => (state: RootState) => {
+    let castVoteElectionIds = Object.keys(state.castVotes).filter(
+        (electionId) => electionId !== currentElectionId && state.castVotes[electionId]
+    )
+    castVoteElectionIds.push(currentElectionId)
+
+    let ballotStyleElectionIds = Object.keys(state.ballotStyles)
+
+    let missingElectionId = ballotStyleElectionIds.find(
+        (ballotStyleElectionId) => !castVoteElectionIds.includes(ballotStyleElectionId)
+    )
+    return isUndefined(missingElectionId)
+}
 
 export default castVotesSlice.reducer

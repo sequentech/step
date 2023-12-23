@@ -32,8 +32,8 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import { GET_CAST_VOTES } from "../queries/GetCastVotes"
-import { addCastVotes } from "../store/castVotes/castVotesSlice"
+import {GET_CAST_VOTES} from "../queries/GetCastVotes"
+import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -61,6 +61,7 @@ interface ElectionWrapperProps {
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
     const {tenantId, eventId} = useContext(TenantEventContext)
+    const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
@@ -90,7 +91,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
             isOpen={true}
             title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
-            hasVoted={false}
+            hasVoted={castVotes.length > 0}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
         />
