@@ -7,6 +7,7 @@ export const getUsers = (fields: any) => {
     let electionEventId = fields.filter?.election_event_id
         ? `"${fields.filter?.election_event_id}"`
         : "null"
+    let electionId = fields.filter?.election_id ? `"${fields.filter?.election_id}"` : "null"
     let email = fields.filter?.email ? `"${fields.filter?.email}"` : "null"
     let username = fields.filter?.username ? `"${fields.filter?.username}"` : "null"
     let first_name = fields.filter?.first_name ? `"${fields.filter?.first_name}"` : "null"
@@ -20,6 +21,7 @@ export const getUsers = (fields: any) => {
         query getUsers(
             $tenant_id: String! = "${fields.filter.tenant_id}"
             $election_event_id: String = ${electionEventId}
+            $election_id: String = ${electionId}
             $email: String = ${email}
             $username: String = ${username}
             $first_name: String = ${first_name}
@@ -30,6 +32,7 @@ export const getUsers = (fields: any) => {
             get_users(body: {
                 tenant_id: $tenant_id,
                 election_event_id: $election_event_id,
+                election_id: $election_id,
                 email: $email,
                 username: $username,
                 first_name: $first_name,
