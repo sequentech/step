@@ -18,7 +18,11 @@ import {
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    IBallotStyle,
+    selectBallotStyleElectionIds,
+    setBallotStyle,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
@@ -181,7 +185,10 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
+    const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
+    const [ballotStyleElectionIds, setBallotStyleElectionIds] =
+        useState<Array<string>>(existingElectionIds)
+    const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
         loading: loadingElections,
@@ -197,8 +204,6 @@ export const ElectionSelectionScreen: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const {t, i18n} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
-
-    const [electionIds, setElectionIds] = useState<Array<string>>([])
 
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
