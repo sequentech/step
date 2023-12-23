@@ -66,7 +66,11 @@ pub async fn list_users(
     } else {
         None
     };
-    let area_ids: Option<Vec<String>> = match election_id {
+    let (area_ids, area_ids_join_clause, area_ids_where_clause): (
+        Option<Vec<String>>,
+        String,
+        String,
+    ) = match election_id {
         Some(ref election_id) => {
             let mut hasura_db_client: DbClient = get_hasura_pool()
                 .await
@@ -95,7 +99,6 @@ pub async fn list_users(
                 .query(&areas_statement, &[&election_uuid])
                 .await
                 .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-            let len = rows.len();
             let area_ids: Vec<String> = rows
                 .into_iter()
                 .map(|row| -> Result<String> {
@@ -106,9 +109,25 @@ pub async fn list_users(
                 .collect::<Result<Vec<String>>>()
                 .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
 
-            Some(area_ids)
+            (
+                Some(area_ids),
+                String::from(
+                    r#"
+                INNER JOIN 
+                    user_attribute AS area_attr ON u.id = area_attr.user_id
+                "#,
+                ),
+                format!(
+                    r#"
+                AND (
+                    area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                    area_attr.value = ANY($9)
+                )
+                "#
+                ),
+            )
         }
-        None => None
+        None => (None, String::from(""), String::from("")),
     };
     let statement = transaction.prepare(format!(r#"
         SELECT
@@ -127,40 +146,36 @@ pub async fn list_users(
             user_entity AS u
         INNER JOIN
             realm AS ra ON ra.id = u.realm_id
-        INNER JOIN
-            user_attribute AS area_attr ON u.id = area_attr.user_id
+        {area_ids_join_clause}
         LEFT JOIN
             user_attribute AS attr ON u.id = attr.user_id
         WHERE
             ra.name = $1 AND
-            (
-                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                (area_attr.value = ANY($4) OR $4 IS NULL)
-            ) AND
-            ($5::VARCHAR IS NULL OR email ILIKE $5) AND
-            ($6::VARCHAR IS NULL OR first_name ILIKE $6) AND
-            ($7::VARCHAR IS NULL OR last_name ILIKE $7) AND
-            ($8::VARCHAR IS NULL OR username ILIKE $8) AND
-            (u.id = ANY($9) OR $9 IS NULL)
+            ($4::VARCHAR IS NULL OR email ILIKE $4) AND
+            ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
+            ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
+            ($7::VARCHAR IS NULL OR username ILIKE $7) AND
+            (u.id = ANY($8) OR $8 IS NULL)
+            {area_ids_where_clause}
         GROUP BY
             u.id
         LIMIT $2 OFFSET $3;
     "#).as_str()).await?;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &realm,
+        &query_limit,
+        &query_offset,
+        &email_pattern,
+        &first_name_pattern,
+        &last_name_pattern,
+        &username_pattern,
+        &user_ids,
+    ];
+    if area_ids.is_some() {
+        params.push(&area_ids);
+    }
     let rows: Vec<Row> = transaction
-        .query(
-            &statement,
-            &[
-                &realm,
-                &query_limit,
-                &query_offset,
-                &area_ids,
-                &email_pattern,
-                &first_name_pattern,
-                &last_name_pattern,
-                &username_pattern,
-                &user_ids,
-            ],
-        )
+        .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     event!(
