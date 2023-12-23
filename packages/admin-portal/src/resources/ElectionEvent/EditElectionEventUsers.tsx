@@ -6,7 +6,11 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
-export const EditElectionEventUsers: React.FC = () => {
+export interface EditElectionEventUsersProps {
+    electionId?: string
+}
+
+export const EditElectionEventUsers: React.FC<EditElectionEventUsersProps> = ({electionId}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
@@ -16,5 +20,5 @@ export const EditElectionEventUsers: React.FC = () => {
         return null
     }
 
-    return <ListUsers electionEventId={record?.id} />
+    return <ListUsers electionEventId={record?.id} electionId={electionId} />
 }

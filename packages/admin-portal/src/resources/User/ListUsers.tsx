@@ -20,7 +20,7 @@ import {
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {alpha, Button, Chip, Drawer, Typography} from "@mui/material"
+import {Button, Chip, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -53,9 +53,10 @@ const Filters: Array<ReactElement> = [
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
+    electionId?: string
 }
 
-export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
+export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
@@ -324,7 +325,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         ]}
                     />
                 }
-                filter={{tenant_id: tenantId, election_event_id: electionEventId}}
+                filter={{
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    election_id: electionId,
+                }}
                 aside={aside}
                 filters={Filters}
             >

@@ -66,43 +66,59 @@ pub async fn list_users(
     } else {
         None
     };
+    event!(Level::INFO, "before area ids");
     let area_ids: Option<Vec<String>> = match election_id {
         Some(ref election_id) => {
-            let mut hasura_db_client: DbClient = get_keycloak_pool()
+            let mut hasura_db_client: DbClient = get_hasura_pool()
                 .await
                 .get()
                 .await
                 .with_context(|| "Error acquiring hasura db client")?;
+            event!(Level::INFO, "generating prepared statement");
+            let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+                .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
             let areas_statement = hasura_db_client
                 .prepare(
                     r#"
-                SELECT DISTINCT
-                    a.id
-                FROM
-                    sequent_backend.area a
-                JOIN
-                    sequent_backend.area_contest ac ON a.id = ac.area_id
-                JOIN
-                    sequent_backend.contest c ON ac.contest_id = c.id
-                WHERE c.election_id = $1;
-            "#,
+                    SELECT DISTINCT
+                        a.id::VARCHAR
+                    FROM
+                        sequent_backend.area a
+                    JOIN
+                        sequent_backend.area_contest ac ON a.id = ac.area_id
+                    JOIN
+                        sequent_backend.contest c ON ac.contest_id = c.id
+                    WHERE c.election_id = $1;
+                "#,
                 )
                 .await?;
+            event!(Level::INFO, "getting the area rows");
             let rows: Vec<Row> = hasura_db_client
-                .query(&areas_statement, &[election_id])
+                .query(&areas_statement, &[&election_uuid])
                 .await
-                .map_err(|err| anyhow!("{}", err))?;
+                .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+            let len = rows.len();
+            event!(Level::INFO, "rows.len() = {len} getting the area ids");
             let area_ids: Vec<String> = rows
                 .into_iter()
-                .map(|row| -> Result<String> { Ok(row.try_get::<&str, String>("id")?) })
-                .collect::<Result<Vec<String>>>()?;
+                .map(|row| -> Result<String> {
+                    Ok(row
+                        .try_get::<&str, String>("id")
+                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                })
+                .collect::<Result<Vec<String>>>()
+                .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
+            event!(Level::INFO, "area ids = {area_ids:?}");
 
             Some(area_ids)
         }
-        None => None,
+        None => {
+            event!(Level::INFO, "NO election_id");
+            None
+        }
     };
-    let statement = transaction.prepare(r#"
+    let statement = transaction.prepare(format!(r#"
         WITH realm_cte AS (
             SELECT id FROM realm WHERE name = $1
         )
@@ -129,25 +145,32 @@ pub async fn list_users(
                 u.realm_id,
                 u.username,
                 u.created_timestamp,
-                COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
+                COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{{}}'::json) AS attributes,
                 COUNT(u.id) OVER() AS total_count
             FROM
                 user_entity AS u
             INNER JOIN
                 realm_cte ON realm_cte.id = u.realm_id
+            INNER JOIN
+                user_attribute AS area_attr ON u.id = area_attr.user_id
             LEFT JOIN
                 user_attribute AS attr ON u.id = attr.user_id
             WHERE
-                ($4::VARCHAR IS NULL OR email ILIKE $4) AND
-                ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
-                ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
-                ($7::VARCHAR IS NULL OR username ILIKE $7) AND
-                (u.id = ANY($8) OR $8 IS NULL)
+                (
+                    area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                    (area_attr.value = ANY($4) OR $4 IS NULL)
+                ) AND
+                ($5::VARCHAR IS NULL OR email ILIKE $5) AND
+                ($6::VARCHAR IS NULL OR first_name ILIKE $6) AND
+                ($7::VARCHAR IS NULL OR last_name ILIKE $7) AND
+                ($8::VARCHAR IS NULL OR username ILIKE $8) AND
+                (u.id = ANY($9) OR $9 IS NULL)
             GROUP BY
                 u.id
         ) sub
         LIMIT $2 OFFSET $3;
-    "#).await?;
+    "#).as_str()).await?;
+    event!(Level::INFO, "generating keycloak prepared statement");
     let rows: Vec<Row> = transaction
         .query(
             &statement,
@@ -155,6 +178,7 @@ pub async fn list_users(
                 &realm,
                 &query_limit,
                 &query_offset,
+                &area_ids,
                 &email_pattern,
                 &first_name_pattern,
                 &last_name_pattern,

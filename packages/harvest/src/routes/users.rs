@@ -112,6 +112,7 @@ pub async fn delete_users(
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
+    election_id: Option<String>,
     search: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
@@ -169,7 +170,7 @@ pub async fn get_users(
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
-        /* election_id = */ None,
+        input.election_id.clone(),
         &realm,
         input.search,
         input.first_name,
