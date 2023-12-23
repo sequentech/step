@@ -24,6 +24,24 @@ struct CastVote {
     pub election_event_i: String,
 }
 
+impl TryFrom<Row> for CastVote {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(CastVote {
+            id: item.try_get("id")?,
+            tenant_id: item.try_get("tenant_id")?,
+            election_id: item.try_get("election_id")?,
+            area_id: item.try_get("area_id")?,
+            created_at: item.try_get("created_at")?,
+            last_updated_at: item.try_get("last_updated_at")?,
+            content: item.try_get("content")?,
+            cast_ballot_signature: item.try_get("cast_ballot_signature")?,
+            voter_id_string: item.try_get("voter_id_string")?,
+            election_event_i: item.try_get("election_event_i")?,
+        })
+    }
+}
+
 #[instrument(err)]
 pub async fn find_area_ballots(
     tenant_id: &str,
