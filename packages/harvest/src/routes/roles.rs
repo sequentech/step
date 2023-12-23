@@ -15,6 +15,7 @@ use sequent_core::types::keycloak::Role;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use tracing::{event, instrument, Level};
+use windmill::services::cast_votes::find_area_ballots;
 
 #[derive(Deserialize, Debug)]
 pub struct CreateRoleBody {
@@ -98,6 +99,14 @@ pub async fn list_user_roles(
     claims: jwt::JwtClaims,
     body: Json<ListUserRolesBody>,
 ) -> Result<Json<Vec<Role>>, (Status, String)> {
+    let ballots = find_area_ballots(
+        "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+        "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
+        "a781c36c-efc2-441a-a7ff-7ec7886d2151",
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    event!(Level::INFO, "ballots: {:?}", ballots);
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_READ
