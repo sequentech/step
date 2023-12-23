@@ -51,7 +51,10 @@ export const ElectionTabs: React.FC = () => {
                 )}
                 {showVoters && (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.voters")}>
-                        <EditElectionEventUsers electionId={record?.id} />
+                        <EditElectionEventUsers
+                            electionEventId={record?.election_event_id}
+                            electionId={record?.id}
+                        />
                     </TabbedShowLayout.Tab>
                 )}
                 {showPublish && (

@@ -66,7 +66,6 @@ pub async fn list_users(
     } else {
         None
     };
-    event!(Level::INFO, "before area ids");
     let area_ids: Option<Vec<String>> = match election_id {
         Some(ref election_id) => {
             let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -74,7 +73,6 @@ pub async fn list_users(
                 .get()
                 .await
                 .with_context(|| "Error acquiring hasura db client")?;
-            event!(Level::INFO, "generating prepared statement");
             let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
                 .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
@@ -93,13 +91,11 @@ pub async fn list_users(
                 "#,
                 )
                 .await?;
-            event!(Level::INFO, "getting the area rows");
             let rows: Vec<Row> = hasura_db_client
                 .query(&areas_statement, &[&election_uuid])
                 .await
                 .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
             let len = rows.len();
-            event!(Level::INFO, "rows.len() = {len} getting the area ids");
             let area_ids: Vec<String> = rows
                 .into_iter()
                 .map(|row| -> Result<String> {
@@ -109,68 +105,47 @@ pub async fn list_users(
                 })
                 .collect::<Result<Vec<String>>>()
                 .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
-            event!(Level::INFO, "area ids = {area_ids:?}");
 
             Some(area_ids)
         }
-        None => {
-            event!(Level::INFO, "NO election_id");
-            None
-        }
+        None => None
     };
     let statement = transaction.prepare(format!(r#"
-        WITH realm_cte AS (
-            SELECT id FROM realm WHERE name = $1
-        )
         SELECT
-            sub.id,
-            sub.email,
-            sub.email_verified,
-            sub.enabled,
-            sub.first_name,
-            sub.last_name,
-            sub.realm_id,
-            sub.username,
-            sub.created_timestamp,
-            sub.attributes,
-            sub.total_count
-        FROM (
-            SELECT
-                u.id,
-                u.email,
-                u.email_verified,
-                u.enabled,
-                u.first_name,
-                u.last_name,
-                u.realm_id,
-                u.username,
-                u.created_timestamp,
-                COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{{}}'::json) AS attributes,
-                COUNT(u.id) OVER() AS total_count
-            FROM
-                user_entity AS u
-            INNER JOIN
-                realm_cte ON realm_cte.id = u.realm_id
-            INNER JOIN
-                user_attribute AS area_attr ON u.id = area_attr.user_id
-            LEFT JOIN
-                user_attribute AS attr ON u.id = attr.user_id
-            WHERE
-                (
-                    area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                    (area_attr.value = ANY($4) OR $4 IS NULL)
-                ) AND
-                ($5::VARCHAR IS NULL OR email ILIKE $5) AND
-                ($6::VARCHAR IS NULL OR first_name ILIKE $6) AND
-                ($7::VARCHAR IS NULL OR last_name ILIKE $7) AND
-                ($8::VARCHAR IS NULL OR username ILIKE $8) AND
-                (u.id = ANY($9) OR $9 IS NULL)
-            GROUP BY
-                u.id
-        ) sub
+            u.id,
+            u.email,
+            u.email_verified,
+            u.enabled,
+            u.first_name,
+            u.last_name,
+            u.realm_id,
+            u.username,
+            u.created_timestamp,
+            COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{{}}'::json) AS attributes,
+            COUNT(u.id) OVER() AS total_count
+        FROM
+            user_entity AS u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        INNER JOIN
+            user_attribute AS area_attr ON u.id = area_attr.user_id
+        LEFT JOIN
+            user_attribute AS attr ON u.id = attr.user_id
+        WHERE
+            ra.name = $1 AND
+            (
+                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                (area_attr.value = ANY($4) OR $4 IS NULL)
+            ) AND
+            ($5::VARCHAR IS NULL OR email ILIKE $5) AND
+            ($6::VARCHAR IS NULL OR first_name ILIKE $6) AND
+            ($7::VARCHAR IS NULL OR last_name ILIKE $7) AND
+            ($8::VARCHAR IS NULL OR username ILIKE $8) AND
+            (u.id = ANY($9) OR $9 IS NULL)
+        GROUP BY
+            u.id
         LIMIT $2 OFFSET $3;
     "#).as_str()).await?;
-    event!(Level::INFO, "generating keycloak prepared statement");
     let rows: Vec<Row> = transaction
         .query(
             &statement,
