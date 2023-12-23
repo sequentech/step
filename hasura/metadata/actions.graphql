@@ -327,6 +327,7 @@ input CreateElectionEventInput {
 input GetUsersInput {
   tenant_id : String!
   election_event_id : String
+  election_id : String
   search : String
   first_name : String
   last_name : String

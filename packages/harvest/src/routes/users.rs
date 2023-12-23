@@ -16,7 +16,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
-use windmill::services::database::get_database_pool;
+use windmill::services::database::get_keycloak_pool;
 use windmill::services::users::list_users;
 
 use crate::services::authorization::authorize;
@@ -113,6 +113,7 @@ pub async fn delete_users(
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
+    election_id: Option<String>,
     search: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
@@ -154,22 +155,23 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let mut db_client: DbClient = get_database_pool()
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let transaction = db_client
+    let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
         auth_headers.clone(),
-        &transaction,
+        &keycloak_transaction,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
+        input.election_id.clone(),
         &realm,
         input.search,
         input.first_name,
