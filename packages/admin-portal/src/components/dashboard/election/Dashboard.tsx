@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
 import {Box} from "@mui/material"
 
 import styled from "@emotion/styled"
-import Stats from "../Stats"
+import Stats from "./Stats"
 import VotesByDay from "../charts/VoteByDay"
 import VotesByChannel from "../charts/VoteByChannels"
 import {useRecordContext} from "react-admin"
@@ -28,7 +28,7 @@ export default function DashboardElection() {
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
                 <Box>
-                    <Stats />
+                    <Stats electionEventId={record.election_event_id} electionId={record.id} />
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />

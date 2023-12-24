@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,10 +7,9 @@ import React, {useEffect, useState} from "react"
 import {Box, Button} from "@mui/material"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
-import Stats from "../Stats"
+import Stats from "./Stats"
 import VotesByDay from "../charts/VoteByDay"
 import VotesByChannel from "../charts/VoteByChannels"
-import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
@@ -70,7 +70,7 @@ export default function DashboardElectionEvent() {
                 />
 
                 <Box>
-                    <Stats forElection={true} />
+                    <Stats electionEventId={record.id} />
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />
