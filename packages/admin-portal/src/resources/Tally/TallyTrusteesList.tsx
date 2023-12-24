@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetList} from "react-admin"
 
 import {
@@ -20,7 +20,7 @@ import {useTranslation} from "react-i18next"
 import {Box, Icon, Typography} from "@mui/material"
 import ElectionHeader from "@/components/ElectionHeader"
 import KeyIcon from "@mui/icons-material/Key"
-import globalSettings from "@/global-settings"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyTrusteesListProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -30,6 +30,7 @@ interface TallyTrusteesListProps {
 export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     const {tally, update} = props
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
@@ -51,6 +52,9 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 

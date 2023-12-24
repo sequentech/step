@@ -1,36 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
-import globalSettings from "@/global-settings"
-
-/**
- * KeycloakConfig configures the connection to the Keycloak server.
- */
-const keycloakConfig: KeycloakConfig = {
-    realm: `tenant-${globalSettings.DEFAULT_TENANT_ID}`,
-    clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
-    url: globalSettings.KEYCLOAK_URL,
-}
-
-/**
- * KeycloakInitOptions configures the Keycloak client.
- */
-const keycloakInitOptions: KeycloakInitOptions = {
-    // Configure that Keycloak will check if a user is already authenticated (when
-    // opening the app or reloading the page). If not authenticated the user will
-    // be send to the login form. If already authenticated the webapp will open.
-    onLoad: "login-required",
-    checkLoginIframe: false,
-}
-
-// Create the Keycloak client instance
-const keycloak = new Keycloak(keycloakConfig)
+import {SettingsContext} from "./SettingsContextProvider"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -132,6 +109,9 @@ interface AuthContextProviderProps {
  */
 const AuthContextProvider = (props: AuthContextProviderProps) => {
     console.log("rendering AuthContextProvider")
+    const {loaded, globalSettings} = useContext(SettingsContext)
+    const [keycloak, setKeycloak] = useState<Keycloak | null>()
+    const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
@@ -144,54 +124,95 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const sleepSecs = 50
     const bufferSecs = 10
 
-    const updateTokenPeriodically = async () => {
-        const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
-        if (!keycloak.token) {
-            console.log(`error updating token`)
+    const createKeycloak = () => {
+        if (keycloak) {
             return
         }
-        if (refreshed) {
+        /**
+         * KeycloakConfig configures the connection to the Keycloak server.
+         */
+        const keycloakConfig: KeycloakConfig = {
+            realm: `tenant-${globalSettings.DEFAULT_TENANT_ID}`,
+            clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+            url: globalSettings.KEYCLOAK_URL,
+        }
+
+        // Create the Keycloak client instance
+        const newKeycloak = new Keycloak(keycloakConfig)
+        setKeycloak(newKeycloak)
+    }
+
+    const initializeKeycloak = async () => {
+        console.log("initialize Keycloak")
+        if (!keycloak) {
+            console.log("CAN'T initialize Keycloak")
+            return
+        }
+        try {
+            /**
+             * KeycloakInitOptions configures the Keycloak client.
+             */
+            const keycloakInitOptions: KeycloakInitOptions = {
+                // Configure that Keycloak will check if a user is already authenticated (when
+                // opening the app or reloading the page). If not authenticated the user will
+                // be send to the login form. If already authenticated the webapp will open.
+                onLoad: "login-required",
+                checkLoginIframe: false,
+            }
+            const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
+
+            // If the authentication was not successfull the user is send back to the Keycloak login form
+            if (!isAuthenticatedResponse) {
+                console.log("user is not yet authenticated. forwarding user to login.")
+                await keycloak.login()
+            }
+            if (!keycloak.token) {
+                console.log("error authenticating user")
+                console.log("error initializing Keycloak")
+                setAuthenticated(false)
+                return
+            }
+            // If we get here the user is authenticated and we can update the state accordingly
             localStorage.setItem("token", keycloak.token)
+            setAuthenticated(true)
+            setTimeout(updateTokenPeriodically, 4e3)
+            console.log("user is authenticated")
+            setIsKeycloakInitialized(true)
+        } catch (error) {
+            console.log("error initializing Keycloak")
+            console.log(error)
+            setAuthenticated(false)
+        }
+    }
+
+    useEffect(() => {
+        if (keycloak || !loaded) {
+            return
+        }
+        createKeycloak()
+    }, [loaded, keycloak])
+
+    useEffect(() => {
+        if (!keycloak || isKeycloakInitialized) {
+            return
+        }
+        initializeKeycloak()
+    }, [isKeycloakInitialized, keycloak])
+
+    const updateTokenPeriodically = async () => {
+        if (keycloak) {
+            const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
+            if (!keycloak.token) {
+                console.log(`error updating token`)
+                return
+            }
+            if (refreshed) {
+                localStorage.setItem("token", keycloak.token)
+            }
         }
         await sleep(sleepSecs * 1e3)
         updateTokenPeriodically()
     }
-
-    // Effect used to initialize the Keycloak client. It has no dependencies so it is only rendered when the app is (re-)loaded.
-    useEffect(() => {
-        /**
-         * Initialize the Keycloak instance
-         */
-        async function initializeKeycloak() {
-            console.log("initialize Keycloak")
-            try {
-                const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
-
-                // If the authentication was not successfull the user is send back to the Keycloak login form
-                if (!isAuthenticatedResponse) {
-                    console.log("user is not yet authenticated. forwarding user to login.")
-                    await keycloak.login()
-                }
-                if (!keycloak.token) {
-                    console.log("error authenticating user")
-                    console.log("error initializing Keycloak")
-                    setAuthenticated(false)
-                    return
-                }
-                // If we get here the user is authenticated and we can update the state accordingly
-                localStorage.setItem("token", keycloak.token)
-                setAuthenticated(true)
-                setTimeout(updateTokenPeriodically, 4e3)
-                console.log("user is authenticated")
-            } catch (error) {
-                console.log("error initializing Keycloak")
-                console.log(error)
-                setAuthenticated(false)
-            }
-        }
-
-        initializeKeycloak()
-    }, [])
 
     // This effect loads the users profile in order to extract the username
     useEffect(() => {
@@ -199,6 +220,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
          * Load the profile for of the user from Keycloak
          */
         async function loadProfile() {
+            if (!keycloak) {
+                return
+            }
             try {
                 const profile = await keycloak.loadUserProfile()
 
@@ -231,12 +255,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (isAuthenticated) {
             loadProfile()
         }
-    }, [isAuthenticated])
+    }, [isAuthenticated, keycloak])
 
     /**
      * Initiate the logout
      */
     const logout = () => {
+        if (!keycloak) {
+            return
+        }
         localStorage.removeItem("token")
         keycloak.logout()
     }
@@ -247,10 +274,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
      * @returns whether or not if the user has the role
      */
     const hasRole = (role: string) => {
+        if (!keycloak) {
+            return false
+        }
         return keycloak.hasRealmRole(role)
     }
 
-    const getAccessToken = () => keycloak.token
+    const getAccessToken = () => keycloak?.token
 
     const isAuthorized = (
         checkSuperAdmin: boolean,
@@ -264,6 +294,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
         const roleList: string[] = isString(role) ? [role] : role
         return roleList.find((roleItem) => hasRole(roleItem)) != undefined
+    }
+
+    const openProfileLink = async () => {
+        if (!keycloak) {
+            return
+        }
+        await keycloak.accountManagement()
     }
 
     // Setup the context provider
@@ -280,7 +317,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 hasRole,
                 getAccessToken,
                 isAuthorized,
-                openProfileLink: keycloak.accountManagement,
+                openProfileLink,
             }}
         >
             {props.children}

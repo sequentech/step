@@ -336,6 +336,11 @@ services:
     entrypoint: [
       "cargo",
       "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
       "-x",
       "run"
     ]
@@ -355,6 +360,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      HASURA_DB__USER: ${HASURA_DB__USER}
+      HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
+      HASURA_DB__HOST: ${HASURA_DB__HOST}
+      HASURA_DB__PORT: ${HASURA_DB__PORT}
+      HASURA_DB__DBNAME: ${HASURA_DB__DBNAME}
+      HASURA_DB__MANAGER__RECYCLING_METHOD: ${HASURA_DB__MANAGER__RECYCLING_METHOD}
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
@@ -563,6 +574,11 @@ services:
     entrypoint: [
       "cargo",
       "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
       "-x",
       "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue"
     ]
@@ -607,6 +623,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      HASURA_DB__USER: ${HASURA_DB__USER}
+      HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
+      HASURA_DB__HOST: ${HASURA_DB__HOST}
+      HASURA_DB__PORT: ${HASURA_DB__PORT}
+      HASURA_DB__DBNAME: ${HASURA_DB__DBNAME}
+      HASURA_DB__MANAGER__RECYCLING_METHOD: ${HASURA_DB__MANAGER__RECYCLING_METHOD}
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
@@ -624,6 +646,11 @@ services:
     entrypoint: [
       "cargo",
       "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
       "-x",
       "run --bin beat"
     ]

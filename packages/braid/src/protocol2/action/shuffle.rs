@@ -52,9 +52,16 @@ pub(crate) fn mix<C: Ctx>(
         mix.ciphertexts
     };
 
+    // Null mix
+    if ciphertexts.0.len() == 0 {
+        let mix = Mix::null(*mix_no);
+        let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
+        return Ok(vec![m]);
+    }
+
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+        .with_context(|| "Could not retrieve public key for mixing")?;
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
@@ -122,8 +129,20 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
     let mix = target.with_context(|| "Failed to retrieve target of mix to sign")?;
-
     let mix_number = mix.mix_number;
+
+    // Null mix
+    if source_cs.0.len() == 0 {
+        assert_eq!(mix.ciphertexts.0.len(), 0);
+        assert!(mix.proof.is_none());
+        let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
+        return Ok(vec![m]);
+    }
+    assert!(
+        mix.proof.is_some(),
+        "Mix cannot be null if there are source ciphertexts"
+    );
+
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
         .with_context(|| "Could not retrieve public key for mixing")?;
@@ -134,7 +153,12 @@ pub(crate) fn sign_mix<C: Ctx>(
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
-    let ok = shuffler.check_proof(&mix.proof, &source_cs.0, &mix.ciphertexts.0, &label)?;
+    let ok = shuffler.check_proof(
+        &mix.proof.expect("Should not be a null mix"),
+        &source_cs.0,
+        &mix.ciphertexts.0,
+        &label,
+    )?;
     info!(
         "SignMix verifying shuffle [{}] => [{}] ok = {}",
         dbg_hash(&source_h.0),

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
@@ -27,8 +27,8 @@ import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {useGetOne} from "react-admin"
-import globalSettings from "@/global-settings"
 import {Logs} from "../Logs"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status == EStatus.NOT_STARTED) {
@@ -60,6 +60,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goNext,
 }) => {
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
     const [logsExpanded, setLogsExpanded] = useState(true)

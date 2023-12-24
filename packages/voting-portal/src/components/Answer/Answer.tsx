@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
-import {Candidate, stringToHtml, isUndefined, normalizeWriteInText} from "@sequentech/ui-essentials"
+import {
+    Candidate,
+    stringToHtml,
+    isUndefined,
+    normalizeWriteInText,
+    translate,
+} from "@sequentech/ui-essentials"
 import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {
@@ -19,6 +25,7 @@ import {
     getLinkUrl,
 } from "../../services/ElectionConfigService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import {useTranslation} from "react-i18next"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -51,6 +58,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
+    const {i18n} = useTranslation()
 
     const isChecked = (): boolean => {
         if (!isInvalidVote) {
@@ -118,8 +126,8 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     return (
         <Candidate
-            title={answer.name}
-            description={stringToHtml(answer.description || "")}
+            title={translate(answer, "name", i18n.language)}
+            description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isActive={isActive}
             checked={isChecked()}
             setChecked={setChecked}

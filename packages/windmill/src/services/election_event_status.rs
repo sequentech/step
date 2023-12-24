@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
 use crate::hasura::election::{get_election, update_election_status};
+use crate::hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::hasura::election_event::{get_election_event, update_election_event_status};
 use anyhow::{anyhow, Result};
 use sequent_core::ballot::VotingStatus;
@@ -32,7 +33,7 @@ pub async fn update_event_voting_status(
     tenant_id: String,
     election_event_id: String,
     new_status: VotingStatus,
-) -> Result<()> {
+) -> Result<GetElectionEventSequentBackendElectionEvent> {
     let auth_headers = get_client_credentials().await?;
 
     let data = get_election_event(
@@ -90,7 +91,7 @@ pub async fn update_event_voting_status(
     )
     .await?;
 
-    Ok(())
+    Ok(election_event.clone())
 }
 
 #[instrument(err)]

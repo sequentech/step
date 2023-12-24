@@ -74,7 +74,6 @@ module.exports = function (env, argv) {
                 template: path.resolve(__dirname, "public/index.html"),
                 favicon: path.resolve(__dirname, "public/favicon.ico"),
                 filename: "./index.html",
-                favicon: "./public/favicon.ico",
                 // pass variables to the template
                 templateParameters: {
                     PUBLIC_URL: "", // Replace %PUBLIC_URL% with an empty string

@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::time::Instant;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -21,8 +22,7 @@ use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::session::Session;
+use crate::protocol2::session::{BoardParams, Session};
 use crate::protocol2::trustee::Trustee;
 
 const IMMUDB_USER: &str = "immudb";
@@ -45,7 +45,7 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
         .cloned()
         .collect();
 
-    let now = instant::Instant::now();
+    let now = Instant::now();
 
     let test = create_protocol_test_immudb(n_trustees, &threshold, ctx)
         .await
@@ -88,7 +88,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         .collect();
 
     for t in test.trustees.into_iter() {
-        let board = ImmudbBoard::new(
+        /* let board = ImmudbBoard::new(
             SERVER_URL,
             IMMUDB_USER,
             IMMUDB_PW,
@@ -96,7 +96,8 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
             None,
         )
         .await
-        .unwrap();
+        .unwrap();*/
+        let board = BoardParams::new(SERVER_URL, IMMUDB_USER, IMMUDB_PW, BOARD_DB, None);
         sessions.push(Session::new(t, board));
     }
 
@@ -125,10 +126,12 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         }
 
         dkg_pk_message = b
-            .get_messages_from_kind(
+            .get_messages_filtered(
                 BOARD_DB,
                 &StatementType::PublicKey.to_string(),
                 &pk_strings[0],
+                None,
+                None,
             )
             .await
             .unwrap();
@@ -177,7 +180,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
     }
 
     let mut plaintexts_out: Vec<BoardMessage> = vec![];
-    for i in 0..60 {
+    for i in 0..100 {
         info!("Cycle {}", i);
 
         let handles: Vec<_> = sessions
@@ -192,10 +195,12 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         }
 
         plaintexts_out = b
-            .get_messages_from_kind(
+            .get_messages_filtered(
                 BOARD_DB,
                 &StatementType::Plaintexts.to_string(),
                 &pk_strings[selected_trustees[0] - 1],
+                None,
+                None,
             )
             .await
             .unwrap();

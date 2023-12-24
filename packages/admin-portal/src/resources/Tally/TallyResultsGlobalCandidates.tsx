@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetList, useGetOne} from "react-admin"
 
 import {
@@ -20,8 +20,9 @@ import {
     TableBody,
     TableRow,
     TableCell,
+    TableHead,
 } from "@mui/material"
-import globalSettings from "@/global-settings"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -36,6 +37,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 ) => {
     const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [resultsData, setResultsData] = useState<
         Array<
@@ -43,7 +45,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 rowId: number
                 id: string
                 status: string
-                method: string
                 voters: number
                 number: number
                 turnout: number
@@ -84,6 +85,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -101,6 +104,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -112,9 +118,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                           rowId: number
                           id: string
                           status: string
-                          method: string
-                          voters: number
                           number: number
+                          voters: number
                           turnout: number
                       }
                   >
@@ -127,10 +132,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     id: candidate.id || "",
                     name: candidate.name,
                     status: candidate.status || "",
-                    method: candidate.method,
-                    voters: candidate.voters,
                     number: candidateResult?.cast_votes || 0,
-                    turnout: candidate.turnout,
+                    voters: candidateResult?.winning_position || 0,
+                    turnout: candidateResult?.winning_position || 0,
                 }
             })
 
@@ -143,23 +147,28 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const columns: GridColDef[] = [
         {
             field: "name",
-            headerName: t("tally.table.elections"),
+            headerName: t("tally.table.options"),
             flex: 1,
             editable: false,
+            align: "left",
         },
         {
             field: "method",
-            headerName: t("tally.table.method"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
-        },
-        {
-            field: "number",
             headerName: t("tally.table.number"),
             flex: 1,
             editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || 0,
+            align: "right",
+            headerAlign: "right",
+        },
+        {
+            field: "number",
+            headerName: t("tally.table.voters"),
+            flex: 1,
+            editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+            align: "right",
+            headerAlign: "right",
         },
         {
             field: "turnout",
@@ -167,6 +176,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || 0}%`,
+            align: "right",
+            headerAlign: "right",
         },
     ]
 
@@ -179,6 +190,13 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             {general && general?.length ? (
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell></TableCell>
+                                <TableCell align="right">{t("tally.table.total")}</TableCell>
+                                <TableCell align="right">{t("tally.table.turnout")}</TableCell>
+                            </TableRow>
+                        </TableHead>
                         <TableBody>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
@@ -186,6 +204,20 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].elegible_census ?? 0}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0} %
+                                </TableCell>
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.number_votes")}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0} %
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -195,6 +227,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 <TableCell align="right">
                                     {general?.[0].total_valid_votes ?? 0}
                                 </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].total_valid_votes ?? 0} %
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
@@ -202,6 +237,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].explicit_invalid_votes ?? 0}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].explicit_invalid_votes ?? 0} %
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -211,12 +249,18 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 <TableCell align="right">
                                     {general?.[0].implicit_invalid_votes ?? 0}
                                 </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].implicit_invalid_votes ?? 0} %
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
                                 <TableCell align="right">{general?.[0].blank_votes ?? 0}</TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].blank_votes ?? 0} %
+                                </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>

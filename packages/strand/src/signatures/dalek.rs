@@ -14,6 +14,8 @@ use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
@@ -287,16 +289,73 @@ impl BorshSerialize for StrandSignaturePk {
         writer: &mut W,
     ) -> std::io::Result<()> {
         let bytes: [u8; 32] = self.0.to_bytes();
-        bytes.serialize(writer)
+        BorshSerialize::serialize(&bytes, writer)
     }
 }
 
 impl BorshDeserialize for StrandSignaturePk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(buf)?;
+        let bytes: [u8; 32] = BorshDeserialize::deserialize(buf)?;
 
         StrandSignaturePk::from_bytes(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+}
+
+// Implement Serialize for StrandSignaturePk
+impl Serialize for StrandSignaturePk {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes = self.0.to_bytes();
+        serializer.serialize_str(hex::encode(bytes).as_str())
+    }
+}
+
+// Implement Deserialize for StrandSignaturePk
+impl<'de> Deserialize<'de> for StrandSignaturePk {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct StringVisitor;
+
+        impl<'de> Visitor<'de> for StringVisitor {
+            type Value = StrandSignaturePk;
+
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter,
+            ) -> std::fmt::Result {
+                formatter.write_str("a string containing hex-encoded data")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<StrandSignaturePk, E>
+            where
+                E: de::Error,
+            {
+                let bytes_vec = hex::decode(v).map_err(de::Error::custom)?;
+                if bytes_vec.len() != 64 {
+                    return Err(de::Error::invalid_length(
+                        bytes_vec.len(),
+                        &self,
+                    ));
+                }
+                let bytes = bytes_vec
+                    .try_into()
+                    .map_err(|_| de::Error::custom("Invalid length"))?;
+                StrandSignaturePk::from_bytes(bytes).map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_string(StringVisitor)
+    }
+}
+
+impl std::fmt::Debug for StrandSignature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &hex::encode(self.0.to_bytes()))
     }
 }
 
@@ -315,6 +374,57 @@ impl BorshDeserialize for StrandSignature {
         let bytes = <[u8; 64]>::deserialize(buf)?;
         StrandSignature::from_bytes(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+}
+
+// Implement Serialize for StrandSignature
+impl Serialize for StrandSignature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes = self.0.to_bytes();
+        serializer.serialize_str(hex::encode(bytes).as_str())
+    }
+}
+
+// Implement Deserialize for StrandSignature
+impl<'de> Deserialize<'de> for StrandSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct StringVisitor;
+
+        impl<'de> Visitor<'de> for StringVisitor {
+            type Value = StrandSignature;
+
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter,
+            ) -> std::fmt::Result {
+                formatter.write_str("a string containing hex-encoded data")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<StrandSignature, E>
+            where
+                E: de::Error,
+            {
+                let bytes_vec = hex::decode(v).map_err(de::Error::custom)?;
+                if bytes_vec.len() != 64 {
+                    return Err(de::Error::invalid_length(
+                        bytes_vec.len(),
+                        &self,
+                    ));
+                }
+                let bytes = bytes_vec
+                    .try_into()
+                    .map_err(|_| de::Error::custom("Invalid length"))?;
+                StrandSignature::from_bytes(bytes).map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_string(StringVisitor)
     }
 }
 

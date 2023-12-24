@@ -2,7 +2,158 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "logs: harvest",
+            "label": "start.admin-portal",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "cd packages && yarn start:admin-portal",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "start.build.admin-portal",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "cd packages && yarn && yarn build:ui-essentials && yarn start:admin-portal",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "start.voting-portal",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "cd packages && yarn start:voting-portal",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "start.ballot-verifier",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "cd packages && yarn start:ballot-verifier",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.hasura",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "hasura",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.hasura",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop hasura; docker compose up -d --no-deps hasura && docker compose logs -f --tail 100 hasura",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.harvest",
             "command": "docker",
             "args": [
                 "compose",
@@ -28,12 +179,40 @@
             },
             "isBackground": true,
             "runOptions": {
-                "runOn": "folderOpen"
+                "runOn": "default"
             },
             "problemMatcher": []
         },
         {
-            "label": "logs: keycloak",
+            "label": "logs.restart.harvest",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.keycloak",
             "command": "docker",
             "args": [
                 "compose",
@@ -59,12 +238,71 @@
             },
             "isBackground": true,
             "runOptions": {
-                "runOn": "folderOpen"
+                "runOn": "default"
             },
             "problemMatcher": []
         },
         {
-            "label": "logs: windmill",
+            "label": "logs.beat",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "beat",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.beat",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.windmill",
             "command": "docker",
             "args": [
                 "compose",
@@ -95,7 +333,35 @@
             "problemMatcher": []
         },
         {
-            "label": "update .env",
+            "label": "logs.restart.windmill",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "update.env",
             "command": "bash",
             "args": [
                 "./.devcontainer/scripts/initialize-command.sh",
@@ -115,7 +381,7 @@
             "problemMatcher": []
         },
         {
-            "label": "update vscode nix settings",
+            "label": "update.vscode.settings",
             "command": "devenv",
             "args": [
                 "shell",
@@ -137,6 +403,28 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "format.code",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
-  }
-  
+}

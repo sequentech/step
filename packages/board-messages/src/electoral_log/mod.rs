@@ -70,9 +70,9 @@ pub(crate) mod tests {
         let system_pk = StrandSignaturePk::from_sk(&system_sk).unwrap();
         let sd = SigningData::new(sender_sk, sender_name, system_sk);
         let event = EventIdString(DUMMY_STR.to_string());
-        let election = ElectionIdString(DUMMY_STR.to_string());
-        let pseudonym = PseudonymHash(DUMMY_H);
-        let vote = CastVoteHash(DUMMY_H);
+        let election = ElectionIdString(Some(DUMMY_STR.to_string()));
+        let pseudonym = PseudonymHash::new(DUMMY_H);
+        let vote = CastVoteHash::new(DUMMY_H);
         let message = Message::cast_vote_message(event, election, pseudonym, vote, &sd).unwrap();
         let mut board_message: BoardMessage = message.try_into().unwrap();
         // We do this so that the id matches the auto generated id in the db, otherwise the assert_eq fails

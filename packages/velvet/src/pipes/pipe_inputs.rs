@@ -5,6 +5,7 @@
 use super::error::{Error, Result};
 use crate::cli::{state::Stage, CliRun};
 use sequent_core::ballot::{BallotStyle, Contest};
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -20,6 +21,7 @@ pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
 
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
+pub const AREA_CONFIG_FILE: &str = "area-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
 
 #[derive(Debug)]
@@ -28,7 +30,7 @@ pub struct PipeInputs {
     pub root_path_config: PathBuf,
     pub root_path_ballots: PathBuf,
     pub stage: Stage,
-    pub election_list: Vec<ElectionConfig>,
+    pub election_list: Vec<InputElectionConfig>,
 }
 
 impl PipeInputs {
@@ -49,23 +51,26 @@ impl PipeInputs {
     pub fn build_path(
         root: &Path,
         election_id: &Uuid,
-        contest_id: &Uuid,
+        contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
     ) -> PathBuf {
         let mut path = PathBuf::new();
 
         path.push(root);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
-        path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
 
-        if let Some(area_id) = area_id {
-            path.push(format!("{}{}", PREFIX_AREA, area_id));
+        if let Some(contest_id) = contest_id {
+            path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+
+            if let Some(area_id) = area_id {
+                path.push(format!("{}{}", PREFIX_AREA, area_id));
+            }
         }
 
         path
     }
 
-    fn read_input_dir_config(input_dir: &Path) -> Result<Vec<ElectionConfig>> {
+    fn read_input_dir_config(input_dir: &Path) -> Result<Vec<InputElectionConfig>> {
         let entries = fs::read_dir(input_dir)?;
 
         let mut configs = vec![];
@@ -77,7 +82,7 @@ impl PipeInputs {
         Ok(configs)
     }
 
-    fn read_election_list_config(path: &Path) -> Result<ElectionConfig> {
+    fn read_election_list_config(path: &Path) -> Result<InputElectionConfig> {
         let entries = fs::read_dir(path)?;
 
         let election_id =
@@ -88,7 +93,8 @@ impl PipeInputs {
         }
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
-        let ballot_style: BallotStyle = serde_json::from_reader(config_file)?;
+
+        let election: ElectionConfig = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -99,26 +105,23 @@ impl PipeInputs {
             }
         }
 
-        Ok(ElectionConfig {
+        Ok(InputElectionConfig {
             id: election_id,
-            ballot_style,
+            ballot_styles: election.ballot_styles,
             contest_list: configs,
             path: path.to_path_buf(),
         })
     }
 
-    fn read_contest_list_config(
-        path: &Path,
-        election_id: Uuid,
-    ) -> Result<ContestForElectionConfig> {
+    fn read_contest_list_config(path: &Path, election_id: Uuid) -> Result<InputContestConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
-        let config_path = path.join(CONTEST_CONFIG_FILE);
-        if !config_path.exists() {
+        let config_path_contest = path.join(CONTEST_CONFIG_FILE);
+        if !config_path_contest.exists() {
             return Err(Error::ContestConfigNotFound(contest_id));
         }
-        let config_file =
-            fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
+        let config_file = fs::File::open(&config_path_contest)
+            .map_err(|e| Error::FileAccess(config_path_contest.clone(), e))?;
         let contest: Contest = serde_json::from_reader(config_file)?;
 
         let entries = fs::read_dir(path)?;
@@ -128,15 +131,30 @@ impl PipeInputs {
             if path_area.is_dir() {
                 let area_id = Self::parse_path_components(&path_area, PREFIX_AREA)
                     .ok_or(Error::IDNotFound)?;
-                configs.push(Area {
+
+                let config_path_area = path
+                    .join(format!("{PREFIX_AREA}{area_id}"))
+                    .join(AREA_CONFIG_FILE);
+
+                if !config_path_area.exists() {
+                    return Err(Error::AreaConfigNotFound(area_id));
+                }
+
+                let config_file = fs::File::open(&config_path_area)
+                    .map_err(|e| Error::FileAccess(config_path_area.clone(), e))?;
+                let area_config: AreaConfig = serde_json::from_reader(config_file)?;
+
+                configs.push(InputAreaConfig {
                     id: area_id,
+                    election_id,
                     contest_id,
+                    census: area_config.census,
                     path: path_area,
                 });
             }
         }
 
-        Ok(ContestForElectionConfig {
+        Ok(InputContestConfig {
             id: contest_id,
             election_id,
             contest,
@@ -159,25 +177,44 @@ impl PipeInputs {
 }
 
 #[derive(Debug)]
-pub struct ElectionConfig {
+pub struct InputElectionConfig {
     pub id: Uuid,
-    pub ballot_style: BallotStyle,
-    pub contest_list: Vec<ContestForElectionConfig>,
+    pub ballot_styles: Vec<BallotStyle>,
+    pub contest_list: Vec<InputContestConfig>,
     pub path: PathBuf,
 }
 
 #[derive(Debug)]
-pub struct ContestForElectionConfig {
+pub struct InputContestConfig {
     pub id: Uuid,
     pub election_id: Uuid,
     pub contest: Contest,
-    pub area_list: Vec<Area>,
+    pub area_list: Vec<InputAreaConfig>,
     pub path: PathBuf,
 }
 
 #[derive(Debug)]
-pub struct Area {
+pub struct InputAreaConfig {
     pub id: Uuid,
+    pub election_id: Uuid,
     pub contest_id: Uuid,
+    pub census: u64,
     pub path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ElectionConfig {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub ballot_styles: Vec<BallotStyle>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AreaConfig {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub election_id: Uuid,
+    pub census: u64,
 }

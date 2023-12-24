@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Routes, Route, useLocation, Navigate} from "react-router-dom"
+import {Routes, Route, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {StartScreen} from "./screens/StartScreen"
 import {VotingScreen} from "./screens/VotingScreen"
@@ -16,8 +16,8 @@ import {LoginScreen} from "./screens/LoginScreen"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
-import {DISABLE_AUTH, DEFAULT_TENANT_ID, DEFAULT_EVENT_ID} from "./Config"
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
+import {SettingsContext} from "./providers/SettingsContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -40,24 +40,28 @@ const HeaderWithContext: React.FC = () => {
 
 const App = () => {
     const navigate = useNavigate()
+    const {globalSettings} = useContext(SettingsContext)
 
     useEffect(() => {
-        if (DISABLE_AUTH) {
-            navigate(`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/election-chooser`)
+        if (globalSettings.DISABLE_AUTH) {
+            navigate(
+                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser`
+            )
         }
     }, [navigate])
 
     return (
         <StyledApp>
-            {DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+            {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
+                    <Route path="*" element={<NotFoundScreen />} />
                     <Route
                         path="/"
                         element={
                             <Navigate
                                 replace
-                                to={`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/login`}
+                                to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
                             />
                         }
                     />

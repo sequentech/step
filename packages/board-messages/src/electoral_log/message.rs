@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Deserialize, Serialize};
 
 use immu_board::BoardMessage;
 use strand::serialization::StrandSerialize;
@@ -15,7 +16,7 @@ use crate::electoral_log::newtypes::EventIdString;
 
 use super::newtypes::*;
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
     pub sender_signature: StrandSignature,
@@ -65,6 +66,15 @@ impl Message {
         Self::from_body(event, body, sd)
     }
 
+    pub fn election_pause_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::ElectionPeriodPause(election);
+        Self::from_body(event, body, sd)
+    }
+
     pub fn election_close_message(
         event: EventIdString,
         election: ElectionIdString,
@@ -79,8 +89,17 @@ impl Message {
         Self::from_body(event, body, sd)
     }
 
-    pub fn key_insertion_message(event: EventIdString, sd: &SigningData) -> Result<Self> {
-        let body = StatementBody::KeyInsertionCeremony;
+    pub fn key_insertion_start(event: EventIdString, sd: &SigningData) -> Result<Self> {
+        let body = StatementBody::KeyInsertionStart;
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn key_insertion_message(
+        event: EventIdString,
+        trustee_name: TrusteeNameString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::KeyInsertionCeremony(trustee_name);
         Self::from_body(event, body, sd)
     }
 
@@ -152,8 +171,8 @@ impl TryFrom<Message> for BoardMessage {
     fn try_from(message: Message) -> Result<BoardMessage> {
         Ok(BoardMessage {
             id: 0,
-            created: (instant::now() * 1000f64) as i64,
-            statement_timestamp: (message.statement.head.timestamp * 1000) as i64,
+            created: crate::timestamp() as i64,
+            statement_timestamp: message.statement.head.timestamp as i64,
             statement_kind: message.statement.head.kind.to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
@@ -161,7 +180,7 @@ impl TryFrom<Message> for BoardMessage {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, std::fmt::Debug)]
 pub struct Sender {
     pub name: String,
     pub pk: StrandSignaturePk,

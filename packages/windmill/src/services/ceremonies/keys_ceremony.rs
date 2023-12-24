@@ -12,6 +12,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
@@ -361,7 +362,7 @@ pub async fn create_keys_ceremony(
         .collect();
 
     // get the election event
-    let _election_event = get_election_event_helper(
+    let election_event = get_election_event_helper(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -435,5 +436,16 @@ pub async fn create_keys_ceremony(
         ))
         .await?;
     event!(Level::INFO, "Sent create_keys task {}", task.task_id);
+
+    // Save it in the electoral log
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    electoral_log
+        .post_keygen(election_event_id.clone())
+        .await
+        .with_context(|| "error posting to the electoral log")?;
+
     Ok(keys_ceremony_id)
 }

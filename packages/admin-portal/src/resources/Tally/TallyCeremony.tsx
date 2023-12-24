@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -38,9 +38,10 @@ import {
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
-import globalSettings from "@/global-settings"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import DownloadIcon from "@mui/icons-material/Download"
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -59,6 +60,7 @@ export const TallyCeremony: React.FC = () => {
     const {t} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
@@ -96,6 +98,9 @@ export const TallyCeremony: React.FC = () => {
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -107,6 +112,9 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -122,6 +130,9 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -424,12 +435,6 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    <Button onClick={handleExportResults} sx={{zIndex: 100}}>
-                                        <DownloadIcon />
-                                        {t("common.label.export")}
-                                    </Button>
-                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
                                 <TallyStartDate />
@@ -460,8 +465,14 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
+                                <TallyStyles.StyledSpacing>
+                                    <ExportElectionMenu
+                                        resource="sequent_backend_results_event"
+                                        event={data}
+                                    />
+                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
+                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
                                 <TallyResults
                                     tally={tally}
                                     resultsEventId={
