@@ -3,41 +3,45 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
-use std::convert::From;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-struct CastVote {
+pub struct CastVote {
     pub id: String,
     pub tenant_id: String,
     pub election_id: Option<String>,
     pub area_id: Option<String>,
-    pub created_at: Option<String>,
-    pub last_updated_at: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
-    pub cast_ballot_signature: Option<String>,
+    pub cast_ballot_signature: Option<Vec<u8>>,
     pub voter_id_string: Option<String>,
-    pub election_event_i: String,
+    pub election_event_id: String,
 }
 
 impl TryFrom<Row> for CastVote {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVote {
-            id: item.try_get("id")?,
-            tenant_id: item.try_get("tenant_id")?,
-            election_id: item.try_get("election_id")?,
-            area_id: item.try_get("area_id")?,
-            created_at: item.try_get("created_at")?,
-            last_updated_at: item.try_get("last_updated_at")?,
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            election_id: item
+                .try_get::<_, Option<Uuid>>("election_id")?
+                .map(|val| val.to_string()),
+            area_id: item
+                .try_get::<_, Option<Uuid>>("area_id")?
+                .map(|val| val.to_string()),
+            created_at: item.get("created_at"),
+            last_updated_at: item.get("last_updated_at"),
             content: item.try_get("content")?,
             cast_ballot_signature: item.try_get("cast_ballot_signature")?,
             voter_id_string: item.try_get("voter_id_string")?,
-            election_event_i: item.try_get("election_event_i")?,
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
         })
     }
 }
@@ -47,8 +51,8 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+) -> Result<Vec<CastVote>> {
+    let hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
@@ -90,10 +94,10 @@ pub async fn find_area_ballots(
         )
         .await
         .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-    let users = rows
+    let cast_votes = rows
         .into_iter()
         .map(|row| -> Result<CastVote> { row.try_into() })
         .collect::<Result<Vec<CastVote>>>()?;
 
-    Ok(())
+    Ok(cast_votes)
 }
