@@ -3,7 +3,7 @@ import {setContext} from "@apollo/client/link/context"
 
 export const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     const httpLink = createHttpLink({
-        uri: "http://localhost:8080/v1/graphql",
+        uri: "https://hasura-staging.sequent.vote/v1/graphql",
     })
 
     const authLink = setContext((_, {headers}) => {
