@@ -4,14 +4,23 @@
 
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {BreadCrumbSteps, PageLimit, theme, Icon, InfoDataBox} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    PageLimit,
+    theme,
+    Icon,
+    InfoDataBox,
+    IconButton,
+    Dialog,
+    stringToHtml,
+} from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
 import {GetCastVoteQuery} from "../gql/graphql"
-import {faAngleLeft} from "@fortawesome/free-solid-svg-icons"
+import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -72,6 +81,7 @@ function isHex(str: string) {
 
 export const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
+    const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
     const {t} = useTranslation()
 
@@ -126,6 +136,21 @@ export const BallotLocator: React.FC = () => {
                             ) : (
                                 <Box>{t("ballotLocator.titleResult")}</Box>
                             )}
+                            <IconButton
+                                icon={faCircleQuestion}
+                                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                                fontSize="16px"
+                                onClick={() => setOpenTitleHelp(true)}
+                            />
+                            <Dialog
+                                handleClose={() => setOpenTitleHelp(false)}
+                                open={openTitleHelp}
+                                title={t("ballotLocator.titleHelpDialog.title")}
+                                ok={t("ballotLocator.titleHelpDialog.ok")}
+                                variant="info"
+                            >
+                                {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
+                            </Dialog>
                         </StyledTitle>
 
                         <Typography
@@ -183,6 +208,7 @@ export const BallotLocator: React.FC = () => {
 
                 {!hasBallotId ? (
                     <Button
+                        sx={{marginTop: "10px"}}
                         disabled={!validatedBallotId || inputBallotId.trim() === ""}
                         className="normal"
                         onClick={() => locate(true)}
@@ -191,7 +217,11 @@ export const BallotLocator: React.FC = () => {
                     </Button>
                 ) : (
                     <>
-                        <Button className="normal" onClick={() => locate()}>
+                        <Button
+                            sx={{marginTop: "10px"}}
+                            className="normal"
+                            onClick={() => locate()}
+                        >
                             <span>{t("ballotLocator.locateAgain")}</span>
                         </Button>
                     </>

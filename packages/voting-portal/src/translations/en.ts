@@ -157,6 +157,12 @@ const englishTranslation = {
                 lookup: "Locate your Ballot",
                 result: "Result",
             },
+            titleHelpDialog: {
+                title: "Information: Ballot Locator screen",
+                content:
+                    "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
+                ok: "OK",
+            },
         },
     },
 }
