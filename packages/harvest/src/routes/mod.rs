@@ -8,6 +8,7 @@ pub mod error_catchers;
 pub mod fetch_document;
 pub mod immudb_log_audit;
 pub mod insert_election_event;
+pub mod election_event_stats;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod permissions;
