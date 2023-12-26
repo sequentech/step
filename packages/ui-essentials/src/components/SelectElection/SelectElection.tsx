@@ -40,6 +40,14 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
             }
         `
             : ""}
+    ${({isactive}) =>
+        "true" === isactive
+            ? `
+            &:hover {
+                cursor: pointer;
+            }
+        `
+            : ""}
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         position: relative;
         flex-direction: column;
@@ -173,11 +181,20 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             onClickElectionResults()
         }
     }
+    const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
+        event
+    ) => {
+        event.stopPropagation()
+        if (!isUndefined(onClickBallotLocator)) {
+            onClickBallotLocator()
+        }
+    }
 
     const displayBallotLocator = !!onClickBallotLocator
 
     return (
         <BorderBox
+            onClick={handleClickToVote}
             isopen={String(!!isOpen)}
             isactive={String(!!isActive)}
             role="button"
@@ -234,7 +251,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     <StyledButton
                         sx={{marginRight: "16px"}}
                         variant="secondary"
-                        onClick={onClickBallotLocator}
+                        onClick={handleClickBallotLocator}
                     >
                         {t("selectElection.ballotLocator")}
                     </StyledButton>
