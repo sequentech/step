@@ -4,7 +4,7 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
 import "./index.css"
-import {AppWrapper} from "./App"
+import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
@@ -20,6 +20,7 @@ import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyP
 import NewResourceContextProvider from "./providers/NewResourceProvider"
 import {PublishContextProvider} from "./providers/PublishContextProvider"
 import {SettingsWrapper} from "./providers/SettingsContextProvider"
+import { ApolloContextProvider, ApolloWrapper } from "./providers/ApolloContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -38,7 +39,11 @@ root.render(
                                         <ElectionEventTallyContextProvider>
                                             <PublishContextProvider>
                                                 <ThemeProvider theme={fullAdminTheme}>
-                                                    <AppWrapper />
+                                                    <ApolloContextProvider>
+                                                        <ApolloWrapper>
+                                                            <App  />
+                                                        </ApolloWrapper>
+                                                    </ApolloContextProvider>
                                                 </ThemeProvider>
                                             </PublishContextProvider>
                                         </ElectionEventTallyContextProvider>
