@@ -17,6 +17,7 @@ insert_permissions:
     - voter_id_string
     - annotations
     - labels
+    - ballot_id
     - content
     - created_at
     - last_updated_at
@@ -60,6 +61,7 @@ select_permissions:
     - voter_id_string
     - annotations
     - labels
+    - ballot_id
     - content
     - created_at
     - last_updated_at
@@ -78,6 +80,7 @@ select_permissions:
     - voter_id_string
     - annotations
     - labels
+    - ballot_id
     - content
     - created_at
     - last_updated_at
@@ -90,6 +93,7 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - annotations
     - area_id
@@ -120,6 +124,7 @@ update_permissions:
     - voter_id_string
     - annotations
     - labels
+    - ballot_id
     - content
     - created_at
     - last_updated_at

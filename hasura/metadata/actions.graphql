@@ -168,6 +168,16 @@ type Mutation {
 }
 
 type Query {
+  listElectoralLog (
+    limit: Int
+    offset: Int
+    election_event_id: String
+    filter: ElectoralLogFilter
+    order_by: ElectoralLogOrderBy
+  ): DataListElectoralLog
+}
+
+type Query {
   listPgaudit (
     limit: Int
     offset: Int
@@ -176,17 +186,6 @@ type Query {
     audit_table: PgAuditTable
   ): DataListPgAudit
 }
-
-type Query {
-  listElectoralLog (
-    limit: Int
-    offset: Int
-    election_event_id: String
-    filter: ElectoralLogFilter 
-    order_by: ElectoralLogOrderBy
-  ): DataListElectoralLog
-}
-
 
 type Query {
   list_user_roles (
@@ -504,7 +503,7 @@ type ElectoralLogRow {
   created : Int!
   statement_timestamp : Int!
   statement_kind : String!
-  message: String!
+  message : String!
 }
 
 type DataListElectoralLog {
