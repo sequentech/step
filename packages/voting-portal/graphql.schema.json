@@ -37472,12 +37472,6 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "cast_vote_ballot_id_key",
-            "description": "unique or primary key constraint on columns \"ballot_id\"",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "cast_vote_pkey",
             "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
