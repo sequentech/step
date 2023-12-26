@@ -4,12 +4,14 @@
 
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {BreadCrumbSteps, PageLimit, theme} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, PageLimit, theme, Icon, InfoDataBox} from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
+import {GetCastVoteQuery} from "../gql/graphql"
+import {faAngleLeft} from "@fortawesome/free-solid-svg-icons"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -68,7 +70,7 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
-export default function BallotLocator() {
+export const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const navigate = useNavigate()
     const {t} = useTranslation()
@@ -77,7 +79,7 @@ export default function BallotLocator() {
 
     const hasBallotId = !!ballotId
 
-    const {data, loading} = useQuery(GET_CAST_VOTE, {
+    const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
             tenantId,
             electionEventId: eventId,
@@ -89,15 +91,21 @@ export default function BallotLocator() {
     const validatedBallotId = isHex(inputBallotId ?? "")
 
     const ballotContent =
-        data?.["sequent_backend_cast_vote"]?.find((item: any) => item.ballot_id === ballotId)
-            ?.content ?? null
+        data?.["sequent_backend_cast_vote"]?.find((item) => item.ballot_id === ballotId)?.content ??
+        null
 
-    function locate(withBallotId = false) {
+    const locate = (withBallotId = false) => {
         let id = withBallotId ? inputBallotId : ""
 
         setInputBallotId("")
 
         navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
+    }
+
+    const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+        if ("Enter" === event.key) {
+            locate(true)
+        }
     }
 
     return (
@@ -130,7 +138,8 @@ export default function BallotLocator() {
                     <Box sx={{marginTop: "20px"}}>
                         <StyledLink to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
                             <Button variant="secondary" className="secondary">
-                                {t("votingScreen.backButton")}
+                                <Icon icon={faAngleLeft} size="sm" />
+                                <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
                             </Button>
                         </StyledLink>
                     </Box>
@@ -157,6 +166,7 @@ export default function BallotLocator() {
                             }}
                             label="Ballot ID"
                             placeholder={t("ballotLocator.description")}
+                            onKeyDown={captureEnter}
                         />
                         {!validatedBallotId && (
                             <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
@@ -164,16 +174,12 @@ export default function BallotLocator() {
                     </>
                 )}
 
-                <Box sx={{height: "250px"}}>
-                    {hasBallotId && ballotContent && (
-                        <>
-                            <Typography>{t("ballotLocator.contentDesc")}</Typography>
-                            <Box sx={{wordWrap: "break-word", fontFamily: "monospace"}}>
-                                {ballotContent}
-                            </Box>
-                        </>
-                    )}
-                </Box>
+                {hasBallotId && ballotContent && (
+                    <>
+                        <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                        <InfoDataBox>{ballotContent}</InfoDataBox>
+                    </>
+                )}
 
                 {!hasBallotId ? (
                     <Button
