@@ -56,4 +56,7 @@ export const {setBallotStyle} = ballotStylesSlice.actions
 export const selectBallotStyleByElectionId = (electionId: string) => (state: RootState) =>
     state.ballotStyles[electionId]
 
+export const selectBallotStyleElectionIds = () => (state: RootState) =>
+    Object.keys(state.ballotStyles)
+
 export default ballotStylesSlice.reducer

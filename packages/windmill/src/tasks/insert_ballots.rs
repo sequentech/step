@@ -17,6 +17,7 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_name;
+use crate::services::cast_votes::find_area_ballots;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
@@ -101,18 +102,12 @@ pub async fn insert_ballots(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let cast_ballots_response = hasura::cast_ballot::find_ballots(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_contest.area_id.clone(),
+    let ballots_list = find_area_ballots(
+        &tenant_id,
+        &election_event_id,
+        &tally_session_contest.area_id,
     )
     .await?;
-
-    let ballots_list = &cast_ballots_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_cast_vote;
 
     event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
 

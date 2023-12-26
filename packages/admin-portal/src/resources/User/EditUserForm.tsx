@@ -151,8 +151,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
+            userId: id!,
             electionEventId: electionEventId,
-            userId: id || tenantId,
         },
     })
 

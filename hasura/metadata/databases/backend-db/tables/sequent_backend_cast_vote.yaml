@@ -114,6 +114,8 @@ select_permissions:
           _eq: X-Hasura-Area-Id
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
+      - voter_id_string:
+          _eq: X-Hasura-User-Id
   role: user
 update_permissions:
 - comment: ""
