@@ -146,6 +146,27 @@ const spanishTranslation: TranslationType = {
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
             },
         },
+        ballotLocator: {
+            title: "Localiza tu Papeleta",
+            titleResult: "Resultado de la búsqueda de tu Boleta",
+            description: "Verify that your Papeleta has been correctly emitted",
+            locate: "Localiza tu Papeleta",
+            locateAgain: "Localiza otra Papeleta",
+            found: "Tu ID de Papeleta {{ballotId}} ha sido localizada",
+            notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
+            contentDesc: "Este es el contenido de tu Papeleta: ",
+            wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
+            steps: {
+                lookup: "Localiza tu Papeleta",
+                result: "Result",
+            },
+            titleHelpDialog: {
+                title: "Información: pantalla de Localización de tu Papeleta",
+                content:
+                    "Esta pantalla le permite al votante encontrar su Papeleta utilizando el ID de la Papeleta para recuperarlo. Este procedimiento permite comprobar que su voto fue emitido correctamente y que el voto registrado coincide con el voto cifrado que emitió.",
+                ok: "OK",
+            },
+        },
     },
 }
 
