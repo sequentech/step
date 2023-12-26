@@ -8,6 +8,7 @@ import {AuthContext} from "./AuthContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {useParams} from "react-router-dom"
+import {SettingsContext} from "./SettingsContextProvider"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -33,10 +34,11 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
         null
     )
     const {isAuthenticated, getAccessToken} = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
         const httpLink = createHttpLink({
-            uri: "http://localhost:8080/v1/graphql",
+            uri: globalSettings.HASURA_URL,
         })
 
         const authLink = setContext((_, {headers}) => {

@@ -53,10 +53,9 @@ import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectio
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
 import {Logs} from "./screens/Logs"
-import { ApolloContext } from "./providers/ApolloContextProvider"
+import {ApolloContext} from "./providers/ApolloContextProvider"
 
-interface AppProps {
-}
+interface AppProps {}
 
 const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)

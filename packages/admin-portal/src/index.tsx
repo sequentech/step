@@ -20,7 +20,7 @@ import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyP
 import NewResourceContextProvider from "./providers/NewResourceProvider"
 import {PublishContextProvider} from "./providers/PublishContextProvider"
 import {SettingsWrapper} from "./providers/SettingsContextProvider"
-import { ApolloContextProvider, ApolloWrapper } from "./providers/ApolloContextProvider"
+import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -41,7 +41,7 @@ root.render(
                                                 <ThemeProvider theme={fullAdminTheme}>
                                                     <ApolloContextProvider>
                                                         <ApolloWrapper>
-                                                            <App  />
+                                                            <App />
                                                         </ApolloWrapper>
                                                     </ApolloContextProvider>
                                                 </ThemeProvider>
