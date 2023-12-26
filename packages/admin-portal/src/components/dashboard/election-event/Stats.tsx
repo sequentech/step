@@ -81,7 +81,7 @@ export default function Stats({
     const stats = updatedElectionEvent?.statistics as IElectionEventStatistics | null
 
     const res = {
-        castVotes: dataStats?.castVotes?.aggregate?.count ?? 0,
+        castVotes: dataStats?.castVotes?.total_distinct_voters ?? 0,
         elections: dataStats?.elections?.aggregate?.count ?? 0,
         areas: dataStats?.areas?.aggregate?.count ?? 0,
         emailsSent: stats?.num_emails_sent ?? 0,

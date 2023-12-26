@@ -133,6 +133,12 @@ type Query {
   ): GetRolesOutput!
 }
 
+type Query {
+  getElectionEventStats (
+    object: ElectionEventStatsInput!
+  ): ElectionEventStatsOutput
+}
+
 type Mutation {
   get_upload_url (
     name: String!
@@ -344,6 +350,10 @@ input CreateKeysCeremonyInput {
   trustee_names : [String!]
 }
 
+input ElectionEventStatsInput {
+  election_event_id : String!
+}
+
 input GetPrivateKeyInput {
   election_event_id : String!
   keys_ceremony_id : String!
@@ -441,6 +451,10 @@ type CreateKeysCeremonyOutput {
 
 type GetPrivateKeyOutput {
   private_key_base64 : String!
+}
+
+type ElectionEventStatsOutput {
+  total_distinct_voters : int!
 }
 
 type CheckPrivateKeyOutput {
