@@ -16,6 +16,7 @@ use postgres_openssl::MakeTlsConnector;
 #[derive(Debug, Deserialize)]
 pub struct PgConfig {
     pub keycloak_db: deadpool_postgres::Config,
+    pub hasura_db: deadpool_postgres::Config,
     pub low_sql_limit: i32,
     pub default_sql_limit: i32,
     pub default_sql_batch_size: i32,
@@ -25,6 +26,7 @@ impl Default for PgConfig {
     fn default() -> Self {
         PgConfig {
             keycloak_db: deadpool_postgres::Config::default(),
+            hasura_db: deadpool_postgres::Config::default(),
             low_sql_limit: 1000,
             default_sql_limit: 20,
             default_sql_batch_size: 1000,
@@ -44,7 +46,7 @@ impl PgConfig {
 }
 
 #[instrument(err)]
-pub async fn generate_database_pool() -> Result<Arc<Pool>> {
+pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
     let config = PgConfig::from_env()?;
 
     cfg_if::cfg_if! {
@@ -95,11 +97,69 @@ pub async fn generate_database_pool() -> Result<Arc<Pool>> {
     }
 }
 
-lazy_static! {
-    static ref DATABASE_POOL: AsyncOnce<Arc<Pool>> =
-        AsyncOnce::new(async { generate_database_pool().await.unwrap() });
+#[instrument(err)]
+pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
+    let config = PgConfig::from_env()?;
+
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
+            if  config.hasura_db.ssl_mode == Some(SslMode::Prefer) ||
+                config.hasura_db.ssl_mode == Some(SslMode::Require)
+            {
+                let mut builder = SslConnector::builder(SslMethod::tls())
+                    .map_err(|err|
+                        anyhow!("error building SsslConnector: {}", err)
+                    )?;
+                builder.set_ca_file(
+                    env::var("HASURA_DB_CA_PATH")
+                    .map_err(|err|
+                        anyhow!("error loading HASURA_DB_CA_PATH var: {}", err)
+                    )?
+                )
+                .map_err(|err|
+                    anyhow!("error in builder.set_ca_file(): {}", err)
+                )?;
+                let connector_tls = MakeTlsConnector::new(builder.build());
+
+                let pool = config
+                    .hasura_db
+                    .create_pool(Some(Runtime::Tokio1), connector_tls)
+                    .map_err(|err|
+                        anyhow!("error creating pool: {}", err)
+                    )?;
+                Ok(Arc::new(pool))
+            } else {
+                let pool = config
+                    .hasura_db
+                    .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+                    .map_err(|err|
+                        anyhow!("error creating pool: {}", err)
+                    )?;
+                Ok(Arc::new(pool))
+            }
+        } else {
+            let pool = config
+                .hasura_db
+                .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+                .map_err(|err|
+                    anyhow!("error creating pool: {}", err)
+                )?;
+            Ok(Arc::new(pool))
+        }
+    }
 }
 
-pub async fn get_database_pool() -> Arc<Pool> {
-    DATABASE_POOL.get().await.clone()
+lazy_static! {
+    static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> =
+        AsyncOnce::new(async { generate_keycloak_pool().await.unwrap() });
+    static ref HASURA_POOL: AsyncOnce<Arc<Pool>> =
+        AsyncOnce::new(async { generate_hasura_pool().await.unwrap() });
+}
+
+pub async fn get_keycloak_pool() -> Arc<Pool> {
+    KEYCLOAK_POOL.get().await.clone()
+}
+
+pub async fn get_hasura_pool() -> Arc<Pool> {
+    HASURA_POOL.get().await.clone()
 }

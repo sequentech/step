@@ -18,7 +18,7 @@ use crate::hasura::election_event::insert_election_event::sequent_backend_electi
 use crate::hasura::election_event::{get_election_event, insert_election_event};
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::get_board_client;
+use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::types::error::Result;
 
 #[instrument(err)]
@@ -32,6 +32,10 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
     } else {
         board_client.create_board(&index_db, &board_name).await?
     };
+
+    if !has_board {
+        create_protocol_manager_keys(&board_name).await?;
+    }
 
     let board_serializable: BoardSerializable = board.into();
     let board_value = serde_json::to_value(board_serializable.clone())?;

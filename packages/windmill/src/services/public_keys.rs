@@ -14,7 +14,6 @@ use strand::signature::StrandSignaturePk;
 use tracing::instrument;
 
 use super::protocol_manager;
-use crate::services::vault;
 
 pub fn deserialize_public_key(public_key_string: String) -> StrandSignaturePk {
     StrandSignaturePk::from_der_b64_string(&public_key_string).unwrap()
@@ -26,21 +25,17 @@ pub async fn create_keys(
     trustee_pks: Vec<String>,
     threshold: usize,
 ) -> Result<()> {
-    // 2. create protocol manager keys
-    let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
+    // get protocol manager keys
+    let pm = protocol_manager::get_protocol_manager(board_name).await?;
 
-    // 3. save pm keys in vault
-    let pm_config = protocol_manager::serialize_protocol_manager::<RistrettoCtx>(&pm);
-    vault::save_secret(format!("boards/{}/protocol-manager", board_name), pm_config).await?;
-
-    // 4. create trustees keys from input strings
+    // create trustees keys from input strings
     let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
         .clone()
         .into_iter()
         .map(deserialize_public_key)
         .collect();
 
-    // 5. add config to board on immudb
+    // add config to board on immudb
     protocol_manager::add_config_to_board::<RistrettoCtx>(threshold, board_name, trustee_pks, pm)
         .await?;
 

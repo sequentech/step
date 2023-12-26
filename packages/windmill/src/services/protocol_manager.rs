@@ -10,6 +10,7 @@ use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use board_messages::braid::statement::StatementType;
 
+use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -25,6 +26,25 @@ use tracing::{event, info, instrument, Level};
 use crate::services::vault;
 use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+
+pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
+    format!("boards/{board_name}/protocol-manager")
+}
+
+#[instrument(err)]
+pub async fn create_protocol_manager_keys(board_name: &str) -> Result<()> {
+    // create protocol manager keys
+    let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
+
+    // save protocol manager keys in vault
+    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager);
+    vault::save_secret(
+        get_protocol_manager_secret_path(board_name),
+        protocol_config,
+    )
+    .await?;
+    Ok(())
+}
 
 pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
@@ -223,6 +243,14 @@ pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<
     Ok(messages)
 }
 
+pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolManager<C>> {
+    let protocol_manager_key = get_protocol_manager_secret_path(board_name);
+    let protocol_manager_data = vault::read_secret(protocol_manager_key)
+        .await?
+        .ok_or(anyhow!("protocol manager secret not found"))?;
+    Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
+}
+
 #[instrument(skip(trustee_pks), err)]
 pub async fn add_ballots_to_board<C: Ctx>(
     board_name: &str,
@@ -230,14 +258,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
     batch: BatchNumber,
     trustee_pks: Vec<StrandSignaturePk>,
 ) -> Result<()> {
-    let pms_opt = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
-    let pms = match pms_opt {
-        Some(pms) => pms,
-        None => {
-            return Err(anyhow!("protocol manager secret not found"));
-        }
-    };
-    let pm = deserialize_protocol_manager::<C>(pms);
+    let pm = get_protocol_manager(board_name).await?;
 
     let mut board = get_board_client().await?;
     let board_messages = board.get_messages(board_name, -1).await?;
@@ -263,12 +284,11 @@ pub async fn add_ballots_to_board<C: Ctx>(
 
 #[instrument(err)]
 pub async fn get_board_client() -> Result<BoardClient> {
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
+    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
 
-    let mut board_client = BoardClient::new(&server_url, &user, &password).await?;
+    let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
 }

@@ -13,6 +13,7 @@ pub mod documents;
 pub mod election_event_board;
 pub mod election_event_statistics;
 pub mod election_event_status;
+pub mod electoral_log;
 pub mod jwks;
 pub mod pg_lock;
 pub mod private_keys;

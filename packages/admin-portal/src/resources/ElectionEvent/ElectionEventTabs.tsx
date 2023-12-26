@@ -16,6 +16,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
+import {ElectoralLog} from "./ElectoralLog"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -74,7 +75,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showVoters ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.voters")}>
-                        <EditElectionEventUsers />
+                        <EditElectionEventUsers electionEventId={record?.id} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showAreas ? (
@@ -105,7 +106,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showLogs ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.logs")}>
-                        a
+                        <ElectoralLog />
                     </TabbedShowLayout.Tab>
                 ) : null}
             </TabbedShowLayout>
