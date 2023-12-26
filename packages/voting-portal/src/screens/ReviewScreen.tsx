@@ -35,7 +35,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
-import {provideBallotService} from "../services/BallotService"
+import {hashBallot, provideBallotService} from "../services/BallotService"
 import {TenantEventContext} from ".."
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 
@@ -85,6 +85,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
     const {toHashableBallot} = provideBallotService()
+    const ballotId = hashBallot(auditableBallot)
+
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
@@ -100,6 +102,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             let result = await insertCastVote({
                 variables: {
                     id: uuidv4(),
+                    ballotId,
                     electionId: ballotStyle.election_id,
                     electionEventId: ballotStyle.election_event_id,
                     tenantId: ballotStyle.tenant_id,

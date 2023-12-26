@@ -40,7 +40,6 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
             }
         `
             : ""}
-
     ${({isactive}) =>
         "true" === isactive
             ? `
@@ -152,6 +151,7 @@ export interface SelectElectionProps {
     closeDate?: string
     onClickToVote?: () => void
     onClickElectionResults?: () => void
+    onClickBallotLocator?: () => void
 }
 
 const SelectElection: React.FC<SelectElectionProps> = ({
@@ -164,6 +164,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     closeDate,
     onClickToVote,
     onClickElectionResults,
+    onClickBallotLocator,
 }) => {
     const {t} = useTranslation()
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
@@ -180,6 +181,16 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             onClickElectionResults()
         }
     }
+    const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
+        event
+    ) => {
+        event.stopPropagation()
+        if (!isUndefined(onClickBallotLocator)) {
+            onClickBallotLocator()
+        }
+    }
+
+    const displayBallotLocator = !!onClickBallotLocator
 
     return (
         <BorderBox
@@ -191,7 +202,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         >
             <TextContainer>
                 <StyledTitle>{title}</StyledTitle>
-                <Box sx={{display: {xs: "none", md: "block"}}}>
+                <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                     <StyledLink href={electionHomeUrl} target="_blank">
                         {t("selectElection.electionWebsite")}
                     </StyledLink>
@@ -235,15 +246,26 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledLink>
                 </Box>
             </DatesUrlWrap>
-            {isOpen ? (
-                <StyledButton onClick={handleClickToVote}>
-                    {t("selectElection.voteButton")}
-                </StyledButton>
-            ) : (
-                <StyledButton variant="secondary" onClick={handleClickElectionResults}>
-                    {t("selectElection.resultsButton")}
-                </StyledButton>
-            )}
+            <Box sx={{display: "flex"}}>
+                {displayBallotLocator && (
+                    <StyledButton
+                        sx={{marginRight: "16px"}}
+                        variant="secondary"
+                        onClick={handleClickBallotLocator}
+                    >
+                        {t("selectElection.ballotLocator")}
+                    </StyledButton>
+                )}
+                {isOpen ? (
+                    <StyledButton onClick={handleClickToVote}>
+                        {t("selectElection.voteButton")}
+                    </StyledButton>
+                ) : (
+                    <StyledButton variant="secondary" onClick={handleClickElectionResults}>
+                        {t("selectElection.resultsButton")}
+                    </StyledButton>
+                )}
+            </Box>
         </BorderBox>
     )
 }

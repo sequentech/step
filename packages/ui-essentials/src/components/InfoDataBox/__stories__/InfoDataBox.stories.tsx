@@ -1,0 +1,42 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
+import {Meta, StoryObj} from "@storybook/react"
+import InfoDataBox from "../InfoDataBox"
+import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+
+const DATA =
+    "AQAAAAoAAAAyNi8xMi8yMDIzJAAAADViZDQwY2Y5LTEyNWItNGM2MS1hZmQ0LTcwZmViNWEzMDhjYyQAAAA5MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUkAAAAYzgzODYxY2QtYTkxMi00MTcyLWE4ZjUtZmM5YTM1YzhmYjU1JAAAAGEzNjc1OWM5LTBjZDMtNDQ3Ni1hNTExLTA1OTAzYjZhMGI2MwABKwAAAGpzS1htWGc3L0lvTHNDVVQ0YnZEa29NV1hKNG02RmRLOGc0dWM0WHZEUkUAJAAAAGE3ODFjMzZjLWVmYzItNDQxYS1hN2ZmLTdlYzc4ODZkMjE1MQEAAAAkAAAANTk2NDQzYjktOTk3ZC00MzQ1LWFjNDEtYzIwNTQxMTk0YWQ0JAAAADkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSQAAABjODM4NjFjZC1hOTEyLTQxNzItYThmNS1mYzlhMzVjOGZiNTUkAAAAYTM2NzU5YzktMGNkMy00NDc2LWE1MTEtMDU5MDNiNmEwYjYzAQkAAABjb250ZXN0IDIAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAARMAAABmaXJzdC1wYXN0LXRoZS1wb3N0ARIAAABwbHVyYWxpdHktYXQtbGFyZ2UBAgAAACQAAABhZDZmNzA4Ny05OWM4LTQ5YTEtOTVkMS0xZWVjNzYzNThjNWUkAAAAOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1JAAAAGM4Mzg2MWNkLWE5MTItNDE3Mi1hOGY1LWZjOWEzNWM4ZmI1NSQAAABhMzY3NTljOS0wY2QzLTQ0NzYtYTUxMS0wNTkwM2I2YTBiNjMkAAAANTk2NDQzYjktOTk3ZC00MzQ1LWFjNDEtYzIwNTQxMTk0YWQ0AQMAAAB5ZXMAAAAkAAAAYzBiOTkxYzctYTM1Yy00ODIwLWIwZjItYzk5MTJiMmViZTgyJAAAADkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSQAAABjODM4NjFjZC1hOTEyLTQxNzItYThmNS1mYzlhMzVjOGZiNTUkAAAAYTM2NzU5YzktMGNkMy00NDc2LWE1MTEtMDU5MDNiNmEwYjYzJAAAADU5NjQ0M2I5LTk5N2QtNDM0NS1hYzQxLWMyMDU0MTE5NGFkNAECAAAAbm8AAAAAAQAAACQAAAA1OTY0NDNiOS05OTdkLTQzNDUtYWM0MS1jMjA1NDExOTRhZDT4N3ipacB+jCkVoiW+I7St4rf1NV3TxaT84NTUqXycSqS6Gw0KCRF88WedjM/nmfBSqePDYiKUX+u+wAIoV0ZSAQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3hLK/YLvJE8r7ywSkPi5Fs53/9i2qxpNWmbjXpLV1ATOetivPlxMP4AdqGPLxUGf60JIZ7rwQbo68kdKaEmvdxQgGgmwtnrPA236STLk+r6qM5jU3waauEQjVepoFagL0rTN+F2w1rKUmv0Zdn20BMlFzlMYBTnsGZNkxQqVlQ1AAAAAOTliNmRlMDQ3NWQ1MzJmMDdjNDBmY2I4MDE5MjU0YTU2MDI3NzU5ZWUxMTRkNDZhYmRlODhkNWU0MjJmNjE5YQ"
+
+const InfoDataBoxExample: React.FC = () => {
+    return <InfoDataBox>{DATA}</InfoDataBox>
+}
+
+const meta: Meta<typeof InfoDataBoxExample> = {
+    title: "components/InfoDataBox",
+    component: InfoDataBoxExample,
+    parameters: {
+        backgrounds: {
+            default: "white",
+        },
+        viewport: {
+            viewports: INITIAL_VIEWPORTS,
+            defaultViewport: "iphone6",
+        },
+    },
+}
+
+export default meta
+
+type Story = StoryObj<typeof InfoDataBoxExample>
+
+export const Base: Story = {
+    // More on args: https://storybook.js.org/docs/react/writing-stories/args
+    args: {},
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}

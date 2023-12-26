@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useContext, useState} from "react"
+import React, {useState, useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -141,6 +141,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
 }
 
 export const ConfirmationScreen: React.FC = () => {
+    const {tenantId, eventId} = useContext(TenantEventContext)
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()
@@ -148,7 +149,8 @@ export const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
-    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/election/${electionId}/public/ballot-locator/${ballotId}`
+
+    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
 
     return (
         <PageLimit maxWidth="lg">

@@ -89,6 +89,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         return null
     }
 
+    const handleClickBallotLocator = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`)
+    }
+
     return (
         <SelectElection
             isActive={true}
@@ -98,6 +102,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
             hasVoted={castVotes.length > 0}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
+            onClickBallotLocator={handleClickBallotLocator}
         />
     )
 }

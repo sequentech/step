@@ -5314,6 +5314,7 @@ export type Sequent_Backend_Cast_Vote = {
   __typename?: 'sequent_backend_cast_vote';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id?: Maybe<Scalars['uuid']['output']>;
+  ballot_id?: Maybe<Scalars['String']['output']>;
   cast_ballot_signature?: Maybe<Scalars['bytea']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -5373,6 +5374,7 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
   _or?: InputMaybe<Array<Sequent_Backend_Cast_Vote_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   area_id?: InputMaybe<Uuid_Comparison_Exp>;
+  ballot_id?: InputMaybe<String_Comparison_Exp>;
   cast_ballot_signature?: InputMaybe<Bytea_Comparison_Exp>;
   content?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -5413,6 +5415,7 @@ export type Sequent_Backend_Cast_Vote_Delete_Key_Input = {
 export type Sequent_Backend_Cast_Vote_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_id?: InputMaybe<Scalars['uuid']['input']>;
+  ballot_id?: InputMaybe<Scalars['String']['input']>;
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -5429,6 +5432,7 @@ export type Sequent_Backend_Cast_Vote_Insert_Input = {
 export type Sequent_Backend_Cast_Vote_Max_Fields = {
   __typename?: 'sequent_backend_cast_vote_max_fields';
   area_id?: Maybe<Scalars['uuid']['output']>;
+  ballot_id?: Maybe<Scalars['String']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -5443,6 +5447,7 @@ export type Sequent_Backend_Cast_Vote_Max_Fields = {
 export type Sequent_Backend_Cast_Vote_Min_Fields = {
   __typename?: 'sequent_backend_cast_vote_min_fields';
   area_id?: Maybe<Scalars['uuid']['output']>;
+  ballot_id?: Maybe<Scalars['String']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -5473,6 +5478,7 @@ export type Sequent_Backend_Cast_Vote_On_Conflict = {
 export type Sequent_Backend_Cast_Vote_Order_By = {
   annotations?: InputMaybe<Order_By>;
   area_id?: InputMaybe<Order_By>;
+  ballot_id?: InputMaybe<Order_By>;
   cast_ballot_signature?: InputMaybe<Order_By>;
   content?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
@@ -5505,6 +5511,8 @@ export enum Sequent_Backend_Cast_Vote_Select_Column {
   /** column name */
   AreaId = 'area_id',
   /** column name */
+  BallotId = 'ballot_id',
+  /** column name */
   CastBallotSignature = 'cast_ballot_signature',
   /** column name */
   Content = 'content',
@@ -5530,6 +5538,7 @@ export enum Sequent_Backend_Cast_Vote_Select_Column {
 export type Sequent_Backend_Cast_Vote_Set_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_id?: InputMaybe<Scalars['uuid']['input']>;
+  ballot_id?: InputMaybe<Scalars['String']['input']>;
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -5554,6 +5563,7 @@ export type Sequent_Backend_Cast_Vote_Stream_Cursor_Input = {
 export type Sequent_Backend_Cast_Vote_Stream_Cursor_Value_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_id?: InputMaybe<Scalars['uuid']['input']>;
+  ballot_id?: InputMaybe<Scalars['String']['input']>;
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -5572,6 +5582,8 @@ export enum Sequent_Backend_Cast_Vote_Update_Column {
   Annotations = 'annotations',
   /** column name */
   AreaId = 'area_id',
+  /** column name */
+  BallotId = 'ballot_id',
   /** column name */
   CastBallotSignature = 'cast_ballot_signature',
   /** column name */
