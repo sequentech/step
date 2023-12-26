@@ -22,6 +22,7 @@ pub struct Stage {
     pub name: String,
     pub pipeline: Vec<PipeName>,
     pub current_pipe: Option<PipeName>,
+    pub previous_pipe: Option<PipeName>,
 }
 
 impl State {
@@ -52,6 +53,7 @@ impl State {
                 Ok(Stage {
                     name: stage_name.to_string(),
                     pipeline: pipeline.iter().map(|p| p.pipe).collect(),
+                    previous_pipe: None,
                     current_pipe: Some(current_pipe),
                 })
             })
@@ -67,7 +69,13 @@ impl State {
     pub fn get_next(&self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
         self.get_stage(&stage_name)
-            .map(|stage| stage.next_pipe())
+            .map(|stage| {
+                if stage.current_pipe == stage.previous_pipe {
+                    None
+                } else {
+                    stage.current_pipe
+                }
+            })
             .flatten()
     }
 
@@ -107,6 +115,7 @@ impl State {
             .find(|s| s.name == stage_name)
             .ok_or(Error::PipeNotFound)?;
 
+        stage.previous_pipe = stage.current_pipe.clone();
         stage.current_pipe = next_pipe;
 
         Ok(())

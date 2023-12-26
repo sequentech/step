@@ -4,6 +4,7 @@
 
 pub mod ballot_publication;
 pub mod ballot_style;
+pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;
 pub mod compress;

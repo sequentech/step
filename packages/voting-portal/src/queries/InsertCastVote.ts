@@ -30,8 +30,16 @@ export const INSERT_CAST_VOTE = gql`
                 election_id
                 election_event_id
                 tenant_id
+                election_id
                 area_id
+                created_at
+                last_updated_at
+                labels
+                annotations
+                content
+                cast_ballot_signature
                 voter_id_string
+                election_event_id
             }
         }
     }

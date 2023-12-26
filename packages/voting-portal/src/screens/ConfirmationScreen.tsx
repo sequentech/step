@@ -17,11 +17,12 @@ import {
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
-import {useParams} from "react-router-dom"
+import {useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
+import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
 import {TenantEventContext} from ".."
 
 const StyledTitle = styled(Typography)`
@@ -97,9 +98,19 @@ const ActionLink = styled(Link)`ç
     }
 `
 
-const ActionButtons: React.FC = () => {
+interface ActionButtonsProps {
+    electionId?: string
+}
+
+const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t} = useTranslation()
+    const {tenantId, eventId} = useContext(TenantEventContext)
+    const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
+    const navigate = useNavigate()
+    const onClickToScreen = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+    }
 
     return (
         <ActionsContainer>
@@ -111,14 +122,20 @@ const ActionButtons: React.FC = () => {
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
-            <ActionLink
-                href="https://sequentech.io"
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            >
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+            {castVotes ? (
+                <ActionLink
+                    href="https://sequentech.io"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                >
+                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <Box>{t("confirmationScreen.finishButton")}</Box>
+                    </StyledButton>
+                </ActionLink>
+            ) : (
+                <StyledButton onClick={onClickToScreen} sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Box>{t("confirmationScreen.finishButton")}</Box>
                 </StyledButton>
-            </ActionLink>
+            )}
         </ActionsContainer>
     )
 }
@@ -230,7 +247,7 @@ export const ConfirmationScreen: React.FC = () => {
             <QRContainer>
                 <QRCode value={ballotTrackerUrl} />
             </QRContainer>
-            <ActionButtons />
+            <ActionButtons electionId={electionId} />
         </PageLimit>
     )
 }
