@@ -12,10 +12,16 @@ export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEvent>()
     const navigate = useNavigate()
+    const {isAuthenticated, login} = useContext(AuthContext)
+
+    useEffect(() => {
+        if (!isAuthenticated && tenantId && eventId) {
+            login(tenantId, eventId)
+        }
+    }, [isAuthenticated, tenantId, eventId, login])
 
     useEffect(() => {
         if (authContext.isAuthenticated) {
-            console.log(`navigate to: /tenant/${tenantId}/event/${eventId}/election-chooser`)
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         }
     }, [authContext.isAuthenticated, navigate, tenantId, eventId])
@@ -23,6 +29,9 @@ export const LoginScreen: React.FC = () => {
     return (
         <Box>
             <CircularProgress />
+            {
+                // TODO: Handle error no login
+            }
         </Box>
     )
 }

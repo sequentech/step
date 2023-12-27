@@ -5,7 +5,7 @@ import React, {useContext} from "react"
 import ReactDOM from "react-dom/client"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
-import {BrowserRouter, useParams} from "react-router-dom"
+import {BrowserRouter} from "react-router-dom"
 import "./index.css"
 import App from "./App"
 import "./services/i18n"
@@ -15,6 +15,7 @@ import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
+import {ApolloWrapper} from "./providers/ApolloContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -49,11 +50,13 @@ root.render(
         <SettingsWrapper>
             <KeycloakProviderContainer>
                 <Provider store={store}>
-                    <BrowserRouter>
-                        <ThemeProvider theme={theme}>
-                            <App />
-                        </ThemeProvider>
-                    </BrowserRouter>
+                    <ApolloWrapper>
+                        <BrowserRouter>
+                            <ThemeProvider theme={theme}>
+                                <App />
+                            </ThemeProvider>
+                        </BrowserRouter>
+                    </ApolloWrapper>
                 </Provider>
             </KeycloakProviderContainer>
         </SettingsWrapper>
