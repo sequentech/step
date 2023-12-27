@@ -2,11 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
-import {ApolloClient, ApolloProvider, NormalizedCacheObject} from "@apollo/client"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
-import {AuthContext} from "./providers/AuthContextProvider"
 import {CreateArea} from "./resources/Area/CreateArea"
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
 import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
@@ -29,7 +27,6 @@ import {Route} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
-import {createApolloClient} from "./services/ApolloService"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {isNull} from "@sequentech/ui-essentials"
@@ -56,40 +53,12 @@ import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectio
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
 import {Logs} from "./screens/Logs"
+import {ApolloContext} from "./providers/ApolloContextProvider"
 
-export const AppWrapper = () => {
-    const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
-        null
-    )
-    const authContext = useContext(AuthContext)
-    const accessToken = useMemo(authContext.getAccessToken, [
-        authContext.isAuthenticated,
-        authContext.getAccessToken,
-    ])
+interface AppProps {}
 
-    useEffect(() => {
-        if (authContext.isAuthenticated && accessToken) {
-            let newClient = createApolloClient()
-            setApolloClient(newClient)
-        }
-    }, [authContext.isAuthenticated, accessToken])
-
-    if (isNull(apolloClient)) {
-        return null
-    }
-
-    return (
-        <ApolloProvider client={apolloClient}>
-            <App apolloClient={apolloClient} />
-        </ApolloProvider>
-    )
-}
-
-interface AppProps {
-    apolloClient: ApolloClient<NormalizedCacheObject>
-}
-
-const App: React.FC<AppProps> = ({apolloClient}) => {
+const App: React.FC<AppProps> = () => {
+    const {apolloClient} = useContext(ApolloContext)
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
     const {i18n} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)

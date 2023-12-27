@@ -15,7 +15,7 @@ use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 
-use crate::services::database::{get_database_pool, PgConfig};
+use crate::services::database::{get_keycloak_pool, PgConfig};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::ElectionEventStatistics;
 
@@ -412,7 +412,7 @@ pub async fn send_communication(
         }
     };
 
-    let mut db_client: DbClient = get_database_pool()
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
@@ -430,12 +430,12 @@ pub async fn send_communication(
     // each mail/sms sent, there's no rollback for that.
     let mut processed: i32 = 0;
     event!(Level::INFO, "before transaction");
-    let transaction = db_client
+    let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
         .map_err(|err| anyhow!("{err}"))?;
     event!(Level::INFO, "before isolation");
-    transaction
+    keycloak_transaction
         .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
         .await
         .with_context(|| "can't set transaction isolation level")?;
@@ -443,10 +443,11 @@ pub async fn send_communication(
     while true {
         let (users, total_count) = list_users(
             auth_headers.clone(),
-            &transaction,
+            &keycloak_transaction,
             &client,
             tenant_id.clone(),
             election_event_id.clone(),
+            /*election_id */ None,
             &realm,
             /* search */ None,
             /* first_name */ None,
@@ -544,7 +545,7 @@ pub async fn send_communication(
             break;
         }
     }
-    transaction
+    keycloak_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;

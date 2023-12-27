@@ -437,6 +437,7 @@ const englishTranslation = {
                 },
             },
             permissions: {
+                "admin-dashboard-view": "Admin Dashboard View",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",

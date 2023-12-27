@@ -176,7 +176,7 @@ export default function ElectionEvents() {
                         </Link>
                     ) : null}
                 </HorizontalBox>
-                {isOpenSidebar && isElectionEventActive && (
+                {isOpenSidebar && (
                     <>
                         <div className="flex items-center space-x-4 bg-white px-4">
                             <TextField

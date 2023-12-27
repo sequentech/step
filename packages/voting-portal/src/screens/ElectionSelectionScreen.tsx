@@ -18,11 +18,15 @@ import {
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    IBallotStyle,
+    selectBallotStyleElectionIds,
+    setBallotStyle,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVotesQuery, GetElectionsQuery} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
@@ -33,6 +37,8 @@ import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {GET_CAST_VOTES} from "../queries/GetCastVotes"
+import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -60,6 +66,7 @@ interface ElectionWrapperProps {
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
     const {tenantId, eventId} = useContext(TenantEventContext)
+    const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
@@ -83,15 +90,20 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         return null
     }
 
+    const handleClickBallotLocator = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`)
+    }
+
     return (
         <SelectElection
             isActive={true}
             isOpen={true}
             title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
-            hasVoted={false}
+            hasVoted={castVotes.length > 0}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
+            onClickBallotLocator={handleClickBallotLocator}
         />
     )
 }
@@ -179,9 +191,12 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
 
+    const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
+    const [ballotStyleElectionIds, setBallotStyleElectionIds] =
+        useState<Array<string>>(existingElectionIds)
+    const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
         loading: loadingElections,
@@ -192,6 +207,7 @@ export const ElectionSelectionScreen: React.FC = () => {
             electionIds: ballotStyleElectionIds,
         },
     })
+    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
     const dispatch = useAppDispatch()
     const {globalSettings} = useContext(SettingsContext)
     const {t, i18n} = useTranslation()
@@ -209,8 +225,6 @@ export const ElectionSelectionScreen: React.FC = () => {
             tenantId,
         },
     })
-
-    const [electionIds, setElectionIds] = useState<Array<string>>([])
 
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
@@ -232,6 +246,17 @@ export const ElectionSelectionScreen: React.FC = () => {
             setBallotStyleElectionIds(electionIds)
         }
     }, [loading, error, data, dispatch])
+
+    useEffect(() => {
+        if (!castVotes?.sequent_backend_cast_vote) {
+            return
+        }
+        dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
+    }, [castVotes, dispatch])
+
+    useEffect(() => {
+        console.log("i18n.language", i18n.language)
+    }, [i18n.language])
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {

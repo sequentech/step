@@ -149,6 +149,27 @@ const englishTranslation = {
                 back: "Back to Election List",
             },
         },
+        ballotLocator: {
+            title: "Locate your Ballot",
+            titleResult: "Result of your Ballot lookup",
+            description: "Verify that your Ballot has been correctly emitted",
+            locate: "Locate your Ballot",
+            locateAgain: "Locate another Ballot",
+            found: "Your ballot ID {{ballotId}} has been located",
+            notFound: "Your ballot ID {{ballotId}} has not been located",
+            contentDesc: "This is your Ballot content: ",
+            wrongFormatBallotId: "Wrong format for Ballot ID",
+            steps: {
+                lookup: "Locate your Ballot",
+                result: "Result",
+            },
+            titleHelpDialog: {
+                title: "Information: Ballot Locator screen",
+                content:
+                    "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
+                ok: "OK",
+            },
+        },
     },
 }
 

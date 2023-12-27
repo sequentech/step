@@ -17,6 +17,7 @@ import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
+import {BallotLocator} from "./screens/BallotLocator"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
 
@@ -157,6 +158,19 @@ const App = () => {
                                 <ApolloContextProvider>
                                     <ApolloWrapper>
                                         <AuditScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
+                            </RouteParameterProvider>
+                        }
+                    />
+
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?"
+                        element={
+                            <RouteParameterProvider>
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <BallotLocator />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>
                             </RouteParameterProvider>

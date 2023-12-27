@@ -1,5 +1,6 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
+import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
 import {getUsers} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -20,6 +21,27 @@ export const customBuildQuery =
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.listPgaudit
+                    let output = {
+                        data: response.items,
+                        total: response.total.aggregate.count,
+                    }
+                    return output
+                },
+            }
+        } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: resourceName,
+                },
+            }
+            return {
+                query: getElectoralLog(params),
+                variables: getElectoralLogVariables(
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
+                ),
+                parseResponse: (res: any) => {
+                    const response = res.data.listElectoralLog
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,

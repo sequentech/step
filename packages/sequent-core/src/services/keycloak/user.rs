@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::convert::From;
 use tokio_postgres::row::Row;
 use tracing::instrument;
-use uuid::Uuid;
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
@@ -259,15 +258,45 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
-        let mut new_user = user.clone();
-        let new_user_id =
-            new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
-        new_user.id = Some(new_user_id.clone());
+    pub async fn create_user(
+        self,
+        realm: &str,
+        user: &User,
+        attributes: Option<HashMap<String, Value>>,
+        groups: Option<Vec<String>>,
+    ) -> Result<User> {
+        let mut new_user_keycloak: UserRepresentation = user.clone().into();
+        new_user_keycloak.attributes = attributes.clone();
+        new_user_keycloak.groups = groups.clone();
         self.client
-            .realm_users_post(realm, new_user.clone().into())
+            .realm_users_post(realm, new_user_keycloak.clone())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        Ok(new_user.clone())
+        let found_users = self
+            .client
+            .realm_users_get(
+                realm,
+                Some(false),
+                None,
+                None,
+                Some(true),
+                Some(true),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                user.username.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
+        match found_users.first() {
+            Some(found_user) => Ok(found_user.clone().into()),
+            None => Ok(user.clone()),
+        }
     }
 }
