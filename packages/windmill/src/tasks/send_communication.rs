@@ -10,7 +10,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_statistics::{
     get_election_event_statistics, update_election_event_statistics,
 };
-use crate::services::users::list_users;
+use crate::services::users::{list_users, ListUsersFilter};
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
@@ -444,19 +444,21 @@ pub async fn send_communication(
         let (users, total_count) = list_users(
             auth_headers.clone(),
             &keycloak_transaction,
-            &client,
-            tenant_id.clone(),
-            election_event_id.clone(),
-            /*election_id */ None,
-            &realm,
-            /* search */ None,
-            /* first_name */ None,
-            /* last_name */ None,
-            /* username */ None,
-            /* email */ None,
-            /* limit */ Some(batch_size),
-            /* offset */ Some(processed),
-            /* user_ids */ user_ids.clone(),
+            ListUsersFilter {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                area_id: None,
+                realm: realm.clone(),
+                search: None,
+                first_name: None,
+                last_name: None,
+                username: None,
+                email: None,
+                limit: Some(batch_size),
+                offset: Some(processed),
+                user_ids: user_ids.clone(),
+            },
         )
         .await?;
         event!(Level::INFO, "after list_users");
