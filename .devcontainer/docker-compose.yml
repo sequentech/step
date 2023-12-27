@@ -363,9 +363,9 @@ services:
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
-      HARVEST_PROBE_ADDR: ${}
-      HARVEST_PROBE_LIVE_PATH: ${}
-      HARVEST_PROBE_READY_PATH: ${}
+      HARVEST_PROBE_ADDR: ${HARVEST_PROBE_ADDR}
+      HARVEST_PROBE_LIVE_PATH: ${HARVEST_PROBE_LIVE_PATH}
+      HARVEST_PROBE_READY_PATH: ${HARVEST_PROBE_READY_PATH}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
