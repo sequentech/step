@@ -47,3 +47,27 @@ pub enum CommunicationMethod {
     #[strum(serialize = "SMS")]
     SMS,
 }
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+pub struct EmailConfig {
+    pub subject: String,
+    pub plaintext_body: String,
+    pub html_body: String,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+pub struct SmsConfig {
+    pub message: String,
+}
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
+pub struct SendCommunicationBody {
+    pub audience_selection: AudienceSelection,
+    pub audience_voter_ids: Option<Vec<String>>,
+    pub communication_type: CommunicationType,
+    pub communication_method: CommunicationMethod,
+    pub schedule_now: bool,
+    pub schedule_date: Option<String>,
+    pub email: Option<EmailConfig>,
+    pub sms: Option<SmsConfig>,
+}

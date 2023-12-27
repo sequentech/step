@@ -49,3 +49,51 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "ICommunicationMethod")]
     pub type ICommunicationMethod;
 }
+
+#[wasm_bindgen(typescript_custom_section)]
+const IEMAIL_CONFIG: &'static str = r#"
+interface IEmailConfig {
+    subject: string;
+    plaintext_body: string;
+    html_body: string;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "IEmailConfig")]
+    pub type IEmailConfig;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const ISMS_CONFIG: &'static str = r#"
+interface ISmsConfig {
+    message: string;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ISmsConfig")]
+    pub type ISmsConfig;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const ISEND_COMMUNICATION_BODY: &'static str = r#"
+interface ISendCommunicationBody {
+    audience_selection: IAudienceSelection;
+    audience_voter_ids?: Array<string>;
+    communication_type: ICommunicationType;
+    communication_method: ICommunicationMethod;
+    schedule_now: boolean;
+    schedule_date?: string;
+    email?: IEmailConfig,
+    sms?: ISmsConfig,
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "ISendCommunicationBody")]
+    pub type ISendCommunicationBody;
+}

@@ -43,30 +43,6 @@ use std::default::Default;
 use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct EmailConfig {
-    subject: String,
-    plaintext_body: String,
-    html_body: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SmsConfig {
-    message: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SendCommunicationBody {
-    audience_selection: AudienceSelection,
-    audience_voter_ids: Option<Vec<String>>,
-    communication_type: CommunicationType,
-    communication_method: CommunicationMethod,
-    schedule_now: bool,
-    schedule_date: Option<String>,
-    email: Option<EmailConfig>,
-    sms: Option<SmsConfig>,
-}
-
 #[instrument(err)]
 fn get_variables(
     user: &User,
