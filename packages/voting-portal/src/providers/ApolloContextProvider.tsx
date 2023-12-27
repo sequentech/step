@@ -17,20 +17,22 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             uri: globalSettings.HASURA_URL,
         })
 
-        const authLink = setContext((_, {headers}) => {
-            // get the authentication token from local storage if it exists
-            const token = getAccessToken()
-            // return the headers to the context so httpLink can read them
-            return {
-                headers: {
-                    ...headers,
-                    authorization: token ? `Bearer ${token}` : "",
-                },
-            }
-        })
+        const token = getAccessToken()
+        const authLink = token
+            ? setContext((_, {headers}) => {
+                  // get the authentication token from local storage if it exists
+                  // return the headers to the context so httpLink can read them
+                  return {
+                      headers: {
+                          ...headers,
+                          authorization: token ? `Bearer ${token}` : "",
+                      },
+                  }
+              })
+            : null
 
         const apolloClient = new ApolloClient({
-            link: authLink.concat(httpLink),
+            link: authLink ? authLink.concat(httpLink) : httpLink,
             cache: new InMemoryCache(),
         })
         return apolloClient

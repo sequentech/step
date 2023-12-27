@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Routes, Route, Navigate} from "react-router-dom"
+import {Routes, Route, Navigate, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
@@ -17,6 +17,7 @@ import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {BallotLocator} from "./screens/BallotLocator"
 import {SettingsContext} from "./providers/SettingsContextProvider"
+import {TenantEvent} from "."
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;

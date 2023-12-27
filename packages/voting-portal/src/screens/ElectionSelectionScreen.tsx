@@ -36,7 +36,7 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
-import { TenantEvent } from ".."
+import {TenantEvent} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
