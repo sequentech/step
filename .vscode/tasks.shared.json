@@ -129,7 +129,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose down hasura; docker compose up -d --no-deps hasura && docker compose logs -f --tail 100 hasura",
+                "docker compose stop hasura; docker compose up -d --no-deps hasura && docker compose logs -f --tail 100 hasura",
             ],
             "options": {
                 "env": {
@@ -188,7 +188,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose down harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest",
+                "docker compose stop harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest",
             ],
             "options": {
                 "env": {
@@ -278,7 +278,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose down beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat",
+                "docker compose stop beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat",
             ],
             "options": {
                 "env": {
@@ -337,7 +337,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose down windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill",
+                "docker compose stop windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill",
             ],
             "options": {
                 "env": {

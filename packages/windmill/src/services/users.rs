@@ -15,7 +15,7 @@ use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::database::{get_database_pool, PgConfig};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
@@ -27,6 +27,7 @@ pub async fn list_users(
     admin: &KeycloakAdminClient,
     tenant_id: String,
     election_event_id: Option<String>,
+    election_id: Option<String>,
     realm: &str,
     search: Option<String>,
     first_name: Option<String>,
@@ -65,66 +66,116 @@ pub async fn list_users(
     } else {
         None
     };
-    let statement = transaction.prepare(r#"
-        WITH realm_cte AS (
-            SELECT id FROM realm WHERE name = $1
-        )
+    let (area_ids, area_ids_join_clause, area_ids_where_clause): (
+        Option<Vec<String>>,
+        String,
+        String,
+    ) = match election_id {
+        Some(ref election_id) => {
+            let mut hasura_db_client: DbClient = get_hasura_pool()
+                .await
+                .get()
+                .await
+                .with_context(|| "Error acquiring hasura db client")?;
+            let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+                .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+
+            let areas_statement = hasura_db_client
+                .prepare(
+                    r#"
+                    SELECT DISTINCT
+                        a.id::VARCHAR
+                    FROM
+                        sequent_backend.area a
+                    JOIN
+                        sequent_backend.area_contest ac ON a.id = ac.area_id
+                    JOIN
+                        sequent_backend.contest c ON ac.contest_id = c.id
+                    WHERE c.election_id = $1;
+                "#,
+                )
+                .await?;
+            let rows: Vec<Row> = hasura_db_client
+                .query(&areas_statement, &[&election_uuid])
+                .await
+                .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+            let area_ids: Vec<String> = rows
+                .into_iter()
+                .map(|row| -> Result<String> {
+                    Ok(row
+                        .try_get::<&str, String>("id")
+                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                })
+                .collect::<Result<Vec<String>>>()
+                .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
+
+            (
+                Some(area_ids),
+                String::from(
+                    r#"
+                INNER JOIN 
+                    user_attribute AS area_attr ON u.id = area_attr.user_id
+                "#,
+                ),
+                format!(
+                    r#"
+                AND (
+                    area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                    area_attr.value = ANY($9)
+                )
+                "#
+                ),
+            )
+        }
+        None => (None, String::from(""), String::from("")),
+    };
+    let statement = transaction.prepare(format!(r#"
         SELECT
-            sub.id,
-            sub.email,
-            sub.email_verified,
-            sub.enabled,
-            sub.first_name,
-            sub.last_name,
-            sub.realm_id,
-            sub.username,
-            sub.created_timestamp,
-            sub.attributes,
-            sub.total_count
-        FROM (
-            SELECT
-                u.id,
-                u.email,
-                u.email_verified,
-                u.enabled,
-                u.first_name,
-                u.last_name,
-                u.realm_id,
-                u.username,
-                u.created_timestamp,
-                COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
-                COUNT(u.id) OVER() AS total_count
-            FROM
-                user_entity AS u
-            INNER JOIN
-                realm_cte ON realm_cte.id = u.realm_id
-            LEFT JOIN
-                user_attribute AS attr ON u.id = attr.user_id
-            WHERE
-                ($4::VARCHAR IS NULL OR email ILIKE $4) AND
-                ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
-                ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
-                ($7::VARCHAR IS NULL OR username ILIKE $7) AND
-                (u.id = ANY($8) OR $8 IS NULL)
-            GROUP BY
-                u.id
-        ) sub
+            u.id,
+            u.email,
+            u.email_verified,
+            u.enabled,
+            u.first_name,
+            u.last_name,
+            u.realm_id,
+            u.username,
+            u.created_timestamp,
+            COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{{}}'::json) AS attributes,
+            COUNT(u.id) OVER() AS total_count
+        FROM
+            user_entity AS u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        {area_ids_join_clause}
+        LEFT JOIN
+            user_attribute AS attr ON u.id = attr.user_id
+        WHERE
+            ra.name = $1 AND
+            ($4::VARCHAR IS NULL OR email ILIKE $4) AND
+            ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
+            ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
+            ($7::VARCHAR IS NULL OR username ILIKE $7) AND
+            (u.id = ANY($8) OR $8 IS NULL)
+            {area_ids_where_clause}
+        GROUP BY
+            u.id
         LIMIT $2 OFFSET $3;
-    "#).await?;
+    "#).as_str()).await?;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &realm,
+        &query_limit,
+        &query_offset,
+        &email_pattern,
+        &first_name_pattern,
+        &last_name_pattern,
+        &username_pattern,
+        &user_ids,
+    ];
+    if area_ids.is_some() {
+        params.push(&area_ids);
+    }
     let rows: Vec<Row> = transaction
-        .query(
-            &statement,
-            &[
-                &realm,
-                &query_limit,
-                &query_offset,
-                &email_pattern,
-                &first_name_pattern,
-                &last_name_pattern,
-                &username_pattern,
-                &user_ids,
-            ],
-        )
+        .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     event!(
