@@ -150,6 +150,8 @@ const spanishTranslation: TranslationType = {
             common: {
                 label: "Materiales de Soporte",
                 back: "Volver a la Lista de Votaciones",
+                close: "Cerrar",
+                preview: "Vista previa",
             },
         },
         ballotLocator: {

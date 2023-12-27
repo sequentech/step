@@ -67,7 +67,18 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
-    columns: []
+    allow_aggregations: true
+    columns:
+    - annotations
+    - data
+    - labels
+    - document_id
+    - kind
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
     filter:
       _and:
       - tenant_id:

@@ -4,13 +4,11 @@
 import {Box, Button, Typography} from "@mui/material"
 import React from "react"
 import {styled} from "@mui/material/styles"
-import emotionStyled from "@emotion/styled"
-import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
-import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
-// import {isUndefined} from "../../utils/typechecks"
 import {useTranslation} from "react-i18next"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
+import {GET_DOCUMENT} from "../../queries/GetDocument"
+import {useQuery} from "@apollo/client"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -42,65 +40,9 @@ const TextContainer = styled(Box)`
     }
 `
 
-const StyledLink = emotionStyled.a`
-    text-decoration: underline;
-    font-weight: normal;
-    display: flex;
-    flex: direction: row;
-    align-items: center;
-    color: ${({theme}) => theme.palette.black};
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        justify-content: center;
-    }
-`
-
-const VotedContainer = styled(Box)<{hasvoted: string}>`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-    color: ${({hasvoted, theme}) =>
-        "true" === hasvoted ? theme.palette.brandSuccess : theme.palette.errorColor};
-`
-
-const StatusBanner = styled(Box)`
-    font-size: 14px;
-    line-height: 20px;
-    font-weight: 700;
-    text-transform: uppercase;
-    min-width: 85px;
-    text-align: center;
-    background-color: ${theme.palette.brandSuccess};
-    color: ${theme.palette.black};
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        position: absolute;
-        top: 0;
-        left: 0;
-    }
-`
-
 const StyledButton = styled(Button)`
     padding: 10px 24px;
     min-width: unset;
-`
-
-const DatesContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    margin-right: 35px;
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        flex-direction: row;
-        gap: 20px;
-        margin-right: 0;
-    }
-`
-
-const DatesUrlWrap = styled(Box)`
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        order: 1;
-    }
 `
 
 const StyledTitle = styled(Typography)`
@@ -128,50 +70,28 @@ export interface SupportMatherialProps {
     title: string
     subtitle?: string
     kind: string
-    onClickToVote?: () => void
-    onClickElectionResults?: () => void
-    onClickBallotLocator?: () => void
+    tenantId: string
+    documentId: string
 }
 
 export const SupportMatherial: React.FC<SupportMatherialProps> = ({
     title,
     subtitle,
     kind,
-    onClickToVote,
-    onClickElectionResults,
-    onClickBallotLocator,
+    tenantId,
+    documentId,
 }) => {
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
 
-    console.log("title", title)
-    console.log("subtitle", subtitle)
-    console.log("kind", kind)
-
-    // const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
-    //     event
-    // ) => {
-    //     event.stopPropagation()
-    //     if (!isUndefined(onClickToVote)) {
-    //         onClickToVote()
-    //     }
-    // }
-
-    // const handleClickElectionResults: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-    //     event.stopPropagation()
-    //     if (!isUndefined(onClickElectionResults)) {
-    //         onClickElectionResults()
-    //     }
-    // }
-
-    // const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
-    //     event
-    // ) => {
-    //     event.stopPropagation()
-    //     if (!isUndefined(onClickBallotLocator)) {
-    //         onClickBallotLocator()
-    //     }
-    // }
+    const {
+        data: imageData,
+    } = useQuery<any>(GET_DOCUMENT, {
+        variables: {
+            id: documentId || "",
+            tenantId: tenantId || "",
+        },
+    })
 
     const handleOpenDialog = () => {
         openPreviewSet(true)
@@ -185,7 +105,11 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                     <StyledSubTitle>{subtitle}</StyledSubTitle>
                 </TextContainer>
                 <Box sx={{display: "flex"}}>
-                    <StyledButton sx={{marginRight: "16px"}} variant="secondary" onClick={handleOpenDialog}>
+                    <StyledButton
+                        sx={{marginRight: "16px"}}
+                        variant="secondary"
+                        onClick={handleOpenDialog}
+                    >
                         <VisibilityIcon />
                     </StyledButton>
                 </Box>
@@ -194,16 +118,104 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
             <Dialog
                 variant="info"
                 open={openPreview}
-                ok={t("tally.common.dialog.okCancel")}
-                title={t("tally.common.dialog.cancelTitle")}
+                ok={t("materials.common.close")}
+                title={t("materials.common.preview")}
                 handleClose={(result: boolean) => {
                     openPreviewSet(false)
                 }}
                 fullWidth
             >
-                <Box sx={{display: "flex", flexDirection: "column", gap: "16px", width: "80vw", height: "100vh"}}>
-                    <Typography variant="h4">{title}</Typography>
-                    <Typography variant="body1">{subtitle}</Typography>
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px",
+                        width: "100%",
+                        height: "80vh",
+                        justifyContent: "center",
+                        alignItems: "center",
+                    }}
+                >
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                        }}
+                    >
+                        {kind.includes("image") ? (
+                            <>
+                                <img
+                                    src={encodeURI(
+                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                    )}
+                                    alt={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                />
+                            </>
+                        ) : kind.includes("pdf") ? (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    width: "100%",
+                                }}
+                            >
+                                <iframe
+                                    src={encodeURI(
+                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                    )}
+                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    width="1400"
+                                    height="800"
+                                ></iframe>
+                            </Box>
+                        ) : kind.includes("video") ? (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    width: "100%",
+                                }}
+                            >
+                                <iframe
+                                    loading="lazy"
+                                    width="800"
+                                    height="500"
+                                    src={encodeURI(
+                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                    )}
+                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    allow="autoplay; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                ></iframe>
+                            </Box>
+                        ) : kind.includes("audio") ? (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    width: "100%",
+                                }}
+                            >
+                                <iframe
+                                    loading="lazy"
+                                    width="800"
+                                    height="120"
+                                    src={encodeURI(
+                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                    )}
+                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    allow="autoplay"
+                                ></iframe>
+                            </Box>
+                        ) : null}
+                    </Box>
                 </Box>
             </Dialog>
         </>

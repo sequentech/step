@@ -147,6 +147,8 @@ const englishTranslation = {
             common: {
                 label: "Support Materials",
                 back: "Back to Election List",
+                close: "Close",
+                preview: "Preview",
             },
         },
         ballotLocator: {
