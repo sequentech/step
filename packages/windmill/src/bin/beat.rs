@@ -7,6 +7,7 @@
 use anyhow::Result;
 use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
+use sequent_core::services::probe::ProbeHandler;
 use std;
 use structopt::StructOpt;
 use tokio::time::Duration;
@@ -27,6 +28,8 @@ struct CeleryOpt {
 async fn main() -> Result<()> {
     dotenv().ok();
 
+    setup_probe();
+
     // Build a `Beat` with a default scheduler backend.
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
@@ -45,4 +48,19 @@ async fn main() -> Result<()> {
     beat.start().await?;
 
     Ok(())
+}
+
+fn setup_probe() {
+    let addr_s = std::env::var("BEAT_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
+    let live_path = std::env::var("BEAT_PROBE_LIVE_PATH").unwrap_or("live".to_string());
+    let ready_path = std::env::var("BEAT_PROBE_READY_PATH").unwrap_or("ready".to_string());
+
+    let addr: Result<std::net::SocketAddr, _> = addr_s.parse();
+
+    if let Ok(addr) = addr {
+        let mut ph = ProbeHandler::new(&live_path, &ready_path, addr);
+        let f = ph.future();
+        ph.set_live(move || true);
+        tokio::spawn(f);
+    }
 }

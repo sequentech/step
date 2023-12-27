@@ -1,9 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use strum::Display;
 
 use crate::electoral_log::newtypes::*;
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct Statement {
     pub head: StatementHead,
     pub body: StatementBody,
@@ -14,7 +16,7 @@ impl Statement {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct StatementHead {
     pub event: EventIdString,
     pub kind: StatementType,
@@ -27,13 +29,15 @@ impl StatementHead {
             StatementBody::CastVoteError(_, _, _) => StatementType::CastVoteError,
             StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
             StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
+            StatementBody::ElectionPeriodPause(_) => StatementType::ElectionPeriodPause,
             StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
-            StatementBody::KeyInsertionCeremony => StatementType::KeyInsertionCeremony,
+            StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
+            StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
         };
-        let timestamp = instant::now() as u64;
+        let timestamp = crate::timestamp();
 
         StatementHead {
             event,
@@ -43,7 +47,7 @@ impl StatementHead {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub enum StatementBody {
     // NOT IMPLEMENTED YET, but please feel free
     // "Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto)
@@ -62,11 +66,7 @@ pub enum StatementBody {
     //
     // "Publicación, apertura y cierre de las elecciones"
     ElectionPeriodOpen(ElectionIdString),
-    // /workspaces/backend-services/packages/harvest/src/main.rs
-    //    routes::voting_status::update_event_status,
-    //    routes::voting_status::update_election_status,
-    //
-    // "Publicación, apertura y cierre de las elecciones"
+    ElectionPeriodPause(ElectionIdString),
     ElectionPeriodClose(ElectionIdString),
     // /workspaces/backend-services/packages/windmill/src/celery_app.rs
     // create_keys
@@ -77,7 +77,8 @@ pub enum StatementBody {
     // routes::tally_ceremony::restore_private_key
     //
     // "Ingreso de los fragmentos de la llave privada"
-    KeyInsertionCeremony,
+    KeyInsertionStart,
+    KeyInsertionCeremony(TrusteeNameString),
     // /workspaces/backend-services/packages/windmill/src/celery_app.rs
     // tally_election_event
     //
@@ -90,14 +91,16 @@ pub enum StatementBody {
     TallyClose(ElectionIdString),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
 pub enum StatementType {
     CastVote,
     CastVoteError,
     ElectionPublish,
     ElectionPeriodOpen,
     ElectionPeriodClose,
+    ElectionPeriodPause,
     KeyGeneration,
+    KeyInsertionStart,
     KeyInsertionCeremony,
     TallyOpen,
     TallyClose,

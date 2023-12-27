@@ -14,8 +14,9 @@ use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
 use tracing::instrument;
-use windmill::services::database::get_database_pool;
+use windmill::services::database::get_keycloak_pool;
 use windmill::services::users::list_users;
 
 use crate::services::authorization::authorize;
@@ -112,6 +113,7 @@ pub async fn delete_users(
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
+    election_id: Option<String>,
     search: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
@@ -153,22 +155,23 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let mut db_client: DbClient = get_database_pool()
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let transaction = db_client
+    let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
         auth_headers.clone(),
-        &transaction,
+        &keycloak_transaction,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
+        input.election_id.clone(),
         &realm,
         input.search,
         input.first_name,
@@ -216,7 +219,7 @@ pub async fn create_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+    let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
@@ -225,8 +228,21 @@ pub async fn create_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let (attributes, groups) = if input.election_event_id.is_some() {
+        let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        (
+            Some(HashMap::from([(
+                TENANT_ID_ATTR_NAME.to_string(),
+                serde_json::to_value(input.tenant_id.clone()).unwrap(),
+            )])),
+            Some(vec![voter_group_name]),
+        )
+    } else {
+        (None, None)
+    };
     let user = client
-        .create_user(&realm, &input.user)
+        .create_user(&realm, &input.user, attributes, groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 

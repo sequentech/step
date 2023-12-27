@@ -243,7 +243,7 @@ impl Statement {
     }
 
     fn timestamp() -> Timestamp {
-        instant::now() as u64
+        crate::timestamp()
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -375,19 +375,6 @@ pub enum StatementType {
     Plaintexts = 11,
     PlaintextsSigned = 12,
 }
-
-/*
-#[derive(Clone, Debug, core::hash::Hash, PartialEq, Eq, PartialOrd, Ord, Display)]
-pub enum ArtifactType {
-    Configuration,
-    Channel,
-    Shares,
-    PublicKey,
-    Ballots,
-    Mix,
-    DecryptionFactors,
-    Plaintexts,
-}*/
 
 ///////////////////////////////////////////////////////////////////////////
 // Manual serialization necessary as [u8; 64] does not implement Default

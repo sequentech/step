@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
@@ -16,6 +16,7 @@ import {
     theme,
     isUndefined,
     downloadBlob,
+    InfoDataBox,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
@@ -30,7 +31,7 @@ import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
-import globalSettings from "../global-settings"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -71,20 +72,6 @@ const Step1Container = styled(Box)`
     justify-content: space-between;
 `
 
-const AuditableBallotData = styled(Box)`
-    word-break: break-word;
-    hyphens: auto;
-    padding: 15px;
-    background-color: #ecfdf5;
-    color: #000;
-    border-radius: 4px;
-    display: block;
-    overflow-y: scroll;
-    max-height: 200px;
-    border: 1px solid #047857;
-    margin: 4px 0;
-`
-
 const ActionButtons: React.FC = () => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
@@ -110,7 +97,12 @@ const ActionButtons: React.FC = () => {
 }
 
 export const AuditScreen: React.FC = () => {
-    const {electionId} = useParams<{electionId?: string}>()
+    const {tenantId, eventId, electionId} = useParams<{
+        tenantId?: string
+        eventId: string
+        electionId?: string
+    }>()
+    const {globalSettings} = useContext(SettingsContext)
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -209,7 +201,7 @@ export const AuditScreen: React.FC = () => {
                 </StyledButton>
             </Step1Container>
 
-            <AuditableBallotData>{auditableBallot || ""}</AuditableBallotData>
+            <InfoDataBox>{auditableBallot || ""}</InfoDataBox>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
                 {
@@ -233,7 +225,7 @@ export const AuditScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     t("auditScreen.step2Description", {
-                        linkToBallotVerifier: globalSettings.BALLOT_VERIFIER_URL,
+                        linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start`,
                     })
                 )}
             </Typography>

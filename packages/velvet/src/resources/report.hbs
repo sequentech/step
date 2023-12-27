@@ -112,8 +112,12 @@
             <td>{{report.contest_result.total_votes}}</td>
           </tr>
           <tr>
-            <td>Blank votes</td>
-            <td>{{ report.contest_result.invalid_votes.blank }}</td>
+            <td>Census</td>
+            <td>{{ report.contest_result.census }}</td>
+          </tr>
+          <tr>
+            <td>Blank votes (total)</td>
+            <td>{{ report.contest_result.total_blank_votes}}</td>
           </tr>
           <tr>
             <td>Explicit invalid votes</td>
@@ -124,7 +128,7 @@
             <td>{{ report.contest_result.invalid_votes.implicit }}</td>
           </tr>
           <tr>
-            <td>Total number of votes for candidates</td>
+            <td>Total number of valid votes</td>
             <td>{{ report.contest_result.total_valid_votes }}</td>
           </tr>
         </table>

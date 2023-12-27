@@ -168,6 +168,16 @@ type Mutation {
 }
 
 type Query {
+  listElectoralLog (
+    limit: Int
+    offset: Int
+    election_event_id: String
+    filter: ElectoralLogFilter
+    order_by: ElectoralLogOrderBy
+  ): DataListElectoralLog
+}
+
+type Query {
   listPgaudit (
     limit: Int
     offset: Int
@@ -275,6 +285,18 @@ input PgAuditOrderBy {
   user : OrderDirection
 }
 
+input ElectoralLogFilter {
+  id : String
+  StatementKind : String
+}
+
+input ElectoralLogOrderBy {
+  id : OrderDirection
+  created : OrderDirection
+  statement_timestamp : OrderDirection
+  statement_kind : OrderDirection
+}
+
 input SampleInput {
   username : String!
   password : String!
@@ -305,6 +327,7 @@ input CreateElectionEventInput {
 input GetUsersInput {
   tenant_id : String!
   election_event_id : String
+  election_id : String
   search : String
   first_name : String
   last_name : String
@@ -473,6 +496,19 @@ type DataListPgAudit {
 
 type TotalAggregate {
   aggregate : Aggregate!
+}
+
+type ElectoralLogRow {
+  id : Int!
+  created : Int!
+  statement_timestamp : Int!
+  statement_kind : String!
+  message : String!
+}
+
+type DataListElectoralLog {
+  items : [ElectoralLogRow]!
+  total : TotalAggregate!
 }
 
 type ScheduledEventOutput2 {

@@ -4,7 +4,13 @@
 import {Box, Typography} from "@mui/material"
 import React, {useContext} from "react"
 import {useTranslation} from "react-i18next"
-import {BreadCrumbSteps, PageLimit, theme, stringToHtml} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    PageLimit,
+    theme,
+    stringToHtml,
+    translateElection,
+} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -53,7 +59,7 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useContext(TenantEventContext)
 
     return (
@@ -69,7 +75,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
 }
 
 export const StartScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
 
@@ -91,11 +97,11 @@ export const StartScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{election.name}</span>
+                <span>{translateElection(election, "name", i18n.language)}</span>
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(election.description)}
+                    {stringToHtml(translateElection(election, "description", i18n.language))}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>

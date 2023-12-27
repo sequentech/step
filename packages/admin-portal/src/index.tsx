@@ -4,7 +4,7 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
 import "./index.css"
-import {AppWrapper} from "./App"
+import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
@@ -19,6 +19,8 @@ import {CandidateContextProvider} from "./providers/CandidateContextProvider"
 import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyProvider"
 import NewResourceContextProvider from "./providers/NewResourceProvider"
 import {PublishContextProvider} from "./providers/PublishContextProvider"
+import {SettingsWrapper} from "./providers/SettingsContextProvider"
+import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -26,27 +28,33 @@ SequentCoreLibInit().then(set_hooks)
 
 root.render(
     <React.StrictMode>
-        <AuthContextProvider>
-            <TenantContextProvider>
-                <NewResourceContextProvider>
-                    <ElectionEventContextProvider>
-                        <ElectionContextProvider>
-                            <ContestContextProvider>
-                                <CandidateContextProvider>
-                                    <ElectionEventTallyContextProvider>
-                                        <PublishContextProvider>
-                                            <ThemeProvider theme={fullAdminTheme}>
-                                                <AppWrapper />
-                                            </ThemeProvider>
-                                        </PublishContextProvider>
-                                    </ElectionEventTallyContextProvider>
-                                </CandidateContextProvider>
-                            </ContestContextProvider>
-                        </ElectionContextProvider>
-                    </ElectionEventContextProvider>
-                </NewResourceContextProvider>
-            </TenantContextProvider>
-        </AuthContextProvider>
+        <SettingsWrapper>
+            <AuthContextProvider>
+                <TenantContextProvider>
+                    <NewResourceContextProvider>
+                        <ElectionEventContextProvider>
+                            <ElectionContextProvider>
+                                <ContestContextProvider>
+                                    <CandidateContextProvider>
+                                        <ElectionEventTallyContextProvider>
+                                            <PublishContextProvider>
+                                                <ThemeProvider theme={fullAdminTheme}>
+                                                    <ApolloContextProvider>
+                                                        <ApolloWrapper>
+                                                            <App />
+                                                        </ApolloWrapper>
+                                                    </ApolloContextProvider>
+                                                </ThemeProvider>
+                                            </PublishContextProvider>
+                                        </ElectionEventTallyContextProvider>
+                                    </CandidateContextProvider>
+                                </ContestContextProvider>
+                            </ElectionContextProvider>
+                        </ElectionEventContextProvider>
+                    </NewResourceContextProvider>
+                </TenantContextProvider>
+            </AuthContextProvider>
+        </SettingsWrapper>
     </React.StrictMode>
 )
 

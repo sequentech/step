@@ -63,13 +63,13 @@ wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }
 board-messages = { path="../board-messages" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log"] }
+sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe"] }
 velvet = { path="../velvet" }
 
 # To connect to the Database
 deadpool = { version = "0.10.0", features = ["rt_tokio_1", "serde"] }
 deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
-tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
 config = "0.13.1"
 cfg-if = "1.0"
 postgres-openssl = { version = "0.5.0", optional = true }

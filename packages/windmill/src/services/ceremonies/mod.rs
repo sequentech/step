@@ -7,3 +7,4 @@ pub mod results;
 pub mod serialize_logs;
 pub mod tally_ceremony;
 pub mod tally_progress;
+pub mod velvet_tally;

@@ -13,6 +13,8 @@ import {v4} from "uuid"
 import {
     BooleanInput,
     ReferenceInput,
+    SaveButton,
+    Toolbar,
     SelectInput,
     SimpleForm,
     TextInput,
@@ -33,6 +35,10 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 
 const Hidden = styled(Box)`
     display: none;
+`
+
+const ReservedSpace = styled(Box)`
+    min-height: 40px;
 `
 
 interface IElectionSubmit {
@@ -163,7 +169,15 @@ export const CreateElectionList: React.FC = () => {
         }, 3000)
     }
     return (
-        <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
+        <SimpleForm
+            defaultValues={postDefaultValues}
+            onSubmit={handleSubmit}
+            toolbar={
+                <Toolbar>
+                    <SaveButton disabled={isLoading} />
+                </Toolbar>
+            }
+        >
             <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
             <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
             <TextInput source="name" />
@@ -231,7 +245,7 @@ export const CreateElectionList: React.FC = () => {
                 <TextInput source="user_boards" />
                 <TextInput source="audit_election_event_id" />
             </Hidden>
-            {isLoading ? <CircularProgress /> : null}
+            <ReservedSpace>{isLoading ? <CircularProgress /> : null}</ReservedSpace>
         </SimpleForm>
     )
 }

@@ -116,6 +116,10 @@ const spanishTranslation: TranslationType = {
             voteButton: "Haga click para Votar",
             openDate: "Abierta: ",
             closeDate: "Cerrada: ",
+            ballotLocator: "Localiza tu voto",
+        },
+        header: {
+            profile: "Perfil",
         },
     },
 }

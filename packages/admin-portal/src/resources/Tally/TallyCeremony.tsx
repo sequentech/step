@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -38,10 +38,10 @@ import {
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
-import globalSettings from "@/global-settings"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -60,6 +60,7 @@ export const TallyCeremony: React.FC = () => {
     const {t} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)

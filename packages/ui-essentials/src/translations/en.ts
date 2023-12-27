@@ -112,6 +112,10 @@ const englishTranslation = {
             voteButton: "Click to Vote",
             openDate: "Open: ",
             closeDate: "Close: ",
+            ballotLocator: "Locate your ballot",
+        },
+        header: {
+            profile: "Profile",
         },
     },
 }
