@@ -146,10 +146,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             headerName: t("tally.table.number"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => {
-                console.log("TallyResultsGlobalCandidates :: props", props)
-                return props["value"] || "-"
-            },
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
             align: "right",
             headerAlign: "right",
         },
