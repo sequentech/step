@@ -33,11 +33,10 @@ import {IElection, selectElectionById, setElection} from "../store/elections/ele
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
 import {ELECTIONS_LIST} from "../fixtures/election"
-import {TenantEventContext} from ".."
-import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
+import { TenantEvent } from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -64,7 +63,7 @@ interface ElectionWrapperProps {
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEvent>()
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()

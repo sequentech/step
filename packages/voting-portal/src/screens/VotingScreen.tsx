@@ -33,7 +33,7 @@ import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlic
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
-import {TenantEventContext} from ".."
+import {TenantEvent} from ".."
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -76,8 +76,8 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
-    const {t, i18n} = useTranslation()
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {t} = useTranslation()
+    const {tenantId, eventId} = useParams<TenantEvent>()
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)

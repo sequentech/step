@@ -23,7 +23,7 @@ import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
-import {TenantEventContext} from ".."
+import {TenantEvent} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -104,7 +104,7 @@ interface ActionButtonsProps {
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t} = useTranslation()
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEvent>()
     const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
@@ -141,7 +141,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
 }
 
 export const ConfirmationScreen: React.FC = () => {
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEvent>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()

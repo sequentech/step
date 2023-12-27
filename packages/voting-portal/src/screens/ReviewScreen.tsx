@@ -36,8 +36,8 @@ import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
-import {TenantEventContext} from ".."
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
+import {TenantEvent} from ".."
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -80,7 +80,7 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEvent>()
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)

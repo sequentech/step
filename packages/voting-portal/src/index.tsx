@@ -20,28 +20,9 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
-interface TenantEventContextValues {
-    tenantId: string | null
-    eventId: string | null
-}
-
-export const TenantEventContext = React.createContext<TenantEventContextValues>({
-    tenantId: null,
-    eventId: null,
-})
-
-// This component will be used to provide tenantId and eventId to the context
-export const TenantEventProvider: React.FC<{
-    tenantId: string | null
-    eventId: string | null
-    children: React.ReactNode
-}> = ({tenantId, eventId, children}) => {
-    console.log(`TenantEventProvider: tenantId=${tenantId}, eventId=${eventId}`)
-    return (
-        <TenantEventContext.Provider value={{tenantId, eventId}}>
-            {children}
-        </TenantEventContext.Provider>
-    )
+export type TenantEvent = {
+    tenantId: string
+    eventId: string
 }
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
@@ -49,29 +30,12 @@ export interface KeycloakProviderProps extends React.PropsWithChildren {
 }
 
 const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) => {
-    const {tenantId, eventId} = useContext(TenantEventContext)
-    console.log(`KeycloakProvider: tenantId=${tenantId}, eventId=${eventId}`)
-
     return disable ? (
         <>{children}</>
     ) : (
         <AuthContextProvider>
             <>{children}</>
         </AuthContextProvider>
-    )
-}
-
-export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
-    console.log(`RouteParameterProvider: tenantId=${tenantId}, eventId=${eventId}`)
-
-    return (
-        <TenantEventProvider
-            tenantId={tenantId ? tenantId : null}
-            eventId={eventId ? eventId : null}
-        >
-            {children}
-        </TenantEventProvider>
     )
 }
 

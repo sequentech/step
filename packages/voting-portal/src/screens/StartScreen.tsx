@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import {Box, Typography} from "@mui/material"
-import React, {useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -17,7 +17,7 @@ import Button from "@mui/material/Button"
 import {useAppSelector} from "../store/hooks"
 import {IElection, selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
-import {TenantEventContext} from ".."
+import {TenantEvent} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -59,8 +59,8 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
-    const {t, i18n} = useTranslation()
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {t} = useTranslation()
+    const {tenantId, eventId} = useParams<TenantEvent>()
 
     return (
         <ActionsContainer>
