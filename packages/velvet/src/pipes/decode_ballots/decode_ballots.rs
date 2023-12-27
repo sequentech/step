@@ -26,7 +26,7 @@ pub struct DecodeBallots {
 }
 
 impl DecodeBallots {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "DecodeBallots::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
@@ -65,7 +65,7 @@ impl DecodeBallots {
 }
 
 impl Pipe for DecodeBallots {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "DecodeBallots::exec")]
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {

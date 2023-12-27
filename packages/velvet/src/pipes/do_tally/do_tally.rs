@@ -24,14 +24,14 @@ pub struct DoTally {
 }
 
 impl DoTally {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "DoTally::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 }
 
 impl Pipe for DoTally {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "DoTally::new")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs

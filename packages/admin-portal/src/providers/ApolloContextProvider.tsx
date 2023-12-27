@@ -33,15 +33,8 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
         null
     )
-    const {isAuthenticated, getAccessToken, login} = useContext(AuthContext)
-    let {tenantId, eventId} = useParams()
+    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
-
-    useEffect(() => {
-        if (!isAuthenticated && tenantId && eventId) {
-            login(tenantId, eventId)
-        }
-    }, [isAuthenticated, tenantId, eventId])
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
         const httpLink = createHttpLink({
@@ -55,7 +48,8 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
             return {
                 headers: {
                     ...headers,
-                    authorization: token ? `Bearer ${token}` : "",
+                    "authorization": token ? `Bearer ${token}` : "",
+                    "x-hasura-role": "admin-user",
                 },
             }
         })

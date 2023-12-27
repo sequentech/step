@@ -369,6 +369,10 @@ services:
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      HARVEST_PROBE_ADDR: ${HARVEST_PROBE_ADDR}
+      HARVEST_PROBE_LIVE_PATH: ${HARVEST_PROBE_LIVE_PATH}
+      HARVEST_PROBE_READY_PATH: ${HARVEST_PROBE_READY_PATH}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -464,6 +468,9 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init
+    environment:
+      IMMUDB_LOG_AUDIT_PROBE_ADDR: ${IMMUDB_LOG_AUDIT_PROBE_ADDR}
+      IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH: ${IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH}
 
   # Create collection in immudb
   immudb-log-audit-init-keycloak:
@@ -632,6 +639,10 @@ services:
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
+      WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
+      WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
+
   beat:
     profiles: ["full"]
     stdin_open: true
@@ -663,6 +674,9 @@ services:
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
 volumes:
   db_data:
