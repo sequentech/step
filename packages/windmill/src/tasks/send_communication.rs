@@ -33,6 +33,7 @@ use celery::error::TaskError;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::{keycloak, pdf, reports};
 use sequent_core::types::ceremonies::*;
+use sequent_core::types::communications::*;
 use sequent_core::types::keycloak::User;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -41,37 +42,6 @@ use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-pub enum AudienceSelection {
-    #[strum(serialize = "ALL_USERS")]
-    ALL_USERS,
-    #[strum(serialize = "NOT_VOTED")]
-    NOT_VOTED,
-    #[strum(serialize = "VOTED")]
-    VOTED,
-    #[strum(serialize = "SELECTED")]
-    SELECTED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-enum CommunicationType {
-    #[strum(serialize = "CREDENTIALS")]
-    CREDENTIALS,
-    #[strum(serialize = "RECEIPT")]
-    RECEIPT,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-enum CommunicationMethod {
-    #[strum(serialize = "EMAIL")]
-    EMAIL,
-    #[strum(serialize = "SMS")]
-    SMS,
-}
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct EmailConfig {
