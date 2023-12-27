@@ -2,9 +2,13 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString};
 
 #[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum AudienceSelection {
     #[strum(serialize = "ALL_USERS")]
     ALL_USERS,
@@ -17,7 +21,9 @@ pub enum AudienceSelection {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum CommunicationType {
     #[strum(serialize = "CREDENTIALS")]
     CREDENTIALS,
@@ -32,7 +38,9 @@ pub enum CommunicationType {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum CommunicationMethod {
     #[strum(serialize = "EMAIL")]
     EMAIL,
