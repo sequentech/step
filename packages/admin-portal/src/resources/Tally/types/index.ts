@@ -1,4 +1,4 @@
-import { Sequent_Backend_Candidate } from '@/gql/graphql'
+import {Sequent_Backend_Candidate} from "@/gql/graphql"
 
 export interface Sequent_Backend_Candidate_Extended extends Sequent_Backend_Candidate {
     rowId: number

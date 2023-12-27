@@ -23,7 +23,7 @@ import {
     Typography,
 } from "@mui/material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import { Sequent_Backend_Candidate_Extended } from './types'
+import {Sequent_Backend_Candidate_Extended} from "./types"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -147,8 +147,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                console.log("TallyResultsGlobalCandidates :: props", props);
-                return props["value"] || "-"},
+                console.log("TallyResultsGlobalCandidates :: props", props)
+                return props["value"] || "-"
+            },
             align: "right",
             headerAlign: "right",
         },
@@ -166,7 +167,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             headerName: t("tally.table.turnout"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || '-'}`,
+            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || "-"}`,
             align: "right",
             headerAlign: "right",
         },
@@ -248,7 +249,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
-                                <TableCell align="right">{general?.[0].blank_votes ?? "-"}</TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].blank_votes ?? "-"}
+                                </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].blank_votes ?? "-"} %
                                 </TableCell>

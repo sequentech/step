@@ -23,7 +23,7 @@ import {
     TableHead,
 } from "@mui/material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import { Sequent_Backend_Candidate_Extended } from './types'
+import {Sequent_Backend_Candidate_Extended} from "./types"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -80,8 +80,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     )
 
-    console.log("TallyResultsGlobalCandidates :: general", general);
-    
+    console.log("TallyResultsGlobalCandidates :: general", general)
 
     const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
         "sequent_backend_results_contest_candidate",
@@ -160,7 +159,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             headerName: t("tally.table.turnout"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || '-'}`,
+            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || "-"}`,
             align: "right",
             headerAlign: "right",
         },
@@ -242,7 +241,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
-                                <TableCell align="right">{general?.[0].blank_votes ?? "-"}</TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].blank_votes ?? "-"}
+                                </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].blank_votes ?? "-"} %
                                 </TableCell>
