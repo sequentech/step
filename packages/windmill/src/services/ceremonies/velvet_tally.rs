@@ -24,6 +24,7 @@ pub type AreaContestDataType = (
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
     Contest,
     BallotStyle,
+    u64,
 );
 
 #[instrument(skip_all)]
@@ -56,7 +57,8 @@ pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest_plaintext: &AreaContestDataType,
 ) -> Result<()> {
-    let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext.clone();
+    let (plaintexts, tally_session_contest, contest, ballot_style, census) =
+        area_contest_plaintext.clone();
 
     let area_id = tally_session_contest.area_id.clone();
     let contest_id = contest.id.clone();
@@ -88,12 +90,13 @@ pub fn prepare_tally_for_area_contest(
     let area_config_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
     ));
+
     let area_config = AreaConfig {
         id: Uuid::parse_str(&area_id)?,
         tenant_id: Uuid::parse_str(&contest.tenant_id)?,
         election_event_id: Uuid::parse_str(&contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
-        census: biguit_ballots.len() as u64,
+        census: census as u64,
     };
     let mut area_config_file = fs::File::create(area_config_path)?;
     writeln!(area_config_file, "{}", serde_json::to_string(&area_config)?)?;
@@ -117,7 +120,8 @@ pub fn create_election_configs(
 
     // aggregate all ballot styles for each election
     for area_contest_plaintext in area_contest_plaintexts {
-        let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
+        let (plaintexts, tally_session_contest, contest, ballot_style, eligible_voters) =
+            area_contest_plaintext;
 
         let area_id = tally_session_contest.area_id.clone();
         let contest_id = contest.id.clone();

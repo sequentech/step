@@ -4,11 +4,6 @@
 use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
-use crate::hasura::results_area_contest::insert_results_area_contest;
-use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
-use crate::hasura::results_contest::insert_results_contest;
-use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
-use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
@@ -18,53 +13,47 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::services::ceremonies::results::populate_results_tables;
-use crate::services::ceremonies::results::{generate_results_id_if_necessary, save_results};
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::compress::compress_folder;
+use crate::services::database::get_keycloak_pool;
 use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
-use crate::tasks::execute_tally_session::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
+use crate::services::users::list_users;
+use crate::services::users::ListUsersFilter;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
-use chrono::{Duration, Utc};
+use chrono::Duration;
+use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use sequent_core::ballot::{BallotStyle, Contest};
-use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::TallyElection;
-use sequent_core::types::ceremonies::TallyElectionStatus;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
-use sequent_core::types::ceremonies::{Log, TallyCeremonyStatus};
-use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use velvet::cli::state::State;
-use velvet::cli::CliRun;
-use velvet::fixtures;
-use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
     Contest,
     BallotStyle,
+    u64,
 );
 
 #[instrument(skip_all, err)]
@@ -88,12 +77,12 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
 }
 
 #[instrument(skip_all)]
-fn process_plaintexts(
+async fn process_plaintexts(
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
-) -> Vec<AreaContestDataType> {
-    relevant_plaintexts
+) -> Result<Vec<AreaContestDataType>> {
+    let almost_vec: Vec<AreaContestDataType> = relevant_plaintexts
         .iter()
         .filter_map(|plaintexts_message| {
             plaintexts_message.artifact.clone().map(|artifact| {
@@ -150,11 +139,50 @@ fn process_plaintexts(
                     tally_session_contest.clone(),
                     contest.clone(),
                     ballots_style.clone(),
+                    0,
                 ))
             }
             _ => None,
         })
-        .collect()
+        .collect();
+
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{err}"))?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("{err}"))?;
+    keycloak_transaction
+        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
+        .await
+        .with_context(|| "can't set transaction isolation level")?;
+
+    let mut data: Vec<AreaContestDataType> = vec![];
+
+    for almost in almost_vec {
+        let (plaintexts, tally_session_contest, contest, ballots_style, _count) = almost.clone();
+        let area_id = tally_session_contest.area_id.clone();
+        let contest_id = contest.id.clone();
+        let election_id = contest.election_id.clone();
+        let count = get_eligible_voters(
+            auth_headers.clone(),
+            &keycloak_transaction,
+            &contest.tenant_id,
+            &contest.election_event_id,
+            &contest.election_id,
+            &tally_session_contest.area_id,
+        )
+        .await?;
+
+        let mut with_count = almost.clone();
+        with_count.4 = count;
+        data.push(with_count);
+    }
+    Ok(data)
 }
 
 #[instrument]
@@ -187,6 +215,40 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
         return None;
     };
     Some(execution_status)
+}
+
+#[instrument(skip_all, err)]
+pub async fn get_eligible_voters(
+    auth_headers: connection::AuthHeaders,
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<u64> {
+    let realm = get_event_realm(tenant_id, election_event_id);
+
+    let (_users, census) = list_users(
+        auth_headers.clone(),
+        &transaction,
+        ListUsersFilter {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: Some(election_event_id.to_string()),
+            election_id: Some(election_id.to_string()),
+            area_id: Some(area_id.to_string()),
+            realm: realm.clone(),
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(1),
+            offset: None,
+            user_ids: None,
+        },
+    )
+    .await?;
+    Ok(census as u64)
 }
 
 #[instrument(skip_all, err)]
@@ -381,7 +443,7 @@ async fn map_plaintext_data(
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
     let plaintexts_data: Vec<AreaContestDataType> =
-        process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data);
+        process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data).await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,
