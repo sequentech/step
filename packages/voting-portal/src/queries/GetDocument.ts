@@ -5,9 +5,9 @@
 import {gql} from "@apollo/client"
 
 export const GET_DOCUMENT = gql`
-        query GetCastVote($id: uuid, $tenantId: uuid) {
-            sequent_backend_document(where: {_and: {tenant_id: {_eq: $tenantId}, id: {_eq: $id}}}) {
-                name
-            }
+    query GetCastVote($id: uuid, $tenantId: uuid) {
+        sequent_backend_document(where: {_and: {tenant_id: {_eq: $tenantId}, id: {_eq: $id}}}) {
+            name
         }
+    }
 `

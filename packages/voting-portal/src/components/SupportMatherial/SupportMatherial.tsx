@@ -84,9 +84,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
 
-    const {
-        data: imageData,
-    } = useQuery<any>(GET_DOCUMENT, {
+    const {data: imageData} = useQuery<any>(GET_DOCUMENT, {
         variables: {
             id: documentId || "",
             tenantId: tenantId || "",

@@ -31,7 +31,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
-import { SupportMatherial } from '../components/SupportMatherial/SupportMatherial'
+import {SupportMatherial} from "../components/SupportMatherial/SupportMatherial"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -77,18 +77,14 @@ export const SupportMaterialsScreen: React.FC = () => {
     const navigate = useNavigate()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
 
-    const {
-        data: dataMaterials,
-    } = useQuery<any>(GET_SUPPORT_MATERIALS, {
+    const {data: dataMaterials} = useQuery<any>(GET_SUPPORT_MATERIALS, {
         variables: {
             electionEventId: eventId || "",
             tenantId: tenantId || "",
         },
     })
 
-    const {
-        data: dataElectionEvent,
-    } = useQuery<any>(GET_ELECTION_EVENT, {
+    const {data: dataElectionEvent} = useQuery<any>(GET_ELECTION_EVENT, {
         variables: {
             electionEventId: eventId,
             tenantId,
