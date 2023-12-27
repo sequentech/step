@@ -188,26 +188,6 @@ type Query {
 }
 
 type Query {
-  listElectoralLog (
-    limit: Int
-    offset: Int
-    election_event_id: String
-    filter: ElectoralLogFilter
-    order_by: ElectoralLogOrderBy
-  ): DataListElectoralLog
-}
-
-type Query {
-  listPgaudit (
-    limit: Int
-    offset: Int
-    filter: PgAuditFilter
-    order_by: PgAuditOrderBy
-    audit_table: PgAuditTable
-  ): DataListPgAudit
-}
-
-type Query {
   list_user_roles (
     tenant_id: String!
     user_id: String!

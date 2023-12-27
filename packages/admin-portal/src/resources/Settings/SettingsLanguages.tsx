@@ -3,9 +3,10 @@ import React, {useEffect, useState} from "react"
 import styled from "@emotion/styled"
 
 import {Switch} from "@mui/material"
-import {useEditController} from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useTranslation} from "react-i18next"
+import {useEditController} from "react-admin"
+
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const SettingsLanguagesStyles = {
     Wrapper: styled.div`
