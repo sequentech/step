@@ -4,13 +4,7 @@
 
 import React from "react"
 import {Menu, useSidebarState} from "react-admin"
-import {
-    faUsers,
-    faCog,
-    faAngleDoubleLeft,
-    faAngleDoubleRight,
-    faEnvelope,
-} from "@fortawesome/free-solid-svg-icons"
+import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"

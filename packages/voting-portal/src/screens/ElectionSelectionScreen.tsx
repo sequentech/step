@@ -19,7 +19,7 @@ import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {useNavigate, useParams} from "react-router-dom"
+import {useNavigate} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
@@ -82,6 +82,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         return null
     }
 
+    const handleClickBallotLocator = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`)
+    }
+
     return (
         <SelectElection
             isActive={true}
@@ -91,6 +95,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
             hasVoted={false}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
+            onClickBallotLocator={handleClickBallotLocator}
         />
     )
 }

@@ -16,6 +16,7 @@ import {
     theme,
     isUndefined,
     downloadBlob,
+    InfoDataBox,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
@@ -69,20 +70,6 @@ const Step1Container = styled(Box)`
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-`
-
-const AuditableBallotData = styled(Box)`
-    word-break: break-word;
-    hyphens: auto;
-    padding: 15px;
-    background-color: #ecfdf5;
-    color: #000;
-    border-radius: 4px;
-    display: block;
-    overflow-y: scroll;
-    max-height: 200px;
-    border: 1px solid #047857;
-    margin: 4px 0;
 `
 
 const ActionButtons: React.FC = () => {
@@ -214,7 +201,7 @@ export const AuditScreen: React.FC = () => {
                 </StyledButton>
             </Step1Container>
 
-            <AuditableBallotData>{auditableBallot || ""}</AuditableBallotData>
+            <InfoDataBox>{auditableBallot || ""}</InfoDataBox>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
                 {
