@@ -36,6 +36,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
+import { SupportMatherial } from '../components/SupportMatherial/SupportMatherial'
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -73,12 +74,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
     }
 
     return (
-        <SelectElection
-            isActive={true}
-            isOpen={true}
-            title={translate(material, "title", i18n.language) || ""}
-            electionHomeUrl={"https://sequentech.io"}
-            hasVoted={false}
+        <SupportMatherial
+            title={translate(material.data, "title", i18n.language) || ""}
+            subtitle={translate(material.data, "subtitle", i18n.language) || ""}
+            kind={material.kind || ""}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
         />

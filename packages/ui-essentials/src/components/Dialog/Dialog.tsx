@@ -7,7 +7,12 @@ import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
-import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
+import {
+    faTimesCircle,
+    faInfoCircle,
+    faExclamationTriangle,
+    faBullseye,
+} from "@fortawesome/free-solid-svg-icons"
 import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
@@ -24,6 +29,7 @@ export interface DialogProps extends PropsWithChildren {
     ok: string
     okEnabled?: () => boolean
     variant?: "warning" | "info" | "action"
+    fullWidth?: boolean
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -35,6 +41,7 @@ const Dialog: React.FC<DialogProps> = ({
     ok,
     okEnabled,
     variant,
+    fullWidth = false,
 }) => {
     const okVariant = "info" === variant ? "primary" : "solidWarning"
     const faIcon = "info" === variant ? faInfoCircle : faExclamationTriangle
@@ -44,7 +51,12 @@ const Dialog: React.FC<DialogProps> = ({
     const clickOk = () => handleClose(true)
 
     return (
-        <MaterialDialog onClose={closeDialog} open={open} slots={{backdrop: StyledBackdrop}}>
+        <MaterialDialog
+            onClose={closeDialog}
+            open={open}
+            slots={{backdrop: StyledBackdrop}}
+            fullWidth={fullWidth}
+        >
             <DialogTitle>
                 <Icon variant={infoVariant} icon={faIcon} fontSize="24px" />
                 <Box component="span" flexGrow={2} pt="3px" fontWeight="bold">
