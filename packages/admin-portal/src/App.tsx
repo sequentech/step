@@ -52,11 +52,11 @@ import {CreateContestData} from "./resources/Contest/CreateContestData"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
+import {Logs} from "./screens/Logs"
+import {ApolloContext} from "./providers/ApolloContextProvider"
 import { CommunicationTemplateEdit } from './resources/CommunicationTemplate/CommunicationTemplateEdit'
 import { CommunicationTemplateList } from './resources/CommunicationTemplate/CommunicationTemplateList'
 import { CommunicationTemplateCreate } from './resources/CommunicationTemplate/CommunicationTemplateCreate'
-import {Logs} from "./screens/Logs"
-import {ApolloContext} from "./providers/ApolloContextProvider"
 
 interface AppProps {}
 
