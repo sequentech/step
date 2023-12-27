@@ -19,8 +19,8 @@ export const translate = <T, K extends keyof T>(
 
 export const translateElection = (object: any, key: string, lang: string): string => {
     if (object && object["presentation"] && object["presentation"]["i18n"]) {
-        return object["presentation"]["i18n"][lang][key] || object[key]
+        return object["presentation"]["i18n"][lang][key] || object[key] || "-"
     } else {
-        return object[key]
+        return object[key] || "-"
     }
 }
