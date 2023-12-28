@@ -1,0 +1,130 @@
+table:
+  name: tally_sheet
+  schema: sequent_backend
+insert_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - content
+    - labels
+    - channel
+    - published_by_user_id
+    - created_at
+    - deleted_at
+    - last_updated_at
+    - published_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - content
+    - labels
+    - channel
+    - published_by_user_id
+    - created_at
+    - deleted_at
+    - last_updated_at
+    - published_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+  role: service-account
+select_permissions:
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - content
+    - labels
+    - channel
+    - published_by_user_id
+    - created_at
+    - deleted_at
+    - last_updated_at
+    - published_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - content
+    - labels
+    - channel
+    - published_by_user_id
+    - created_at
+    - deleted_at
+    - last_updated_at
+    - published_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
+update_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - content
+    - labels
+    - channel
+    - published_by_user_id
+    - created_at
+    - deleted_at
+    - last_updated_at
+    - published_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - content
+    - labels
+    - channel
+    - published_by_user_id
+    - created_at
+    - deleted_at
+    - last_updated_at
+    - published_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
