@@ -521,6 +521,7 @@ const spanishTranslation: TranslationType = {
                 globalAreaResults: "de todas las áreas",
                 title: "Título",
                 subtitle: "Subtítulo",
+                kind: "Tipo de archivo",
             },
             language: {
                 es: "Español",

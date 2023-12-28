@@ -519,6 +519,7 @@ const englishTranslation = {
                 globalAreaResults: "all areas",
                 title: "Title",
                 subtitle: "Subtitle",
+                kind: "File type",
             },
             language: {
                 es: "Spanish",

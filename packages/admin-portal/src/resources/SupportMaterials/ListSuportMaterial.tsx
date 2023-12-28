@@ -28,6 +28,10 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
 import {AreaContestItems} from "@/components/AreaContestItems"
+import VideoFileIcon from "@mui/icons-material/VideoFile"
+import AudioFileIcon from "@mui/icons-material/AudioFile"
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
+import ImageIcon from "@mui/icons-material/Image"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -145,18 +149,31 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                     <TextField
                         source={`data.title_i18n[${i18n.language}]`}
                         label={t("common.label.title")}
+                        sortable={false}
                     />
                     <TextField
                         source={`data.subtitle_i18n[${i18n.language}]`}
                         label={t("common.label.subtitle")}
+                        sortable={false}
+                    />
+                    {/* <TextField source={"kind"} label={t("common.label.kind")} sortable={false} /> */}
+
+                    <FunctionField
+                        label={t("common.label.kind")}
+                        render={(record: any) => {
+                            return record.kind.includes("image") ? (
+                                <ImageIcon sx={{fontSize: "36px"}} />
+                            ) : record.kind.includes("pdf") ? (
+                                <PictureAsPdfIcon sx={{fontSize: "36px"}} />
+                            ) : record.kind.includes("video") ? (
+                                <VideoFileIcon sx={{fontSize: "36px"}} />
+                            ) : record.kind.includes("audio") ? (
+                                <AudioFileIcon sx={{fontSize: "36px"}} />
+                            ) : null
+                        }}
                     />
 
-                    {/* <FunctionField
-                        label={t("areas.sequent_backend_area_contest")}
-                        render={(record: any) => <AreaContestItems record={record} />}
-                    /> */}
-
-                    <WrapperField source="actions" label="Actions">
+                    <WrapperField source="actions" label="Actions" sortable={false}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
