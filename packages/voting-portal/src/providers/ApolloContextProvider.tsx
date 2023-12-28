@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, PropsWithChildren, useCallback} from "react"
+import React, {useContext, PropsWithChildren, useCallback, useState, useEffect} from "react"
 import {ApolloClient, InMemoryCache, NormalizedCacheObject, createHttpLink} from "@apollo/client"
 import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
@@ -11,15 +11,18 @@ import {Box, CircularProgress} from "@mui/material"
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
+    const {getAccessToken, isAuthContextInitialized} = useContext(AuthContext)
+    const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
 
-    const {getAccessToken} = useContext(AuthContext)
+    useEffect(() => {
+        if (!isAuthContextInitialized) {
+            return
+        }
 
-    const createApolloClient = useCallback((): ApolloClient<NormalizedCacheObject> | null => {
         const token = getAccessToken()
-        console.log("LS -> src/providers/ApolloContextProvider.tsx:19 -> token: ", token)
 
         if (!token) {
-            return null
+            return
         }
 
         const httpLink = createHttpLink({
@@ -42,16 +45,14 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             cache: new InMemoryCache(),
         })
 
-        return apolloClient
-    }, [getAccessToken, globalSettings.HASURA_URL])
+        setClient(apolloClient)
+    }, [isAuthContextInitialized, getAccessToken, globalSettings.HASURA_URL])
 
-    let apolloClient = createApolloClient()
-
-    return apolloClient === null ? (
+    return client === null ? (
         <Box sx={{marginTop: "25px"}}>
             <CircularProgress />
         </Box>
     ) : (
-        <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
+        <ApolloProvider client={client}>{children}</ApolloProvider>
     )
 }

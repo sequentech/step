@@ -189,11 +189,15 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
+    const {globalSettings} = useContext(SettingsContext)
+    const {t, i18n} = useTranslation()
     const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
     const [ballotStyleElectionIds, setBallotStyleElectionIds] =
         useState<Array<string>>(existingElectionIds)
     const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
+
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+
     const {
         loading: loadingElections,
         error: errorElections,
@@ -205,8 +209,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     })
     const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
     const dispatch = useAppDispatch()
-    const {globalSettings} = useContext(SettingsContext)
-    const {t, i18n} = useTranslation()
+
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
 
     useEffect(() => {
@@ -250,7 +253,7 @@ export const ElectionSelectionScreen: React.FC = () => {
             dispatch(setElection(convertToElection(election)))
             fakeUpdateBallotStyleAndSelection(dispatch)
         }
-    }, [])
+    }, [dispatch, globalSettings.DISABLE_AUTH])
 
     return (
         <PageLimit maxWidth="lg">

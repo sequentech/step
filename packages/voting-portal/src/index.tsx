@@ -51,6 +51,7 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
+  
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
