@@ -106,7 +106,7 @@ pub struct KeycloakAdminClient {
 }
 
 impl KeycloakAdminClient {
-    #[instrument]
+    #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
         let client = reqwest::Client::new();
