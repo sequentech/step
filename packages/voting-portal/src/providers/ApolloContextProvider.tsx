@@ -12,12 +12,13 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {getAccessToken} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
 
+    const token = getAccessToken()
+
     const createApolloClient = useCallback((): ApolloClient<NormalizedCacheObject> => {
         const httpLink = createHttpLink({
             uri: globalSettings.HASURA_URL,
         })
 
-        const token = getAccessToken()
         const authLink = token
             ? setContext((_, {headers}) => {
                   // get the authentication token from local storage if it exists
@@ -36,17 +37,9 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             cache: new InMemoryCache(),
         })
         return apolloClient
-    }, [getAccessToken, globalSettings.HASURA_URL])
+    }, [token, globalSettings.HASURA_URL])
 
     let apolloClient = createApolloClient()
 
-    return (
-        <>
-            {null === apolloClient ? (
-                <>{children}</>
-            ) : (
-                <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
-            )}
-        </>
-    )
+    return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
 }
