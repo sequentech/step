@@ -21,6 +21,7 @@ COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
+COPY ../keycloak/import /import
 WORKDIR /app/windmill
 RUN cargo build --release
 
