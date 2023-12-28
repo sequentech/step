@@ -22,6 +22,7 @@ pub struct TokenResponse {
     pub scope: String,
 }
 
+#[derive(Debug)]
 struct KeycloakLoginConfig {
     url: String,
     client_id: String,
@@ -109,6 +110,7 @@ impl KeycloakAdminClient {
     #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
+        event!(Level::INFO, "Login config {:?}", login_config);
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
             &login_config.url,
