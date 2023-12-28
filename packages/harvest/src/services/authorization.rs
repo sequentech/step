@@ -7,7 +7,7 @@ use sequent_core::types::permissions::Permissions;
 use std::collections::HashSet;
 use std::env;
 use tracing::instrument;
- 
+
 #[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,

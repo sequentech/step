@@ -468,6 +468,30 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
+      "name" : "tally-sheet-read",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "5e160701-19cc-478b-8eb8-ae4e35492ced",
+      "name" : "tally-sheet-write",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
+      "name" : "tally-sheet-publish",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "6e40d74d-7050-4aa9-884b-aea26bf5939d",
       "name" : "publish-read",
       "description" : "",
@@ -766,7 +790,7 @@
     "name" : "admin",
     "path" : "/admin",
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "election-type-create", "publish-read" ],
+    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "election-type-create", "publish-read", "tally-sheet-read", "tally-sheet-write", "tally-sheet-publish" ],
     "clientRoles" : { },
     "subGroups" : [ ]
   }, {
