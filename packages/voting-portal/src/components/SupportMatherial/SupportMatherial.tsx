@@ -9,6 +9,10 @@ import {Dialog, theme} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {GET_DOCUMENT} from "../../queries/GetDocument"
 import {useQuery} from "@apollo/client"
+import VideoFileIcon from "@mui/icons-material/VideoFile"
+import AudioFileIcon from "@mui/icons-material/AudioFile"
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
+import ImageIcon from "@mui/icons-material/Image"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -84,6 +88,8 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
 
+    const videoRef = React.useRef<HTMLIFrameElement>(null)
+
     const {data: imageData} = useQuery<any>(GET_DOCUMENT, {
         variables: {
             id: documentId || "",
@@ -91,22 +97,33 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
         },
     })
 
-    const handleOpenDialog = () => {
+    const handleOpenDialog = async (type: string) => {
         openPreviewSet(true)
     }
 
     return (
         <>
             <BorderBox role="button" tabIndex={0}>
+                    <Box>
+                        {kind.includes("image") ? (
+                            <ImageIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                        ) : kind.includes("pdf") ? (
+                            <PictureAsPdfIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                        ) : kind.includes("video") ? (
+                            <VideoFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                        ) : kind.includes("audio") ? (
+                            <AudioFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                        ) : null}
+                    </Box>
                 <TextContainer>
                     <StyledTitle>{title}</StyledTitle>
                     <StyledSubTitle>{subtitle}</StyledSubTitle>
                 </TextContainer>
-                <Box sx={{display: "flex"}}>
+                <Box sx={{display: "flex", alignItems: "center"}}>
                     <StyledButton
                         sx={{marginRight: "16px"}}
                         variant="secondary"
-                        onClick={handleOpenDialog}
+                        onClick={() => handleOpenDialog("video")}
                     >
                         <VisibilityIcon />
                     </StyledButton>
@@ -181,14 +198,16 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                                 }}
                             >
                                 <iframe
-                                    loading="lazy"
+                                    ref={videoRef}
                                     width="800"
                                     height="500"
                                     src={encodeURI(
                                         `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
                                     )}
+                                    referrerPolicy="origin"
+                                    sandbox="allow-scripts allow-same-origin"
                                     title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
-                                    allow="autoplay; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allow="autoplay;"
                                 ></iframe>
                             </Box>
                         ) : kind.includes("audio") ? (
