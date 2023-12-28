@@ -11,6 +11,7 @@ import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEvent} from "."
+import {ApolloWrapper} from "./providers/ApolloContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -68,7 +69,9 @@ const App = () => {
         <StyledApp>
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
-                <Outlet />
+                <ApolloWrapper>
+                    <Outlet />
+                </ApolloWrapper>
             </PageBanner>
             <Footer />
         </StyledApp>

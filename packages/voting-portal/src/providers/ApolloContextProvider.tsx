@@ -7,39 +7,51 @@ import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
 import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
+import {Box, CircularProgress} from "@mui/material"
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
-    const {getAccessToken} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
 
-    const token = getAccessToken()
+    const {getAccessToken} = useContext(AuthContext)
 
-    const createApolloClient = useCallback((): ApolloClient<NormalizedCacheObject> => {
+    const createApolloClient = useCallback((): ApolloClient<NormalizedCacheObject> | null => {
+        const token = getAccessToken()
+        console.log("LS -> src/providers/ApolloContextProvider.tsx:19 -> token: ", token)
+
+        if (!token) {
+            return null
+        }
+
         const httpLink = createHttpLink({
             uri: globalSettings.HASURA_URL,
         })
 
-        const authLink = token
-            ? setContext((_, {headers}) => {
-                  // get the authentication token from local storage if it exists
-                  // return the headers to the context so httpLink can read them
-                  return {
-                      headers: {
-                          ...headers,
-                          authorization: token ? `Bearer ${token}` : "",
-                      },
-                  }
-              })
-            : null
+        const authLink = setContext((_, {headers}) => {
+            // get the authentication token from local storage if it exists
+            // return the headers to the context so httpLink can read them
+            return {
+                headers: {
+                    ...headers,
+                    authorization: token ? `Bearer ${token}` : "",
+                },
+            }
+        })
 
         const apolloClient = new ApolloClient({
-            link: authLink ? authLink.concat(httpLink) : httpLink,
+            link: authLink.concat(httpLink),
             cache: new InMemoryCache(),
         })
+
         return apolloClient
-    }, [token, globalSettings.HASURA_URL])
+    }, [getAccessToken, globalSettings.HASURA_URL])
 
     let apolloClient = createApolloClient()
 
-    return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
+    return apolloClient === null ? (
+        <Box sx={{marginTop: "25px"}}>
+            <CircularProgress />
+        </Box>
+    ) : (
+        <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
+    )
 }

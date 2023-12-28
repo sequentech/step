@@ -16,7 +16,6 @@ import {NotFoundScreen, theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
-import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {LoginScreen} from "./screens/LoginScreen"
 import {StartScreen} from "./screens/StartScreen"
@@ -106,11 +105,9 @@ root.render(
         <SettingsWrapper>
             <KeycloakProviderContainer>
                 <Provider store={store}>
-                    <ApolloWrapper>
-                        <ThemeProvider theme={theme}>
-                            <RouterProvider router={router} />
-                        </ThemeProvider>
-                    </ApolloWrapper>
+                    <ThemeProvider theme={theme}>
+                        <RouterProvider router={router} />
+                    </ThemeProvider>
                 </Provider>
             </KeycloakProviderContainer>
         </SettingsWrapper>
