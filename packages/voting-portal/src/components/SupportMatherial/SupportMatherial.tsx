@@ -104,17 +104,17 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
     return (
         <>
             <BorderBox role="button" tabIndex={0}>
-                    <Box>
-                        {kind.includes("image") ? (
-                            <ImageIcon sx={{fontSize: "42px", marginRight: "16px"}} />
-                        ) : kind.includes("pdf") ? (
-                            <PictureAsPdfIcon sx={{fontSize: "42px", marginRight: "16px"}} />
-                        ) : kind.includes("video") ? (
-                            <VideoFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
-                        ) : kind.includes("audio") ? (
-                            <AudioFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
-                        ) : null}
-                    </Box>
+                <Box>
+                    {kind.includes("image") ? (
+                        <ImageIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                    ) : kind.includes("pdf") ? (
+                        <PictureAsPdfIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                    ) : kind.includes("video") ? (
+                        <VideoFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                    ) : kind.includes("audio") ? (
+                        <AudioFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                    ) : null}
+                </Box>
                 <TextContainer>
                     <StyledTitle>{title}</StyledTitle>
                     <StyledSubTitle>{subtitle}</StyledSubTitle>
