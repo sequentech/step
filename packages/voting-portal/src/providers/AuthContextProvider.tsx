@@ -45,7 +45,7 @@ export interface AuthContextValues {
      */
     getAccessToken: () => string | undefined
 
-    login: (tenantId: string, eventId: string) => void
+    setTenantEvent: (tenantId: string, eventId: string) => void
 
     /**
      * Open accountManagement from Keycloak
@@ -71,7 +71,7 @@ const defaultAuthContextValues: AuthContextValues = {
     email: "",
     firstName: "",
     logout: () => {},
-    login: (_tenantId: string, _eventId: string) => {},
+    setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
     getAccessToken: () => undefined,
     openProfileLink: () => new Promise(() => undefined),
@@ -98,7 +98,6 @@ interface AuthContextProviderProps {
  * @param props
  */
 const AuthContextProvider = (props: AuthContextProviderProps) => {
-    console.log("rendering AuthContextProvider")
     const {loaded, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
@@ -112,19 +111,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
 
-    const sleepSecs = 50
-    const bufferSecs = 10
-
     useEffect(() => {
         const createKeycloak = () => {
             if (keycloak) {
                 return
             }
+
             if (!tenantId || !eventId) {
                 console.log("Received empty tenant or event id, ignoring..")
                 return
             }
-      
+
             /**
              * KeycloakConfig configures the connection to the Keycloak server.
              */
@@ -178,6 +175,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     useEffect(() => {
         const updateTokenPeriodically = async () => {
+            const sleepSecs = 50
+            const bufferSecs = 10
+
             if (keycloak) {
                 const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
                 if (!keycloak.token) {
@@ -188,14 +188,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     localStorage.setItem("token", keycloak.token)
                 }
             }
+
             await sleep(sleepSecs * 1e3)
+
             updateTokenPeriodically()
         }
 
         const initializeKeycloak = async () => {
             console.log("initialize Keycloak")
+
             if (!keycloak) {
-                console.log("CAN'T initialize Keycloak")
                 return
             }
 
@@ -227,10 +229,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 // If we get here the user is authenticated and we can update the state accordingly
                 localStorage.setItem("token", keycloak.token)
+
                 setAuthenticated(true)
-                setTimeout(updateTokenPeriodically, 4e3)
-                console.log("user is authenticated")
                 setIsKeycloakInitialized(true)
+
+                setTimeout(updateTokenPeriodically, 4e3)
             } catch (error) {
                 console.log("error initializing Keycloak")
                 console.log(error)
@@ -245,15 +248,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         initializeKeycloak()
     }, [isKeycloakInitialized, keycloak])
 
-    // This effect loads the users profile in order to extract the username
+    // Load user profile from keycloak
     useEffect(() => {
-        /**
-         * Load the profile for of the user from Keycloak
-         */
         async function loadProfile() {
             if (!keycloak) {
                 return
             }
+
             try {
                 const profile = await keycloak.loadUserProfile()
 
@@ -283,14 +284,19 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
 
         // Only load the profile if a user is authenticated
-        if (isAuthenticated) {
+        if (!!keycloak && isAuthenticated) {
             loadProfile()
         }
     }, [isAuthenticated, keycloak])
 
-    /**
-     * Initiate the logout
-     */
+    //
+    //
+
+    const setTenantEvent = (tenantId: string, eventId: string) => {
+        setTenantId(tenantId)
+        setEventId(eventId)
+    }
+
     const logout = () => {
         if (!keycloak) {
             return
@@ -299,11 +305,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         localStorage.removeItem("token")
 
         keycloak.logout()
-    }
-
-    const login = (tenantId: string, eventId: string) => {
-        setTenantId(tenantId)
-        setEventId(eventId)
     }
 
     /**
@@ -338,8 +339,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 username: userProfile?.username ?? "",
                 email: userProfile?.email ?? "",
                 firstName: userProfile?.firstName ?? "",
+                setTenantEvent,
                 logout,
-                login,
                 hasRole,
                 getAccessToken,
                 openProfileLink,

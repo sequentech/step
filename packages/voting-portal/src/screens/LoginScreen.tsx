@@ -12,15 +12,15 @@ export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEvent>()
     const navigate = useNavigate()
-    const {isAuthenticated, login} = useContext(AuthContext)
+    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     useEffect(() => {
         if (!isAuthenticated && tenantId && eventId) {
-            login(tenantId, eventId)
+            setTenantEvent(tenantId, eventId)
         } else if (authContext.isAuthenticated) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         }
-    }, [authContext.isAuthenticated, navigate, isAuthenticated, tenantId, eventId, login])
+    }, [authContext.isAuthenticated, navigate, isAuthenticated, tenantId, eventId, setTenantEvent])
 
     return (
         <Box>
