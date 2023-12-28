@@ -54,6 +54,13 @@ export interface AuthContextValues {
     openProfileLink: () => Promise<void>
 }
 
+type UserProfile = {
+    userId?: string
+    username?: string
+    email?: string
+    firstName?: string
+}
+
 /**
  * Default values for the {@link AuthContext}
  */
@@ -64,7 +71,7 @@ const defaultAuthContextValues: AuthContextValues = {
     email: "",
     firstName: "",
     logout: () => {},
-    login: (tenantId: string, eventId: string) => {},
+    login: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
     getAccessToken: () => undefined,
     openProfileLink: () => new Promise(() => undefined),
@@ -98,13 +105,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
+
     // Local state that will contain the users name once it is loaded
-    const [userId, setUserId] = useState<string>("")
-    const [username, setUsername] = useState<string>("")
-    const [email, setEmail] = useState<string>("")
-    const [firstName, setFirstName] = useState<string>("")
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
+
     const sleepSecs = 50
     const bufferSecs = 10
 
@@ -235,16 +242,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const profile = await keycloak.loadUserProfile()
 
                 if (profile.id) {
-                    setUserId(profile.id)
+                    setUserProfile((val) => ({...val, userId: profile.id}))
                 }
                 if (profile.email) {
-                    setEmail(profile.email)
+                    setUserProfile((val) => ({...val, email: profile.email}))
                 }
                 if (profile.firstName) {
-                    setFirstName(profile.firstName)
+                    setUserProfile((val) => ({...val, email: profile.firstName}))
                 }
                 if (profile.username) {
-                    setUsername(profile.username)
+                    setUserProfile((val) => ({...val, email: profile.username}))
                 }
 
                 const newTenantId: string | undefined = (profile as any)?.attributes[
@@ -307,10 +314,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         <AuthContext.Provider
             value={{
                 isAuthenticated,
-                userId,
-                username,
-                email,
-                firstName,
+                userId: userProfile?.userId ?? "",
+                username: userProfile?.username ?? "",
+                email: userProfile?.email ?? "",
+                firstName: userProfile?.firstName ?? "",
                 logout,
                 login,
                 hasRole,
