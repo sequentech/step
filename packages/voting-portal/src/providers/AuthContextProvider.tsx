@@ -113,12 +113,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     useEffect(() => {
         const createKeycloak = () => {
-            if (keycloak) {
-                return
-            }
-
-            if (!tenantId || !eventId) {
-                console.log("Received empty tenant or event id, ignoring..")
+            if (keycloak || !tenantId || !eventId) {
                 return
             }
 
