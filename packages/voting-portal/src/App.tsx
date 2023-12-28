@@ -1,14 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Outlet, useLocation} from "react-router-dom"
+import {Outlet, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
+import {TenantEvent} from "."
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -33,6 +35,8 @@ const App = () => {
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
+    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -53,6 +57,12 @@ const App = () => {
         navigate,
         location.pathname,
     ])
+
+    useEffect(() => {
+        if (!isAuthenticated && !!tenantId && !!eventId) {
+            setTenantEvent(tenantId, eventId)
+        }
+    }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     return (
         <StyledApp>
