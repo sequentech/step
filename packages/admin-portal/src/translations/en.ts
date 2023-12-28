@@ -1,3 +1,5 @@
+import { Backdrop } from '@mui/material';
+import { BreadCrumbSteps } from '@sequentech/ui-essentials';
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -876,6 +878,41 @@ const englishTranslation = {
             },
             email: {
                 subject: "Subject",
+            },
+        },
+        tallysheet: {
+            header: {
+                change: "Changes to be Published",
+                viewChange: "View Publication",
+                history: "Publish History",
+            },
+            action: {
+                start: "Start Election",
+                stop: "Stop Election",
+                pause: "Pause",
+                generate: "Regenerate",
+                publish: "Publish Changes",
+                back: "Back",
+            },
+            label: {
+                area: "Area",
+            },
+            common: {
+                edit: "Edit",
+                confirm: "Confirm",
+                back: "Back",
+                next: "Next",
+                cancel: "Back",
+            },
+            empty: {
+                header: "No TallySheet Yet.",
+                action: "Generate Tally Sheet",
+            },
+            breadcrumbSteps: {
+                start: "Start",
+                edit: "Edit",
+                confirm: "Confirm",
+                view: "View",
             },
         },
     },

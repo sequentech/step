@@ -880,6 +880,41 @@ const spanishTranslation: TranslationType = {
                 subject: "Subject",
             },
         },
+        tallysheet: {
+            header: {
+                change: "Changes to be Published",
+                viewChange: "View Publication",
+                history: "Publish History",
+            },
+            action: {
+                start: "Start Election",
+                stop: "Stop Election",
+                pause: "Pause",
+                generate: "Regenerate",
+                publish: "Publish Changes",
+                back: "Back",
+            },
+            label: {
+                area: "Area",
+            },
+            common: {
+                edit: "Editar",
+                confirm: "Confirmar",
+                back: "Atras",
+                next: "Siguiente",
+                cancel: "Atras",
+            },
+            empty: {
+                header: "No hay Hojas de Recuento.",
+                action: "Generar Hoja de Recuento",
+            },
+            breadcrumbSteps: {
+                start: "Inicio",
+                edit: "Editar",
+                confirm: "Confirmar",
+                view: "Ver",
+            },
+        },
     },
 }
 

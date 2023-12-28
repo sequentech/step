@@ -1,11 +1,24 @@
-import React from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+import React, {useState} from "react"
+import {Create, Identifier, TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
+import {ListTallySheet} from "../TallySheet/ListTallySheet"
+import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
+import {CreateTallySheet} from "../TallySheet/CreateTallySheet"
 
 export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
+
+    const [action, setAction] = useState<number>(WizardSteps.List)
+    const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
+
+    const handleAction = (action: number, id?: Identifier) => {
+        setAction(action)
+        if (id) {
+            setTallySheetId(id)
+        }
+    }
 
     return (
         <>
@@ -16,6 +29,36 @@ export const ContestTabs: React.FC = () => {
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />
+                </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Tally Sheets">
+                    {action === WizardSteps.List ? (
+                        <ListTallySheet contest={record} doAction={handleAction} />
+                    ) : action === WizardSteps.Start ? (
+                        <TallySheetWizard
+                            contest={record}
+                            action={action}
+                            doAction={handleAction}
+                        />
+                    ) : action === WizardSteps.Edit ? (
+                        <TallySheetWizard
+                            tallySheetId={tallySheetId}
+                            contest={record}
+                            action={action}
+                            doAction={handleAction}
+                        />
+                    ) : action === WizardSteps.Confirm ? (
+                        <TallySheetWizard
+                            contest={record}
+                            action={action}
+                            doAction={handleAction}
+                        />
+                    ) : action === WizardSteps.View ? (
+                        <TallySheetWizard
+                            contest={record}
+                            action={action}
+                            doAction={handleAction}
+                        />
+                    ) : null}
                 </TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
