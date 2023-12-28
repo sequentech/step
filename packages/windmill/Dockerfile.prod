@@ -21,7 +21,6 @@ COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
-COPY ./keycloak/import /import
 WORKDIR /app/windmill
 RUN cargo build --release
 
@@ -34,5 +33,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
 
+COPY ./keycloak/import /import
 WORKDIR /usr/local/bin
 CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat"]
