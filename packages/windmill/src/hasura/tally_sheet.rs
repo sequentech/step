@@ -4,14 +4,82 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use std::convert::From;
+use tokio_postgres::row::Row;
+use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+#[instrument(skip(transaction), err)]
 pub async fn publish_tally_sheet(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_sheet_id: &str,
+    user_id: &str,
 ) -> Result<()> {
+    let publish_statement = transaction
+        .prepare(
+            format!(
+                r#"
+        UPDATE sequent_backend.tally_sheet tally_sheet
+        SET
+            published_at = now()
+            published_by_user_id = $4
+        WHERE
+            tally_sheet.tenant_id = $1 AND
+            tally_sheet.election_event_id = $2 AND
+            tally_sheet.id = $3 AND
+            tally_sheet.deleted_at IS NULL AND
+            tally_sheet.published_at IS NULL
+        RETURNING *
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet_id)
+        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
+    let publish_params: Vec<&(dyn ToSql + Sync)> = vec![
+        &tenant_uuid,
+        &election_event_uuid,
+        &tally_sheet_uuid,
+        &user_id,
+    ];
+    let publish_rows: Vec<Row> = transaction
+        .query(&publish_statement, &publish_params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    if publish_rows.len() != 1 {
+        return Err(anyhow!("Error publishing tally sheet {}", tally_sheet_id));
+    }
+
+    let soft_delete_statement = transaction
+        .prepare(
+            format!(
+                r#"
+        UPDATE sequent_backend.tally_sheet tally_sheet
+        SET
+            deleted_at = now()
+        WHERE
+            tally_sheet.tenant_id = $1 AND
+            tally_sheet.election_event_id = $2 AND
+            tally_sheet.id != $3 AND
+            tally_sheet.deleted_at IS NULL
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
+    let soft_delete_params: Vec<&(dyn ToSql + Sync)> =
+        vec![&tenant_uuid, &election_event_uuid, &tally_sheet_uuid];
+    let _rows: Vec<Row> = transaction
+        .query(&soft_delete_statement, &soft_delete_params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
     Ok(())
 }
