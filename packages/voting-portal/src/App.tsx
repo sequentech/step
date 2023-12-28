@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Outlet} from "react-router-dom"
+import {Outlet, useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
@@ -32,18 +32,26 @@ const HeaderWithContext: React.FC = () => {
 const App = () => {
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
+    const location = useLocation()
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(
                 `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser`
             )
+        } else {
+            if (location.pathname === "/") {
+                navigate(
+                    `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`
+                )
+            }
         }
     }, [
         globalSettings.DEFAULT_TENANT_ID,
         globalSettings.DEFAULT_EVENT_ID,
         globalSettings.DISABLE_AUTH,
         navigate,
+        location.pathname,
     ])
 
     return (
