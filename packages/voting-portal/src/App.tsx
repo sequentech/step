@@ -2,22 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Routes, Route, Navigate, useParams} from "react-router-dom"
+import {Outlet} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
-import {StartScreen} from "./screens/StartScreen"
-import {VotingScreen} from "./screens/VotingScreen"
-import {ReviewScreen} from "./screens/ReviewScreen"
-import {ConfirmationScreen} from "./screens/ConfirmationScreen"
-import {AuditScreen} from "./screens/AuditScreen"
-import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
-import {LoginScreen} from "./screens/LoginScreen"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
-import {BallotLocator} from "./screens/BallotLocator"
 import {SettingsContext} from "./providers/SettingsContextProvider"
-import {TenantEvent} from "."
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -59,51 +50,7 @@ const App = () => {
         <StyledApp>
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
-                <Routes>
-                    <Route path="*" element={<NotFoundScreen />} />
-                    <Route
-                        path="/"
-                        element={
-                            <Navigate
-                                replace
-                                to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
-                            />
-                        }
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/login"
-                        element={<LoginScreen />}
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election-chooser"
-                        element={<ElectionSelectionScreen />}
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election/:electionId/start"
-                        element={<StartScreen />}
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election/:electionId/vote"
-                        element={<VotingScreen />}
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election/:electionId/review"
-                        element={<ReviewScreen />}
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election/:electionId/confirmation"
-                        element={<ConfirmationScreen />}
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election/:electionId/audit"
-                        element={<AuditScreen />}
-                    />
-
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?"
-                        element={<BallotLocator />}
-                    />
-                </Routes>
+                <Outlet />
             </PageBanner>
             <Footer />
         </StyledApp>
