@@ -264,10 +264,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     setUserProfile((val) => ({...val, email: profile.email}))
                 }
                 if (profile.firstName) {
-                    setUserProfile((val) => ({...val, email: profile.firstName}))
+                    setUserProfile((val) => ({...val, firstName: profile.firstName}))
                 }
                 if (profile.username) {
-                    setUserProfile((val) => ({...val, email: profile.username}))
+                    setUserProfile((val) => ({...val, username: profile.username}))
                 }
 
                 const newTenantId: string | undefined = (profile as any)?.attributes[
