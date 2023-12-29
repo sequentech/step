@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -882,11 +882,35 @@ const spanishTranslation: TranslationType = {
         },
         communicationTemplate: {
             empty: {
-                title: 'No hay plantills de comunicación',
+                title: 'No hay plantillas de comunicación',
                 subtitle: '¿Quieres crear una nueva?'
             },
             action: {
                 createOne: 'Crear Plantilla de Comunicación'
+            },
+            create: {
+                title: 'Crear una Plantilla de Comunicación'
+            },
+            edit: {
+                title: 'Editar una Plantilla de Comunición'
+            },
+            form: {
+                smsMessage: "Mensaje SMS",
+                name: 'Nombre de la Plantilla',
+                alias: 'Alias de la Plantilla',
+                communicationType: 'Tipo de Comunicación',
+                communicationMethod: 'Método de Comunicación',
+            },
+            type: {
+                credentials: 'Credenciales',
+                ballot_receipt: 'Recibo de Votación',
+                participation_report: 'Informe de Participación',
+                electoral_results: 'Resultados Electorales',
+                otp: 'OTP'
+            },
+            method: {
+                email: 'Email',
+                sms: 'SMS'
             }
         }
     },

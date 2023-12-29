@@ -151,24 +151,36 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     }, [communicationTemplate])
 
     return (
-        <Create title={"CREATE"} transform={onTransform}>
+        <Create transform={onTransform}>
             <SimpleForm>
-                <PageHeaderStyles.Title>RECIBO EMAIL AND PDF</PageHeaderStyles.Title>
+                <PageHeaderStyles.Title>
+                    {t('communicationTemplate.create.title')}
+                </PageHeaderStyles.Title>
 
-                <FormStyles.TextInput source="alias" label="Alias" validate={required()} onChange={handleInputChange} />
+                <FormStyles.TextInput 
+                    source="alias" 
+                    validate={required()} 
+                    onChange={handleInputChange} 
+                    label={t('communicationTemplate.form.alias')} 
+                />
 
-                <FormStyles.TextInput source="name" label="Name" validate={required()} onChange={handleInputChange} />
+                <FormStyles.TextInput 
+                    source="name" 
+                    validate={required()} 
+                    onChange={handleInputChange} 
+                    label={t('communicationTemplate.form.name')} 
+                />
 
                 <FormControl fullWidth>
-                    <CommunicationTemplateTitleContainer title="Type">
+                    <CommunicationTemplateTitleContainer title={t('communicationTemplate.form.communicationType')}>
                         <FormStyles.Select 
                             name="communication_type"
                             onChange={handleSelectChange}
                             value={communicationTemplate.communication_type}
                         >
-                            {Object.values(ICommunicationType).map((value) => (
+                            {(Object.values(ICommunicationType) as ICommunicationType[]).map((value) => (
                                 <MenuItem key={value} value={value}>
-                                    {value}
+                                    {t(`communicationTemplate.type.${value.toLowerCase()}`)}
                                 </MenuItem>
                             ))}
                         </FormStyles.Select>
@@ -176,11 +188,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
 
                     <FormStyles.AccordionExpanded expanded={true} disableGutters>
                     <AccordionSummary
-                        expandIcon={<ExpandMoreIcon id="send-communication-method" />}
+                        expandIcon={<ExpandMoreIcon id="communication-template-method-id" />}
                     >
                         <ElectionHeaderStyles.Wrapper>
                             <ElectionHeaderStyles.Title>
-                                {t("sendCommunication.methodTitle")}
+                                {t("communicationTemplate.form.communicationMethod")}
                             </ElectionHeaderStyles.Title>
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
@@ -190,10 +202,10 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                             onChange={handleSelectChange}
                             value={communicationTemplate.communication_method}
                         >
-                            {(Object.keys(ICommunicationMethod) as Array<ICommunicationMethod>).map(
+                            {(Object.keys(ICommunicationMethod) as ICommunicationMethod[]).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.communicationMethod.${key}`)}
+                                        {t(`communicationTemplate.method.${key.toLowerCase()}`)}
                                     </MenuItem>
                                 )
                             )}
@@ -207,11 +219,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                         {communicationTemplate.communication_method === ICommunicationMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
-                                label={t("sendCommunication.smsMessage")}
-                                value={communicationTemplate.sms}
-                                onChange={handleSmsChange}
-                                multiline={true}
                                 minRows={4}
+                                multiline={true}
+                                onChange={handleSmsChange}
+                                value={communicationTemplate.sms}
+                                label={t("communicationTemplate.form.smsMessage")}
                             />
                         )}
                     </AccordionDetails>

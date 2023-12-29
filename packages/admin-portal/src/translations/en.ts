@@ -885,6 +885,30 @@ const englishTranslation = {
             },
             action: {
                 createOne: 'Create Communication Template'
+            },
+            create: {
+                title: 'Create a Communication Template'
+            },
+            edit: {
+                title: 'Edit a Communication Template'
+            },
+            form: {
+                smsMessage: "SMS Message",
+                name: 'Template Name',
+                alias: 'Template Alias',
+                communicationType: 'Communication Type',
+                communicationMethod: 'Communication Method',
+            },
+            type: {
+                credentials: 'Credentials',
+                ballot_receipt: 'Ballot Receipt',
+                participation_report: 'Participation Report',
+                electoral_results: 'Electoral Results',
+                otp: 'OTP'
+            },
+            method: {
+                email: 'Email',
+                sms: 'SMS'
             }
         }
     },
