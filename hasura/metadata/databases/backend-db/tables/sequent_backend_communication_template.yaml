@@ -16,6 +16,8 @@ insert_permissions:
     - updated_at
     - id
     - tenant_id
+    set:
+      created_by: x-hasura-User-Id
   role: admin-user
 - comment: ""
   permission:
@@ -51,7 +53,6 @@ insert_permissions:
 select_permissions:
 - comment: ""
   permission:
-    allow_aggregations: true
     columns:
     - annotations
     - labels
