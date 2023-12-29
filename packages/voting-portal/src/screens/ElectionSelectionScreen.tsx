@@ -196,7 +196,11 @@ export const ElectionSelectionScreen: React.FC = () => {
         useState<Array<string>>(existingElectionIds)
     const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
 
-    const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {
+        loading,
+        error: errorBallotStyles,
+        data,
+    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
     const {
         loading: loadingElections,
@@ -215,6 +219,20 @@ export const ElectionSelectionScreen: React.FC = () => {
     const hasNoResults = electionIds.length === 0
 
     useEffect(() => {
+        if (errorBallotStyles || errorElections) {
+            console.log(
+                "LS -> src/screens/ElectionSelectionScreen.tsx:218 -> errorElections: ",
+                errorElections
+            )
+            console.log(
+                "LS -> src/screens/ElectionSelectionScreen.tsx:218 -> errorBallotStyles: ",
+                errorBallotStyles
+            )
+            throw new Error("Unable to fetch data")
+        }
+    }, [errorElections, errorBallotStyles])
+
+    useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
             setElectionIds(dataElections.sequent_backend_election.map((election) => election.id))
             for (let election of dataElections.sequent_backend_election) {
@@ -224,7 +242,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [loadingElections, errorElections, dataElections, dispatch])
 
     useEffect(() => {
-        if (!loading && !error && data) {
+        if (!loading && !errorBallotStyles && data) {
             updateBallotStyleAndSelection(data, dispatch)
 
             let electionIds = data.sequent_backend_ballot_style
@@ -233,7 +251,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
             setBallotStyleElectionIds(electionIds)
         }
-    }, [loading, error, data, dispatch])
+    }, [loading, errorBallotStyles, data, dispatch])
 
     useEffect(() => {
         if (!castVotes?.sequent_backend_cast_vote) {
