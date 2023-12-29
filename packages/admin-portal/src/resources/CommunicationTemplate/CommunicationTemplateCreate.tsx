@@ -1,25 +1,21 @@
-import React, { useState } from "react"
+import React, {useState, useRef} from "react"
 
 import styled from "@emotion/styled"
 
-import {Switch} from "@mui/material"
-import {RichTextInput} from "ra-input-rich-text"
-import {FormControl, Select, MenuItem, InputLabel} from "@mui/material"
+import {FormControl, MenuItem} from "@mui/material"
+// import {ICommunicationType, ICommunicationMethod, ISendCommunicationBody} from "sequent-core"
 
-import {
-    Create,
-    SimpleForm,
-    TextInput,
-    Edit,
-    required,
-    useTranslate,
-    Toolbar,
-    SaveButton,
-} from "react-admin"
+import EditorTextInput from "@/components/Editor"
 
-import {Tabs} from "@/components/Tabs"
+import {Create, SimpleForm, required} from "react-admin"
+
 import {FormStyles} from "@/components/styles/FormStyles"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
+import {
+    ICommunicationType,
+    ICommunicationMethod,
+    ISendCommunicationBody,
+} from "@/types/communications"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -36,21 +32,15 @@ const CommunicationTemplateCreateStyle = {
         font-weight: 700;
         line-height: 32px;
         letter-spacing: 0px;
-        text-align: left;    
+        text-align: left;
         padding: 0 16px;
     `,
-    ContainerLanguage: styled.div`
-
-    `,
-    Content: styled.div`
-        display: flex;
-        width: 239px;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 16px;
-    `,
-    Text: styled.span`
-        text-transform: capitalize;
+    ContainerLanguage: styled.div``,
+    RichText: styled.div`
+        border: 1px solid #f2f2f2;
+        border-radius: 4px;
+        width: 100%;
+        padding: 0;
     `,
 }
 
@@ -58,94 +48,90 @@ type TCommunicationTemplateCreate = {
     close?: () => void
 }
 
-const CommunicationTemplateByLanguage: React.FC<any> = ({ sources }) => {
+const CommunicationTemplateByLanguage: React.FC<any> = ({sources, editorRef}) => {
     return (
         <CommunicationTemplateCreateStyle.ContainerLanguage>
             <FormStyles.TextInput source={sources.name} label="Name" validate={required()} />
 
-            <RichTextInput source={sources.richText} />
+            <EditorTextInput initialValue="" editorRef={editorRef} onEditorChange={console.log} />
         </CommunicationTemplateCreateStyle.ContainerLanguage>
     )
 }
 
-const CommunicationTemplateTitleContainer: React.FC<any> = ({ children, title }) => {
+const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) => {
     return (
         <CommunicationTemplateCreateStyle.Box>
             <CommunicationTemplateCreateStyle.BoxTitle>
-                { title }
+                {title}
             </CommunicationTemplateCreateStyle.BoxTitle>
-            
+
             {children}
         </CommunicationTemplateCreateStyle.Box>
     )
 }
 
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = () => {
-    const [languages, setLanguages] = useState<{[key: string]: boolean}>({
-        english: false,
-        spanish: false,
+    const editorRef = useRef()
+
+    const [communicationTemplate, setCommunicationTemplate] = useState<any>({
+        audience_selection: null,
+        audience_voter_ids: [],
+        communication_type: ICommunicationType.CREDENTIALS,
+        communication_method: ICommunicationMethod.EMAIL,
+        schedule_now: null,
+        schedule_date: null,
+        email: null,
+        sms: null,
     })
 
+    const onTransform = (data: any) => {
+        console.log("COMMUNICATION TEMPLATE => CREATE", data)
+
+        return {
+            communication_type: communicationTemplate.communication_type,
+            communication_method: communicationTemplate.communication_method,
+            template: {
+                ...communicationTemplate,
+            }
+        }
+    }
+
     return (
-        <Create title={"CREATE"}>
+        <Create title={"CREATE"} transform={onTransform}>
             <SimpleForm>
                 <PageHeaderStyles.Title>RECIBO EMAIL AND PDF</PageHeaderStyles.Title>
 
                 <FormStyles.TextInput source="alias" label="Alias" validate={required()} />
 
+                <FormStyles.TextInput source="name" label="Name" validate={required()} />
+
                 <FormControl fullWidth>
-                    <InputLabel id="demo-simple-select-label">Age</InputLabel>
-
                     <CommunicationTemplateTitleContainer title="Type">
-                        <Select
-                            labelId="demo-simple-select-label"
-                            id="demo-simple-select"
-                            value={10}
-                            label="Age"
-                            onChange={() => null}
-                        >
-                            <MenuItem value={10}>Ten</MenuItem>
-                            <MenuItem value={20}>Twenty</MenuItem>
-                            <MenuItem value={30}>Thirty</MenuItem>
-                        </Select>
+                        <FormStyles.Select value={10} onChange={() => null}>
+                            {Object.values(ICommunicationType).map((value) => (
+                                <MenuItem key={value} value={value}>
+                                    {value}
+                                </MenuItem>
+                            ))}
+                        </FormStyles.Select>
                     </CommunicationTemplateTitleContainer>
 
-                    <CommunicationTemplateTitleContainer title="Languages">
-                        {Object.keys(languages).map((lang: string) => (
-                            <CommunicationTemplateCreateStyle.Content key={lang}>
-                                <CommunicationTemplateCreateStyle.Text>
-                                    {lang}
-                                </CommunicationTemplateCreateStyle.Text>
-
-                                <Switch
-                                    checked={languages?.[lang] || false}
-                                    onChange={() => null}
-                                />
-                            </CommunicationTemplateCreateStyle.Content>
-                        ))}
+                    <CommunicationTemplateTitleContainer title="Method">
+                        <FormStyles.Select value={10} onChange={() => null}>
+                            {Object.values(ICommunicationMethod).map((value) => (
+                                <MenuItem key={value} value={value}>
+                                    {value}
+                                </MenuItem>
+                            ))}
+                        </FormStyles.Select>
                     </CommunicationTemplateTitleContainer>
 
-                    <Tabs
-                        elements={[
-                            {
-                                label: "English",
-                                component: () => <CommunicationTemplateByLanguage
-                                    sources={{
-                                        name: 'name_en',
-                                        richText: 'annotation_en'
-                                    }} 
-                                />,
-                            },
-                            {
-                                label: "Spanish",
-                                component: () => <CommunicationTemplateByLanguage
-                                    sources={{
-                                        name: 'name_es',
-                                        richText: 'annotation_es'
-                                    }} 
-                                />,
-                            },
-                        ]}
+                    <CommunicationTemplateByLanguage
+                        editorRef={editorRef}
+                        sources={{
+                            name: "name",
+                            richText: "template",
+                        }}
                     />
                 </FormControl>
             </SimpleForm>
