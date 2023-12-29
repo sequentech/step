@@ -8,34 +8,21 @@ import {
     TextField,
     TextInput,
     Identifier,
-    RaRecord,
-    useRecordContext,
     useDelete,
     WrapperField,
     FunctionField,
     useRefresh,
-    Empty,
+    AuthContext,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Button, Drawer, Tooltip, Typography, dialogActionsClasses} from "@mui/material"
-import {EditTallySheet} from "./EditTallySheet"
-import {CreateTallySheet} from "./CreateTallySheet"
-import {
-    PublishTallySheetMutation,
-    Sequent_Backend_Contest,
-    Sequent_Backend_Election_Event,
-    Sequent_Backend_Tally_Session,
-    Sequent_Backend_Tally_Sheet,
-} from "../../gql/graphql"
-import {Dialog, isUndefined} from "@sequentech/ui-essentials"
+import {Button, Tooltip, Typography} from "@mui/material"
+import {PublishTallySheetMutation, Sequent_Backend_Contest} from "../../gql/graphql"
+import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import {useParams} from "react-router"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-// import {TallySheetContestItems} from "@/components/TallySheetContestItems"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
@@ -49,15 +36,16 @@ import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add} from "@mui/icons-material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import { IPermissions } from 'sequent-core'
+import { useTenantStore } from '@/providers/TenantContextProvider'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
 const Filters: Array<ReactElement> = [
-    <TextInput label="Name" source="name" key={0} />,
-    <TextInput label="Description" source="description" key={1} />,
+    <TextInput label="Area" source="area_id" key={0} />,
+    <TextInput label="Contest" source="contest" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
+    <TextInput label="Published" source="published_at" key={3} />,
 ]
 
 type TTallySheetList = {
@@ -72,28 +60,25 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const {t} = useTranslation()
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
+    const [tenantId] = useTenantStore()
 
-    const [deleteOne, {isLoading, error}] = useDelete()
+    const [deleteOne] = useDelete()
 
-    const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
     const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [recordId] = React.useState<Identifier | undefined>(undefined)
     const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
+
+    const authContext = useContext(AuthContext)
+    // const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_WRITE)
+    // const canRead = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_READ)
 
     useEffect(() => {
         if (reload) {
             refresh()
         }
     }, [reload])
-
-    useEffect(() => {
-        if (recordId) {
-            setOpen(true)
-        }
-    }, [recordId])
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
