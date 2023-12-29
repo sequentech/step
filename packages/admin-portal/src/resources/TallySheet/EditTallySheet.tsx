@@ -102,14 +102,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         </PageHeaderStyles.SubTitle>
                         <TextInput source="name" />
                         <TextInput source="description" />
-                        <ReferenceInput source="tenant_id" reference="sequent_backend_tally_contest">
-                            <TextInput source defaultValue={tenantId} />
-                        </ReferenceInput>
-
-                        
-
-                        <TextInput source="description" />
-                        <TextInput source="description" />
                         <button ref={submitRef} type="submit" style={{display: "none"}} />
                     </>
                 </SimpleForm>
@@ -118,13 +110,3 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 }
 
-// const CreateToolBar = (props: any) => (
-//     <Toolbar sx={{
-//         display: "flex",
-//         justifyContent: "end",
-//         alignItems: "center",
-//         mt: -36,
-//     }}>
-//         <SaveButton label="Show and Confirm" />
-//     </Toolbar>
-// )
