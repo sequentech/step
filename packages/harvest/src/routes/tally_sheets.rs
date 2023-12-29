@@ -24,7 +24,7 @@ pub struct PublishTallySheetInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishTallySheetOutput {
-    tally_sheet_id: String,
+    tally_sheet_id: Option<String>,
 }
 
 // The main function to start a key ceremony
@@ -53,7 +53,7 @@ pub async fn publish_tally_sheet(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    tally_sheet::publish_tally_sheet(
+    let found = tally_sheet::publish_tally_sheet(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
@@ -63,6 +63,12 @@ pub async fn publish_tally_sheet(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    if let None = found {
+        return Ok(Json(PublishTallySheetOutput {
+            tally_sheet_id: None,
+        }));
+    }
+
     hasura_transaction
         .commit()
         .await
@@ -70,6 +76,6 @@ pub async fn publish_tally_sheet(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(PublishTallySheetOutput {
-        tally_sheet_id: input.tally_sheet_id.clone(),
+        tally_sheet_id: Some(input.tally_sheet_id.clone()),
     }))
 }

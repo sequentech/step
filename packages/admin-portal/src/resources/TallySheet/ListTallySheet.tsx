@@ -21,7 +21,7 @@ import {Button, Drawer, Typography, dialogActionsClasses} from "@mui/material"
 import {EditTallySheet} from "./EditTallySheet"
 import {CreateTallySheet} from "./CreateTallySheet"
 import {PublishTallySheetMutation, Sequent_Backend_Contest, Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, isUndefined} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -84,12 +84,18 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const onClickPublishTallySheet = async () => {
-        const {errors} = await publishTallySheet({
+        const {data, errors} = await publishTallySheet({
             variables: {
-                electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55,",
+                electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
                 tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
             },
         })
+        if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
+            // (unpublished) tally sheet not found, probably it's already published
+        }
+        if (errors) {
+            // add error notification
+        }
     }
 
     useEffect(() => {

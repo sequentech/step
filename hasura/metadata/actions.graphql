@@ -645,6 +645,6 @@ type RestorePrivateKeyOutput {
 }
 
 type PublishTallyOutput {
-  tally_sheet_id : uuid!
+  tally_sheet_id : uuid
 }
 

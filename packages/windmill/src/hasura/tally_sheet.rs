@@ -16,14 +16,14 @@ pub async fn publish_tally_sheet(
     election_event_id: &str,
     tally_sheet_id: &str,
     user_id: &str,
-) -> Result<()> {
+) -> Result<Option<()>> {
     let publish_statement = transaction
         .prepare(
             format!(
                 r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
-            published_at = now()
+            published_at = now(),
             published_by_user_id = $4
         WHERE
             tally_sheet.tenant_id = $1 AND
@@ -55,7 +55,7 @@ pub async fn publish_tally_sheet(
         .await
         .map_err(|err| anyhow!("{}", err))?;
     if publish_rows.len() != 1 {
-        return Err(anyhow!("Error publishing tally sheet {}", tally_sheet_id));
+        return Ok(None);
     }
 
     let soft_delete_statement = transaction
@@ -81,5 +81,5 @@ pub async fn publish_tally_sheet(
         .query(&soft_delete_statement, &soft_delete_params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
-    Ok(())
+    Ok(Some(()))
 }

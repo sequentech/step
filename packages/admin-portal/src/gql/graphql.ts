@@ -384,7 +384,7 @@ export type PublishBallotOutput = {
 
 export type PublishTallyOutput = {
   __typename?: 'PublishTallyOutput';
-  tally_sheet_id: Scalars['uuid']['output'];
+  tally_sheet_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 export type RestorePrivateKeyInput = {
@@ -16067,7 +16067,7 @@ export type PublishTallySheetMutationVariables = Exact<{
 }>;
 
 
-export type PublishTallySheetMutation = { __typename?: 'mutation_root', publish_tally_sheet?: { __typename?: 'PublishTallyOutput', tally_sheet_id: any } | null };
+export type PublishTallySheetMutation = { __typename?: 'mutation_root', publish_tally_sheet?: { __typename?: 'PublishTallyOutput', tally_sheet_id?: any | null } | null };
 
 export type RestorePrivateKeyMutationVariables = Exact<{
   electionEventId: Scalars['String']['input'];
