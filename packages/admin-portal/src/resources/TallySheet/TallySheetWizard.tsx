@@ -39,7 +39,7 @@ import {
     Sequent_Backend_Tally_Sheet,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
-import {statusColor} from "./constants"
+import {statusColor} from "../../../../../constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
@@ -81,7 +81,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
 
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
-    const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [page, setPage] = useState<number>(WizardSteps.Edit)
     const [areaId, setAreaId] = useState<Identifier | undefined>()
     const [editedTallySheet, setEditedTallySheet] = useState<
         Sequent_Backend_Tally_Sheet | undefined
@@ -159,10 +159,10 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     }
 
     const handleBack = () => {
-        if (page === WizardSteps.Start) {
+        if (page === WizardSteps.Edit) {
             doAction(WizardSteps.List)
-        } else if (page === WizardSteps.Edit) {
-            doAction(WizardSteps.Start)
+            // } else if (page === WizardSteps.Edit) {
+            //     doAction(WizardSteps.Start)
             // } else if (page === WizardSteps.Tally) {
             //     setPage(WizardSteps.Results)
             // } else {
@@ -176,7 +176,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 <TallyStyles.StyledHeader>
                     <BreadCrumbSteps
                         labels={[
-                            "tallysheet.breadcrumbSteps.start",
                             "tallysheet.breadcrumbSteps.edit",
                             page === WizardSteps.View
                                 ? "tallysheet.breadcrumbSteps.view"
@@ -201,7 +200,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     <>
                         <EditTallySheet
                             contest={contest}
-                            areaId={areaId}
                             doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
                                 setEditedTallySheet(tallySheet)
                             }
@@ -219,9 +217,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     {/* {page < WizardSteps.Results && ( */}
                     <NextButton color="primary" onClick={handleNext} disabled={isButtonDisabled}>
                         <>
-                            {page === WizardSteps.Start
-                                ? t("tallysheet.common.edit")
-                                : page === WizardSteps.Edit
+                            {page === WizardSteps.Edit
                                 ? t("tallysheet.common.confirm")
                                 : page === WizardSteps.Confirm
                                 ? t("tallysheet.common.back")
