@@ -53,6 +53,7 @@ insert_permissions:
 select_permissions:
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - annotations
     - labels
@@ -86,6 +87,7 @@ select_permissions:
   role: communication-template-read
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - annotations
     - labels

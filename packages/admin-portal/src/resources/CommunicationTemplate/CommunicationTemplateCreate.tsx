@@ -8,11 +8,13 @@ import EditorTextInput from "@/components/Editor"
 import EmailEditor from "@/components/EmailEditor"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {Create, SimpleForm, required} from "react-admin"
+import {Create, SimpleForm, required, useNotify} from "react-admin"
 
+import {FieldValues, SubmitHandler} from "react-hook-form"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {useMutation} from "@apollo/client"
 
 import {
     ICommunicationType,
@@ -21,6 +23,7 @@ import {
 } from "@/types/communications"
 import { useTranslation } from 'react-i18next'
 import { useTenantStore } from '@/providers/TenantContextProvider'
+import { INSERT_COMMUNICATION_TEMPLATE } from "@/queries/InsertCommunicationTemplate"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -75,10 +78,12 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
-export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = () => {
+export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = ({close}) => {
     const editorRef = useRef()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const notify = useNotify()
+    const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE) // <InsertCommunicationTemplateMutation>
 
     const [communicationTemplate, setCommunicationTemplate] = useState<any>({
         audience_selection: null,
@@ -90,19 +95,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         email: null,
         sms: null,
     })
-
-    const onTransform = (data: any) => {
-        console.log("Communication Template", data)
-
-        return {
-            tenant_id: tenantId,
-            communication_type: communicationTemplate.communication_type,
-            communication_method: communicationTemplate.communication_method,
-            template: {
-                ...communicationTemplate,
-            }
-        }
-    }
 
     const handleSelectChange = async (e: any) => {
         const {value, name} = e.target
@@ -150,9 +142,27 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         console.log('Communication Template', communicationTemplate)
     }, [communicationTemplate])
 
+    const onSubmit: SubmitHandler<FieldValues> = async (data) => {
+        console.log("Communication Template", data)
+
+        const {errors} = await createCommunicationTemplate({
+            variables: {
+                object: {
+                    tenant_id: tenantId,
+                    communication_type: communicationTemplate.communication_type,
+                    communication_method: communicationTemplate.communication_method,
+                    template: {
+                        ...communicationTemplate,
+                    }
+                }
+            }
+        })
+        close?.()
+    }
+
     return (
-        <Create transform={onTransform}>
-            <SimpleForm>
+        <Create>
+            <SimpleForm onSubmit={onSubmit}>
                 <PageHeaderStyles.Title>
                     {t('communicationTemplate.create.title')}
                 </PageHeaderStyles.Title>

@@ -8,7 +8,7 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, useDelete, Identifier, DatagridConfigurable} from "react-admin"
+import {List, TextField, useDelete, Identifier, DatagridConfigurable, useRefresh} from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
@@ -18,6 +18,7 @@ import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CommunicationTemplateCreate} from "./CommunicationTemplateCreate"
 import {CommunicationTemplateEdit} from "./CommunicationTemplateEdit"
+import { CustomApolloContextProvider } from "@/providers/ApolloContextProvider"
 
 const CommunicationTemplateEmpty = styled(Box)`
     display: flex;
@@ -52,10 +53,12 @@ export const CommunicationTemplateList: React.FC = () => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const refresh = useRefresh()
 
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
         setOpen(false)
+        refresh()
 
         setTimeout(() => {
             setRecordId(undefined)
@@ -157,7 +160,9 @@ export const CommunicationTemplateList: React.FC = () => {
                 {recordId ? (
                     <CommunicationTemplateEdit id={recordId} close={handleCloseDrawer} />
                 ) : (
-                    <CommunicationTemplateCreate close={handleCloseDrawer} />
+                    <CustomApolloContextProvider role="communication-template-write">
+                        <CommunicationTemplateCreate close={handleCloseDrawer} />
+                    </CustomApolloContextProvider>
                 )}
             </Drawer>
 
