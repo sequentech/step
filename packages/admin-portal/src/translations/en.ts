@@ -918,7 +918,8 @@ const englishTranslation = {
                 save: "Save",
                 publish: "Publish",
                 unpublish: "Unpublish",
-                warning: "Are you sure tu unpublish this Tally Sheet?",
+                warningUnPublish: "Are you sure tu unpublish this Tally Sheet?",
+                warningPublish: "Are you sure tu publish this Tally Sheet?",
             },
             empty: {
                 header: "No Tally Sheet Yet.",

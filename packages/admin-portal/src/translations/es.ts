@@ -918,7 +918,9 @@ const spanishTranslation: TranslationType = {
                 save: "Guardar",
                 publish: "Publicar",
                 unpublish: "Despublicar",
-                warning: "¿Estas seguro de despublicar esta Hoja de Recuento?",            },
+                warningUnPublish: "¿Estas seguro de despublicar esta Hoja de Recuento?",
+                warningPublish: "¿Estas seguro de publicar esta Hoja de Recuento?",
+            },
             empty: {
                 header: "No hay Hojas de Recuento.",
                 action: "Generar Hoja de Recuento",

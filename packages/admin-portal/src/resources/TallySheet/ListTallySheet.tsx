@@ -78,6 +78,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
+    const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [recordId] = React.useState<Identifier | undefined>(undefined)
     const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
@@ -149,7 +150,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const publishAction = (id: Identifier) => {
         console.log("publishAction", id)
-        doAction(WizardSteps.Confirm, id)
+        setDeleteId(id)
+        setOpenPublishDialog(true)
     }
 
     const unpublishAction = (id: Identifier) => {
@@ -178,6 +180,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmUnpublishAction = () => {
+        // onClickPublishTallySheet()
+        setDeleteId(undefined)
+    }
+
+    const confirmPublishAction = () => {
         // deleteOne(
         //     "sequent_backend_tally_sheet",
         //     {id: deleteId},
@@ -256,7 +263,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                     <FunctionField
                         label={t("tallysheet.table.published")}
-                        render={(record: any) => record.published_at ? <CheckCircleOutlineIcon /> : null}
+                        render={(record: any) =>
+                            record.published_at ? <CheckCircleOutlineIcon /> : null
+                        }
                     />
 
                     <WrapperField source="actions" label="Actions">
@@ -294,7 +303,23 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     setOpenUnpublishDialog(false)
                 }}
             >
-                {t("tallysheet.common.warning")}
+                {t("tallysheet.common.warningUnPublish")}
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openPublishDialog}
+                ok={t("tallysheet.common.publish")}
+                cancel={t("common.label.cancel")}
+                title={t("tallysheet.common.publish")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmPublishAction()
+                    }
+                    setOpenPublishDialog(false)
+                }}
+            >
+                {t("tallysheet.common.warningPublish")}
             </Dialog>
         </>
     )
