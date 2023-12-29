@@ -915,6 +915,7 @@ const spanishTranslation: TranslationType = {
                 title: "Hoja de Recuento",
                 subtitle: "Configuración de la Hoja de Recuento.",
                 candidates: "Candidatos",
+                save: "Guardar",
             },
             empty: {
                 header: "No hay Hojas de Recuento.",

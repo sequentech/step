@@ -915,6 +915,7 @@ const englishTranslation = {
                 title: "Tally Sheet",
                 subtitle: "Tally Sheet configuration.",
                 candidates: "Candidates",
+                save: "Save",
             },
             empty: {
                 header: "No Tally Sheet Yet.",
