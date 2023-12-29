@@ -12,7 +12,7 @@ import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
-import {NotFoundScreen, theme} from "@sequentech/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
@@ -25,6 +25,7 @@ import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import {AuditScreen} from "./screens/AuditScreen"
 import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {BallotLocator} from "./screens/BallotLocator"
+import {ErrorPage} from "./screens/ErrorPage"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -51,19 +52,15 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
-  
+
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
 const router = createBrowserRouter([
     {
-        path: "*",
-        // TODO: improve this screen
-        element: <NotFoundScreen />,
-    },
-    {
         path: "/",
         element: <App />,
+        errorElement: <ErrorPage />,
         children: [
             {
                 path: "/tenant/:tenantId/event/:eventId/login",
