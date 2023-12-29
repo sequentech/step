@@ -103,3 +103,12 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
         </>
     )
 }
+
+export const CustomApolloContextProvider: React.FC<ApolloContextProviderProps> = ({
+    children,
+    role,
+}) => (
+    <ApolloContextProvider role={role}>
+        <ApolloWrapper>{children}</ApolloWrapper>
+    </ApolloContextProvider>
+)

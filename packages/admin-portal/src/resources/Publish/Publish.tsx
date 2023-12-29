@@ -30,6 +30,7 @@ import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatu
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ApolloContext} from "@/providers/ApolloContextProvider"
 
 export type TPublish = {
     electionId?: string
