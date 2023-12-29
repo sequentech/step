@@ -1,21 +1,25 @@
-import React, {useState, useRef} from "react"
+import React, {useState, useRef, useEffect} from "react"
 
 import styled from "@emotion/styled"
 
-import {FormControl, MenuItem} from "@mui/material"
-// import {ICommunicationType, ICommunicationMethod, ISendCommunicationBody} from "sequent-core"
+import {AccordionDetails, AccordionSummary, FormControl, MenuItem} from "@mui/material"
 
 import EditorTextInput from "@/components/Editor"
+import EmailEditor from "@/components/EmailEditor"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {Create, SimpleForm, required} from "react-admin"
 
 import {FormStyles} from "@/components/styles/FormStyles"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+
 import {
     ICommunicationType,
     ICommunicationMethod,
     ISendCommunicationBody,
 } from "@/types/communications"
+import { useTranslation } from 'react-i18next'
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -72,6 +76,7 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
 
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = () => {
     const editorRef = useRef()
+    const {t} = useTranslation()
 
     const [communicationTemplate, setCommunicationTemplate] = useState<any>({
         audience_selection: null,
@@ -96,18 +101,68 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         }
     }
 
+    const handleSelectChange = async (e: any) => {
+        const {value, name} = e.target
+
+        if (name === 'communication_method') {
+            if (value === ICommunicationMethod.EMAIL) {
+                communicationTemplate.sms = null
+            } else {
+                communicationTemplate.email = null
+            }
+        }
+
+        setCommunicationTemplate({
+            ...communicationTemplate,
+            [name]: value,
+        })
+    }
+
+    const handleSmsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = e.target
+
+        setCommunicationTemplate({
+            ...communicationTemplate,
+            sms: value,
+        })
+    }
+
+    const handelEmailChange = async (newEmail: any) => {
+        setCommunicationTemplate({
+            ...communicationTemplate,
+            email: newEmail,
+        })
+    }
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {value, name} = e.target
+
+        setCommunicationTemplate({
+            ...communicationTemplate,
+            [name]: value
+        })
+    }
+
+    useEffect(() => {
+        console.log('Communication Template', communicationTemplate)
+    }, [communicationTemplate])
+
     return (
         <Create title={"CREATE"} transform={onTransform}>
             <SimpleForm>
                 <PageHeaderStyles.Title>RECIBO EMAIL AND PDF</PageHeaderStyles.Title>
 
-                <FormStyles.TextInput source="alias" label="Alias" validate={required()} />
+                <FormStyles.TextInput source="alias" label="Alias" validate={required()} onChange={handleInputChange} />
 
-                <FormStyles.TextInput source="name" label="Name" validate={required()} />
+                <FormStyles.TextInput source="name" label="Name" validate={required()} onChange={handleInputChange} />
 
                 <FormControl fullWidth>
                     <CommunicationTemplateTitleContainer title="Type">
-                        <FormStyles.Select value={10} onChange={() => null}>
+                        <FormStyles.Select 
+                            name="communication_type"
+                            onChange={handleSelectChange}
+                            value={communicationTemplate.communication_type}
+                        >
                             {Object.values(ICommunicationType).map((value) => (
                                 <MenuItem key={value} value={value}>
                                     {value}
@@ -116,23 +171,48 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                         </FormStyles.Select>
                     </CommunicationTemplateTitleContainer>
 
-                    <CommunicationTemplateTitleContainer title="Method">
-                        <FormStyles.Select value={10} onChange={() => null}>
-                            {Object.values(ICommunicationMethod).map((value) => (
-                                <MenuItem key={value} value={value}>
-                                    {value}
-                                </MenuItem>
-                            ))}
+                    <FormStyles.AccordionExpanded expanded={true} disableGutters>
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="send-communication-method" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("sendCommunication.methodTitle")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <FormStyles.Select
+                            name="communication_method"
+                            onChange={handleSelectChange}
+                            value={communicationTemplate.communication_method}
+                        >
+                            {(Object.keys(ICommunicationMethod) as Array<ICommunicationMethod>).map(
+                                (key) => (
+                                    <MenuItem key={key} value={key}>
+                                        {t(`sendCommunication.communicationMethod.${key}`)}
+                                    </MenuItem>
+                                )
+                            )}
                         </FormStyles.Select>
-                    </CommunicationTemplateTitleContainer>
-
-                    <CommunicationTemplateByLanguage
-                        editorRef={editorRef}
-                        sources={{
-                            name: "name",
-                            richText: "template",
-                        }}
-                    />
+                        {communicationTemplate.communication_method === ICommunicationMethod.EMAIL && (
+                                <EmailEditor
+                                    record={communicationTemplate.email}
+                                    setRecord={handelEmailChange}
+                                />
+                            )}
+                        {communicationTemplate.communication_method === ICommunicationMethod.SMS && (
+                            <FormStyles.TextField
+                                name="sms"
+                                label={t("sendCommunication.smsMessage")}
+                                value={communicationTemplate.sms}
+                                onChange={handleSmsChange}
+                                multiline={true}
+                                minRows={4}
+                            />
+                        )}
+                    </AccordionDetails>
+                </FormStyles.AccordionExpanded>
                 </FormControl>
             </SimpleForm>
         </Create>
