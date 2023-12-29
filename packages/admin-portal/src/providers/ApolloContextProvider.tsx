@@ -12,10 +12,12 @@ import {SettingsContext} from "./SettingsContextProvider"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
+    role: string
 }
 
-const defaultApolloContextValues: ApolloContextValues = {
+export const defaultApolloContextValues: ApolloContextValues = {
     apolloClient: null,
+    role: "admin-user",
 }
 /**
  * Create the AuthContext using the default values.
@@ -27,9 +29,10 @@ interface ApolloContextProviderProps {
      * The elements wrapped by the auth context.
      */
     children: JSX.Element
+    role: string
 }
 
-export const ApolloContextProvider = ({children}: ApolloContextProviderProps) => {
+export const ApolloContextProvider = ({children, role}: ApolloContextProviderProps) => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
         null
     )
@@ -49,7 +52,7 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
                 headers: {
                     ...headers,
                     "authorization": token ? `Bearer ${token}` : "",
-                    "x-hasura-role": "admin-user",
+                    "x-hasura-role": role,
                 },
             }
         })
@@ -78,6 +81,7 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
         <ApolloContext.Provider
             value={{
                 apolloClient,
+                role,
             }}
         >
             {children}
@@ -99,3 +103,12 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
         </>
     )
 }
+
+export const CustomApolloContextProvider: React.FC<ApolloContextProviderProps> = ({
+    children,
+    role,
+}) => (
+    <ApolloContextProvider role={role}>
+        <ApolloWrapper>{children}</ApolloWrapper>
+    </ApolloContextProvider>
+)
