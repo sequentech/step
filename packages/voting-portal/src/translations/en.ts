@@ -124,6 +124,7 @@ const englishTranslation = {
                     'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
                 ok: "OK",
             },
+            noResults: "No elections for now.",
         },
         errors: {
             encoding: {

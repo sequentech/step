@@ -212,6 +212,8 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
 
+    const hasNoResults = electionIds.length === 0
+
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
             setElectionIds(dataElections.sequent_backend_election.map((election) => election.id))
@@ -290,9 +292,15 @@ export const ElectionSelectionScreen: React.FC = () => {
                 {stringToHtml(t("electionSelectionScreen.description"))}
             </Typography>
             <ElectionContainer>
-                {electionIds.map((electionId) => (
-                    <ElectionWrapper electionId={electionId} key={electionId} />
-                ))}
+                {!hasNoResults ? (
+                    electionIds.map((electionId) => (
+                        <ElectionWrapper electionId={electionId} key={electionId} />
+                    ))
+                ) : (
+                    <Box sx={{margin: "auto"}}>
+                        <Typography>No elections found</Typography>
+                    </Box>
+                )}
             </ElectionContainer>
         </PageLimit>
     )
