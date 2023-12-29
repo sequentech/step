@@ -21,7 +21,7 @@ export function ErrorPage() {
     if (isRouteErrorResponse(error)) {
         content = (
             <>
-                <h1>Oops! {error.status}</h1>
+                <h1>{t("errors.page.oopsWithStatus", {status: error.status})}</h1>
                 <p>{error.statusText}</p>
                 {error.data?.message && (
                     <p>
