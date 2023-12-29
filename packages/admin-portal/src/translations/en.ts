@@ -919,6 +919,7 @@ const englishTranslation = {
             empty: {
                 header: "No Tally Sheet Yet.",
                 action: "Generate Tally Sheet",
+                add: "Add",
             },
             breadcrumbSteps: {
                 start: "Start",
@@ -926,6 +927,10 @@ const englishTranslation = {
                 confirm: "Confirm",
                 view: "View",
             },
+            table: {
+                area: "Area",
+                contest: "Contest",
+            }
         },
     },
 }

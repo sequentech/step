@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -20,7 +20,13 @@ import {ListActions} from "../../components/ListActions"
 import {Button, Drawer, Typography, dialogActionsClasses} from "@mui/material"
 import {EditTallySheet} from "./EditTallySheet"
 import {CreateTallySheet} from "./CreateTallySheet"
-import {PublishTallySheetMutation, Sequent_Backend_Contest, Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
+import {
+    PublishTallySheetMutation,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Sheet,
+} from "../../gql/graphql"
 import {Dialog, isUndefined} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -35,9 +41,13 @@ import {IconButton} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import PublishIcon from "@mui/icons-material/Publish"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
-import { WizardSteps } from './TallySheetWizard'
+import {WizardSteps} from "./TallySheetWizard"
 import {useMutation} from "@apollo/client"
-import { PUBLISH_TALLY_SHEET } from "@/queries/PublishTallySheet"
+import {PUBLISH_TALLY_SHEET} from "@/queries/PublishTallySheet"
+import {ContestItem} from "@/components/ContestItem"
+import {AreaItem} from "@/components/AreaItem"
+import {Add} from "@mui/icons-material"
+import { SettingsContext } from '@/providers/SettingsContextProvider'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -52,22 +62,24 @@ const Filters: Array<ReactElement> = [
 type TTallySheetList = {
     contest: Sequent_Backend_Contest
     doAction: (action: number, id?: Identifier) => void
+    reload: string | null
 }
 
 export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
-    const {contest, doAction} = props
+    const {contest, doAction, reload    } = props
 
     const {t} = useTranslation()
     const {id} = useParams()
     const refresh = useRefresh()
+    const {globalSettings} = useContext(SettingsContext)
 
     const record = useRecordContext<Sequent_Backend_Tally_Sheet>()
 
     const [tenantId] = useTenantStore()
-    
+
     const [eventId, setEventId] = React.useState<Identifier | undefined>()
     const [electionId, setElectionId] = React.useState<Identifier | undefined>()
-    
+
     const [deleteOne, {isLoading, error}] = useDelete()
 
     const [open, setOpen] = React.useState(false)
@@ -95,8 +107,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         }
         if (errors) {
             // add error notification
-        }
+        }   
     }
+
+    useEffect(() => {
+        if (reload) {
+            console.log("REFRESCA")
+            refresh()
+        }
+    }, [reload])
 
     useEffect(() => {
         if (contest) {
@@ -135,18 +154,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     //     return <Empty />
     // }
 
-    const handleCloseCreateDrawer = () => {
-        setRecordId(undefined)
-        setOpenDrawer(false)
-    }
-
-    const handleCloseEditDrawer = () => {
-        setOpen(false)
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
-    }
-
     const createAction = () => {
         doAction(WizardSteps.Start)
         console.log("createAction")
@@ -179,7 +186,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const confirmDeleteAction = () => {
         deleteOne(
-            "sequent_backend_area",
+            "sequent_backend_tally_sheet",
             {id: deleteId},
             {
                 onSuccess() {
@@ -201,15 +208,19 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     return (
         <>
             <List
+                queryOptions={{
+                    refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+                }}
                 resource="sequent_backend_tally_sheet"
                 actions={
                     <ListActions
                         withImport={false}
-                        // open={openDrawer}
-                        // setOpen={setOpenDrawer}
-                        // Component={
-                        //     <CreateTallySheet record={record} close={handleCloseCreateDrawer} />
-                        // }
+                        extraActions={[
+                            <Button key="add" onClick={createAction}>
+                                <Add />
+                                {t("tallysheet.empty.add")}
+                            </Button>,
+                        ]}
                     />
                 }
                 sx={{flexGrow: 2}}
@@ -224,12 +235,16 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="channel" />
-                    <TextField source="description" />
 
-                    {/* <FunctionField
-                        label={t("TallySheets.sequent_backend_TallySheet_contest")}
-                        render={(record: any) => <TallySheetContestItems record={record} />}
-                    /> */}
+                    <FunctionField
+                        label={t("tallysheet.table.contest")}
+                        render={(record: any) => <ContestItem record={contest.id} />}
+                    />
+
+                    <FunctionField
+                        label={t("tallysheet.table.area")}
+                        render={(record: any) => <AreaItem record={record.area_id} />}
+                    />
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

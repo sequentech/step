@@ -1,5 +1,5 @@
-import React, {useState} from "react"
-import {Create, Identifier, TabbedShowLayout, useRecordContext} from "react-admin"
+import React, {useEffect, useState} from "react"
+import {Create, Identifier, TabbedShowLayout, useRecordContext, useRefresh} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
@@ -11,10 +11,12 @@ export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const [action, setAction] = useState<number>(WizardSteps.List)
+    const [refresh, setRefresh] = useState<string | null>(null)
     const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
 
     const handleAction = (action: number, id?: Identifier) => {
         setAction(action)
+        setRefresh(new Date().getTime().toString())
         if (id) {
             setTallySheetId(id)
         }
@@ -32,7 +34,7 @@ export const ContestTabs: React.FC = () => {
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Tally Sheets">
                     {action === WizardSteps.List ? (
-                        <ListTallySheet contest={record} doAction={handleAction} />
+                        <ListTallySheet contest={record} doAction={handleAction} reload={refresh}/>
                     ) : action === WizardSteps.Start ? (
                         <TallySheetWizard
                             contest={record}

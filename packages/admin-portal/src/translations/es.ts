@@ -919,6 +919,7 @@ const spanishTranslation: TranslationType = {
             empty: {
                 header: "No hay Hojas de Recuento.",
                 action: "Generar Hoja de Recuento",
+                add: "Añadir",
             },
             breadcrumbSteps: {
                 start: "Inicio",
@@ -926,6 +927,10 @@ const spanishTranslation: TranslationType = {
                 confirm: "Confirmar",
                 view: "Ver",
             },
+            table: {
+                area: "Area",
+                contest: "Cotienda",
+            }
         },
     },
 }
