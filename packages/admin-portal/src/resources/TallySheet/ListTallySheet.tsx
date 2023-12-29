@@ -223,7 +223,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="name" />
+                    <TextField source="channel" />
                     <TextField source="description" />
 
                     {/* <FunctionField
