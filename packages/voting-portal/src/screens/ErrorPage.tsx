@@ -5,14 +5,16 @@
 import React from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, useRouteError} from "react-router-dom"
+import {useTranslation} from "react-i18next"
 
 export function ErrorPage() {
     const error = useRouteError()
+    const {t} = useTranslation()
 
     let content = (
         <>
-            <h1>Oops! Unexpected Error</h1>
-            <p>Something went wrong.</p>
+            <h1>{t("errors.page.oopsWithoutStatus")}</h1>
+            <p>{t("errors.page.somethingWrong")}</p>
         </>
     )
 
@@ -31,8 +33,8 @@ export function ErrorPage() {
     } else if (error instanceof Error) {
         content = (
             <>
-                <h1>Oops! Unexpected Error</h1>
-                <p>Something went wrong.</p>
+                <h1>{t("errors.page.oopsWithoutStatus")}</h1>
+                <p>{t("errors.page.somethingWrong")}</p>
                 <p>
                     <i>{error.message}</i>
                 </p>

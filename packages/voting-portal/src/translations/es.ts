@@ -145,6 +145,11 @@ const spanishTranslation: TranslationType = {
                 notAllowed:
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
             },
+            page: {
+                oopsWithStatus: "¡Vaya! {{status}}",
+                oopsWithoutStatus: "¡Vaya! Error Inesperado",
+                somethingWrong: "Algo salió mal.",
+            },
         },
         ballotLocator: {
             title: "Localiza tu Papeleta",

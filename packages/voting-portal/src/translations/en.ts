@@ -142,6 +142,11 @@ const englishTranslation = {
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
             },
+            page: {
+                oopsWithStatus: "Oops! {{status}}",
+                oopsWithoutStatus: "Oops! Unexpected Error",
+                somethingWrong: "Something went wrong.",
+            },
         },
         ballotLocator: {
             title: "Locate your Ballot",
