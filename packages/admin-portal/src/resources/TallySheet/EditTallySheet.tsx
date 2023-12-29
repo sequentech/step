@@ -3,31 +3,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    CheckboxGroupInput,
-    CreateBase,
-    EditBase,
     Identifier,
     RecordContext,
-    ReferenceInput,
     SaveButton,
     SimpleForm,
     TextInput,
-    Toolbar,
     useGetList,
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useMutation, useQuery} from "@apollo/client"
+import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
-import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
-import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {
     Sequent_Backend_Area,
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
+    Sequent_Backend_Tally_Sheet_Insert_Input,
 } from "@/gql/graphql"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {GET_CONTESTS_EXTENDED} from "@/queries/GetContestsExtended"
@@ -52,6 +45,7 @@ interface EditTallySheetProps {
     contest: Sequent_Backend_Contest
     id?: Identifier | undefined
     doSelectArea?: (areaId: Identifier) => void
+    doCreatedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input) => void
     doEditedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet) => void
     submitRef: any
 }
@@ -61,7 +55,7 @@ interface ICandidateResultsExtended extends ICandidateResults {
 }
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
-    const {id, contest, doSelectArea, submitRef} = props
+    const {id, contest, doCreatedTalySheet, submitRef} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -126,7 +120,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }
                 candidatesTemp.push(candidateTemp)
             }
-            console.log("candidatesTemp :>> ", candidatesTemp)
             candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
             setCandidatesResults(candidatesTemp)
         }
@@ -134,7 +127,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     useEffect(() => {
         if (areas) {
-            console.log("areas", areas)
             const areatListTemp = areas.sequent_backend_area_contest.map(
                 (item: {area: {id: string; name: string}}) => {
                     return {
@@ -143,7 +135,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     }
                 }
             )
-            console.log("areas", areatListTemp)
             setAreasList(areatListTemp)
         }
     }, [areas])
@@ -177,12 +168,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         const candidateRest = candidatesResults.filter(
             (item) => item.candidate_id !== event.target.id
         )
-
-        console.log("candiateChange :: candidateTemp :>> ", candidateTemp)
-        console.log("candiateChange :: candidateRest :>> ", candidateRest)
-
         if (candidateTemp) {
-            candidateTemp.total_votes = +event.target.value || 0
+            if (!event.target.value) {
+                delete candidateTemp.total_votes
+            } else {
+                candidateTemp.total_votes =
+                    event.target.value !== "" ? parseInt(event.target.value) : 0
+            }
+
             const finalCandidates = [...candidateRest, candidateTemp]
             finalCandidates.sort((a, b) => a.name.localeCompare(b.name))
             setCandidatesResults(finalCandidates)
@@ -202,7 +195,21 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
         resultsTemp.invalid_votes = invalidsTemp
         resultsTemp.candidate_results = candidatesResultsTemp
-        console.log("resultsTemp :>> ", resultsTemp)
+
+        const tallySheetData: Sequent_Backend_Tally_Sheet_Insert_Input = {
+            tenant_id: contest.tenant_id,
+            election_event_id: contest.election_event_id,
+            election_id: contest.election_id,
+            contest_id: contest.id,
+            area_id: resultsTemp.area_id,
+            channel: channel || "",
+            content: resultsTemp,
+        }
+
+        if (doCreatedTalySheet) {
+            localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
+            doCreatedTalySheet(tallySheetData)
+        }
     }
 
     const parseValues = (incoming: any) => {
@@ -213,125 +220,180 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     if (id) {
         return (
-            <EditBase id={id} resource="sequent_backend_tally_sheet" redirect={false}>
-                <PageHeaderStyles.Wrapper>
-                    <RecordContext.Consumer>
-                        {(incoming) => {
-                            const parsedValue = parseValues(incoming)
-                            console.log("parsedValue :>> ", parsedValue)
-                            return (
-                                <SimpleForm
-                                    record={parsedValue}
-                                    toolbar={<SaveButton />}
-                                    onSubmit={onSubmit}
-                                >
-                                    <>
-                                        <PageHeaderStyles.Title>
-                                            {t("areas.common.title")}
-                                        </PageHeaderStyles.Title>
-                                        <PageHeaderStyles.SubTitle>
-                                            {t("areas.common.subTitle")}
-                                        </PageHeaderStyles.SubTitle>
-                                        <FormControl fullWidth size="small">
-                                            <InputLabel>{t("tallysheet.label.area")}</InputLabel>
-                                            <Select
-                                                value={area || ""}
-                                                label={t("tallysheet.label.area")}
-                                                onChange={handleChange}
-                                            >
-                                                {areasList.map((item) => (
-                                                    <MenuItem key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                        </FormControl>{" "}
-                                        <TextInput source="name" />
-                                        <TextInput source="description" />
-                                    </>
-                                </SimpleForm>
-                            )
-                        }}
-                    </RecordContext.Consumer>
-                </PageHeaderStyles.Wrapper>
-            </EditBase>
+            <PageHeaderStyles.Wrapper>
+                <RecordContext.Consumer>
+                    {(incoming) => {
+                        const parsedValue = parseValues(incoming)
+                        console.log("parsedValue :>> ", parsedValue)
+                        return (
+                            <SimpleForm
+                                record={parsedValue}
+                                toolbar={<SaveButton />}
+                                onSubmit={onSubmit}
+                            >
+                                <>
+                                    <PageHeaderStyles.Title>
+                                        {t("areas.common.title")}
+                                    </PageHeaderStyles.Title>
+                                    <PageHeaderStyles.SubTitle>
+                                        {t("areas.common.subTitle")}
+                                    </PageHeaderStyles.SubTitle>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>{t("tallysheet.label.area")}</InputLabel>
+                                        <Select
+                                            value={area || ""}
+                                            label={t("tallysheet.label.area")}
+                                            onChange={handleChange}
+                                        >
+                                            {areasList.map((item) => (
+                                                <MenuItem key={item.id} value={item.id}>
+                                                    {item.name}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>{" "}
+                                    <TextInput source="name" />
+                                    <TextInput source="description" />
+                                </>
+                            </SimpleForm>
+                        )
+                    }}
+                </RecordContext.Consumer>
+            </PageHeaderStyles.Wrapper>
         )
     } else {
         return (
-            <CreateBase resource="sequent_backend_tally_sheet" redirect={false}>
-                <SimpleForm toolbar={false} onSubmit={onSubmit}>
-                    <>
+            <SimpleForm toolbar={false} onSubmit={onSubmit}>
+                <>
+                    <PageHeaderStyles.Title>{t("tallysheet.common.title")}</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t("tallysheet.common.subtitle")}
+                    </PageHeaderStyles.SubTitle>
+
+                    <FormControl fullWidth size="small">
+                        <InputLabel>{t("tallysheet.label.area")}</InputLabel>
+                        <Select
+                            name="area_id"
+                            value={results.area_id || ""}
+                            label={t("tallysheet.label.area")}
+                            onChange={handleChange}
+                        >
+                            {areasList.map((item) => (
+                                <MenuItem key={item.id} value={item.id}>
+                                    {item.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth size="small">
+                        <InputLabel>{t("tallysheet.label.channel")}</InputLabel>
+                        <Select
+                            name="channel"
+                            value={channel || ""}
+                            label={t("tallysheet.label.channel")}
+                            onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
+                        >
+                            {votingChannels.map((item) => (
+                                <MenuItem key={item.id} value={item.id}>
+                                    {item.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <PageHeaderStyles.Wrapper>
                         <PageHeaderStyles.Title>
-                            {t("tallysheet.common.title")}
+                            {t("tallysheet.common.data")}
                         </PageHeaderStyles.Title>
-                        <PageHeaderStyles.SubTitle>
-                            {t("tallysheet.common.subTitle")}
-                        </PageHeaderStyles.SubTitle>
+                    </PageHeaderStyles.Wrapper>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>{t("tallysheet.label.area")}</InputLabel>
-                            <Select
-                                name="area_id"
-                                value={results.area_id || ""}
-                                label={t("tallysheet.label.area")}
-                                onChange={handleChange}
-                            >
-                                {areasList.map((item) => (
-                                    <MenuItem key={item.id} value={item.id}>
-                                        {item.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                    <TextField
+                        label={t("tallysheet.label.contest_id")}
+                        name="constest_id"
+                        value={results.contest_id}
+                        onChange={handleTextChange}
+                        size="small"
+                        style={{display: "none"}}
+                    />
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>{t("tallysheet.label.channel")}</InputLabel>
-                            <Select
-                                name="channel"
-                                value={channel || ""}
-                                label={t("tallysheet.label.channel")}
-                                onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
-                            >
-                                {votingChannels.map((item) => (
-                                    <MenuItem key={item.id} value={item.id}>
-                                        {item.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                    <TextField
+                        label={t("tallysheet.label.total_votes")}
+                        name="total_votes"
+                        value={results.total_votes}
+                        onChange={handleTextChange}
+                        size="small"
+                        type="number"
+                    />
+                    <TextField
+                        label={t("tallysheet.label.total_valid_votes")}
+                        name="total_valid_votes"
+                        value={results.total_valid_votes}
+                        onChange={handleTextChange}
+                        size="small"
+                        type="number"
+                    />
 
-                        <PageHeaderStyles.Wrapper>
-                            <PageHeaderStyles.Title>
-                                {t("tallysheet.common.data")}
-                            </PageHeaderStyles.Title>
-                        </PageHeaderStyles.Wrapper>
-
+                    <Box
+                        sx={{
+                            width: "100%",
+                            display: "flex",
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: "1rem",
+                        }}
+                    >
                         <TextField
-                            label={t("tallysheet.label.contest_id")}
-                            name="constest_id"
-                            value={results.contest_id}
-                            onChange={handleTextChange}
-                            size="small"
-                            style={{display: "none"}}
-                        />
-
-                        <TextField
-                            label={t("tallysheet.label.total_votes")}
-                            name="total_votes"
-                            value={results.total_votes}
-                            onChange={handleTextChange}
+                            label={t("tallysheet.label.total_invalid")}
+                            name="total_invalid"
+                            value={invalids.total_invalid}
+                            onChange={handleInvalidChange}
                             size="small"
                             type="number"
                         />
                         <TextField
-                            label={t("tallysheet.label.total_valid_votes")}
-                            name="total_valid_votes"
-                            value={results.total_valid_votes}
-                            onChange={handleTextChange}
+                            label={t("tallysheet.label.implicit_invalid")}
+                            name="implicit_invalid"
+                            value={invalids.implicit_invalid}
+                            onChange={handleInvalidChange}
                             size="small"
                             type="number"
                         />
+                        <TextField
+                            label={t("tallysheet.label.explicit_invalid")}
+                            name="explicit_invalid"
+                            value={invalids.explicit_invalid}
+                            onChange={handleInvalidChange}
+                            size="small"
+                            type="number"
+                        />
+                    </Box>
 
+                    <TextField
+                        label={t("tallysheet.label.total_blank_votes")}
+                        name="total_blank_votes"
+                        value={results.total_blank_votes}
+                        onChange={handleTextChange}
+                        size="small"
+                        type="number"
+                    />
+                    <TextField
+                        label={t("tallysheet.label.census")}
+                        name="census"
+                        value={results.census}
+                        onChange={handleTextChange}
+                        size="small"
+                        type="number"
+                    />
+
+                    <PageHeaderStyles.Wrapper>
+                        <PageHeaderStyles.Title>
+                            {t("tallysheet.common.candidates")}
+                        </PageHeaderStyles.Title>
+                    </PageHeaderStyles.Wrapper>
+
+                    {candidatesResults.map((candidate) => (
                         <Box
                             sx={{
                                 width: "100%",
@@ -341,87 +403,26 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                                 alignItems: "center",
                                 gap: "1rem",
                             }}
+                            key={candidate.candidate_id}
                         >
+                            <Typography variant="body1" sx={{width: "50%"}}>
+                                {candidate.name}
+                            </Typography>
                             <TextField
-                                label={t("tallysheet.label.total_invalid")}
-                                name="total_invalid"
-                                value={invalids.total_invalid}
-                                onChange={handleInvalidChange}
-                                size="small"
-                                type="number"
-                            />
-                            <TextField
-                                label={t("tallysheet.label.implicit_invalid")}
-                                name="implicit_invalid"
-                                value={invalids.implicit_invalid}
-                                onChange={handleInvalidChange}
-                                size="small"
-                                type="number"
-                            />
-                            <TextField
-                                label={t("tallysheet.label.explicit_invalid")}
-                                name="explicit_invalid"
-                                value={invalids.explicit_invalid}
-                                onChange={handleInvalidChange}
+                                id={candidate.candidate_id}
+                                label={t("tallysheet.label.total_votes")}
+                                name="total_votes"
+                                value={candidate.total_votes}
+                                onChange={handleCandidateChange}
                                 size="small"
                                 type="number"
                             />
                         </Box>
+                    ))}
 
-                        <TextField
-                            label={t("tallysheet.label.total_blank_votes")}
-                            name="total_blank_votes"
-                            value={results.total_blank_votes}
-                            onChange={handleTextChange}
-                            size="small"
-                            type="number"
-                        />
-                        <TextField
-                            label={t("tallysheet.label.census")}
-                            name="census"
-                            value={results.census}
-                            onChange={handleTextChange}
-                            size="small"
-                            type="number"
-                        />
-
-                        <PageHeaderStyles.Wrapper>
-                            <PageHeaderStyles.Title>
-                                {t("tallysheet.common.candidates")}
-                            </PageHeaderStyles.Title>
-                        </PageHeaderStyles.Wrapper>
-
-                        {candidatesResults.map((candidate) => (
-                            <Box
-                                sx={{
-                                    width: "100%",
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: "1rem",
-                                }}
-                                key={candidate.candidate_id}
-                            >
-                                <Typography variant="body1" sx={{width: "50%"}}>
-                                    {candidate.name}
-                                </Typography>
-                                <TextField
-                                    id={candidate.candidate_id}
-                                    label={t("tallysheet.label.total_votes")}
-                                    name="total_votes"
-                                    value={candidate.total_votes}
-                                    onChange={handleCandidateChange}
-                                    size="small"
-                                    type="number"
-                                />
-                            </Box>
-                        ))}
-
-                        <button ref={submitRef} type="submit" style={{display: "none"}} />
-                    </>
-                </SimpleForm>
-            </CreateBase>
+                    <button ref={submitRef} type="submit" style={{display: "none"}} />
+                </>
+            </SimpleForm>
         )
     }
 }

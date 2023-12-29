@@ -896,6 +896,14 @@ const spanishTranslation: TranslationType = {
             },
             label: {
                 area: "Area",
+                channel: "Channel",
+                total_votes: "Votos Totales",
+                total_valid_votes: "Votos Válidos Totales",
+                total_invalid: "Votos Inválidos Totales",
+                explicit_invalid: "Votos Explícitamente Inválidos",
+                implicit_invalid: "Votos Implícitamente Inválidos",
+                total_blank_votes: "Votos en Blanco Totales",
+                census: "Censo",
             },
             common: {
                 edit: "Editar",
@@ -903,6 +911,10 @@ const spanishTranslation: TranslationType = {
                 back: "Atras",
                 next: "Siguiente",
                 cancel: "Atras",
+                data: "Data",
+                title: "Hoja de Recuento",
+                subtitle: "Configuración de la Hoja de Recuento.",
+                candidates: "Candidatos",
             },
             empty: {
                 header: "No hay Hojas de Recuento.",

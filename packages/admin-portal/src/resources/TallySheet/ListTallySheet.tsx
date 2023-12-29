@@ -201,7 +201,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     return (
         <>
             <List
-                resource="sequent_backend_area"
+                resource="sequent_backend_tally_sheet"
                 actions={
                     <ListActions
                         withImport={false}
@@ -214,8 +214,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 }
                 sx={{flexGrow: 2}}
                 filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
+                    tenant_id: contest.tenant_id || undefined,
+                    election_event_id: contest.election_event_id || undefined,
+                    contest_id: contest.id || undefined,
                 }}
                 filters={Filters}
                 empty={<Empty />}

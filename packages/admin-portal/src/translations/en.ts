@@ -896,6 +896,14 @@ const englishTranslation = {
             },
             label: {
                 area: "Area",
+                channel: "Channel",
+                total_votes: "Total Votes",
+                total_valid_votes: "Total Valid Votes",
+                total_invalid: "Total Invalid Votes",
+                explicit_invalid: "Explicitly Invalid Votes",
+                implicit_invalid: "Implicitly Invalid Votes",
+                total_blank_votes: "Blank Votes",
+                census: "Census",
             },
             common: {
                 edit: "Edit",
@@ -903,9 +911,13 @@ const englishTranslation = {
                 back: "Back",
                 next: "Next",
                 cancel: "Back",
+                data: "Data",
+                title: "Tally Sheet",
+                subtitle: "Tally Sheet configuration.",
+                candidates: "Candidates",
             },
             empty: {
-                header: "No TallySheet Yet.",
+                header: "No Tally Sheet Yet.",
                 action: "Generate Tally Sheet",
             },
             breadcrumbSteps: {

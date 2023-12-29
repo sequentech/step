@@ -37,6 +37,7 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     Sequent_Backend_Tally_Sheet,
+    Sequent_Backend_Tally_Sheet_Insert_Input,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "../../../../../constants"
@@ -46,6 +47,7 @@ import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CreateTallySheet} from "./CreateTallySheet"
 import {EditTallySheet} from "./EditTallySheet"
+import {ShowTallySheet} from "./ShowTallySheet"
 
 export const WizardSteps = {
     List: -1,
@@ -69,32 +71,24 @@ interface TallySheetWizardProps {
 export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {action, contest, tallySheetId, doAction} = props
 
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
-
     const submitRef = React.useRef<any>(null)
 
     const {t} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
-    const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
 
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
     const [page, setPage] = useState<number>(WizardSteps.Edit)
     const [areaId, setAreaId] = useState<Identifier | undefined>()
+    const [createdTallySheet, setCreatedTallySheet] = useState<
+        Sequent_Backend_Tally_Sheet_Insert_Input | undefined
+    >()
     const [editedTallySheet, setEditedTallySheet] = useState<
         Sequent_Backend_Tally_Sheet | undefined
     >()
-    const [tallySheet, setTallySheet] = useState<Sequent_Backend_Tally_Sheet>()
-    const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
-    const [localTallyId, setLocalTallyId] = useState<string | null>(null)
-
-    const [selectedElections, setSelectedElections] = useState<string[]>([])
-    const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
-
-    const [CreateTallyCeremonyMutation] = useMutation(CREATE_TALLY_CEREMONY)
-    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
+    const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false)
 
     useEffect(() => {
         if (action) {
@@ -102,71 +96,21 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }, [action])
 
-    useEffect(() => {
-        if (tallySheetId) {
-            // if (tally?.last_updated_at !== tallySheetId.last_updated_at) {
-            // setPage(
-            //     !tallySheetId
-            //         ? WizardSteps.Start
-            //         : // : tallySheetId.execution_status === ITallyExecutionStatus.STARTED ||
-            //           //   tallySheetId.execution_status === ITallyExecutionStatus.CONNECTED
-            //           // ? WizardSteps.Ceremony
-            //           // : tallySheetId.execution_status === ITallyExecutionStatus.IN_PROGRESS
-            //           // ? WizardSteps.Tally
-            //           // : tallySheetId.execution_status === ITallyExecutionStatus.SUCCESS
-            //           // ? WizardSteps.Results
-            //           WizardSteps.Start
-            // )
-            // setTallySheet(tallySheetId)
-            // }
-        }
-    }, [tallySheetId])
-
-    useEffect(() => {
-        if (page === WizardSteps.Start) {
-            setIsButtonDisabled(!areaId)
-        }
-    }, [areaId])
-
-    useEffect(() => {
-        if (page === WizardSteps.Edit) {
-            setIsButtonDisabled(!!editedTallySheet)
-        }
-    }, [editedTallySheet])
-
-    // useEffect(() => {
-    //     if (page === WizardSteps.Ceremony) {
-    //         setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.CONNECTED)
-    //     }
-    //     if (page === WizardSteps.Tally) {
-    //         setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
-    //     }
-    // }, [tally])
-
     const handleNext = () => {
-        if (page === WizardSteps.Start) {
-            doAction(WizardSteps.Edit)
-            // setIsButtonDisabled(true)
-        } else if (page === WizardSteps.Edit) {
-            console.log("editedTallySheet :>> ", editedTallySheet)
+        if (page === WizardSteps.Edit) {
             submitRef.current?.click()
-            // doAction(WizardSteps.Confirm)
-            // } else if (page === WizardSteps.Tally) {
-            //     setPage(WizardSteps.Results)
-            // } else {
-            //     setPage(page < 2 ? page + 1 : 0)
+            doAction(WizardSteps.Confirm)
+        } else if (page === WizardSteps.Confirm) {
+            submitRef.current?.click()
+            doAction(WizardSteps.List)
         }
     }
 
     const handleBack = () => {
         if (page === WizardSteps.Edit) {
             doAction(WizardSteps.List)
-            // } else if (page === WizardSteps.Edit) {
-            //     doAction(WizardSteps.Start)
-            // } else if (page === WizardSteps.Tally) {
-            //     setPage(WizardSteps.Results)
-            // } else {
-            //     setPage(page < 2 ? page + 1 : 0)
+        } else if (page === WizardSteps.Confirm) {
+            doAction(WizardSteps.Edit)
         }
     }
 
@@ -200,6 +144,19 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     <>
                         <EditTallySheet
                             contest={contest}
+                            doCreatedTalySheet={(
+                                tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
+                            ) => setCreatedTallySheet(tallySheet)}
+                            submitRef={submitRef}
+                        />
+                    </>
+                )}
+
+                {page === WizardSteps.Confirm && (
+                    <>
+                        <ShowTallySheet
+                            tallySheet={createdTallySheet}
+                            contest={contest}
                             doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
                                 setEditedTallySheet(tallySheet)
                             }
@@ -207,8 +164,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         />
                     </>
                 )}
-
-                {page === WizardSteps.Confirm && <></>}
 
                 <TallyStyles.StyledFooter>
                     <CancelButton className="list-actions" onClick={handleBack}>
@@ -220,7 +175,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                             {page === WizardSteps.Edit
                                 ? t("tallysheet.common.confirm")
                                 : page === WizardSteps.Confirm
-                                ? t("tallysheet.common.back")
+                                ? t("tallysheet.common.save")
                                 : t("tallysheet.common.next")}
                             <ChevronRightIcon />
                         </>
