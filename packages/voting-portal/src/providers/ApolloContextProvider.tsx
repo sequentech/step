@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, PropsWithChildren, useCallback, useState, useEffect} from "react"
+import React, {useContext, PropsWithChildren, useState, useEffect} from "react"
 import {ApolloClient, InMemoryCache, NormalizedCacheObject, createHttpLink} from "@apollo/client"
 import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
@@ -13,9 +13,14 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
     const {getAccessToken, isAuthContextInitialized} = useContext(AuthContext)
     const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
+    const [initClient, setInitClient] = useState<boolean>(false)
 
     useEffect(() => {
         if (!isAuthContextInitialized) {
+            return
+        }
+
+        if (initClient) {
             return
         }
 
@@ -46,7 +51,8 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
         })
 
         setClient(apolloClient)
-    }, [isAuthContextInitialized, getAccessToken, globalSettings.HASURA_URL])
+        setInitClient(true)
+    }, [initClient, isAuthContextInitialized, getAccessToken, globalSettings.HASURA_URL])
 
     return client === null ? (
         <Box sx={{marginTop: "25px"}}>
