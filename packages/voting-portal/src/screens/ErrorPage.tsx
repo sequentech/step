@@ -6,6 +6,7 @@ import React from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
+import {Typography} from "@mui/material"
 
 export function ErrorPage() {
     const error = useRouteError()
@@ -13,31 +14,43 @@ export function ErrorPage() {
 
     let content = (
         <>
-            <h1>{t("errors.page.oopsWithoutStatus")}</h1>
-            <p>{t("errors.page.somethingWrong")}</p>
+            <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                {t("errors.page.oopsWithoutStatus")}
+            </Typography>
+            <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                {t("errors.page.somethingWrong")}
+            </Typography>
         </>
     )
 
     if (isRouteErrorResponse(error)) {
         content = (
             <>
-                <h1>{t("errors.page.oopsWithStatus", {status: error.status})}</h1>
-                <p>{error.statusText}</p>
+                <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.oopsWithStatus", {status: error.status})}
+                </Typography>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {error.statusText}
+                </Typography>
                 {error.data?.message && (
-                    <p>
+                    <Typography>
                         <i>{error.data.message}</i>
-                    </p>
+                    </Typography>
                 )}
             </>
         )
     } else if (error instanceof Error) {
         content = (
             <>
-                <h1>{t("errors.page.oopsWithoutStatus")}</h1>
-                <p>{t("errors.page.somethingWrong")}</p>
-                <p>
+                <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.oopsWithoutStatus")}
+                </Typography>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.somethingWrong")}
+                </Typography>
+                <Typography>
                     <i>{error.message}</i>
-                </p>
+                </Typography>
             </>
         )
     }
