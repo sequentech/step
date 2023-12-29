@@ -4,9 +4,11 @@
 import React, {useEffect, useState} from "react"
 import {
     CheckboxGroupInput,
+    CreateBase,
     EditBase,
     Identifier,
     RecordContext,
+    ReferenceInput,
     SaveButton,
     SimpleForm,
     TextInput,
@@ -27,7 +29,7 @@ import {FieldValues, SubmitHandler} from "react-hook-form"
 
 interface EditTallySheetProps {
     contest: Sequent_Backend_Contest
-    areadId?: Identifier | undefined
+    areaId?: Identifier | undefined
     id?: Identifier | undefined
     doSelectArea?: (areaId: Identifier) => void
     doEditedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet) => void
@@ -35,7 +37,7 @@ interface EditTallySheetProps {
 }
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
-    const {areadId, id, contest, doSelectArea, submitRef} = props
+    const {areaId, id, contest, doSelectArea, submitRef} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -47,6 +49,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const temp = {...result}
         console.log("temp :>> ", temp)
+        console.log("contest :>> ", contest)
+        console.log("areaId :>> ", areaId)
     }
 
     const parseValues = (incoming: any) => {
@@ -89,18 +93,27 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         )
     } else {
         return (
-            <SimpleForm toolbar={false} onSubmit={onSubmit}>
-                <>
-                    <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>
-                        {t("areas.common.subTitle")}
-                    </PageHeaderStyles.SubTitle>
+            <CreateBase resource="sequent_backend_tally_sheet" redirect={false}>
+                <SimpleForm toolbar={false} onSubmit={onSubmit}>
+                    <>
+                        <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
+                        <PageHeaderStyles.SubTitle>
+                            {t("areas.common.subTitle")}
+                        </PageHeaderStyles.SubTitle>
+                        <TextInput source="name" />
+                        <TextInput source="description" />
+                        <ReferenceInput source="tenant_id" reference="sequent_backend_tally_contest">
+                            <TextInput source defaultValue={tenantId} />
+                        </ReferenceInput>
 
-                    <TextInput source="name" />
-                    <TextInput source="description" />
-                    <button ref={submitRef} type="submit" style={{display: "none"}} />
-                </>
-            </SimpleForm>
+                        
+
+                        <TextInput source="description" />
+                        <TextInput source="description" />
+                        <button ref={submitRef} type="submit" style={{display: "none"}} />
+                    </>
+                </SimpleForm>
+            </CreateBase>
         )
     }
 }
@@ -115,4 +128,3 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 //         <SaveButton label="Show and Confirm" />
 //     </Toolbar>
 // )
-

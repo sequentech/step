@@ -146,6 +146,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const handleNext = () => {
         if (page === WizardSteps.Start) {
             doAction(WizardSteps.Edit)
+            // setIsButtonDisabled(true)
         } else if (page === WizardSteps.Edit) {
             console.log("editedTallySheet :>> ", editedTallySheet)
             submitRef.current?.click()
@@ -200,6 +201,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     <>
                         <EditTallySheet
                             contest={contest}
+                            areaId={areaId}
                             doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
                                 setEditedTallySheet(tallySheet)
                             }
