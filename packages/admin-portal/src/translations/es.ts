@@ -916,7 +916,9 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de la Hoja de Recuento.",
                 candidates: "Candidatos",
                 save: "Guardar",
-            },
+                publish: "Publicar",
+                unpublish: "Despublicar",
+                warning: "¿Estas seguro de despublicar esta Hoja de Recuento?",            },
             empty: {
                 header: "No hay Hojas de Recuento.",
                 action: "Generar Hoja de Recuento",
@@ -931,7 +933,8 @@ const spanishTranslation: TranslationType = {
             table: {
                 area: "Area",
                 contest: "Cotienda",
-            }
+                published: "Publicado",
+            },
         },
     },
 }

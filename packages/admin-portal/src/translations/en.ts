@@ -916,6 +916,9 @@ const englishTranslation = {
                 subtitle: "Tally Sheet configuration.",
                 candidates: "Candidates",
                 save: "Save",
+                publish: "Publish",
+                unpublish: "Unpublish",
+                warning: "Are you sure tu unpublish this Tally Sheet?",
             },
             empty: {
                 header: "No Tally Sheet Yet.",
@@ -931,6 +934,7 @@ const englishTranslation = {
             table: {
                 area: "Area",
                 contest: "Contest",
+                published: "Published",
             }
         },
     },

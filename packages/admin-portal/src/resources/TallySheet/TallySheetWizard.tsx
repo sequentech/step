@@ -112,7 +112,11 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         if (page === WizardSteps.Edit) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Confirm) {
-            doAction(WizardSteps.Edit)
+            if (tallySheetId) {
+                doAction(WizardSteps.List)
+            } else {
+                doAction(WizardSteps.Edit)
+            }
         }
     }
 
@@ -158,7 +162,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 {page === WizardSteps.Confirm && (
                     <>
                         <ShowTallySheet
-                            tallySheet={createdTallySheet}
+                            tallySheet={tallySheet || createdTallySheet}
                             contest={contest}
                             doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
                                 setEditedTallySheet(tallySheet)

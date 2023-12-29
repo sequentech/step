@@ -17,7 +17,7 @@ import {
     Empty,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Button, Drawer, Typography, dialogActionsClasses} from "@mui/material"
+import {Button, Drawer, Tooltip, Typography, dialogActionsClasses} from "@mui/material"
 import {EditTallySheet} from "./EditTallySheet"
 import {CreateTallySheet} from "./CreateTallySheet"
 import {
@@ -39,15 +39,16 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
-import PublishIcon from "@mui/icons-material/Publish"
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
+import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
 import {WizardSteps} from "./TallySheetWizard"
 import {useMutation} from "@apollo/client"
 import {PUBLISH_TALLY_SHEET} from "@/queries/PublishTallySheet"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add} from "@mui/icons-material"
-import { SettingsContext } from '@/providers/SettingsContextProvider'
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -66,63 +67,26 @@ type TTallySheetList = {
 }
 
 export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
-    const {contest, doAction, reload    } = props
+    const {contest, doAction, reload} = props
 
     const {t} = useTranslation()
-    const {id} = useParams()
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
-
-    const record = useRecordContext<Sequent_Backend_Tally_Sheet>()
-
-    const [tenantId] = useTenantStore()
-
-    const [eventId, setEventId] = React.useState<Identifier | undefined>()
-    const [electionId, setElectionId] = React.useState<Identifier | undefined>()
 
     const [deleteOne, {isLoading, error}] = useDelete()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [recordId] = React.useState<Identifier | undefined>(undefined)
     const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
-
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
-
-    const onClickPublishTallySheet = async () => {
-        const {data, errors} = await publishTallySheet({
-            variables: {
-                electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
-                tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
-            },
-        })
-        if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-            // (unpublished) tally sheet not found, probably it's already published
-        }
-        if (errors) {
-            // add error notification
-        }   
-    }
 
     useEffect(() => {
         if (reload) {
-            console.log("REFRESCA")
             refresh()
         }
     }, [reload])
-
-    useEffect(() => {
-        if (contest) {
-            setEventId(contest.election_event_id)
-            setElectionId(contest.election_id)
-        }
-    }, [contest])
 
     useEffect(() => {
         if (recordId) {
@@ -154,6 +118,21 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     //     return <Empty />
     // }
 
+    const onClickPublishTallySheet = async () => {
+        const {data, errors} = await publishTallySheet({
+            variables: {
+                electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
+                tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
+            },
+        })
+        if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
+            // (unpublished) tally sheet not found, probably it's already published
+        }
+        if (errors) {
+            // add error notification
+        }
+    }
+
     const createAction = () => {
         doAction(WizardSteps.Start)
         console.log("createAction")
@@ -165,7 +144,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const viewAction = (id: Identifier) => {
         console.log("viewAction", id)
-        doAction(WizardSteps.View, id)
+        doAction(WizardSteps.Confirm, id)
     }
 
     const publishAction = (id: Identifier) => {
@@ -175,7 +154,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const unpublishAction = (id: Identifier) => {
         console.log("unpublishAction", id)
-        // setRecordId(id)
+        setDeleteId(id)
+        setOpenUnpublishDialog(true)
     }
 
     const deleteAction = (id: Identifier) => {
@@ -197,11 +177,38 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         setDeleteId(undefined)
     }
 
+    const confirmUnpublishAction = () => {
+        // deleteOne(
+        //     "sequent_backend_tally_sheet",
+        //     {id: deleteId},
+        //     {
+        //         onSuccess() {
+        //             refresh()
+        //         },
+        //     }
+        // )
+        setDeleteId(undefined)
+    }
+
     const actions: Action[] = [
         {icon: <EditIcon />, action: editAction},
         {icon: <VisibilityIcon />, action: viewAction},
-        {icon: <PublishIcon />, action: publishAction},
-        {icon: <UnpublishedIcon />, action: unpublishAction},
+        {
+            icon: (
+                <Tooltip title={t("tallysheet.common.publish")}>
+                    <PublishedWithChangesIcon />
+                </Tooltip>
+            ),
+            action: publishAction,
+        },
+        {
+            icon: (
+                <Tooltip title={t("tallysheet.common.unpublish")}>
+                    <UnpublishedIcon />
+                </Tooltip>
+            ),
+            action: unpublishAction,
+        },
         {icon: <DeleteIcon />, action: deleteAction},
     ]
 
@@ -215,6 +222,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 actions={
                     <ListActions
                         withImport={false}
+                        withExport={false}
                         extraActions={[
                             <Button key="add" onClick={createAction}>
                                 <Add />
@@ -246,6 +254,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         render={(record: any) => <AreaItem record={record.area_id} />}
                     />
 
+                    <FunctionField
+                        label={t("tallysheet.table.published")}
+                        render={(record: any) => record.published_at ? <CheckCircleOutlineIcon /> : null}
+                    />
+
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
@@ -266,6 +279,22 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 }}
             >
                 {t("common.message.delete")}
+            </Dialog>
+
+            <Dialog
+                variant="warning"
+                open={openUnpublishDialog}
+                ok={t("tallysheet.common.unpublish")}
+                cancel={t("common.label.cancel")}
+                title={t("tallysheet.common.unpublish")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmUnpublishAction()
+                    }
+                    setOpenUnpublishDialog(false)
+                }}
+            >
+                {t("tallysheet.common.warning")}
             </Dialog>
         </>
     )

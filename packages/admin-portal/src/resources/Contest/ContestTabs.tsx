@@ -34,7 +34,7 @@ export const ContestTabs: React.FC = () => {
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Tally Sheets">
                     {action === WizardSteps.List ? (
-                        <ListTallySheet contest={record} doAction={handleAction} reload={refresh}/>
+                        <ListTallySheet contest={record} doAction={handleAction} reload={refresh} />
                     ) : action === WizardSteps.Start ? (
                         <TallySheetWizard
                             contest={record}
@@ -50,6 +50,7 @@ export const ContestTabs: React.FC = () => {
                         />
                     ) : action === WizardSteps.Confirm ? (
                         <TallySheetWizard
+                            tallySheetId={tallySheetId}
                             contest={record}
                             action={action}
                             doAction={handleAction}
