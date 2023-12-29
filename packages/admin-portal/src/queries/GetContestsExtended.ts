@@ -5,7 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const GET_CONTESTS_EXTENDED = gql`
-    query sequent_backend_area_extended(
+    query sequent_backend_contest_extended(
             $electionEventId: uuid!, 
             $contestId: uuid!,
             $tenantId: uuid!

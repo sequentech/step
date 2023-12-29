@@ -58,6 +58,7 @@ pub async fn publish_tally_sheet(
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
         &input.tally_sheet_id,
+        &claims.hasura_claims.user_id,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

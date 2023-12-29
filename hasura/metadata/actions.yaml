@@ -434,7 +434,7 @@ actions:
 - name: publish_tally_sheet
   definition:
     kind: synchronous
-    handler: http://{{HARVEST_DOMAIN}}/publish-ballot
+    handler: http://{{HARVEST_DOMAIN}}/publish-tally-sheet
     forward_client_headers: true
     request_transform:
       body:

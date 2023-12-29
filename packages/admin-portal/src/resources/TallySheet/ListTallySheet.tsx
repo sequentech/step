@@ -20,7 +20,7 @@ import {ListActions} from "../../components/ListActions"
 import {Button, Drawer, Typography, dialogActionsClasses} from "@mui/material"
 import {EditTallySheet} from "./EditTallySheet"
 import {CreateTallySheet} from "./CreateTallySheet"
-import {Sequent_Backend_Contest, Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
+import {PublishTallySheetMutation, Sequent_Backend_Contest, Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -36,6 +36,8 @@ import VisibilityIcon from "@mui/icons-material/Visibility"
 import PublishIcon from "@mui/icons-material/Publish"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
 import { WizardSteps } from './TallySheetWizard'
+import {useMutation} from "@apollo/client"
+import { PUBLISH_TALLY_SHEET } from "@/queries/PublishTallySheet"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -73,11 +75,21 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
 
     // const rowClickHandler = generateRowClickHandler(["election_event_id"])
     const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
         setRecordId(id)
         return ""
+    }
+
+    const onClickPublishTallySheet = async () => {
+        const {errors} = await publishTallySheet({
+            variables: {
+                electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55,",
+                tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
+            },
+        })
     }
 
     useEffect(() => {
@@ -100,6 +112,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             </Typography>
             {/* {canWrite && ( */}
             <>
+                <Button onClick={onClickPublishTallySheet}>Felix TEST puedes borrarlo</Button>
                 <Button onClick={createAction}>
                     <IconButton icon={faPlus} fontSize="24px" />
                     {t("tallysheet.empty.action")}
