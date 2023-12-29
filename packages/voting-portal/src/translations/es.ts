@@ -5,6 +5,9 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        common: {
+            goBack: "Regresar",
+        },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Papeleta",

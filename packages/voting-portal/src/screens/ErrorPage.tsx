@@ -4,9 +4,16 @@
 
 import React from "react"
 import {Box} from "@mui/system"
-import {isRouteErrorResponse, useRouteError} from "react-router-dom"
+import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
-import {Typography} from "@mui/material"
+import {Button, Typography} from "@mui/material"
+import {Header} from "@sequentech/ui-essentials"
+import styled from "@emotion/styled"
+
+const StyledLink = styled(Link)`
+    text-decoration: none;
+    margin-top: 40px;
+`
 
 export function ErrorPage() {
     const error = useRouteError()
@@ -56,7 +63,8 @@ export function ErrorPage() {
     }
 
     return (
-        <>
+        <Box sx={{minHeight: "100vh"}}>
+            <Header />
             <Box
                 id="error-page"
                 sx={{
@@ -69,7 +77,11 @@ export function ErrorPage() {
                 }}
             >
                 {content}
+
+                <StyledLink to="/">
+                    <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
+                </StyledLink>
             </Box>
-        </>
+        </Box>
     )
 }

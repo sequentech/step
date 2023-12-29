@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        common: {
+            goBack: "Go back",
+        },
         breadcrumbSteps: {
             electionList: "Election List",
             ballot: "Ballot",
