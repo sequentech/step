@@ -20,6 +20,7 @@ import {
     ISendCommunicationBody,
 } from "@/types/communications"
 import { useTranslation } from 'react-i18next'
+import { useTenantStore } from '@/providers/TenantContextProvider'
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -77,6 +78,7 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = () => {
     const editorRef = useRef()
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
 
     const [communicationTemplate, setCommunicationTemplate] = useState<any>({
         audience_selection: null,
@@ -90,9 +92,10 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     })
 
     const onTransform = (data: any) => {
-        console.log("COMMUNICATION TEMPLATE => CREATE", data)
+        console.log("Communication Template", data)
 
         return {
+            tenant_id: tenantId,
             communication_type: communicationTemplate.communication_type,
             communication_method: communicationTemplate.communication_method,
             template: {
