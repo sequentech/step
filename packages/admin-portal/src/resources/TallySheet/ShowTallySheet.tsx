@@ -12,6 +12,7 @@ import {
     useGetList,
     useNotify,
     useRefresh,
+    useUpdate,
 } from "react-admin"
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -216,7 +217,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         }
     }
 
-    const [create, {data, error}] = useCreate("sequent_backend_tally_sheet")
+    const [create] = useCreate("sequent_backend_tally_sheet")
+    const [update] = useUpdate("sequent_backend_tally_sheet")
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const resultsTemp = {...results}
@@ -242,23 +244,53 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             content: resultsTemp,
         }
 
-        create("sequent_backend_tally_sheet", {
-            data: tallySheetData,
-            meta: {
-                headers: {
-                    "x-hasura-role": "can-write-here",
-                    "x-hasura-test": "test test test",
+        if (tallySheet && tallySheet.id) {
+            update(
+                "sequent_backend_tally_sheet",
+                {
+                    id: tallySheet.id,
+                    data: tallySheetData,
+                    meta: {
+                        headers: {
+                            "x-hasura-role": "can-write-here",
+                            "x-hasura-test": "test test test",
+                        },
+                    },
+                } as any,
+                {
+                    onSuccess: () => {
+                        notify(t("tallysheet.createTallySuccess"), {type: "success"})
+                    },
+                    onError: (error) => {
+                        console.log("error", error)
+                        notify(t("tallysheet.createTallyError"), {type: "error"})
+                    },
                 }
-            }
-        } as any, {
-            onSuccess: () => {
-                notify(t("tallysheet.createTallySuccess"), {type: "success"})
-            },
-            onError: (error) => {
-                console.log("error", error)
-                notify(t("tallysheet.createTallyError"), {type: "error"})
-            },
-        })
+            )
+        } else {
+            create(
+                "sequent_backend_tally_sheet",
+                {
+                    data: tallySheetData,
+                    meta: {
+                        headers: {
+                            "x-hasura-role": "can-write-here",
+                            "x-hasura-test": "test test test",
+                        },
+                    },
+                } as any,
+                {
+                    onSuccess: () => {
+                        notify(t("tallysheet.createTallySuccess"), {type: "success"})
+                    },
+                    onError: (error) => {
+                        console.log("error", error)
+                        notify(t("tallysheet.createTallyError"), {type: "error"})
+                    },
+                }
+            )
+        }
+
     }
 
     return (

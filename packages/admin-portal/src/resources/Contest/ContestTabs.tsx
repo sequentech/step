@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react"
-import {Create, Identifier, TabbedShowLayout, useRecordContext, useRefresh} from "react-admin"
+import {Create, Identifier, TabbedShowLayout, useGetOne, useRecordContext, useRefresh} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"

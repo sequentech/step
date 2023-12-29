@@ -90,6 +90,8 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     >()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false)
 
+    const {data: tallySheet} = useGetOne("sequent_backend_tally_sheet", {id: tallySheetId})
+
     useEffect(() => {
         if (action) {
             setPage(action)
@@ -143,6 +145,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 {page === WizardSteps.Edit && (
                     <>
                         <EditTallySheet
+                            tallySheet={tallySheet}
                             contest={contest}
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
