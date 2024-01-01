@@ -83,6 +83,17 @@ services:
     #depends_on:
     #  - graphql-engine
   
+  # used to add headers to minio
+  minio-proxy:
+    container_name: minio-proxy
+    image: nginx:latest
+    ports:
+      - "9002:9002"
+    volumes:
+      - ./minio/nginx:/etc/nginx/conf.d
+    depends_on:
+      - minio
+  
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
