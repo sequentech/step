@@ -43,10 +43,7 @@ async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
 
-    let mut ph = ProbeHandler::new("live", "ready", ([0, 0, 0, 0], 3030));
-    let f = ph.future();
-    ph.set_live(move || true);
-    tokio::spawn(f);
+    setup_probe();
 
     let opt = CeleryOpt::from_args();
 
@@ -74,4 +71,21 @@ async fn main() -> Result<()> {
     };
 
     Ok(())
+}
+
+fn setup_probe() {
+    let addr_s = std::env::var("WINDMILL_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
+    let live_path = std::env::var("WINDMILL_PROBE_LIVE_PATH").unwrap_or("live".to_string());
+    let ready_path = std::env::var("WINDMILL_PROBE_READY_PATH").unwrap_or("ready".to_string());
+
+    let addr: Result<std::net::SocketAddr, _> = addr_s.parse();
+
+    if let Ok(addr) = addr {
+        let mut ph = ProbeHandler::new(&live_path, &ready_path, addr);
+        let f = ph.future();
+        ph.set_live(move || true);
+        tokio::spawn(f);
+    } else {
+        tracing::warn!("Could not parse address for probe '{}'", addr_s);
+    }
 }

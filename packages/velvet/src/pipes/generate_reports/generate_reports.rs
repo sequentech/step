@@ -15,7 +15,7 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::pipes::error::{Error, Result};
@@ -38,7 +38,7 @@ pub struct GenerateReports {
 }
 
 impl GenerateReports {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "GenerateReports::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs
             .cli
@@ -297,9 +297,8 @@ impl GenerateReports {
         Ok(())
     }
 }
-
 impl Pipe for GenerateReports {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "GenerateReports::exec")]
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];

@@ -8,6 +8,7 @@ import {AuthContext} from "./AuthContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {useParams} from "react-router-dom"
+import {SettingsContext} from "./SettingsContextProvider"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -34,6 +35,7 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
     )
     const {isAuthenticated, getAccessToken, login} = useContext(AuthContext)
     let {tenantId, eventId} = useParams()
+    const {globalSettings} = useContext(SettingsContext)
 
     useEffect(() => {
         if (!isAuthenticated && tenantId && eventId) {
@@ -43,7 +45,7 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
         const httpLink = createHttpLink({
-            uri: "https://hasura-staging.sequent.vote/v1/graphql",
+            uri: globalSettings.HASURA_URL,
         })
 
         const authLink = setContext((_, {headers}) => {

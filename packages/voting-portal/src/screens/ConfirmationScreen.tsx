@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState} from "react"
+import React, {useState, useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -17,11 +17,13 @@ import {
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
-import {useParams} from "react-router-dom"
+import {useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
+import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
+import {TenantEventContext} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -96,9 +98,19 @@ const ActionLink = styled(Link)`ç
     }
 `
 
-const ActionButtons: React.FC = () => {
+interface ActionButtonsProps {
+    electionId?: string
+}
+
+const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t} = useTranslation()
+    const {tenantId, eventId} = useContext(TenantEventContext)
+    const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
+    const navigate = useNavigate()
+    const onClickToScreen = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+    }
 
     return (
         <ActionsContainer>
@@ -110,19 +122,26 @@ const ActionButtons: React.FC = () => {
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
-            <ActionLink
-                href="https://sequentech.io"
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            >
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+            {castVotes ? (
+                <ActionLink
+                    href="https://sequentech.io"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                >
+                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <Box>{t("confirmationScreen.finishButton")}</Box>
+                    </StyledButton>
+                </ActionLink>
+            ) : (
+                <StyledButton onClick={onClickToScreen} sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Box>{t("confirmationScreen.finishButton")}</Box>
                 </StyledButton>
-            </ActionLink>
+            )}
         </ActionsContainer>
     )
 }
 
 export const ConfirmationScreen: React.FC = () => {
+    const {tenantId, eventId} = useContext(TenantEventContext)
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()
@@ -130,7 +149,8 @@ export const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
-    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/election/${electionId}/public/ballot-locator/${ballotId}`
+
+    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
 
     return (
         <PageLimit maxWidth="lg">
@@ -227,7 +247,7 @@ export const ConfirmationScreen: React.FC = () => {
             <QRContainer>
                 <QRCode value={ballotTrackerUrl} />
             </QRContainer>
-            <ActionButtons />
+            <ActionButtons electionId={electionId} />
         </PageLimit>
     )
 }

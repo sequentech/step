@@ -23,7 +23,7 @@ pub struct MarkWinners {
 }
 
 impl MarkWinners {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "MarkWinners::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
@@ -64,7 +64,7 @@ impl MarkWinners {
 }
 
 impl Pipe for MarkWinners {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "MarkWinners::new")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs

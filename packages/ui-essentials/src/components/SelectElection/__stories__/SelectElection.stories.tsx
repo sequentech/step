@@ -134,3 +134,22 @@ export const ClosedNotVoted: Story = {
         },
     },
 }
+
+export const DisplayBallotLocator: Story = {
+    args: {
+        isActive: true,
+        isOpen: true,
+        title: "Executive Board",
+        electionHomeUrl: "/election/34570007/public/home",
+        hasVoted: false,
+        openDate: "6 Aug, 13:22",
+        onClickBallotLocator() {
+            console.log("Clicked to locate the ballot")
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}

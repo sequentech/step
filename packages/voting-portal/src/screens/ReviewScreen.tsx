@@ -5,7 +5,7 @@ import React, {useContext, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import {useAppSelector} from "../store/hooks"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
     PageLimit,
@@ -35,8 +35,9 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
-import {provideBallotService} from "../services/BallotService"
+import {hashBallot, provideBallotService} from "../services/BallotService"
 import {TenantEventContext} from ".."
+import {addCastVotes} from "../store/castVotes/castVotesSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -77,12 +78,15 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
+    const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {tenantId, eventId} = useContext(TenantEventContext)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
     const {toHashableBallot} = provideBallotService()
+    const ballotId = hashBallot(auditableBallot)
+
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
@@ -95,9 +99,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const castBallotAction = async () => {
         try {
             const hashableBallot = toHashableBallot(auditableBallot)
-            await insertCastVote({
+            let result = await insertCastVote({
                 variables: {
                     id: uuidv4(),
+                    ballotId,
                     electionId: ballotStyle.election_id,
                     electionEventId: ballotStyle.election_event_id,
                     tenantId: ballotStyle.tenant_id,
@@ -105,6 +110,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     content: hashableBallot,
                 },
             })
+            let newCastVote = result.data?.insert_sequent_backend_cast_vote?.returning
+            if (newCastVote) {
+                dispatch(addCastVotes(newCastVote))
+            }
             navigate(
                 `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/confirmation`
             )
