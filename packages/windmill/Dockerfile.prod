@@ -30,9 +30,10 @@ FROM debian:bullseye
 # Install any necessary runtime dependencies for production
 RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
 
-# Copy the compiled binary from the builder stage
+# Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
-
+COPY --from=builder /app/windmill/target/release/beat /usr/local/bin/beat
 COPY ./keycloak/import /import
 WORKDIR /usr/local/bin
-CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat"]
+# Run the windmill binary, it's possible to run 'beat' as well
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat", "communication_queue"]
