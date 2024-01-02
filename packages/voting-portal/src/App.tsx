@@ -19,7 +19,7 @@ import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {BallotLocator} from "./screens/BallotLocator"
 import {SettingsContext} from "./providers/SettingsContextProvider"
-import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
+import {SupportMaterialsScreen} from "./screens/SupportMaterialsScreen"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;

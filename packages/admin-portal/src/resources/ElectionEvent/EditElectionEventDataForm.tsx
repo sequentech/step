@@ -224,7 +224,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const renderTabContentMaterials = (parsedValue: any) => {
+    const renderTabContentMaterials = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let tabNodes = []
         let index = 0
         for (const lang in parsedValue?.enabled_languages) {
