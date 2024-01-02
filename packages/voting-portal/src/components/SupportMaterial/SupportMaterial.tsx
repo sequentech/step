@@ -14,6 +14,7 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
+import { GetDocumentQuery } from '../../gql/graphql'
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -92,7 +93,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
 
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
-    const {data: imageData} = useQuery<any>(GET_DOCUMENT, {
+    const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
         variables: {
             id: documentId || "",
             tenantId: tenantId || "",
