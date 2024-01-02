@@ -4,11 +4,6 @@
 use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
-use crate::hasura::results_area_contest::insert_results_area_contest;
-use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
-use crate::hasura::results_contest::insert_results_contest;
-use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
-use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
@@ -18,7 +13,6 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::services::ceremonies::results::populate_results_tables;
-use crate::services::ceremonies::results::{generate_results_id_if_necessary, save_results};
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
@@ -31,34 +25,23 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
-use crate::tasks::execute_tally_session::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
+use sequent_core::services::connection::AuthHeaders;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use sequent_core::ballot::{BallotStyle, Contest};
-use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::TallyElection;
-use sequent_core::types::ceremonies::TallyElectionStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
-use sequent_core::types::ceremonies::{Log, TallyCeremonyStatus};
-use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::PathBuf;
+use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use velvet::cli::state::State;
-use velvet::cli::CliRun;
-use velvet::fixtures;
-use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -409,25 +392,12 @@ async fn create_results_event(
 }
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 120000)]
-pub async fn execute_tally_session(
+pub async fn execute_tally_session_wrapped(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    auth_headers: AuthHeaders,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-    let lock = PgLock::acquire(
-        auth_headers.clone(),
-        format!(
-            "execute_tally_session-{}-{}-{}",
-            tenant_id, election_event_id, tally_session_id
-        ),
-        Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(120)),
-    )
-    .await?;
-
     let (tally_session_execution, tally_session) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -445,7 +415,6 @@ pub async fn execute_tally_session(
     .await?;
 
     if plaintexts_data_opt.is_none() {
-        lock.release(auth_headers.clone()).await?;
         return Ok(());
     }
 
@@ -530,7 +499,37 @@ pub async fn execute_tally_session(
         )
         .await?;
     }
-    lock.release(auth_headers.clone()).await?;
 
     Ok(())
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(time_limit = 120000)]
+pub async fn execute_tally_session(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let lock = PgLock::acquire(
+        auth_headers.clone(),
+        format!(
+            "execute_tally_session-{}-{}-{}",
+            tenant_id, election_event_id, tally_session_id
+        ),
+        Uuid::new_v4().to_string(),
+        Some(ISO8601::now() + Duration::seconds(120)),
+    )
+    .await?;
+
+    let res = execute_tally_session_wrapped(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+        auth_headers.clone()
+    ).await;
+    lock.release(auth_headers.clone()).await?;
+
+    res
 }
