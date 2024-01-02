@@ -95,6 +95,7 @@ export const SupportMaterialsScreen: React.FC = () => {
     )
 
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+
         variables: {
             electionEventId: eventId,
             tenantId,

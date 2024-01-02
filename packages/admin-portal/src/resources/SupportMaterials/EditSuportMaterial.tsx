@@ -43,6 +43,11 @@ interface I18n {
     }
 }
 
+const BASE_DATA = {
+    title_i18n: {},
+    subtitle_i18n: {},
+}
+
 export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) => {
     const {id, electionEventId, close} = props
     const refresh = useRefresh()

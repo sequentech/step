@@ -230,7 +230,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     <Tabs elements={renderTabs(record)} />
                     <DropFile handleFiles={handleFiles} />
                     {parsedValue?.get_upload_url?.document_id ? <div>TIENES</div> : null}
-
                     <Hidden>
                         <TextInput
                             label="Election Event"
