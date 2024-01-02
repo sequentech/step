@@ -37,6 +37,12 @@ interface EditSupportMaterialProps {
     close?: () => void
 }
 
+interface I18n {
+    [key: string]: {
+        [key: string]: string
+    }
+}
+
 export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) => {
     const {id, electionEventId, close} = props
     const refresh = useRefresh()
