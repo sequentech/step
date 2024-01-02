@@ -79,7 +79,6 @@ export const SupportMaterialsScreen: React.FC = () => {
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
 
-
     const {
         data: dataMaterials,
         error: errorMaterials,
@@ -170,7 +169,10 @@ export const SupportMaterialsScreen: React.FC = () => {
             </Box>
             <ElectionContainer>
                 {materialsList?.map((material: ISupportMaterial) => (
-                    <ElectionWrapper material={material as Sequent_Backend_Support_Material} key={material.id} />
+                    <ElectionWrapper
+                        material={material as Sequent_Backend_Support_Material}
+                        key={material.id}
+                    />
                 ))}
             </ElectionContainer>
         </PageLimit>

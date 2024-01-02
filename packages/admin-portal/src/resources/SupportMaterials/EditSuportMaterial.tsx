@@ -20,9 +20,7 @@ import {Tabs} from "@/components/Tabs"
 import {DropFile} from "@sequentech/ui-essentials"
 import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
-import {
-    GetUploadUrlMutation,
-} from "@/gql/graphql"
+import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
@@ -254,7 +252,13 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                                     <Tabs elements={renderTabs(parsedValue)} />
                                     <DropFile handleFiles={handleFiles} />
                                     {parsedValue.document_id ? (
-                                        <Box sx={{width: "100%", display: "flex", justifyContent: "center"}}>
+                                        <Box
+                                            sx={{
+                                                width: "100%",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                            }}
+                                        >
                                             {parsedValue.kind.includes("image") ? (
                                                 <ImageIcon sx={{fontSize: "80px"}} />
                                             ) : parsedValue.kind.includes("pdf") ? (

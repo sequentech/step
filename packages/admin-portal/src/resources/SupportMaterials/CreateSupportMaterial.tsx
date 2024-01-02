@@ -28,7 +28,7 @@ import {
     Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
-import { Sequent_Backend_Support_Material_Extended } from '../ElectionEvent/EditElectionEventDataForm'
+import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
 
 interface CreateSupportMaterialProps {
     record: any
@@ -58,9 +58,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const [valueMaterials, setValueMaterials] = useState<I18n>(BASE_DATA)
     const [imageType, setImageType] = useState<string | undefined>()
     const [imageId, setImageId] = useState<string | undefined>()
-    const [parsedValue, setParsedValue] = useState<
-        GetUploadUrlMutation | null | undefined
-    >()
+    const [parsedValue, setParsedValue] = useState<GetUploadUrlMutation | null | undefined>()
 
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
