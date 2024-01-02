@@ -27,15 +27,15 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
-use sequent_core::services::connection::AuthHeaders;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::services::connection;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
 use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
@@ -505,7 +505,7 @@ pub async fn execute_tally_session_wrapped(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 120000)]
+#[celery::task(time_limit = 120000, max_retries = 1)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
@@ -527,8 +527,9 @@ pub async fn execute_tally_session(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-        auth_headers.clone()
-    ).await;
+        auth_headers.clone(),
+    )
+    .await;
     lock.release(auth_headers.clone()).await?;
 
     res
