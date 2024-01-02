@@ -34,16 +34,12 @@ struct KeycloakLoginConfig {
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
     let url =
         env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
-    event!(Level::INFO, "KEYCLOAK_URL {}", url);
     let client_id = env::var("KEYCLOAK_CLIENT_ID")
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
-    event!(Level::INFO, "KEYCLOAK_CLIENT_ID {}", client_id);
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
-    event!(Level::INFO, "KEYCLOAK_CLIENT_SECRET {}", client_secret);
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
-    event!(Level::INFO, "SUPER_ADMIN_TENANT_ID {}", tenant_id);
     let realm = get_tenant_realm(&tenant_id);
     KeycloakLoginConfig {
         url,
