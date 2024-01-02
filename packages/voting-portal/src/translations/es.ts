@@ -155,6 +155,14 @@ const spanishTranslation: TranslationType = {
                 somethingWrong: "Algo salió mal.",
             },
         },
+        materials: {
+            common: {
+                label: "Materiales de Soporte",
+                back: "Volver a la Lista de Votaciones",
+                close: "Cerrar",
+                preview: "Vista previa",
+            },
+        },
         ballotLocator: {
             title: "Localiza tu Papeleta",
             titleResult: "Resultado de la búsqueda de tu Boleta",

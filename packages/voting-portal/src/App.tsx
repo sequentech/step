@@ -12,6 +12,7 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEvent} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
+import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;

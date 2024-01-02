@@ -549,9 +549,11 @@ let MuiDialogActions: Components["MuiDialogActions"] = {
 
 let MuiDialog: Components["MuiDialog"] = {
     styleOverrides: {
-        paper: {
-            border: `2px solid ${palette.black}`,
-            maxWidth: "496px",
+        paper: ({ownerState}) => {
+            return {
+                border: `2px solid ${palette.black}`,
+                maxWidth: ownerState.fullWidth ? "100vw" : "496px",
+            }
         },
     },
 }

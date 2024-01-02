@@ -15,6 +15,7 @@ export interface GlobalSettings {
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
+    PUBLIC_BUCKET_URL: string
 }
 
 interface SettingsContextValues {
@@ -34,6 +35,7 @@ const defaultSettingsValues: SettingsContextValues = {
         HASURA_URL: "http://localhost:8080/v1/graphql",
         APP_VERSION: "10.0.0",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
+        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
     },
 }
 
