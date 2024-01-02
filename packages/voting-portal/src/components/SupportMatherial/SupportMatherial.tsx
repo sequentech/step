@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, Typography} from "@mui/material"
-import React from "react"
+import React, {useContext} from "react"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import {Dialog, theme} from "@sequentech/ui-essentials"
@@ -13,6 +13,7 @@ import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
+import {SettingsContext} from "../../providers/SettingsContextProvider"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -87,6 +88,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
 }) => {
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
+    const {globalSettings} = useContext(SettingsContext)
 
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
@@ -163,7 +165,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                             <>
                                 <img
                                     src={encodeURI(
-                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
                                     )}
                                     alt={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
                                 />
@@ -180,7 +182,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                             >
                                 <iframe
                                     src={encodeURI(
-                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
                                     )}
                                     title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
                                     width="1400"
@@ -202,7 +204,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                                     width="800"
                                     height="500"
                                     src={encodeURI(
-                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
                                     )}
                                     referrerPolicy="origin"
                                     sandbox="allow-scripts allow-same-origin"
@@ -225,7 +227,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                                     width="800"
                                     height="120"
                                     src={encodeURI(
-                                        `http://localhost:9000/public/tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
                                     )}
                                     title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
                                     allow="autoplay"
