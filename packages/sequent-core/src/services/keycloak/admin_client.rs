@@ -57,20 +57,12 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
 fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     let url =
         env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
-    event!(Level::INFO, "KEYCLOAK_URL {}", url);
     let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
-    event!(Level::INFO, "KEYCLOAK_ADMIN_CLIENT_ID {}", client_id);
     let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
-    event!(
-        Level::INFO,
-        "KEYCLOAK_ADMIN_CLIENT_SECRET {}",
-        client_secret
-    );
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
-    event!(Level::INFO, "SUPER_ADMIN_TENANT_ID {}", tenant_id);
     let realm = get_tenant_realm(&tenant_id);
     KeycloakLoginConfig {
         url,
@@ -124,7 +116,6 @@ impl KeycloakAdminClient {
     #[instrument(err, name = "KeycloakAdminClient::new")]
     pub async fn new() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
-        event!(Level::INFO, "Login config {:?}", login_config);
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
             &login_config.url,
