@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {
     SimpleForm,
     useRefresh,
@@ -22,8 +22,6 @@ import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {
     GetUploadUrlMutation,
-    Sequent_Backend_Document,
-    Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -37,17 +35,6 @@ interface EditSupportMaterialProps {
     id: Identifier | undefined
     electionEventId: Identifier | undefined
     close?: () => void
-}
-
-interface I18n {
-    [key: string]: {
-        [key: string]: string
-    }
-}
-
-const BASE_DATA = {
-    title_i18n: {},
-    subtitle_i18n: {},
 }
 
 export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) => {
