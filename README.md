@@ -205,37 +205,79 @@ You can enter the Immudb web console at http://localhost:3325 and the user/pass 
 
 ## Keycloak default realms
 
-The deployment has 2 default Keycloak realms created by default, one for the
-default tenant and another for the default election event inside that tenant.
+The deployment has 1 default Keycloak realm created by default, for the
+super-admin tenant.
 
-Those two realms are automatically imported into Keycloak in the Dev Containers 
-from the `.devcontainer/keycloak/import/` directory.
+This super-admin tenant realm is automatically imported into Keycloak in the 
+DevContainer environment from the `.devcontainer/keycloak/import/` directory.
 
 Additionally, each tenant and election event have an associated realm. In the
-Dev Containers, we use the same `.devcontainer/keycloak/import/` files to be the
+Dev Containers, the `.devcontainer/keycloak/templates/` directory contains the
 templates for the creation of realms associated to a new tenant or a new
-election event. These realms are created if they don't exist when the `keycloak`
-container is started.
+election event. This is part of the configuration for windmill.
 
-If you change the configuration of the default tenant realm and want to update
-it in `.devcontainer/keycloak/import/` to be used for the default tenant and as
-a template for new tenants, you can export it running the following commands:
+If you change the configuration of any of these three realms and want to update
+it in the realm json configuration to be used for the super-admin realm or the 2
+realm templates, please execute the following commands, you can export it
+running the following commands:
+
+### A. Export the super-admin tenant
+
+To export the super-admin tenant realm and update it in the
+`.devcontainer/keycloak/import/` directory, execute the following commands:
 
 ```bash
-export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+export REALM="tenant-${SUPER_ADMIN_TENANT_ID}"
 cd /workspaces/backend-services/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
+./scripts/update-keycloak-realms.sh
 ```
 
-You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"` to export and update the configuration of the default election event:
+Please note that:
+- We use the super-admin tenant id.
+- We export using `kc.sh export`. It works betters than exporting from keycloak UI.
+- We save the file in `keycloak/import/${REALM}.json` because that's where our keycloak docker service expects to find the realms to be created if not existing.
+- We execute the `update-keycloak-realms.sh` script to substitute the urls like `127.0.0.1:3000` with env variables.
+
+### B. Export the tenant's realm template
+
+To export the tenant's realm template and update it in the
+`.devcontainer/keycloak/templates/` directory, execute the following commands:
+
+```bash
+export REALM="tenant-${SUPER_ADMIN_TENANT_ID}"
+cd /workspaces/backend-services/.devcontainer
+docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/templates/${REALM}.json
+./scripts/update-keycloak-realms.sh
+```
+
+Please note that:
+- The script is almost the same as before, but we are saving the template in `keycloak/templates/` dir instead of `keycloak/import/` dir.
+- You could use any tenant realm for this template, but you would have to update
+  the `KEYCLOAK_TENANT_REALM_CONFIG_PATH` env var in `.devcontainer/.env`.
+
+### C. Export the election event's realm template
+
+To export the election event's realm template and update it in the
+`.devcontainer/keycloak/templates/` directory, execute the following commands:
 
 ```bash
 export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"
 cd /workspaces/backend-services/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
-docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/templates/${REALM}.json
+./scripts/update-keycloak-realms.sh
 ```
+
+Please note that:
+- The script is almost the same as in case of the tenant's realm template.
+- You could use any existing election event realm for this template, but you
+  would have to update the `KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH` env var
+  in `.devcontainer/.env`.
+
+## Updating the realm public certificates
 
 Whenever a realm is updated, there's a chance that the assocated JWK used have
 changed. This JWK is used to verify the JWT that is received from keycloak.

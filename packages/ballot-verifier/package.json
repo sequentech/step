@@ -24,7 +24,7 @@
     "web-vitals": "^2.1.0"
   },
   "scripts": {
-    "start": "PORT=3001 react-scripts start",
+    "start": "PORT=${BALLOT_VERIFIER_PORT} react-scripts start",
     "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -38,7 +38,6 @@
     "dev": "tsc --watch",
     "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve"
   },
-  "proxy": "https://i.imgur.com",
   "browserslist": {
     "production": [
       ">0.2%",

@@ -381,6 +381,26 @@
             "problemMatcher": []
         },
         {
+            "label": "update.keycloak.realms",
+            "command": "bash",
+            "args": [
+                "./.devcontainer/scripts/update-keycloak-realms.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "update.vscode.settings",
             "command": "devenv",
             "args": [

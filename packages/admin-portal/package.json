@@ -55,8 +55,7 @@
     "web-vitals": "^2.1.0"
   },
   "scripts": {
-    "start": "PORT=3002 NODE_OPTIONS=--openssl-legacy-provider craco start",
-    "start:container": "PORT=3000 NODE_OPTIONS=--openssl-legacy-provider craco start",
+    "start": "PORT=${ADMIN_PORTAL_PORT} NODE_OPTIONS=--openssl-legacy-provider craco start",
     "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack",
     "test": "NODE_OPTIONS=--openssl-legacy-provider react-scripts test",
     "eject": "NODE_OPTIONS=--openssl-legacy-provider react-scripts eject",
@@ -72,7 +71,6 @@
     "postinstall": "node ./postinstall.js",
     "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve"
   },
-  "proxy": "https://i.imgur.com",
   "browserslist": {
     "production": [
       ">0.2%",

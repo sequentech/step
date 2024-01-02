@@ -234,6 +234,10 @@ services:
       KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+      ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL}
+      ONSITE_VOTING_PORTAL_URL: ${ONSITE_VOTING_PORTAL_URL}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import
@@ -590,7 +594,7 @@ services:
       "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue"
     ]
     volumes:
-      - ./keycloak/import:/import
+      - ./keycloak/templates:/templates
       - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
