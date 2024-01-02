@@ -18,7 +18,7 @@ import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {Tabs} from "@/components/Tabs"
 import {DropFile} from "@sequentech/ui-essentials"
-import {TextField} from "@mui/material"
+import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {
     GetUploadUrlMutation,
@@ -27,6 +27,11 @@ import {
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
+import VideoFileIcon from "@mui/icons-material/VideoFile"
+import AudioFileIcon from "@mui/icons-material/AudioFile"
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
+import ImageIcon from "@mui/icons-material/Image"
 
 interface EditSupportMaterialProps {
     id: Identifier | undefined
@@ -105,7 +110,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
         }
     }
 
-    const renderTabs = (parsedValue: any) => {
+    const renderTabs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let tabNodes = []
 
         if (!valueMaterials) setValueMaterials({...parsedValue.data})
@@ -190,7 +195,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
         }
     }
 
-    const transform = (data: any) => {
+    const transform = (data: Sequent_Backend_Support_Material_Extended) => {
         console.log("data :>> ", data)
 
         data.data = {...valueMaterials}
@@ -208,7 +213,9 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
         return errors
     }
 
-    const parseValues = (incoming: any) => {
+    const parseValues = (
+        incoming: Sequent_Backend_Support_Material_Extended
+    ): Sequent_Backend_Support_Material_Extended => {
         const temp = {...incoming}
         return temp
     }
@@ -226,7 +233,11 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                 <PageHeaderStyles.Wrapper>
                     <RecordContext.Consumer>
                         {(incoming) => {
-                            const parsedValue = parseValues(incoming)
+                            const parsedValue = parseValues(
+                                incoming as Sequent_Backend_Support_Material_Extended
+                            )
+                            console.log("parsedValue edit :>> ", parsedValue)
+
                             return (
                                 <SimpleForm
                                     validate={formValidator}
@@ -244,6 +255,19 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                                     </PageHeaderStyles.SubTitle>
                                     <Tabs elements={renderTabs(parsedValue)} />
                                     <DropFile handleFiles={handleFiles} />
+                                    {parsedValue.document_id ? (
+                                        <Box sx={{width: "100%", display: "flex", justifyContent: "center"}}>
+                                            {parsedValue.kind.includes("image") ? (
+                                                <ImageIcon sx={{fontSize: "80px"}} />
+                                            ) : parsedValue.kind.includes("pdf") ? (
+                                                <PictureAsPdfIcon sx={{fontSize: "80px"}} />
+                                            ) : parsedValue.kind.includes("video") ? (
+                                                <VideoFileIcon sx={{fontSize: "80px"}} />
+                                            ) : parsedValue.kind.includes("audio") ? (
+                                                <AudioFileIcon sx={{fontSize: "80px"}} />
+                                            ) : null}
+                                        </Box>
+                                    ) : null}
                                 </SimpleForm>
                             )
                         }}

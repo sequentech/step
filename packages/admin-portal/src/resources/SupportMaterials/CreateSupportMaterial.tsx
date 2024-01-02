@@ -28,6 +28,7 @@ import {
     Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import { Sequent_Backend_Support_Material_Extended } from '../ElectionEvent/EditElectionEventDataForm'
 
 interface CreateSupportMaterialProps {
     record: any
@@ -57,6 +58,9 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const [valueMaterials, setValueMaterials] = useState<I18n>(BASE_DATA)
     const [imageType, setImageType] = useState<string | undefined>()
     const [imageId, setImageId] = useState<string | undefined>()
+    const [parsedValue, setParsedValue] = useState<
+        GetUploadUrlMutation | null | undefined
+    >()
 
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
@@ -103,7 +107,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
         }
     }
 
-    const renderTabs = (parsedValue: any) => {
+    const renderTabs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
@@ -162,6 +166,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
             })
             if (data?.get_upload_url?.document_id) {
                 console.log("upload :>> ", data)
+                setParsedValue(data)
 
                 try {
                     await fetch(data.get_upload_url.url, {
@@ -185,7 +190,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
         }
     }
 
-    const transform = (data: any) => {
+    const transform = (data: Sequent_Backend_Support_Material_Extended) => {
         data.data = {...valueMaterials}
         data.kind = imageType
         return data
@@ -224,6 +229,8 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     </PageHeaderStyles.SubTitle>
                     <Tabs elements={renderTabs(record)} />
                     <DropFile handleFiles={handleFiles} />
+                    {parsedValue?.get_upload_url?.document_id ? <div>TIENES</div> : null}
+
                     <Hidden>
                         <TextInput
                             label="Election Event"

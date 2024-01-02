@@ -10,6 +10,8 @@ import {
     Toolbar,
     SaveButton,
     DeleteButton,
+    RaRecord,
+    Identifier,
 } from "react-admin"
 import {
     Accordion,
@@ -38,6 +40,11 @@ import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 
+export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
+
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -56,7 +63,9 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
 
-    const parseValues = (incoming: any) => {
+    const parseValues = (
+        incoming: Sequent_Backend_Support_Material_Extended
+    ): Sequent_Backend_Support_Material_Extended => {
         const temp = {...incoming}
 
         // languages
@@ -92,11 +101,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         // set english first lang always
-        const en = {en: temp.enabled_languages["en"]}
-        delete temp.enabled_languages.en
-        const rest = temp.enabled_languages
-        temp.enabled_languages = {...en, ...rest}
-
+        if (temp.enabled_languages) {
+            const en = {en: temp.enabled_languages["en"]}
+            delete temp.enabled_languages.en
+            const rest = temp.enabled_languages
+            temp.enabled_languages = {...en, ...rest}
+        }
         // voting channels
         const all_channels = {...incoming?.voting_channels}
 
@@ -129,7 +139,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return errors
     }
 
-    const renderLangs = (parsedValue: any) => {
+    const renderLangs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let langNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             langNodes.push(
@@ -144,7 +154,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return <div>{langNodes}</div>
     }
 
-    const renderVotingChannels = (parsedValue: any) => {
+    const renderVotingChannels = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let channelNodes = []
         for (const channel in parsedValue?.voting_channels) {
             channelNodes.push(
@@ -159,7 +169,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         return channelNodes
     }
 
-    const renderTabs = (parsedValue: any, type: string = "general") => {
+    const renderTabs = (
+        parsedValue: Sequent_Backend_Support_Material_Extended,
+        type: string = "general"
+    ) => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
@@ -179,7 +192,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const renderTabContent = (parsedValue: any) => {
+    const renderTabContent = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let tabNodes = []
         let index = 0
         for (const lang in parsedValue?.enabled_languages) {
@@ -273,8 +286,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             </Box>
             <RecordContext.Consumer>
                 {(incoming) => {
-                    const parsedValue = parseValues(incoming)
-                    console.log("parsedValue :>> ", parsedValue)
+                    const parsedValue = parseValues(
+                        incoming as Sequent_Backend_Support_Material_Extended
+                    )
+                    console.log("parsedValue eevent form :>> ", parsedValue)
                     return (
                         <SimpleForm
                             validate={formValidator}
