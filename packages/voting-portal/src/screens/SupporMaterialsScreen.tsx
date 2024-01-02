@@ -1,37 +1,26 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, Button, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
     PageLimit,
-    isString,
     stringToHtml,
     theme,
     translate,
     translateElection,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import {useAppDispatch} from "../store/hooks"
-import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
-import {IBallotStyle as IElectionDTO} from "sequent-core"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {IElection, setElection} from "../store/elections/electionsSlice"
-import {GET_ELECTIONS} from "../queries/GetElections"
-import {AppDispatch} from "../store/store"
-import {ELECTIONS_LIST} from "../fixtures/election"
-import {TenantEventContext} from ".."
-import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {SupportMatherial} from "../components/SupportMatherial/SupportMatherial"
+import {TenantEvent} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -57,8 +46,7 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
-    // const election = useAppSelector(selectElectionById(electionId))
-    const {tenantId} = useContext(TenantEventContext)
+    const {tenantId} = useParams<TenantEvent>()
     const {i18n} = useTranslation()
 
     return (
