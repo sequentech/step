@@ -12,8 +12,6 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEvent} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
-import {useAppDispatch} from "./store/hooks"
-import {setTenantEvent as setTenantEventAction} from "./store/tenantEvent/tenantEventSlice"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -40,7 +38,6 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEvent>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
-    const dispatch = useAppDispatch()
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -69,15 +66,8 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     useEffect(() => {
-        dispatch(
-            setTenantEventAction({
-                tenantId: tenantId ?? "",
-                eventId: eventId ?? "",
-            })
-        )
-
         localStorage.setItem("tenant-event", JSON.stringify({tenantId, eventId}))
-    }, [tenantId, eventId, dispatch])
+    }, [tenantId, eventId])
 
     return (
         <StyledApp>

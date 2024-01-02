@@ -7,7 +7,6 @@ import castVotesReducer from "./castVotes/castVotesSlice"
 import ballotSelectionsReducer from "./ballotSelections/ballotSelectionsSlice"
 import auditableBallotsReducer from "./auditableBallots/auditableBallotsSlice"
 import electionsReducer from "./elections/electionsSlice"
-import tenantEventReducer from "./tenantEvent/tenantEventSlice"
 
 // note: use Immer, https://immerjs.github.io/immer/
 
@@ -18,7 +17,6 @@ export const store = configureStore({
         ballotStyles: ballotStylesReducer,
         ballotSelections: ballotSelectionsReducer,
         auditableBallots: auditableBallotsReducer,
-        tenantEvent: tenantEventReducer,
     },
 })
 
