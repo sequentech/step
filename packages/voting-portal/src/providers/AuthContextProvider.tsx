@@ -174,10 +174,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // TODO: handle error
                     return
                 }
-
-                if (refreshed) {
-                    localStorage.setItem("token", keycloak.token)
-                }
             }
 
             await sleep(sleepSecs * 1e3)
@@ -215,9 +211,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     setAuthenticated(false)
                     return
                 }
-
-                // If we get here the user is authenticated and we can update the state accordingly
-                localStorage.setItem("token", keycloak.token)
 
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
@@ -284,8 +277,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (!keycloak) {
             return
         }
-
-        localStorage.removeItem("token")
 
         keycloak.logout()
     }
