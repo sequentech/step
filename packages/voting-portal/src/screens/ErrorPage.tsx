@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {Button, Typography} from "@mui/material"
 import {Header} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -18,23 +19,7 @@ const StyledLink = styled(Link)`
 export function ErrorPage() {
     const error = useRouteError()
     const {t} = useTranslation()
-    const [backLink, setBackLink] = useState<string>("")
-
-    useEffect(() => {
-        let tenantEvent
-        try {
-            tenantEvent = JSON.parse(localStorage.getItem("tenant-event") ?? "")
-        } catch (e) {
-            console.warn(e)
-        }
-
-        const backLink =
-            tenantEvent?.eventId && tenantEvent?.tenantId
-                ? `/tenant/${tenantEvent.tenantId}/event/${tenantEvent.eventId}/election-chooser`
-                : "/"
-
-        setBackLink(backLink)
-    }, [])
+    const backLink = useRootBackLink()
 
     let content = (
         <>
