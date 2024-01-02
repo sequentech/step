@@ -26,6 +26,7 @@ import {AuditScreen} from "./screens/AuditScreen"
 import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {BallotLocator} from "./screens/BallotLocator"
 import {ErrorPage} from "./screens/ErrorPage"
+import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -93,6 +94,10 @@ const router = createBrowserRouter([
             {
                 path: "/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?",
                 element: <BallotLocator />,
+            },
+            {
+                path: "/tenant/:tenantId/event/:eventId/materials",
+                element: <SupportMaterialsScreen />,
             },
         ],
     },
