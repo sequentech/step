@@ -36,6 +36,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
+import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
@@ -48,6 +49,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     )
 
     const [value, setValue] = useState(0)
+    const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
     const [votingSettings] = useState<any>({online: true, kiosk: true})
@@ -115,6 +117,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         setValue(newValue)
     }
 
+    const handleChangeMaterials = (event: React.SyntheticEvent, newValue: number) => {
+        setValueMaterials(newValue)
+    }
+
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
         if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
@@ -153,7 +159,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return channelNodes
     }
 
-    const renderTabs = (parsedValue: any) => {
+    const renderTabs = (parsedValue: any, type: string = "general") => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
@@ -163,7 +169,11 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         // reset actived tab to first tab if only one
         if (tabNodes.length === 1) {
-            setValue(0)
+            if (type === "materials") {
+                setValueMaterials(0)
+            } else {
+                setValue(0)
+            }
         }
 
         return tabNodes
@@ -191,6 +201,33 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
+                            />
+                        </div>
+                    </CustomTabPanel>
+                )
+                index++
+            }
+        }
+        return tabNodes
+    }
+
+    const renderTabContentMaterials = (parsedValue: any) => {
+        let tabNodes = []
+        let index = 0
+        for (const lang in parsedValue?.enabled_languages) {
+            if (parsedValue?.enabled_languages[lang]) {
+                tabNodes.push(
+                    <CustomTabPanel key={lang} value={valueMaterials} index={index}>
+                        <div style={{marginTop: "16px"}}>
+                            <TextInput
+                                disabled={!canEdit}
+                                source={`presentation.i18n[${lang}].materialsTitle`}
+                                label={t("electionEventScreen.field.materialTitle")}
+                            />
+                            <TextInput
+                                disabled={!canEdit}
+                                source={`presentation.i18n[${lang}].materialsSubtitle`}
+                                label={t("electionEventScreen.field.materialSubTitle")}
                             />
                         </div>
                     </CustomTabPanel>
@@ -349,6 +386,38 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             {renderVotingChannels(parsedValue)}
                                         </Grid>
                                     </Grid>
+                                </AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-materials"}
+                                onChange={() => setExpanded("election-event-data-materials")}
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-materials" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.materials")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <BooleanInput
+                                        disabled={!canEdit}
+                                        source={`presentation.materials.activated`}
+                                        label={t(`electionEventScreen.field.materialActivated`)}
+                                    />
+                                    <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
+                                        {renderTabs(parsedValue, "materials")}
+                                    </Tabs>
+                                    {renderTabContentMaterials(parsedValue)}
+                                    <Box>
+                                        <ListSupportMaterials electionEventId={parsedValue?.id} />
+                                    </Box>
                                 </AccordionDetails>
                             </Accordion>
                         </SimpleForm>
