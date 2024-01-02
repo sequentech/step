@@ -72,18 +72,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
     }
 
-    const formatDate = (dateStr: string): string => {
-        let date = new Date(dateStr)
-        let dateFormat = new Intl.DateTimeFormat("en", {
-            hour12: false,
-            day: "numeric",
-            month: "short",
-            hour: "numeric",
-            minute: "2-digit",
-        })
-        return dateFormat.format(date)
-    }
-
     if (!election) {
         return null
     }
@@ -220,14 +208,11 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (errorBallotStyles || errorElections) {
-            console.log(
-                "LS -> src/screens/ElectionSelectionScreen.tsx:218 -> errorElections: ",
-                errorElections
-            )
-            console.log(
-                "LS -> src/screens/ElectionSelectionScreen.tsx:218 -> errorBallotStyles: ",
-                errorBallotStyles
-            )
+            if (errorBallotStyles?.message === 'missing session variable: "x-hasura-area-id"') {
+                // handle no ballot styles
+                return
+            }
+
             throw new Error("Unable to fetch data")
         }
     }, [errorElections, errorBallotStyles])
