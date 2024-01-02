@@ -5,6 +5,7 @@ export function useRootBackLink() {
 
     useEffect(() => {
         let tenantEvent
+
         try {
             tenantEvent = JSON.parse(localStorage.getItem("tenant-event") ?? "")
         } catch (e) {

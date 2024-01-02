@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
@@ -26,12 +26,13 @@ import {
     faCircleQuestion,
     faDownload,
 } from "@fortawesome/free-solid-svg-icons"
-import {Link as RouterLink, useParams} from "react-router-dom"
+import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -75,6 +76,7 @@ const Step1Container = styled(Box)`
 const ActionButtons: React.FC = () => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
+    const backLink = useRootBackLink()
 
     return (
         <ActionsContainer>
@@ -86,7 +88,7 @@ const ActionButtons: React.FC = () => {
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("auditScreen.printButton")}</Box>
             </StyledButton>
-            <StyledLink to="/" sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Box>{t("auditScreen.restartButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
@@ -107,9 +109,16 @@ export const AuditScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
-    const [openStep2Help, setOpenStep2Help] = useState(false)
     const {hashBallot} = provideBallotService()
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        if (!ballotHash) {
+            navigate(backLink)
+        }
+    })
 
     const downloadAuditableBallot = () => {
         if (!auditableBallot) {
