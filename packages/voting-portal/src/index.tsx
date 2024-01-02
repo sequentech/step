@@ -26,7 +26,7 @@ import {AuditScreen} from "./screens/AuditScreen"
 import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {BallotLocator} from "./screens/BallotLocator"
 import {ErrorPage} from "./screens/ErrorPage"
-import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
+import {SupportMaterialsScreen} from "./screens/SupportMaterialsScreen"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
