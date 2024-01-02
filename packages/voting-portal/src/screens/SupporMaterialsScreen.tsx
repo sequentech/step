@@ -19,7 +19,14 @@ import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSl
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
+import {
+    GetBallotStylesQuery,
+    GetElectionEventQuery,
+    GetElectionsQuery,
+    Sequent_Backend_Area,
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {IElection, setElection} from "../store/elections/electionsSlice"
@@ -31,7 +38,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
-import {SupportMatherial} from "../components/SupportMatherial/SupportMatherial"
+import {SupportMaterial} from "../components/SupportMaterial/SupportMaterial"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -62,7 +69,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
     const {i18n} = useTranslation()
 
     return (
-        <SupportMatherial
+        <SupportMaterial
             title={translate(material.data, "title", i18n.language) || ""}
             subtitle={translate(material.data, "subtitle", i18n.language) || ""}
             kind={material.kind || ""}
@@ -77,14 +84,17 @@ export const SupportMaterialsScreen: React.FC = () => {
     const navigate = useNavigate()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
 
-    const {data: dataMaterials} = useQuery<any>(GET_SUPPORT_MATERIALS, {
-        variables: {
-            electionEventId: eventId || "",
-            tenantId: tenantId || "",
-        },
-    })
+    const {data: dataMaterials} = useQuery<any>(
+        GET_SUPPORT_MATERIALS,
+        {
+            variables: {
+                electionEventId: eventId || "",
+                tenantId: tenantId || "",
+            },
+        }
+    )
 
-    const {data: dataElectionEvent} = useQuery<any>(GET_ELECTION_EVENT, {
+    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
             electionEventId: eventId,
             tenantId,

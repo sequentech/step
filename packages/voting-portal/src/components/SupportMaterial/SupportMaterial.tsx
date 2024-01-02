@@ -71,7 +71,7 @@ const StyledSubTitle = styled(Typography)`
     }
 `
 
-export interface SupportMatherialProps {
+export interface SupportMaterialProps {
     title: string
     subtitle?: string
     kind: string
@@ -79,7 +79,7 @@ export interface SupportMatherialProps {
     documentId: string
 }
 
-export const SupportMatherial: React.FC<SupportMatherialProps> = ({
+export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     title,
     subtitle,
     kind,
