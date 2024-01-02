@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useEffect, useState} from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
@@ -18,6 +18,23 @@ const StyledLink = styled(Link)`
 export function ErrorPage() {
     const error = useRouteError()
     const {t} = useTranslation()
+    const [backLink, setBackLink] = useState<string>("")
+
+    useEffect(() => {
+        let tenantEvent
+        try {
+            tenantEvent = JSON.parse(localStorage.getItem("tenant-event") ?? "")
+        } catch (e) {
+            console.warn(e)
+        }
+
+        const backLink =
+            tenantEvent?.eventId && tenantEvent?.tenantId
+                ? `/tenant/${tenantEvent.tenantId}/event/${tenantEvent.eventId}/election-chooser`
+                : "/"
+
+        setBackLink(backLink)
+    }, [])
 
     let content = (
         <>
@@ -78,7 +95,7 @@ export function ErrorPage() {
             >
                 {content}
 
-                <StyledLink to="/">
+                <StyledLink to={backLink}>
                     <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
                 </StyledLink>
             </Box>
