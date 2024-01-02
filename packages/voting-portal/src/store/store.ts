@@ -7,6 +7,7 @@ import castVotesReducer from "./castVotes/castVotesSlice"
 import ballotSelectionsReducer from "./ballotSelections/ballotSelectionsSlice"
 import auditableBallotsReducer from "./auditableBallots/auditableBallotsSlice"
 import electionsReducer from "./elections/electionsSlice"
+import supportMaterialReducer from "./supportMaterials/supportMaterialsSlice"
 
 // note: use Immer, https://immerjs.github.io/immer/
 
@@ -17,6 +18,7 @@ export const store = configureStore({
         ballotStyles: ballotStylesReducer,
         ballotSelections: ballotSelectionsReducer,
         auditableBallots: auditableBallotsReducer,
+        supportMaterials: supportMaterialReducer,
     },
 })
 

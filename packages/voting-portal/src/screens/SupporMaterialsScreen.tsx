@@ -7,38 +7,30 @@ import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
     PageLimit,
-    isString,
     stringToHtml,
     theme,
     translate,
     translateElection,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import {useAppDispatch} from "../store/hooks"
-import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
-    GetBallotStylesQuery,
     GetElectionEventQuery,
-    GetElectionsQuery,
-    Sequent_Backend_Area,
-    Sequent_Backend_Election,
-    Sequent_Backend_Election_Event,
+    GetSupportMaterialsQuery,
+    Sequent_Backend_Support_Material,
 } from "../gql/graphql"
-import {IBallotStyle as IElectionDTO} from "sequent-core"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {IElection, setElection} from "../store/elections/electionsSlice"
-import {GET_ELECTIONS} from "../queries/GetElections"
-import {AppDispatch} from "../store/store"
-import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
-import {SettingsContext} from "../providers/SettingsContextProvider"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {SupportMaterial} from "../components/SupportMaterial/SupportMaterial"
+import {
+    ISupportMaterial,
+    getSupportMaterialsList,
+    setSupportMaterial,
+} from "../store/supportMaterials/supportMaterialsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -60,11 +52,10 @@ const ElectionContainer = styled(Box)`
 `
 
 interface ElectionWrapperProps {
-    material: any
+    material: Sequent_Backend_Support_Material
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
-    // const election = useAppSelector(selectElectionById(electionId))
     const {tenantId} = useContext(TenantEventContext)
     const {i18n} = useTranslation()
 
@@ -83,36 +74,61 @@ export const SupportMaterialsScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+    const dispatch = useAppDispatch()
+    const materials = useAppSelector(getSupportMaterialsList())
 
-    const {data: dataMaterials} = useQuery<any>(
-        GET_SUPPORT_MATERIALS,
-        {
-            variables: {
-                electionEventId: eventId || "",
-                tenantId: tenantId || "",
-            },
+    const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
+
+
+    const {
+        data: dataMaterials,
+        error: errorMaterials,
+        loading: loadingMaterials,
+    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
+        variables: {
+            electionEventId: eventId || "",
+            tenantId: tenantId || "",
+        },
+    })
+
+    useEffect(() => {
+        if (!loadingMaterials && !errorMaterials && dataMaterials) {
+            for (let material of dataMaterials.sequent_backend_support_material) {
+                dispatch(setSupportMaterial(material))
+            }
         }
-    )
+    }, [loadingMaterials, errorMaterials, dataMaterials, dispatch])
 
     const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-
         variables: {
             electionEventId: eventId,
             tenantId,
         },
     })
 
-    const [materialsTitles, setMaterialsTitles] = useState<any>({})
+    const [materialsTitles, setMaterialsTitles] = useState<GetElectionEventQuery | undefined>({
+        sequent_backend_election_event: [],
+    })
 
     useEffect(() => {
         if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            setMaterialsTitles(dataElectionEvent?.sequent_backend_election_event?.[0])
+            setMaterialsTitles(
+                dataElectionEvent?.sequent_backend_election_event?.[0] as GetElectionEventQuery
+            )
         }
     }, [dataElectionEvent])
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
+
+    useEffect(() => {
+        const materialsList: Array<ISupportMaterial> = []
+        for (const material in materials) {
+            materialsList.push(materials[material] as ISupportMaterial)
+        }
+        setMaterialsList(materialsList)
+    }, [materials])
 
     return (
         <PageLimit maxWidth="lg">
@@ -153,8 +169,8 @@ export const SupportMaterialsScreen: React.FC = () => {
                 </Button>
             </Box>
             <ElectionContainer>
-                {dataMaterials?.sequent_backend_support_material?.map((material: any) => (
-                    <ElectionWrapper material={material} key={material.id} />
+                {materialsList?.map((material: ISupportMaterial) => (
+                    <ElectionWrapper material={material as Sequent_Backend_Support_Material} key={material.id} />
                 ))}
             </ElectionContainer>
         </PageLimit>
