@@ -12,6 +12,7 @@ import {
     DeleteButton,
     RaRecord,
     Identifier,
+    useEditController,
 } from "react-admin"
 import {
     Accordion,
@@ -39,6 +40,7 @@ import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
+import { useTenantStore } from '@/providers/TenantContextProvider'
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -47,6 +49,7 @@ export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
     const canEdit = authContext.isAuthorized(
@@ -59,9 +62,21 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
-    const [votingSettings] = useState<any>({online: true, kiosk: true})
+    // const [votingSettings, setVotingSettings] = useState<any>({online: true, kiosk: true})
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
+
+    const {record: tenant} = useEditController({
+        resource: "sequent_backend_tenant",
+        id: tenantId,
+        redirect: false,
+        undoable: false,
+    })
+
+    const [votingSettings] = useState<any>({
+        online: tenant?.voting_channels?.online || true,
+        kiosk: tenant?.voting_channels?.kiosk || false,
+    })
 
     const parseValues = (
         incoming: Sequent_Backend_Support_Material_Extended
@@ -112,12 +127,22 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         // delete incoming.voting_channels
         temp.voting_channels = {}
+
         for (const setting in votingSettings) {
             const enabled_item: any = {}
+
+            console.log("all_channels :>> ", all_channels)
+            console.log("votingSettings :>> ", votingSettings)
+            console.log("setting :>> ", setting)
+            console.log("settsetting in all_channelsing :>> ", setting in all_channels)
+
             enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            // temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-            temp.voting_channels = {...all_channels}
+
+            console.log("enabled_item :>> ", enabled_item)
+
+            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            // temp.voting_channels = {...enabled_item}
         }
 
         return temp
