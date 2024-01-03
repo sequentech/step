@@ -71,57 +71,13 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    ballotStyle: IBallotStyle
     disableNext: boolean
+    handleNext: () => void
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
     const {t} = useTranslation()
-    const {tenantId, eventId} = useParams<TenantEvent>()
-    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
-    const selectionState = useAppSelector(
-        selectBallotSelectionByElectionId(ballotStyle.election_id)
-    )
-    const navigate = useNavigate()
-    const dispatch = useAppDispatch()
     const backLink = useRootBackLink()
-
-    const encryptAndReview = () => {
-        if (isUndefined(selectionState) || disableNext) {
-            return
-        }
-        try {
-            const startMs = Date.now()
-            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-            const endMs = Date.now()
-            console.log(`Success encrypting ballot: ${endMs - startMs} ms`)
-            console.log(auditableBallot)
-            dispatch(
-                setAuditableBallot({
-                    electionId: ballotStyle.election_id,
-                    auditableBallot,
-                })
-            )
-            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
-            console.log(
-                "LS -> src/screens/VotingScreen.tsx:104 -> decodedSelectionState: ",
-                decodedSelectionState
-            )
-            if (null !== decodedSelectionState) {
-                dispatch(
-                    setBallotSelection({
-                        ballotStyle,
-                        ballotSelection: decodedSelectionState,
-                    })
-                )
-            }
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/review`
-            )
-        } catch (error) {
-            throw error
-        }
-    }
 
     return (
         <ActionsContainer>
@@ -133,7 +89,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
             </StyledLink>
             <StyledButton
                 sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={encryptAndReview}
+                onClick={() => handleNext()}
                 disabled={disableNext}
             >
                 <Box>{t("votingScreen.reviewButton")}</Box>
@@ -144,20 +100,61 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
 }
 
 export const VotingScreen: React.FC = () => {
-    let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
-    const {electionId} = useParams<{electionId?: string}>()
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-    const election = useAppSelector(selectElectionById(String(electionId)))
     const {t, i18n} = useTranslation()
+
+    const {electionId} = useParams<{electionId?: string}>()
+    const {tenantId, eventId} = useParams<TenantEvent>()
+
+    let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+
+    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
+    const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
+
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    const dispatch = useAppDispatch()
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
             ...disableNext,
             [id]: value,
         })
+    }
+
+    const encryptAndReview = () => {
+        if (isUndefined(selectionState) || disableNext || !ballotStyle) {
+            return
+        }
+
+        const startMs = Date.now()
+        const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+        const endMs = Date.now()
+        console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
+
+        dispatch(
+            setAuditableBallot({
+                electionId: ballotStyle?.election_id ?? "",
+                auditableBallot,
+            })
+        )
+
+        let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+
+        if (decodedSelectionState !== null) {
+            dispatch(
+                setBallotSelection({
+                    ballotStyle,
+                    ballotSelection: decodedSelectionState,
+                })
+            )
+        }
+
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/review`)
     }
 
     useEffect(() => {
@@ -217,7 +214,7 @@ export const VotingScreen: React.FC = () => {
                 />
             ))}
             <ActionButtons
-                ballotStyle={ballotStyle}
+                handleNext={encryptAndReview}
                 disableNext={Object.values(disableNext).some((v) => v)}
             />
         </PageLimit>
