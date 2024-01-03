@@ -30,9 +30,15 @@ pub async fn insert_results_area_contest(
     results_event_id: &str,
     elegible_census: Option<i64>,
     total_valid_votes: Option<i64>,
+    total_valid_votes_percent: Option<f64>,
+    total_invalid_votes: Option<i64>,
+    total_invalid_votes_percent: Option<f64>,
     explicit_invalid_votes: Option<i64>,
+    explicit_invalid_votes_percent: Option<f64>,
     implicit_invalid_votes: Option<i64>,
+    implicit_invalid_votes_percent: Option<f64>,
     blank_votes: Option<i64>,
+    blank_votes_percent: Option<f64>,
 ) -> Result<Response<insert_results_area_contest::ResponseData>> {
     let variables = insert_results_area_contest::Variables {
         tenant_id: tenant_id.to_string(),
@@ -43,9 +49,15 @@ pub async fn insert_results_area_contest(
         results_event_id: results_event_id.to_string(),
         elegible_census,
         total_valid_votes,
+        total_valid_votes_percent,
+        total_invalid_votes,
+        total_invalid_votes_percent,
         explicit_invalid_votes,
+        explicit_invalid_votes_percent,
         implicit_invalid_votes,
+        implicit_invalid_votes_percent,
         blank_votes,
+        blank_votes_percent,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

@@ -18,20 +18,7 @@ use std::path::PathBuf;
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
-/*
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContestResult {
-    pub contest: Contest,
-    pub total_votes: u64,
-    pub total_valid_votes: u64,
-    pub total_invalid_votes: u64,
-    pub total_blank_votes: u64,
-    pub census: u64,
-    pub invalid_votes: InvalidVotes,
-    pub candidate_result: Vec<CandidateResult>,
-}
- */
 #[instrument(skip_all)]
 pub async fn save_results(
     results: Vec<ElectionReportDataComputed>,
@@ -50,9 +37,7 @@ pub async fn save_results(
             &None, // name
             &None, // census
             &None, // total_valid_votes,
-            &None, // explicit_invalid_votes,
-            &None, // implicit_invalid_votes,
-            &None, // blank_votes,
+            &None, // total_valid_votes_percent,
         )
         .await?;
 
@@ -68,10 +53,15 @@ pub async fn save_results(
                     results_event_id,
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
-                    // missing total valid votes
+                    None, // totalValidVotesPercent
+                    None, // totalInvalidVotes
+                    None, // totalInvalidVotesPercent
                     Some(contest.contest_result.invalid_votes.explicit as i64),
+                    None, // explicitInvalidVotesPercent
                     Some(contest.contest_result.invalid_votes.implicit as i64),
+                    None, // implicitInvalidVotesPercent
                     Some(contest.contest_result.total_blank_votes as i64),
+                    None, // blankVotesPercent
                 )
                 .await?;
 
@@ -86,6 +76,7 @@ pub async fn save_results(
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
+                        None, // cast_votes_percent
                         candidate.winning_position.map(|val| val as i64),
                         None, // points
                     )
