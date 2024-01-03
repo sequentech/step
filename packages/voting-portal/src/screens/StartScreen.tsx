@@ -78,9 +78,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
 export const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-    const election = useAppSelector(selectElectionById(String(electionId)))
 
     useEffect(() => {
         if (!election) {

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -34,6 +34,7 @@ import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {TenantEvent} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -146,6 +147,8 @@ export const VotingScreen: React.FC = () => {
     const election = useAppSelector(selectElectionById(String(electionId)))
     const {t, i18n} = useTranslation()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
@@ -153,6 +156,12 @@ export const VotingScreen: React.FC = () => {
             [id]: value,
         })
     }
+
+    useEffect(() => {
+        if (!election || !ballotStyle) {
+            navigate(backLink)
+        }
+    })
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
