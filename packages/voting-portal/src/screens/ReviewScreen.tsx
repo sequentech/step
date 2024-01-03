@@ -81,10 +81,10 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
-    const {tenantId, eventId} = useParams<TenantEvent>()
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
+    const {tenantId, eventId} = useParams<TenantEvent>()
     const {toHashableBallot} = provideBallotService()
     const ballotId = hashBallot(auditableBallot)
 
@@ -184,6 +184,21 @@ export const ReviewScreen: React.FC = () => {
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    const {tenantId, eventId} = useParams<TenantEvent>()
+
+    function handleCloseDialog(val: boolean) {
+        setOpenBallotIdHelp(false)
+
+        if (val) {
+            if (ballotStyle && tenantId && eventId) {
+                navigate(
+                    `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
+                )
+            } else {
+                throw new Error("Impossible to go to the ballot audit")
+            }
+        }
+    }
 
     useEffect(() => {
         if (!ballotStyle || !auditableBallot) {
@@ -199,7 +214,7 @@ export const ReviewScreen: React.FC = () => {
         <PageLimit maxWidth="lg">
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             <Dialog
-                handleClose={() => setOpenBallotIdHelp(false)}
+                handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}
