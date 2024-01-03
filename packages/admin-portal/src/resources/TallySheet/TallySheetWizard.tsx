@@ -57,9 +57,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     
     
     useEffect(() => {
-        console.log("tallySheetId", action);
-        console.log("tallySheetId", tallySheetId);
-        console.log("tallySheetId", tallySheet);
         if (action) {
             setPage(action)
         }

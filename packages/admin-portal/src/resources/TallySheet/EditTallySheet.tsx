@@ -110,14 +110,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [tallySheet, candidates])
 
     useEffect(() => {
-        console.log("results", results)
-    }, [results])
-
-    useEffect(() => {
-        console.log("invalids", invalids)
-    }, [invalids])
-
-    useEffect(() => {
         if (contest) {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,

@@ -86,7 +86,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const createAction = () => {
         doAction(WizardSteps.Start)
-        console.log("createAction")
     }
 
     const Empty = () => (
@@ -117,18 +116,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const viewAction = (id: Identifier) => {
-        console.log("viewAction", id)
         doAction(WizardSteps.View, id)
     }
 
     const publishAction = (id: Identifier) => {
-        console.log("publishAction", id)
         setDeleteId(id)
         setOpenPublishDialog(true)
     }
 
     const unpublishAction = (id: Identifier) => {
-        console.log("unpublishAction", id)
         setDeleteId(id)
         setOpenUnpublishDialog(true)
     }
@@ -158,9 +154,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmPublishAction = async () => {
-        console.log("confirmPublishAction", deleteId)
-        console.log("confirmPublishAction", contest.election_event_id)
-
         const {data, errors} = await publishTallySheet({
             variables: {
                 electionEventId: contest.election_event_id,

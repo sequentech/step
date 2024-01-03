@@ -45,7 +45,6 @@ export const CreateTallySheet: React.FC<CreateTallySheetProps> = (props) => {
 
     useEffect(() => {
         if (areas) {
-            console.log("areas", areas)
             const areatListTemp = areas.sequent_backend_area_contest.map(
                 (item: {area: {id: string; name: string}}) => {
                     return {
@@ -54,7 +53,6 @@ export const CreateTallySheet: React.FC<CreateTallySheetProps> = (props) => {
                     }
                 }
             )
-            console.log("areas", areatListTemp)
             setAreasList(areatListTemp)
         }
     }, [areas])

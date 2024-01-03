@@ -124,18 +124,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         }
     }, [tallySheet, candidates])
 
-    // useEffect(() => {
-    //     console.log("results", results)
-    // }, [results])
-
-    // useEffect(() => {
-    //     console.log("invalids", invalids)
-    // }, [invalids])
-
-    // useEffect(() => {
-    //     console.log("candidatesResults", candidatesResults)
-    // }, [candidatesResults])
-
     useEffect(() => {
         if (contest) {
             setResults((prev: IAreaContestResults) => ({
@@ -262,7 +250,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         notify(t("tallysheet.createTallySuccess"), {type: "success"})
                     },
                     onError: (error) => {
-                        console.log("error", error)
                         notify(t("tallysheet.createTallyError"), {type: "error"})
                     },
                 }
@@ -284,7 +271,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         notify(t("tallysheet.createTallySuccess"), {type: "success"})
                     },
                     onError: (error) => {
-                        console.log("error", error)
                         notify(t("tallysheet.createTallyError"), {type: "error"})
                     },
                 }
