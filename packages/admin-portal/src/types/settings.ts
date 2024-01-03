@@ -10,3 +10,7 @@ export type TTenant = {
         kiosk: boolean
     }
 }
+
+export type TVottingSetting = {
+    [key: string]: boolean
+}

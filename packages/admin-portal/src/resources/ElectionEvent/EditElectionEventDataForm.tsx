@@ -9,7 +9,6 @@ import {
     TextInput,
     Toolbar,
     SaveButton,
-    DeleteButton,
     RaRecord,
     Identifier,
     useEditController,
@@ -21,7 +20,6 @@ import {
     Tabs,
     Tab,
     Grid,
-    Button,
     Drawer,
     Box,
 } from "@mui/material"
@@ -36,11 +34,11 @@ import {IPermissions} from "@/types/keycloak"
 import {useAtom} from "jotai"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {Dialog} from "@sequentech/ui-essentials"
-import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {TVottingSetting} from "@/types/settings"
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -62,7 +60,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
-    // const [votingSettings, setVotingSettings] = useState<any>({online: true, kiosk: true})
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
 
@@ -73,7 +70,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         undoable: false,
     })
 
-    const [votingSettings] = useState<any>({
+    const [votingSettings] = useState<TVottingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
     })

@@ -29,6 +29,11 @@ import {
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
+import VideoFileIcon from "@mui/icons-material/VideoFile"
+import AudioFileIcon from "@mui/icons-material/AudioFile"
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
+import ImageIcon from "@mui/icons-material/Image"
+import {useWatch} from "react-hook-form"
 
 interface CreateSupportMaterialProps {
     record: any
@@ -58,25 +63,17 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const [valueMaterials, setValueMaterials] = useState<I18n>(BASE_DATA)
     const [imageType, setImageType] = useState<string | undefined>()
     const [imageId, setImageId] = useState<string | undefined>()
-    const [parsedValue, setParsedValue] = useState<GetUploadUrlMutation | null | undefined>()
 
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
-
-    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
-        "sequent_backend_document",
-        {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
-        }
-    )
+    
 
     useEffect(() => {
         if (record) {
             const temp: I18n = {...BASE_DATA}
             for (const lang in record?.enabled_languages) {
-                temp.title_i18n[lang] = ""
-                temp.subtitle_i18n[lang] = ""
+                temp.title_i18n[lang] = valueMaterials.title_i18n[lang] || ""
+                temp.subtitle_i18n[lang] = valueMaterials.subtitle_i18n[lang] || ""
             }
             setValueMaterials(temp)
         }
@@ -163,9 +160,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-                setParsedValue(data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -227,7 +221,25 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     </PageHeaderStyles.SubTitle>
                     <Tabs elements={renderTabs(record)} />
                     <DropFile handleFiles={handleFiles} />
-                    {parsedValue?.get_upload_url?.document_id ? <div>TIENES</div> : null}
+                    {imageType ? (
+                        <Box
+                            sx={{
+                                width: "100%",
+                                display: "flex",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {imageType.includes("image") ? (
+                                <ImageIcon sx={{fontSize: "80px"}} />
+                            ) : imageType.includes("pdf") ? (
+                                <PictureAsPdfIcon sx={{fontSize: "80px"}} />
+                            ) : imageType.includes("video") ? (
+                                <VideoFileIcon sx={{fontSize: "80px"}} />
+                            ) : imageType.includes("audio") ? (
+                                <AudioFileIcon sx={{fontSize: "80px"}} />
+                            ) : null}
+                        </Box>
+                    ) : null}
                     <Hidden>
                         <TextInput
                             label="Election Event"
