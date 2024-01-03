@@ -390,6 +390,12 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+
+      # used by AWS S3 to "load_from_env()". Don't use this in production, not
+      # needed. Instead, in production we'll use Web Identity Tokens
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
       AWS_REGION: ${AWS_REGION}
@@ -629,6 +635,12 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+
+      # used by AWS S3 to "load_from_env()". Don't use this in production, not
+      # needed. Instead, in production we'll use Web Identity Tokens
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
       AWS_REGION: ${AWS_REGION}
