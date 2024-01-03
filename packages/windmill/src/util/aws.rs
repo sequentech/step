@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use aws_config::{meta::region::RegionProviderChain, Region, SdkConfig};
-use tracing::{instrument, info};
+use tracing::{info, instrument};
 
 pub fn get_region() -> Result<RegionProviderChain> {
     let region = RegionProviderChain::first_try(Region::new(
@@ -19,18 +19,17 @@ pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
     let region = Region::new(
         std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,
     );
-    Ok(
-        aws_config::from_env()
-            .region(region)
-            .load()
-            .await
-    )
+    Ok(aws_config::from_env().region(region).load().await)
 }
 
 #[instrument(err)]
 pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
     let sdk_config = get_from_env_aws_config().await?;
-    let env_var_name = if is_private {"AWS_S3_PRIVATE_URI"} else {"AWS_S3_PUBLIC_URI"};
+    let env_var_name = if is_private {
+        "AWS_S3_PRIVATE_URI"
+    } else {
+        "AWS_S3_PUBLIC_URI"
+    };
     let endpoint_result = std::env::var(env_var_name);
     info!("env_var_name={env_var_name}, endpoint_result = {endpoint_result:?}");
     if let Ok(endpoint_uri) = endpoint_result {
@@ -39,7 +38,11 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
         let access_secret = std::env::var("AWS_S3_ACCESS_SECRET")?;
 
         let credentials_provider = aws_sdk_s3::config::Credentials::new(
-            access_key, access_secret, None, None, "loaded-from-custom-env"
+            access_key,
+            access_secret,
+            None,
+            None,
+            "loaded-from-custom-env",
         );
 
         let s3_config = aws_sdk_s3::config::Builder::from(&sdk_config)

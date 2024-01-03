@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::util::aws::{
-    get_from_env_aws_config, get_fetch_expiration_secs, get_max_upload_size, get_upload_expiration_secs, get_s3_aws_config,
+    get_fetch_expiration_secs, get_from_env_aws_config, get_max_upload_size, get_s3_aws_config,
+    get_upload_expiration_secs,
 };
 
 use anyhow::{anyhow, Result};
@@ -132,7 +133,7 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
     Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err,ret)]
+#[instrument(err, ret)]
 pub async fn get_upload_url(key: String) -> Result<String> {
     let s3_bucket = get_public_bucket()?;
     let config = get_s3_aws_config(/* private = */ false).await?;
