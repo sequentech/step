@@ -9,7 +9,7 @@ mutation InsertResultsAreaContestCandidate(
     $castVotes: Int,
     $winningPosition: Int,
     $points: Int,
-    $castVotesPercent: Float,
+    $castVotesPercent: numeric,
 ) {
   insert_sequent_backend_results_area_contest_candidate(
     objects:

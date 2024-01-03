@@ -6,7 +6,7 @@ mutation InsertResultsContestCandidate(
     $candidateId: uuid,
     $resultsEventId: uuid!,
     $castVotes: Int,
-    $castVotesPercent: Float,
+    $castVotesPercent: numeric,
     $winningPosition: Int,
     $points: Int,
 ) {

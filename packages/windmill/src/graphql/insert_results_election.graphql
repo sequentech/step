@@ -6,7 +6,7 @@ mutation InsertResultsElection(
     $name: String,
     $elegibleCensus: Int,
     $totalValidVotes: Int,
-    $totalValidVotesPercent: Float,
+    $totalValidVotesPercent: numeric,
 ) {
   insert_sequent_backend_results_election(
     objects:
