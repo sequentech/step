@@ -31,6 +31,11 @@ import {
     getSupportMaterialsList,
     setSupportMaterial,
 } from "../store/supportMaterials/supportMaterialsSlice"
+import {
+    IElectionEvent,
+    selectElectionEventById,
+    setElectionEvent,
+} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -76,9 +81,11 @@ export const SupportMaterialsScreen: React.FC = () => {
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const dispatch = useAppDispatch()
     const materials = useAppSelector(getSupportMaterialsList())
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
 
+    // Materials
     const {
         data: dataMaterials,
         error: errorMaterials,
@@ -98,29 +105,6 @@ export const SupportMaterialsScreen: React.FC = () => {
         }
     }, [loadingMaterials, errorMaterials, dataMaterials, dispatch])
 
-    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-    })
-
-    const [materialsTitles, setMaterialsTitles] = useState<GetElectionEventQuery | undefined>({
-        sequent_backend_election_event: [],
-    })
-
-    useEffect(() => {
-        if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            setMaterialsTitles(
-                dataElectionEvent?.sequent_backend_election_event?.[0] as GetElectionEventQuery
-            )
-        }
-    }, [dataElectionEvent])
-
-    const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-    }
-
     useEffect(() => {
         const materialsList: Array<ISupportMaterial> = []
         for (const material in materials) {
@@ -128,6 +112,38 @@ export const SupportMaterialsScreen: React.FC = () => {
         }
         setMaterialsList(materialsList)
     }, [materials])
+
+    // Election Event
+    const {
+        data: dataElectionEvent,
+        error: errorElectionEvent,
+        loading: loadingElectionEvent,
+    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+    })
+
+    useEffect(() => {
+        if (!loadingElectionEvent && !errorElectionEvent && dataElectionEvent) {
+            for (let material of dataElectionEvent.sequent_backend_election_event) {
+                dispatch(setElectionEvent(material))
+            }
+        }
+    }, [loadingElectionEvent, errorElectionEvent, dataElectionEvent, dispatch])
+
+    const [materialsTitles, setMaterialsTitles] = useState<IElectionEvent | undefined>()
+
+    useEffect(() => {
+        if (electionEvent) {
+            setMaterialsTitles(electionEvent)
+        }
+    }, [electionEvent])
+
+    const handleNavigateMaterials = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+    }
 
     return (
         <PageLimit maxWidth="lg">
@@ -154,12 +170,19 @@ export const SupportMaterialsScreen: React.FC = () => {
                 <Box>
                     <StyledTitle variant="h1">
                         <Box>
-                            {translateElection(materialsTitles, "materialsTitle", i18n.language)}
+                            {materialsTitles &&
+                                translateElection(materialsTitles, "materialsTitle", i18n.language)}
                         </Box>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                         {stringToHtml(
-                            translateElection(materialsTitles, "materialsSubtitle", i18n.language)
+                            materialsTitles
+                                ? translateElection(
+                                      materialsTitles,
+                                      "materialsSubtitle",
+                                      i18n.language
+                                  )
+                                : ""
                         )}
                     </Typography>
                 </Box>
