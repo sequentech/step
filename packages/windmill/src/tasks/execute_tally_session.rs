@@ -471,7 +471,7 @@ async fn create_results_event(
     Ok(results_event.id.clone())
 }
 
-#[instrument(err)]
+#[instrument(err, skip(auth_headers))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
     election_event_id: String,
