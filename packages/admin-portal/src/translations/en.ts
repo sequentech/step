@@ -945,7 +945,7 @@ const englishTranslation = {
             },
             message: {
                 publishError: "Error publishing tally sheet",
-                publishSuccess: "Tally sheet published",    
+                publishSuccess: "Tally sheet published",
             },
         },
         materials: {

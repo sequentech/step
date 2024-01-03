@@ -290,7 +290,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 }
             )
         }
-
     }
 
     return (

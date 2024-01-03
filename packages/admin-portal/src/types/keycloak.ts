@@ -43,7 +43,7 @@ export enum IPermissions {
     TALLY_READ = "tally-read",
     TALLY_START = "tally-start",
     TALLY_WRITE = "tally-write",
-    TALLY_SHEET_VIEW = "tally-sheet-view", 
+    TALLY_SHEET_VIEW = "tally-sheet-view",
     TALLY_SHEET_CREATE = "tally-sheet-create",
     TALLY_SHEET_PUBLISH = "tally-sheet-publish",
     TALLY_SHEET_DELETE = "tally-sheet-delete",

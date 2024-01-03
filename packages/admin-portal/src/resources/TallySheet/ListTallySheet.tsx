@@ -84,12 +84,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         }
     }, [reload])
 
-    
     const createAction = () => {
         doAction(WizardSteps.Start)
         console.log("createAction")
     }
-    
+
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
@@ -108,7 +107,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             )}
         </ResourceListStyles.EmptyBox>
     )
-    
+
     if (!canView) {
         return <Empty />
     }
