@@ -32,7 +32,12 @@ pub async fn generate_ballot_publication(
     body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
 ) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::PUBLISH_WRITE],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id.clone();
@@ -68,7 +73,12 @@ pub async fn publish_ballot(
     body: Json<PublishBallotInput>,
     claims: JwtClaims,
 ) -> Result<Json<PublishBallotOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::PUBLISH_WRITE],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
@@ -109,7 +119,12 @@ pub async fn get_ballot_publication_changes(
     body: Json<GetBallotPublicationChangesInput>,
     claims: JwtClaims,
 ) -> Result<Json<PublicationDiff>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::PUBLISH_READ])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::PUBLISH_READ],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
