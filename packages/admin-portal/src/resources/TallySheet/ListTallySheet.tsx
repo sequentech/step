@@ -13,12 +13,11 @@ import {
     FunctionField,
     useRefresh,
     useNotify,
-    AuthContext,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Button, Tooltip, Typography} from "@mui/material"
 import {PublishTallySheetMutation, Sequent_Backend_Contest} from "../../gql/graphql"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -37,8 +36,9 @@ import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add} from "@mui/icons-material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {IPermissions} from "sequent-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -59,6 +59,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const {contest, doAction, reload} = props
 
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
@@ -72,8 +73,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
 
     const authContext = useContext(AuthContext)
-    // const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_WRITE)
-    // const canRead = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_READ)
+    const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
+    const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
+    const canPublish = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_PUBLISH)
+    const canDelete = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_DELETE)
 
     useEffect(() => {
         if (reload) {
@@ -81,47 +84,33 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         }
     }, [reload])
 
+    
+    const createAction = () => {
+        doAction(WizardSteps.Start)
+        console.log("createAction")
+    }
+    
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
                 {t("tallysheet.empty.header")}
             </Typography>
-            {/* {canWrite && ( */}
-            <>
-                <Button onClick={createAction}>
-                    <IconButton icon={faPlus} fontSize="24px" />
-                    {t("tallysheet.empty.action")}
-                </Button>
-                <Typography variant="body1" paragraph>
-                    {t("common.resources.noResult.askCreate")}
-                </Typography>
-            </>
-            {/* )} */}
+            {canCreate && (
+                <>
+                    <Button onClick={createAction}>
+                        <IconButton icon={faPlus} fontSize="24px" />
+                        {t("tallysheet.empty.action")}
+                    </Button>
+                    <Typography variant="body1" paragraph>
+                        {t("common.resources.noResult.askCreate")}
+                    </Typography>
+                </>
+            )}
         </ResourceListStyles.EmptyBox>
     )
-
-    // if (!canRead) {
-    //     return <Empty />
-    // }
-
-    // const onClickPublishTallySheet = async () => {
-    //     const {data, errors} = await publishTallySheet({
-    //         variables: {
-    //             electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
-    //             tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
-    //         },
-    //     })
-    //     if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-    //         // (unpublished) tally sheet not found, probably it's already published
-    //     }
-    //     if (errors) {
-    //         // add error notification
-    //     }
-    // }
-
-    const createAction = () => {
-        doAction(WizardSteps.Start)
-        console.log("createAction")
+    
+    if (!canView) {
+        return <Empty />
     }
 
     const editAction = (id: Identifier) => {
@@ -170,10 +159,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmPublishAction = async () => {
-
-        console.log("confirmPublishAction", deleteId);
+        console.log("confirmPublishAction", deleteId)
         console.log("confirmPublishAction", contest.election_event_id)
-        
 
         const {data, errors} = await publishTallySheet({
             variables: {
@@ -194,8 +181,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <VisibilityIcon />, action: viewAction},
+        {icon: <EditIcon />, action: editAction, showAction: () => canCreate},
+        {icon: <VisibilityIcon />, action: viewAction, showAction: () => canView},
         {
             icon: (
                 <Tooltip title={t("tallysheet.common.publish")}>
@@ -203,6 +190,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: publishAction,
+            showAction: () => canPublish,
         },
         {
             icon: (
@@ -211,8 +199,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: unpublishAction,
+            showAction: () => canPublish,
         },
-        {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDelete},
     ]
 
     return (
@@ -260,9 +249,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <FunctionField
                         label={t("tallysheet.table.published")}
                         render={(record: any) =>
-                            record.published_at ? (
-                                <CheckCircleOutlineIcon color="success" />
-                            ) : null
+                            record.published_at ? <CheckCircleOutlineIcon color="success" /> : null
                         }
                     />
 
