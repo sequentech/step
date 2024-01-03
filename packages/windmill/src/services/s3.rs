@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::util::aws::{
-    get_aws_config, get_fetch_expiration_secs, get_max_upload_size, get_upload_expiration_secs,
+    get_from_env_aws_config, get_fetch_expiration_secs, get_max_upload_size, get_upload_expiration_secs, get_s3_aws_config,
 };
 
 use anyhow::{anyhow, Result};
@@ -18,20 +18,20 @@ use tracing::{info, instrument};
 
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket =
-        env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set"))?;
+        env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
     Ok(s3_bucket)
 }
 
 pub fn get_public_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
-        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set"))?;
+        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
     Ok(s3_bucket)
 }
 
-#[instrument(skip(client))]
+#[instrument(skip(client, config))]
 async fn create_bucket_if_not_exists(
     client: &s3::Client,
-    config: &SdkConfig,
+    config: &s3::Config,
     bucket_name: &str,
 ) -> Result<()> {
     let region = config
@@ -62,8 +62,8 @@ async fn create_bucket_if_not_exists(
     Ok(())
 }
 
-pub async fn get_s3_client(config: &SdkConfig) -> Result<s3::Client> {
-    let client = s3::Client::new(config);
+pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
+    let client = s3::Client::from_conf(config);
     Ok(client)
 }
 
@@ -82,8 +82,8 @@ pub async fn upload_to_s3(
         ));
     }
 
-    let config = get_aws_config().await?;
-    let client = get_s3_client(&config).await?;
+    let config = get_s3_aws_config(/* private = */ true).await?;
+    let client = get_s3_client(config.clone()).await?;
     create_bucket_if_not_exists(&client, &config, s3_bucket.as_str()).await?;
     client
         .put_object()
@@ -116,8 +116,8 @@ pub fn get_public_document_key(tenant_id: String, document_id: String, name: Str
 
 #[instrument(err)]
 pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> {
-    let config = get_aws_config().await?;
-    let client = get_s3_client(&config).await?;
+    let config = get_s3_aws_config(/* private = */ false).await?;
+    let client = get_s3_client(config).await?;
 
     let presigning_config =
         PresigningConfig::expires_in(Duration::from_secs(get_fetch_expiration_secs()?))?;
@@ -132,12 +132,11 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
     Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err)]
+#[instrument(err,ret)]
 pub async fn get_upload_url(key: String) -> Result<String> {
     let s3_bucket = get_public_bucket()?;
-    let config = get_aws_config().await?;
-    let client = get_s3_client(&config).await?;
-    create_bucket_if_not_exists(&client, &config, s3_bucket.as_str()).await?;
+    let config = get_s3_aws_config(/* private = */ false).await?;
+    let client = get_s3_client(config.clone()).await?;
 
     let presigning_config =
         PresigningConfig::expires_in(Duration::from_secs(get_upload_expiration_secs()?))?;

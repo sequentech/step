@@ -14,7 +14,7 @@ use crate::services::users::list_users;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
-use crate::util::aws::get_aws_config;
+use crate::util::aws::get_from_env_aws_config;
 
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use deadpool_postgres::Client as DbClient;
@@ -161,7 +161,7 @@ impl SmsSender {
         Ok(SmsSender {
             transport: match sms_transport_name.as_str() {
                 "AwsSns" => {
-                    let shared_config = get_aws_config().await?;
+                    let shared_config = get_from_env_aws_config().await?;
                     let client = AwsSnsClient::new(&shared_config);
 
                     let base_message_attributes: HashMap<String, String> = serde_json::from_str(
@@ -247,7 +247,7 @@ impl EmailSender {
         Ok(EmailSender {
             transport: match email_transport_name.as_str() {
                 "AwsSes" => {
-                    let shared_config = get_aws_config().await?;
+                    let shared_config = get_from_env_aws_config().await?;
                     EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
                 }
                 _ => EmailTransport::Console,
