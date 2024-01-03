@@ -52,10 +52,9 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         Sequent_Backend_Tally_Sheet | undefined
     >()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false)
-    
+
     const {data: tallySheet} = useGetOne("sequent_backend_tally_sheet", {id: tallySheetId})
-    
-    
+
     useEffect(() => {
         if (action) {
             setPage(action)
