@@ -12,6 +12,7 @@ import {
     WrapperField,
     FunctionField,
     useRefresh,
+    useNotify,
     AuthContext,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
@@ -36,8 +37,8 @@ import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add} from "@mui/icons-material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import { IPermissions } from 'sequent-core'
-import { useTenantStore } from '@/providers/TenantContextProvider'
+import {IPermissions} from "sequent-core"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -57,10 +58,12 @@ type TTallySheetList = {
 export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const {contest, doAction, reload} = props
 
+    console.log("ListTallySheet", contest)
+
     const {t} = useTranslation()
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
-    const [tenantId] = useTenantStore()
+    const notify = useNotify()
 
     const [deleteOne] = useDelete()
 
@@ -87,7 +90,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             </Typography>
             {/* {canWrite && ( */}
             <>
-                <Button onClick={onClickPublishTallySheet}>Felix TEST puedes borrarlo</Button>
                 <Button onClick={createAction}>
                     <IconButton icon={faPlus} fontSize="24px" />
                     {t("tallysheet.empty.action")}
@@ -104,20 +106,20 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     //     return <Empty />
     // }
 
-    const onClickPublishTallySheet = async () => {
-        const {data, errors} = await publishTallySheet({
-            variables: {
-                electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
-                tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
-            },
-        })
-        if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-            // (unpublished) tally sheet not found, probably it's already published
-        }
-        if (errors) {
-            // add error notification
-        }
-    }
+    // const onClickPublishTallySheet = async () => {
+    //     const {data, errors} = await publishTallySheet({
+    //         variables: {
+    //             electionEventId: "c83861cd-a912-4172-a8f5-fc9a35c8fb55",
+    //             tallySheetId: "faef77c8-6905-439d-8b78-80dd8a76ca74",
+    //         },
+    //     })
+    //     if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
+    //         // (unpublished) tally sheet not found, probably it's already published
+    //     }
+    //     if (errors) {
+    //         // add error notification
+    //     }
+    // }
 
     const createAction = () => {
         doAction(WizardSteps.Start)
@@ -169,16 +171,20 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         setDeleteId(undefined)
     }
 
-    const confirmPublishAction = () => {
-        // deleteOne(
-        //     "sequent_backend_tally_sheet",
-        //     {id: deleteId},
-        //     {
-        //         onSuccess() {
-        //             refresh()
-        //         },
-        //     }
-        // )
+    const confirmPublishAction = async () => {
+        const {data, errors} = await publishTallySheet({
+            variables: {
+                electionEventId: contest.election_event_id,
+                tallySheetId: deleteId,
+            },
+        })
+        if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
+            console.log("(unpublished) tally sheet not found, probably it's already published")
+        }
+        if (errors) {
+            // add error notification
+            notify(t("tallysheet.error.publish"), {type: "error"})
+        }
         setDeleteId(undefined)
     }
 
@@ -216,7 +222,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         withImport={false}
                         withExport={false}
                         extraActions={[
-                            <Button key="add" onClick={createAction}>
+                            <Button key={0} onClick={createAction}>
                                 <Add />
                                 {t("tallysheet.empty.add")}
                             </Button>,

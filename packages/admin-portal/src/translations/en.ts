@@ -1,5 +1,3 @@
-import {Backdrop} from "@mui/material"
-import {BreadCrumbSteps} from "@sequentech/ui-essentials"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -943,6 +941,9 @@ const englishTranslation = {
                 area: "Area",
                 contest: "Contest",
                 published: "Published",
+            },
+            error: {
+                publish: "Error publishing tally sheet",
             },
         },
         materials: {

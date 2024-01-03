@@ -944,6 +944,9 @@ const spanishTranslation: TranslationType = {
                 contest: "Cotienda",
                 published: "Publicado",
             },
+            error: {
+                publish: "Error publicando la Hoja de Recuento",
+            },
         },
         materials: {
             createMaterialSuccess: "Material de soporte creado",

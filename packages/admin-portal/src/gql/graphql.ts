@@ -14006,6 +14006,7 @@ export type Sequent_Backend_Tally_Sheet = {
   content?: Maybe<Scalars['jsonb']['output']>;
   contest_id: Scalars['uuid']['output'];
   created_at: Scalars['timestamptz']['output'];
+  created_by_user_id: Scalars['String']['output'];
   deleted_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
@@ -14075,6 +14076,7 @@ export type Sequent_Backend_Tally_Sheet_Bool_Exp = {
   content?: InputMaybe<Jsonb_Comparison_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  created_by_user_id?: InputMaybe<String_Comparison_Exp>;
   deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -14121,6 +14123,7 @@ export type Sequent_Backend_Tally_Sheet_Insert_Input = {
   content?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  created_by_user_id?: InputMaybe<Scalars['String']['input']>;
   deleted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -14139,6 +14142,7 @@ export type Sequent_Backend_Tally_Sheet_Max_Fields = {
   channel?: Maybe<Scalars['String']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  created_by_user_id?: Maybe<Scalars['String']['output']>;
   deleted_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
@@ -14156,6 +14160,7 @@ export type Sequent_Backend_Tally_Sheet_Min_Fields = {
   channel?: Maybe<Scalars['String']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  created_by_user_id?: Maybe<Scalars['String']['output']>;
   deleted_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
@@ -14190,6 +14195,7 @@ export type Sequent_Backend_Tally_Sheet_Order_By = {
   content?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
+  created_by_user_id?: InputMaybe<Order_By>;
   deleted_at?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
@@ -14230,6 +14236,8 @@ export enum Sequent_Backend_Tally_Sheet_Select_Column {
   /** column name */
   CreatedAt = 'created_at',
   /** column name */
+  CreatedByUserId = 'created_by_user_id',
+  /** column name */
   DeletedAt = 'deleted_at',
   /** column name */
   ElectionEventId = 'election_event_id',
@@ -14257,6 +14265,7 @@ export type Sequent_Backend_Tally_Sheet_Set_Input = {
   content?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  created_by_user_id?: InputMaybe<Scalars['String']['input']>;
   deleted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -14284,6 +14293,7 @@ export type Sequent_Backend_Tally_Sheet_Stream_Cursor_Value_Input = {
   content?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  created_by_user_id?: InputMaybe<Scalars['String']['input']>;
   deleted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -14309,6 +14319,8 @@ export enum Sequent_Backend_Tally_Sheet_Update_Column {
   ContestId = 'contest_id',
   /** column name */
   CreatedAt = 'created_at',
+  /** column name */
+  CreatedByUserId = 'created_by_user_id',
   /** column name */
   DeletedAt = 'deleted_at',
   /** column name */
