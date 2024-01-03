@@ -37,6 +37,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::services::connection;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
@@ -471,25 +472,12 @@ async fn create_results_event(
 }
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 120000)]
-pub async fn execute_tally_session(
+pub async fn execute_tally_session_wrapped(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    auth_headers: AuthHeaders,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-    let lock = PgLock::acquire(
-        auth_headers.clone(),
-        format!(
-            "execute_tally_session-{}-{}-{}",
-            tenant_id, election_event_id, tally_session_id
-        ),
-        Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(120)),
-    )
-    .await?;
-
     let (tally_session_execution, tally_session) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -507,7 +495,6 @@ pub async fn execute_tally_session(
     .await?;
 
     if plaintexts_data_opt.is_none() {
-        lock.release(auth_headers.clone()).await?;
         return Ok(());
     }
 
@@ -592,7 +579,38 @@ pub async fn execute_tally_session(
         )
         .await?;
     }
-    lock.release(auth_headers.clone()).await?;
 
     Ok(())
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(time_limit = 120000, max_retries = 1)]
+pub async fn execute_tally_session(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let lock = PgLock::acquire(
+        auth_headers.clone(),
+        format!(
+            "execute_tally_session-{}-{}-{}",
+            tenant_id, election_event_id, tally_session_id
+        ),
+        Uuid::new_v4().to_string(),
+        Some(ISO8601::now() + Duration::seconds(120)),
+    )
+    .await?;
+
+    let res = execute_tally_session_wrapped(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+        auth_headers.clone(),
+    )
+    .await;
+    lock.release(auth_headers.clone()).await?;
+
+    res
 }

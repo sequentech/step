@@ -31,7 +31,12 @@ pub async fn create_tally_ceremony(
     body: Json<CreateTallyCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_CEREMONY],
+    )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
@@ -65,7 +70,12 @@ pub async fn update_tally_ceremony(
     body: Json<UpdateTallyCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_CEREMONY],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
@@ -106,7 +116,12 @@ pub async fn restore_private_key(
     body: Json<SetPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<SetPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let is_valid = tally_ceremony::set_private_key(

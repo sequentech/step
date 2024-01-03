@@ -19,6 +19,7 @@ import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {BallotLocator} from "./screens/BallotLocator"
 import {SettingsContext} from "./providers/SettingsContextProvider"
+import {SupportMaterialsScreen} from "./screens/SupporMaterialsScreen"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -85,6 +86,18 @@ const App = () => {
                                 <ApolloContextProvider>
                                     <ApolloWrapper>
                                         <ElectionSelectionScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/materials"
+                        element={
+                            <RouteParameterProvider>
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <SupportMaterialsScreen />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>
                             </RouteParameterProvider>

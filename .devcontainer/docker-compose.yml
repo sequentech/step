@@ -83,6 +83,18 @@ services:
     #depends_on:
     #  - graphql-engine
   
+  # used to add headers to minio
+  minio-proxy:
+    profiles: ["full", "base"]
+    container_name: minio-proxy
+    image: nginx:latest
+    ports:
+      - "9002:9002"
+    volumes:
+      - ./minio/nginx:/etc/nginx/conf.d
+    depends_on:
+      - minio
+  
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
@@ -360,6 +372,14 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      AMQP_ADDR: ${AMQP_ADDR}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
+      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
       HASURA_DB__HOST: ${HASURA_DB__HOST}
