@@ -14,7 +14,7 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
-import { GetDocumentQuery } from '../../gql/graphql'
+import {GetDocumentQuery} from "../../gql/graphql"
 
 const BorderBox = styled(Box)`
     display: flex;

@@ -40,7 +40,7 @@ import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
-import { useTenantStore } from '@/providers/TenantContextProvider'
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -130,19 +130,9 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         for (const setting in votingSettings) {
             const enabled_item: any = {}
-
-            console.log("all_channels :>> ", all_channels)
-            console.log("votingSettings :>> ", votingSettings)
-            console.log("setting :>> ", setting)
-            console.log("settsetting in all_channelsing :>> ", setting in all_channels)
-
             enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-
-            console.log("enabled_item :>> ", enabled_item)
-
             temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-            // temp.voting_channels = {...enabled_item}
         }
 
         return temp
