@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::anyhow;
 use sequent_core::services::connection;
 use sequent_core::types::hasura_types::Document;
 use tracing::instrument;
@@ -34,9 +35,9 @@ pub async fn upload_and_return_document(
 
     let document = &new_document
         .data
-        .expect("expected data".into())
+        .ok_or(anyhow!("expected data"))?
         .insert_sequent_backend_document
-        .unwrap()
+        .ok_or(anyhow!("expected document"))?
         .returning[0];
 
     let document_id = document.id.clone();
@@ -47,7 +48,7 @@ pub async fn upload_and_return_document(
         &bytes,
         document_s3_key,
         media_type,
-        s3::get_private_bucket(),
+        s3::get_private_bucket()?,
     )
     .await?;
 
@@ -91,9 +92,9 @@ pub async fn get_upload_url(
     )
     .await?
     .data
-    .expect("expected data".into())
+    .ok_or(anyhow!("expected data"))?
     .insert_sequent_backend_document
-    .unwrap()
+    .ok_or(anyhow!("expected document"))?
     .returning[0];
     let path =
         s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());

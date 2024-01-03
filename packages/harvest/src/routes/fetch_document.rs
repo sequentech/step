@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
@@ -40,7 +40,7 @@ pub async fn fetch_document(
 
     let document = &document_result
         .data
-        .expect("expected data".into())
+        .ok_or(anyhow!("expected data"))?
         .sequent_backend_document[0];
 
     let document_s3_key = s3::get_document_key(
@@ -49,9 +49,9 @@ pub async fn fetch_document(
         input.document_id,
     );
     let bucket = if document.is_public.unwrap_or(false) {
-        s3::get_public_bucket()
+        s3::get_public_bucket()?
     } else {
-        s3::get_private_bucket()
+        s3::get_private_bucket()?
     };
     let url = s3::get_document_url(document_s3_key, bucket).await?;
 

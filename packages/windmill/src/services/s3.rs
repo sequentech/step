@@ -18,13 +18,13 @@ use tracing::{info, instrument};
 
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket =
-        env::var("AWS_S3_BUCKET").map_err(|err| anyhow!(&format!("AWS_S3_BUCKET must be set")))?;
+        env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set"))?;
     Ok(s3_bucket)
 }
 
 pub fn get_public_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
-        .map_err(|err| anyhow!(&format!("AWS_S3_PUBLIC_BUCKET must be set")))?;
+        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set"))?;
     Ok(s3_bucket)
 }
 
