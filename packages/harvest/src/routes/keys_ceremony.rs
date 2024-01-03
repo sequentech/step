@@ -44,7 +44,12 @@ pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CheckPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let is_valid = keys_ceremony::check_private_key(
@@ -89,7 +94,12 @@ pub async fn get_private_key(
     body: Json<GetPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let encrypted_private_key = keys_ceremony::get_private_key(
@@ -135,7 +145,12 @@ pub async fn create_keys_ceremony(
     body: Json<CreateKeysCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateKeysCeremonyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_CEREMONY],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 

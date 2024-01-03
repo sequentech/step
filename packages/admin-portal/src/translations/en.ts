@@ -1,5 +1,5 @@
-import { Backdrop } from '@mui/material';
-import { BreadCrumbSteps } from '@sequentech/ui-essentials';
+import {Backdrop} from "@mui/material"
+import {BreadCrumbSteps} from "@sequentech/ui-essentials"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -190,6 +190,7 @@ const englishTranslation = {
                 dates: "Dates",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
+                materials: "Support Materials",
             },
             field: {
                 name: "Name",
@@ -199,6 +200,9 @@ const englishTranslation = {
                 endDateTime: "End Date and Time",
                 language: "Language",
                 votingChannels: "Voting Channels",
+                materialActivated: "Support Materials Activated",
+                materialTitle: "Title",
+                materialSubTitle: "Subtitle",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -515,6 +519,9 @@ const englishTranslation = {
                 exportFormat: "Export '{{item}}' results in {{format}} format",
                 allResults: "election event",
                 globalAreaResults: "all areas",
+                title: "Title",
+                subtitle: "Subtitle",
+                kind: "File type",
             },
             language: {
                 es: "Spanish",
@@ -936,7 +943,21 @@ const englishTranslation = {
                 area: "Area",
                 contest: "Contest",
                 published: "Published",
-            }
+            },
+        },
+        materials: {
+            createMaterialSuccess: "Support material created",
+            createMaterialError: "Error creating support material",
+            updateMaterialSuccess: "Support material updated",
+            updateMaterialError: "Error updating support material",
+            common: {
+                title: "Support Material",
+                subtitle: "Enter suppot material data.",
+            },
+            error: {
+                title: "Title is required",
+                document: "Document is required",
+            },
         },
     },
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
+import {Box, Button, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -36,6 +36,7 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 
@@ -190,6 +191,8 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
+    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
+
     const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
     const [ballotStyleElectionIds, setBallotStyleElectionIds] =
         useState<Array<string>>(existingElectionIds)
@@ -209,6 +212,19 @@ export const ElectionSelectionScreen: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const {t, i18n} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
+    const navigate = useNavigate()
+    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+
+    const {
+        loading: loadingElectionEvent,
+        error: errorElectionEvent,
+        data: dataElectionEvent,
+    } = useQuery<any>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+    })
 
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
@@ -253,6 +269,19 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     }, [])
 
+    useEffect(() => {
+        if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
+            setIsMaterialsActivated(
+                dataElectionEvent?.sequent_backend_election_event?.[0]?.presentation?.materials
+                    ?.activated || false
+            )
+        }
+    }, [dataElectionEvent])
+
+    const handleNavigateMaterials = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
+    }
+
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
@@ -266,27 +295,42 @@ export const ElectionSelectionScreen: React.FC = () => {
                     selected={0}
                 />
             </Box>
-            <StyledTitle variant="h1">
-                <Box>{t("electionSelectionScreen.title")}</Box>
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenChooserHelp(true)}
-                />
-                <Dialog
-                    handleClose={() => setOpenChooserHelp(false)}
-                    open={openChooserHelp}
-                    title={t("electionSelectionScreen.chooserHelpDialog.title")}
-                    ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                </Dialog>
-            </StyledTitle>
-            <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                {stringToHtml(t("electionSelectionScreen.description"))}
-            </Typography>
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    minHeight: "100px",
+                }}
+            >
+                <Box>
+                    <StyledTitle variant="h1">
+                        <Box>{t("electionSelectionScreen.title")}</Box>
+                        <IconButton
+                            icon={faCircleQuestion}
+                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                            fontSize="16px"
+                            onClick={() => setOpenChooserHelp(true)}
+                        />
+                        <Dialog
+                            handleClose={() => setOpenChooserHelp(false)}
+                            open={openChooserHelp}
+                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
+                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
+                            variant="info"
+                        >
+                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
+                        </Dialog>
+                    </StyledTitle>
+                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
+                        {stringToHtml(t("electionSelectionScreen.description"))}
+                    </Typography>
+                </Box>
+                {isMaterialsActivated ? (
+                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
+                ) : null}
+            </Box>
             <ElectionContainer>
                 {electionIds.map((electionId) => (
                     <ElectionWrapper electionId={electionId} key={electionId} />
