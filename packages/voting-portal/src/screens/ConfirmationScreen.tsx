@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useContext} from "react"
+import React, {useState, useContext, useEffect} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -24,6 +24,7 @@ import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsS
 import {provideBallotService} from "../services/BallotService"
 import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
 import {TenantEvent} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -151,6 +152,15 @@ export const ConfirmationScreen: React.FC = () => {
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
 
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
+
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        if (!ballotId) {
+            navigate(backLink)
+        }
+    })
 
     return (
         <PageLimit maxWidth="lg">

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
@@ -38,6 +38,7 @@ import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEvent} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -181,6 +182,14 @@ export const ReviewScreen: React.FC = () => {
     const {t} = useTranslation()
     const {hashBallot} = provideBallotService()
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        if (!ballotStyle || !auditableBallot) {
+            navigate(backLink)
+        }
+    })
 
     if (!ballotStyle || !auditableBallot) {
         return <CircularProgress />
