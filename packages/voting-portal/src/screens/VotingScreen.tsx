@@ -84,6 +84,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
     )
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
+    const backLink = useRootBackLink()
 
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || disableNext) {
@@ -102,6 +103,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
                 })
             )
             let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            console.log(
+                "LS -> src/screens/VotingScreen.tsx:104 -> decodedSelectionState: ",
+                decodedSelectionState
+            )
             if (null !== decodedSelectionState) {
                 dispatch(
                     setBallotSelection({
@@ -114,14 +119,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
                 `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/review`
             )
         } catch (error) {
-            console.log("ERROR encrypting ballot:")
-            console.log(error)
+            throw error
         }
     }
 
     return (
         <ActionsContainer>
-            <StyledLink to="/" sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Icon icon={faAngleLeft} size="sm" />
                     <Box>{t("votingScreen.backButton")}</Box>
