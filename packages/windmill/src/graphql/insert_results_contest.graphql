@@ -6,9 +6,13 @@ mutation InsertResultsContest(
     $resultsEventId: uuid!,
     $elegibleCensus: Int,
     $totalValidVotes: Int,
+    $totalValidVotesPercent: Float,
     $explicitInvalidVotes: Int,
+    $explicitInvalidVotesPercent: Float,
     $implicitInvalidVotes: Int,
+    $implicitInvalidVotesPercent: Float,
     $blankVotes: Int,
+    $blankVotesPercent: Float,
     $votingType: String,
     $countingAlgorithm: String,
     $name: String,
@@ -23,9 +27,13 @@ mutation InsertResultsContest(
         results_event_id: $resultsEventId,
         elegible_census: $elegibleCensus,
         total_valid_votes: $totalValidVotes,
+        total_valid_votes_percent: $totalValidVotesPercent,
         explicit_invalid_votes: $explicitInvalidVotes,
+        explicit_invalid_votes_percent: $explicitInvalidVotesPercent,
         implicit_invalid_votes: $implicitInvalidVotes,
+        implicit_invalid_votes_percent: $implicitInvalidVotesPercent,
         blank_votes: $blankVotes,
+        blank_votes_percent: $blankVotesPercent,
         voting_type: $votingType,
         counting_algorithm: $countingAlgorithm,
         name: $name,
@@ -40,9 +48,13 @@ mutation InsertResultsContest(
         results_event_id
         elegible_census
         total_valid_votes
+        total_valid_votes_percent
         explicit_invalid_votes
+        explicit_invalid_votes_percent
         implicit_invalid_votes
+        implicit_invalid_votes_percent
         blank_votes
+        blank_votes_percent
         name
         created_at
         last_updated_at

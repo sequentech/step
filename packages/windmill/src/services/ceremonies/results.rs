@@ -83,7 +83,7 @@ pub async fn save_results(
                     as f64;
 
                 for candidate in &contest.candidate_result {
-                    let cast_votes_percent: f64 = (candidate.total_count as f64)/votes_base;
+                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     insert_results_area_contest_candidate(
                         &auth_headers,
                         tenant_id,
@@ -101,6 +101,17 @@ pub async fn save_results(
                     .await?;
                 }
             } else {
+                let total_votes_percent: f64 = (contest.contest_result.total_votes as f64)
+                    / (contest.contest_result.census as f64);
+                let explicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.explicit as f64)
+                        / (contest.contest_result.census as f64);
+                let implicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.implicit as f64)
+                        / (contest.contest_result.census as f64);
+                let blank_votes_percent: f64 = (contest.contest_result.total_blank_votes as f64)
+                    / (contest.contest_result.census as f64);
+
                 insert_results_contest(
                     &auth_headers,
                     tenant_id,
@@ -110,17 +121,26 @@ pub async fn save_results(
                     results_event_id,
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
-                    // missing total valid votes
+                    Some(total_votes_percent),
                     Some(contest.contest_result.invalid_votes.explicit as i64),
+                    Some(explicit_invalid_votes_percent),
                     Some(contest.contest_result.invalid_votes.implicit as i64),
+                    Some(implicit_invalid_votes_percent),
                     Some(contest.contest_result.total_blank_votes as i64),
+                    Some(blank_votes_percent),
                     contest.contest.voting_type.clone(),
                     contest.contest.counting_algorithm.clone(),
                     contest.contest.name.clone(),
                 )
                 .await?;
 
+                let votes_base: f64 = (contest.contest_result.total_votes
+                    - contest.contest_result.total_invalid_votes
+                    - contest.contest_result.total_blank_votes)
+                    as f64;
+
                 for candidate in &contest.candidate_result {
+                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     insert_results_contest_candidate(
                         &auth_headers,
                         tenant_id,
@@ -130,6 +150,7 @@ pub async fn save_results(
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
+                        Some(cast_votes_percent),
                         candidate.winning_position.map(|val| val as i64),
                         None, // points
                     )
