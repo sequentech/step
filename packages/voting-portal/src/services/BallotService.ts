@@ -94,9 +94,9 @@ export const decodeAuditableBallot = (
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
         return decodedBallot as Array<IDecodedVoteContest>
-    } catch (error) {
-        console.log(error)
-        return null
+    } catch (e) {
+        console.log(e)
+        throw e
     }
 }
 
