@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 */
 body {
   margin: 0;
-  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -13,4 +13,14 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+.link {
+  text-decoration: underline;
+  font-weight: normal;
+  color: black;
+}
+
+.link:hover {
+  text-decoration: none;
 }
