@@ -8,8 +8,6 @@ use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
 use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
-use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
-use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
@@ -43,6 +41,20 @@ pub async fn save_results(
 
         for contest in &election.reports {
             if let Some(area_id) = &contest.area_id {
+                let total_valid_votes_percent: f64 = (contest.contest_result.total_votes as f64)
+                    / (contest.contest_result.census as f64);
+                let total_invalid_votes_percent: f64 = (contest.contest_result.total_invalid_votes
+                    as f64)
+                    / (contest.contest_result.total_votes as f64);
+                let explicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.explicit as f64)
+                        / (contest.contest_result.total_votes as f64);
+                let implicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.implicit as f64)
+                        / (contest.contest_result.total_votes as f64);
+                let total_blank_votes_percent: f64 = (contest.contest_result.total_blank_votes
+                    as f64)
+                    / (contest.contest_result.total_votes as f64);
                 insert_results_area_contest(
                     &auth_headers,
                     tenant_id,
@@ -53,19 +65,25 @@ pub async fn save_results(
                     results_event_id,
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
-                    None, // totalValidVotesPercent
-                    None, // totalInvalidVotes
-                    None, // totalInvalidVotesPercent
+                    Some(total_valid_votes_percent),
+                    Some(contest.contest_result.total_invalid_votes as i64),
+                    Some(total_invalid_votes_percent),
                     Some(contest.contest_result.invalid_votes.explicit as i64),
-                    None, // explicitInvalidVotesPercent
+                    Some(explicit_invalid_votes_percent),
                     Some(contest.contest_result.invalid_votes.implicit as i64),
-                    None, // implicitInvalidVotesPercent
+                    Some(implicit_invalid_votes_percent),
                     Some(contest.contest_result.total_blank_votes as i64),
-                    None, // blankVotesPercent
+                    Some(total_blank_votes_percent),
                 )
                 .await?;
 
+                let votes_base: f64 = (contest.contest_result.total_votes
+                    - contest.contest_result.total_invalid_votes
+                    - contest.contest_result.total_blank_votes)
+                    as f64;
+
                 for candidate in &contest.candidate_result {
+                    let cast_votes_percent: f64 = (candidate.total_count as f64)/votes_base;
                     insert_results_area_contest_candidate(
                         &auth_headers,
                         tenant_id,
@@ -76,7 +94,7 @@ pub async fn save_results(
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
-                        None, // cast_votes_percent
+                        Some(cast_votes_percent), // cast_votes_percent
                         candidate.winning_position.map(|val| val as i64),
                         None, // points
                     )
