@@ -14,6 +14,7 @@ use crate::services::users::list_users;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
+use crate::util::aws::get_aws_config;
 
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use deadpool_postgres::Client as DbClient;
@@ -145,16 +146,6 @@ enum SmsTransport {
 
 struct SmsSender {
     transport: SmsTransport,
-}
-
-#[instrument(err)]
-pub async fn get_aws_config() -> Result<aws_config::SdkConfig> {
-    let region_provider = RegionProviderChain::first_try(Region::new(
-        std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing"))?,
-    ))
-    .or_default_provider()
-    .or_else(Region::new("us-east-1"));
-    Ok(aws_config::from_env().region(region_provider).load().await)
 }
 
 impl SmsSender {

@@ -12,3 +12,4 @@ pub mod hasura;
 pub mod services;
 pub mod tasks;
 pub mod types;
+pub mod util;
