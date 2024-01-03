@@ -26,16 +26,18 @@ pub async fn save_results(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     for election in &results {
+        let total_valid_votes_percent: f64 =
+            (election.census as f64) / (election.total_votes as f64);
         insert_results_election(
             &auth_headers,
             tenant_id,
             election_event_id,
             results_event_id,
             &election.election_id,
-            &None, // name
-            &None, // census
-            &None, // total_valid_votes,
-            &None, // total_valid_votes_percent,
+            &None,                              // name
+            &Some(election.census as i64),      // census
+            &Some(election.total_votes as i64), // total_valid_votes,
+            &Some(total_valid_votes_percent),   // total_valid_votes_percent,
         )
         .await?;
 

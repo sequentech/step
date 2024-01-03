@@ -12,6 +12,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
@@ -165,10 +166,7 @@ async fn process_plaintexts(
     let mut data: Vec<AreaContestDataType> = vec![];
 
     for almost in almost_vec {
-        let (plaintexts, tally_session_contest, contest, ballots_style, _count) = almost.clone();
-        let area_id = tally_session_contest.area_id.clone();
-        let contest_id = contest.id.clone();
-        let election_id = contest.election_id.clone();
+        let (_plaintexts, tally_session_contest, contest, _ballots_style, _count) = almost.clone();
         let count = get_eligible_voters(
             auth_headers.clone(),
             &keycloak_transaction,
@@ -264,6 +262,7 @@ async fn map_plaintext_data(
         bool,
         TallyCeremonyStatus,
         Option<Vec<i64>>,
+        Vec<ElectionCastVotes>,
     )>,
 > {
     // get credentials
@@ -445,12 +444,15 @@ async fn map_plaintext_data(
 
     let plaintexts_data: Vec<AreaContestDataType> =
         process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data).await?;
+
+    let cast_votes_count = count_cast_votes_election(&tenant_id, &election_event_id).await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
         new_status,
         Some(session_ids),
+        cast_votes_count,
     )))
 }
 
@@ -498,15 +500,25 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     }
 
-    let (plaintexts_data, newest_message_id, is_execution_completed, new_status, session_ids) =
-        plaintexts_data_opt.unwrap();
+    let (
+        plaintexts_data,
+        newest_message_id,
+        is_execution_completed,
+        new_status,
+        session_ids,
+        cast_votes_count,
+    ) = plaintexts_data_opt.unwrap();
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
     // base temp folder
     let base_tempdir = tempdir()?;
 
-    let status = run_velvet_tally(base_tempdir.path().to_path_buf(), &plaintexts_data)?;
+    let status = run_velvet_tally(
+        base_tempdir.path().to_path_buf(),
+        &plaintexts_data,
+        &cast_votes_count,
+    )?;
 
     let results_event_id = populate_results_tables(
         base_tempdir.path().to_path_buf(),

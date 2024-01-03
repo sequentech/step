@@ -207,6 +207,8 @@ pub struct ElectionConfig {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
+    pub census: u64,
+    pub total_votes: u64,
     pub ballot_styles: Vec<BallotStyle>,
 }
 

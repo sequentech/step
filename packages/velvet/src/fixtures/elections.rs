@@ -14,6 +14,8 @@ pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
         id: election_id,
         tenant_id,
         election_event_id: election_event_id.clone(),
+        census: 0,
+        total_votes: 0,
         ballot_styles: vec![ballot_style],
     }
 }
@@ -35,6 +37,8 @@ pub fn get_election_config_2() -> ElectionConfig {
         id: election_id,
         tenant_id,
         election_event_id,
+        census: 0,
+        total_votes: 0,
         ballot_styles: vec![ballot_style1, ballot_style2],
     }
 }

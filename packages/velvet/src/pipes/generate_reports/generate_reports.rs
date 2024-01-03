@@ -228,6 +228,8 @@ impl GenerateReports {
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
                 area_id: None,
+                census: 0,
+                total_votes: 0,
                 reports: computed_reports,
             });
         }
@@ -342,6 +344,8 @@ pub struct ReportData {
 pub struct ElectionReportDataComputed {
     pub election_id: String,
     pub area_id: Option<String>,
+    pub census: u64,
+    pub total_votes: u64,
     pub reports: Vec<ReportDataComputed>,
 }
 

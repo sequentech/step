@@ -103,15 +103,19 @@ pub async fn find_area_ballots(
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct CountData {
-    pub count: i64,
+pub struct ElectionCastVotes {
+    pub election_id: String,
+    pub census: i64,
+    pub cast_votes: i64,
 }
 
-impl TryFrom<Row> for CountData {
+impl TryFrom<Row> for ElectionCastVotes {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        Ok(CountData {
-            count: item.get("count"),
+        Ok(ElectionCastVotes {
+            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
+            census: 0,
+            cast_votes: item.get("cast_votes"),
         })
     }
 }
@@ -120,8 +124,7 @@ impl TryFrom<Row> for CountData {
 pub async fn count_cast_votes_election(
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
-) -> Result<i64> {
+) -> Result<Vec<ElectionCastVotes>> {
     let hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -132,31 +135,27 @@ pub async fn count_cast_votes_election(
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let areas_statement = hasura_db_client
         .prepare(
             r#"
-                SELECT COUNT(DISTINCT voter_id_string)
+                SELECT election_id, COUNT(DISTINCT voter_id_string)
                 FROM sequent_backend.cast_vote
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
-                    election_id = $3
+                GROUP BY
+                    election_id
             "#,
         )
         .await?;
     let rows: Vec<Row> = hasura_db_client
-        .query(
-            &areas_statement,
-            &[&tenant_uuid, &election_event_uuid, &election_uuid],
-        )
+        .query(&areas_statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
     let count_data = rows
         .into_iter()
-        .map(|row| -> Result<CountData> { row.try_into() })
-        .collect::<Result<Vec<CountData>>>()?;
+        .map(|row| -> Result<ElectionCastVotes> { row.try_into() })
+        .collect::<Result<Vec<ElectionCastVotes>>>()?;
 
-    Ok(count_data[0].count)
+    Ok(count_data)
 }
