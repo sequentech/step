@@ -60938,6 +60938,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "args": [
@@ -61390,6 +61402,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -61621,6 +61645,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "Int_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "numeric_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -64872,6 +64906,16 @@
             "defaultValue": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "type": {
@@ -65048,6 +65092,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
               "ofType": null
             },
             "defaultValue": null
@@ -65287,6 +65341,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "last_updated_at",
             "description": null,
             "args": [],
@@ -65520,6 +65586,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
               "ofType": null
             },
             "isDeprecated": false,
@@ -65860,6 +65938,16 @@
             "defaultValue": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -66129,6 +66217,12 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": "column name",
             "isDeprecated": false,
@@ -66316,6 +66410,16 @@
             "defaultValue": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -66478,6 +66582,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -66609,6 +66725,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -66729,6 +66857,18 @@
           },
           {
             "name": "implicit_invalid_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_invalid_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -66965,6 +67105,16 @@
             "defaultValue": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -67127,6 +67277,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -67262,6 +67424,12 @@
           },
           {
             "name": "implicit_invalid_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_invalid_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -67490,6 +67658,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -67621,6 +67801,18 @@
             "deprecationReason": null
           },
           {
+            "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -67741,6 +67933,18 @@
           },
           {
             "name": "implicit_invalid_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_invalid_votes_percent",
             "description": null,
             "args": [],
             "type": {

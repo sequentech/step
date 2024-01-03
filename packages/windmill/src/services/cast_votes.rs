@@ -101,3 +101,62 @@ pub async fn find_area_ballots(
 
     Ok(cast_votes)
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CountData {
+    pub count: i64,
+}
+
+impl TryFrom<Row> for CountData {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(CountData {
+            count: item.get("count"),
+        })
+    }
+}
+
+#[instrument(err)]
+pub async fn count_cast_votes_election(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<i64> {
+    let hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura db client")?;
+
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let areas_statement = hasura_db_client
+        .prepare(
+            r#"
+                SELECT COUNT(DISTINCT voter_id_string)
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_db_client
+        .query(
+            &areas_statement,
+            &[&tenant_uuid, &election_event_uuid, &election_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+    let count_data = rows
+        .into_iter()
+        .map(|row| -> Result<CountData> { row.try_into() })
+        .collect::<Result<Vec<CountData>>>()?;
+
+    Ok(count_data[0].count)
+}
