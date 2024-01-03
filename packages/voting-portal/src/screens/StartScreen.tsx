@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useEffect} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
@@ -12,12 +12,13 @@ import {
     translateElection,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import {Link as RouterLink, useParams} from "react-router-dom"
+import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
 import {useAppSelector} from "../store/hooks"
 import {IElection, selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
 import {TenantEvent} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -77,7 +78,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
 export const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
     const election = useAppSelector(selectElectionById(String(electionId)))
+
+    useEffect(() => {
+        if (!election) {
+            navigate(backLink)
+        }
+    })
 
     if (!election) {
         return <CircularProgress />
