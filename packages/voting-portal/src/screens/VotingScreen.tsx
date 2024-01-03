@@ -126,8 +126,10 @@ export const VotingScreen: React.FC = () => {
         })
     }
 
+    const skipNextButton = Object.values(disableNext).some((v) => v)
+
     const encryptAndReview = () => {
-        if (isUndefined(selectionState) || disableNext || !ballotStyle) {
+        if (isUndefined(selectionState) || skipNextButton || !ballotStyle) {
             return
         }
 
@@ -213,10 +215,7 @@ export const VotingScreen: React.FC = () => {
                     setDisableNext={onSetDisableNext(question.id)}
                 />
             ))}
-            <ActionButtons
-                handleNext={encryptAndReview}
-                disableNext={Object.values(disableNext).some((v) => v)}
-            />
+            <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
         </PageLimit>
     )
 }
