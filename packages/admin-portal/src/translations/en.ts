@@ -886,6 +886,7 @@ const englishTranslation = {
             },
         },
         tallysheet: {
+            createTallySuccess: "Tally Sheet created",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
@@ -942,8 +943,9 @@ const englishTranslation = {
                 contest: "Contest",
                 published: "Published",
             },
-            error: {
-                publish: "Error publishing tally sheet",
+            message: {
+                publishError: "Error publishing tally sheet",
+                publishSuccess: "Tally sheet published",    
             },
         },
         materials: {

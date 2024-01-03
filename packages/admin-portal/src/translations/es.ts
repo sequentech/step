@@ -888,6 +888,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            createTallySuccess: "Hoja de Recuento creada",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
@@ -944,8 +945,9 @@ const spanishTranslation: TranslationType = {
                 contest: "Cotienda",
                 published: "Publicado",
             },
-            error: {
-                publish: "Error publicando la Hoja de Recuento",
+            message: {
+                publishError: "Error publicando la Hoja de Recuento",
+                publishSuccess: "Hoja de Recuento publicada",
             },
         },
         materials: {

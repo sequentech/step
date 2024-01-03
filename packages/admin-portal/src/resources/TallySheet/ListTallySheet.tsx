@@ -18,7 +18,7 @@ import {
 import {ListActions} from "../../components/ListActions"
 import {Button, Tooltip, Typography} from "@mui/material"
 import {PublishTallySheetMutation, Sequent_Backend_Contest} from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, theme} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -57,8 +57,6 @@ type TTallySheetList = {
 
 export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const {contest, doAction, reload} = props
-
-    console.log("ListTallySheet", contest)
 
     const {t} = useTranslation()
     const refresh = useRefresh()
@@ -132,7 +130,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const viewAction = (id: Identifier) => {
         console.log("viewAction", id)
-        doAction(WizardSteps.Confirm, id)
+        doAction(WizardSteps.View, id)
     }
 
     const publishAction = (id: Identifier) => {
@@ -172,6 +170,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmPublishAction = async () => {
+
+        console.log("confirmPublishAction", deleteId);
+        console.log("confirmPublishAction", contest.election_event_id)
+        
+
         const {data, errors} = await publishTallySheet({
             variables: {
                 electionEventId: contest.election_event_id,
@@ -183,7 +186,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         }
         if (errors) {
             // add error notification
-            notify(t("tallysheet.error.publish"), {type: "error"})
+            notify(t("tallysheet.message.publishError"), {type: "error"})
+        } else {
+            notify(t("tallysheet.message.publishSuccess"), {type: "success"})
         }
         setDeleteId(undefined)
     }
@@ -255,7 +260,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <FunctionField
                         label={t("tallysheet.table.published")}
                         render={(record: any) =>
-                            record.published_at ? <CheckCircleOutlineIcon /> : null
+                            record.published_at ? (
+                                <CheckCircleOutlineIcon color="success" />
+                            ) : null
                         }
                     />
 
