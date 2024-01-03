@@ -1,21 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
-import {
-    Identifier,
-    RecordContext,
-    SaveButton,
-    SimpleForm,
-    TextInput,
-    useGetList,
-    useNotify,
-    useRefresh,
-} from "react-admin"
+import React, {LegacyRef, useEffect, useState} from "react"
+import {Identifier, SimpleForm, useGetList} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     Sequent_Backend_Area,
     Sequent_Backend_Contest,
@@ -43,11 +33,11 @@ const votingChannels = [
 
 interface EditTallySheetProps {
     contest: Sequent_Backend_Contest
-    tallySheet: Sequent_Backend_Tally_Sheet | undefined
+    tallySheet?: Sequent_Backend_Tally_Sheet | undefined
     doSelectArea?: (areaId: Identifier) => void
     doCreatedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input) => void
     doEditedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet) => void
-    submitRef: any
+    submitRef: LegacyRef<HTMLButtonElement> | undefined
 }
 
 interface ICandidateResultsExtended extends ICandidateResults {
@@ -57,14 +47,9 @@ interface ICandidateResultsExtended extends ICandidateResults {
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const {tallySheet, contest, doCreatedTalySheet, submitRef} = props
 
-    const refresh = useRefresh()
-    const notify = useNotify()
     const {t} = useTranslation()
-    const [tenantId] = useTenantStore()
 
-    const [renderUI, setRenderUI] = useState(false)
     const [areasList, setAreasList] = useState<Sequent_Backend_Area[]>([])
-    const [area, setArea] = React.useState<string | null>(null)
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: "",

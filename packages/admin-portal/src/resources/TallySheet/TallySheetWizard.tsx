@@ -20,10 +20,10 @@ import {ShowTallySheet} from "./ShowTallySheet"
 
 export const WizardSteps = {
     List: -1,
-    Start: 0,
-    Edit: 1,
-    Confirm: 2,
-    View: 3,
+    Start: 1,
+    Edit: 2,
+    Confirm: 3,
+    View: 4,
 }
 
 interface IExpanded {
@@ -40,7 +40,7 @@ interface TallySheetWizardProps {
 export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {action, contest, tallySheetId, doAction} = props
 
-    const submitRef = React.useRef<any>(null)
+    const submitRef = React.useRef<HTMLButtonElement>(null)
 
     const {t} = useTranslation()
     const [page, setPage] = useState<number>(WizardSteps.Edit)
@@ -52,17 +52,21 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         Sequent_Backend_Tally_Sheet | undefined
     >()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false)
-
+    
     const {data: tallySheet} = useGetOne("sequent_backend_tally_sheet", {id: tallySheetId})
-
+    
+    
     useEffect(() => {
+        console.log("tallySheetId", action);
+        console.log("tallySheetId", tallySheetId);
+        console.log("tallySheetId", tallySheet);
         if (action) {
             setPage(action)
         }
     }, [action])
 
     const handleNext = () => {
-        if (page === WizardSteps.Edit) {
+        if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
             doAction(WizardSteps.Confirm)
         } else if (page === WizardSteps.Confirm) {
@@ -72,7 +76,9 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     }
 
     const handleBack = () => {
-        if (page === WizardSteps.Edit) {
+        if (page === WizardSteps.Start) {
+            doAction(WizardSteps.List)
+        } else if (page === WizardSteps.Edit) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Confirm) {
             if (tallySheetId) {
@@ -104,9 +110,13 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
 
                 {page === WizardSteps.Start && (
                     <>
-                        <CreateTallySheet
+                        <EditTallySheet
                             contest={contest}
                             doSelectArea={(id: Identifier) => setAreaId(id)}
+                            doCreatedTalySheet={(
+                                tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
+                            ) => setCreatedTallySheet(tallySheet)}
+                            submitRef={submitRef}
                         />
                     </>
                 )}
@@ -127,7 +137,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 {page === WizardSteps.Confirm && (
                     <>
                         <ShowTallySheet
-                            tallySheet={tallySheet || createdTallySheet}
+                            tallySheet={createdTallySheet || tallySheet}
                             contest={contest}
                             doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
                                 setEditedTallySheet(tallySheet)
@@ -140,7 +150,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 {page === WizardSteps.View && (
                     <>
                         <ShowTallySheet
-                            tallySheet={tallySheet || createdTallySheet}
+                            tallySheet={tallySheet}
                             contest={contest}
                             doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
                                 setEditedTallySheet(tallySheet)

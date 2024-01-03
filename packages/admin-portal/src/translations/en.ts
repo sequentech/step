@@ -886,7 +886,7 @@ const englishTranslation = {
             },
         },
         tallysheet: {
-            createTallySuccess: "Tally Sheet created",
+            createTallySuccess: "Tally Sheet saved",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",

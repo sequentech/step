@@ -82,7 +82,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         if (reload) {
             refresh()
         }
-    }, [reload])
+    }, [reload, refresh])
 
     const createAction = () => {
         doAction(WizardSteps.Start)
@@ -206,9 +206,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     return (
         <>
             <List
-                queryOptions={{
-                    refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-                }}
                 resource="sequent_backend_tally_sheet"
                 actions={
                     <ListActions
