@@ -163,7 +163,7 @@ export const VotingScreen: React.FC = () => {
         if (!election || !ballotStyle) {
             navigate(backLink)
         }
-    })
+    }, [navigate, backLink, election, ballotStyle])
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
