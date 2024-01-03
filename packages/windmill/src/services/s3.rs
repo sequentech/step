@@ -62,9 +62,8 @@ async fn create_bucket_if_not_exists(
     Ok(())
 }
 
-pub async fn get_s3_client() -> Result<s3::Client> {
-    let config = aws_config::load_from_env().await;
-    let client = s3::Client::new(&config);
+pub async fn get_s3_client(config: &SdkConfig) -> Result<s3::Client> {
+    let client = s3::Client::new(config);
     Ok(client)
 }
 
@@ -83,8 +82,8 @@ pub async fn upload_to_s3(
         ));
     }
 
-    let client = get_s3_client().await?;
     let config = get_aws_config().await?;
+    let client = get_s3_client(&config).await?;
     create_bucket_if_not_exists(&client, &config, s3_bucket.as_str()).await?;
     client
         .put_object()
@@ -117,7 +116,8 @@ pub fn get_public_document_key(tenant_id: String, document_id: String, name: Str
 
 #[instrument(err)]
 pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> {
-    let client = get_s3_client().await?;
+    let config = get_aws_config().await?;
+    let client = get_s3_client(&config).await?;
 
     let presigning_config =
         PresigningConfig::expires_in(Duration::from_secs(get_fetch_expiration_secs()?))?;
@@ -135,8 +135,8 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
 #[instrument(err)]
 pub async fn get_upload_url(key: String) -> Result<String> {
     let s3_bucket = get_public_bucket()?;
-    let client = get_s3_client().await?;
     let config = get_aws_config().await?;
+    let client = get_s3_client(&config).await?;
     create_bucket_if_not_exists(&client, &config, s3_bucket.as_str()).await?;
 
     let presigning_config =
