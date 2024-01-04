@@ -130,7 +130,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const deleteAction = (id: Identifier) => {
-        setOpenDeleteModal(true)
+            setOpenDeleteModal(true)
         setDeleteId(id)
     }
 
@@ -148,7 +148,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmPublishAction = async (isPublished: boolean) => {
-        const {data, errors} = await publishTallySheet({
+        const {data, errors} = await publishTallySheet({    
             variables: {
                 electionEventId: contest.election_event_id,
                 tallySheetId: deleteId,
