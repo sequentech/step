@@ -158,10 +158,6 @@ async fn process_plaintexts(
         .transaction()
         .await
         .map_err(|err| anyhow!("{err}"))?;
-    keycloak_transaction
-        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
-        .await
-        .with_context(|| "can't set transaction isolation level")?;
 
     let mut data: Vec<AreaContestDataType> = vec![];
 
@@ -181,6 +177,10 @@ async fn process_plaintexts(
         with_count.4 = count;
         data.push(with_count);
     }
+    keycloak_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     Ok(data)
 }
 
@@ -214,6 +214,57 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
         return None;
     };
     Some(execution_status)
+}
+
+#[instrument(err)]
+pub async fn count_cast_votes_election_with_census(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<ElectionCastVotes>> {
+    let mut cast_votes = count_cast_votes_election(&tenant_id, &election_event_id).await?;
+
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{err}"))?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("{err}"))?;
+
+    for cast_vote in &mut cast_votes {
+        let realm = get_event_realm(tenant_id, election_event_id);
+
+        let (_users, census) = list_users(
+            auth_headers.clone(),
+            &keycloak_transaction,
+            ListUsersFilter {
+                tenant_id: tenant_id.to_string(),
+                election_event_id: Some(election_event_id.to_string()),
+                election_id: Some(cast_vote.election_id.clone()),
+                area_id: None,
+                realm: realm.clone(),
+                search: None,
+                first_name: None,
+                last_name: None,
+                username: None,
+                email: None,
+                limit: Some(1),
+                offset: None,
+                user_ids: None,
+            },
+        )
+        .await?;
+        cast_vote.census = census as i64;
+    }
+    keycloak_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
+
+    Ok(cast_votes)
 }
 
 #[instrument(skip_all, err)]

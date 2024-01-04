@@ -138,11 +138,11 @@ pub async fn count_cast_votes_election(
     let areas_statement = hasura_db_client
         .prepare(
             r#"
-                SELECT election_id, COUNT(DISTINCT voter_id_string)
+                SELECT election_id, COUNT(DISTINCT voter_id_string) AS cast_votes
                 FROM sequent_backend.cast_vote
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2 AND
+                    election_event_id = $2
                 GROUP BY
                     election_id
             "#,
