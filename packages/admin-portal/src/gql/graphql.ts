@@ -16508,6 +16508,7 @@ export type PublishBallotMutation = { __typename?: 'mutation_root', publish_ball
 export type PublishTallySheetMutationVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];
   tallySheetId: Scalars['uuid']['input'];
+  publish: Scalars['Boolean']['input'];
 }>;
 
 

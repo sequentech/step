@@ -112,5 +112,5 @@ pub enum Permissions {
     #[strum(serialize = "tally-sheet-publish")]
     TALLY_SHEET_PUBLISH,
     #[strum(serialize = "tally-sheet-delete")]
-    TALLY_SHEET_DELETE
+    TALLY_SHEET_DELETE,
 }

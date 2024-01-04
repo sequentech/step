@@ -158,6 +158,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             variables: {
                 electionEventId: contest.election_event_id,
                 tallySheetId: deleteId,
+                publish: true,
             },
         })
         if (data && !data?.publish_tally_sheet?.tally_sheet_id) {

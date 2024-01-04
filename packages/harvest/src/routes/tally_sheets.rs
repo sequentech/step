@@ -20,6 +20,7 @@ use windmill::services::database::get_hasura_pool;
 pub struct PublishTallySheetInput {
     election_event_id: String,
     tally_sheet_id: String,
+    publish: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -59,6 +60,7 @@ pub async fn publish_tally_sheet(
         &input.election_event_id,
         &input.tally_sheet_id,
         &claims.hasura_claims.user_id,
+        input.publish,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

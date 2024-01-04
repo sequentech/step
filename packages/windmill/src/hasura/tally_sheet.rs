@@ -16,21 +16,24 @@ pub async fn publish_tally_sheet(
     election_event_id: &str,
     tally_sheet_id: &str,
     user_id: &str,
+    publish: bool,
 ) -> Result<Option<()>> {
+    let set_published_at = if publish { "now()" } else { "NULL" };
+    let filter_published_at = if publish { "NULL" } else { "NOT NULL" };
     let publish_statement = transaction
         .prepare(
             format!(
                 r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
-            published_at = now(),
+            published_at = {set_published_at},
             published_by_user_id = $4
         WHERE
             tally_sheet.tenant_id = $1 AND
             tally_sheet.election_event_id = $2 AND
             tally_sheet.id = $3 AND
             tally_sheet.deleted_at IS NULL AND
-            tally_sheet.published_at IS NULL
+            tally_sheet.published_at IS {filter_published_at}
         RETURNING *
     "#
             )
