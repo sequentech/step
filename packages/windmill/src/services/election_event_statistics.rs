@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
 use anyhow::Result;
-use uuid::Uuid;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
+use uuid::Uuid;
 
 pub fn get_election_event_statistics(
     statistics_json_opt: Option<Value>,
@@ -60,7 +60,10 @@ pub async fn get_count_distinct_voters(
     let rows: Vec<Row> = transaction
         .query(
             &total_distinct_voters_statement,
-            &[&Uuid::parse_str(election_event_id)?, &Uuid::parse_str(tenant_id)?],
+            &[
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tenant_id)?,
+            ],
         )
         .await?;
 

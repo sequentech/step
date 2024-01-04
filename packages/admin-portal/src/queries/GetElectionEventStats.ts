@@ -28,10 +28,7 @@ export const GET_ELECTION_EVENT_STATS = gql`
         ) {
             statistics
         }
-        users: get_users(body: {
-            tenant_id: $tenantId,
-            election_event_id: $electionEventId
-        }) {
+        users: get_users(body: {tenant_id: $tenantId, election_event_id: $electionEventId}) {
             total {
                 aggregate {
                     count
