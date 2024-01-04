@@ -60,29 +60,5 @@ pub async fn publish_tally_sheet(
     if publish_rows.len() != 1 {
         return Ok(None);
     }
-
-    let soft_delete_statement = transaction
-        .prepare(
-            format!(
-                r#"
-        UPDATE sequent_backend.tally_sheet tally_sheet
-        SET
-            deleted_at = now()
-        WHERE
-            tally_sheet.tenant_id = $1 AND
-            tally_sheet.election_event_id = $2 AND
-            tally_sheet.id != $3 AND
-            tally_sheet.deleted_at IS NULL
-    "#
-            )
-            .as_str(),
-        )
-        .await?;
-    let soft_delete_params: Vec<&(dyn ToSql + Sync)> =
-        vec![&tenant_uuid, &election_event_uuid, &tally_sheet_uuid];
-    let _rows: Vec<Row> = transaction
-        .query(&soft_delete_statement, &soft_delete_params.as_slice())
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
     Ok(Some(()))
 }
