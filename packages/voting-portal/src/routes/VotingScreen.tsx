@@ -159,7 +159,7 @@ const VotingScreen: React.FC = () => {
                 )
             }
 
-            submit(null)
+            submit(null, {method: "post"})
         } catch (error) {
             submit({error: "Unable to encrypt the Ballot"}, {method: "post"})
         }
@@ -236,5 +236,5 @@ export async function action({request}: {request: Request}) {
         throw new Error(error as string)
     }
 
-    redirect(`review`)
+    return redirect(`../review`)
 }
