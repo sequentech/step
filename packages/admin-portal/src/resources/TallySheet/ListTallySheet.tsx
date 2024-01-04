@@ -220,6 +220,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     tenant_id: contest.tenant_id || undefined,
                     election_event_id: contest.election_event_id || undefined,
                     contest_id: contest.id || undefined,
+                    deleted_at: {
+                        format: "hasura-raw-query",
+                        value: { _is_null: true},
+                    },
                 }}
                 filters={Filters}
                 empty={<Empty />}
