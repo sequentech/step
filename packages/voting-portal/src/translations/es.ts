@@ -146,6 +146,14 @@ const spanishTranslation: TranslationType = {
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
             },
         },
+        materials: {
+            common: {
+                label: "Materiales de Soporte",
+                back: "Volver a la Lista de Votaciones",
+                close: "Cerrar",
+                preview: "Vista previa",
+            },
+        },
         ballotLocator: {
             title: "Localiza tu Papeleta",
             titleResult: "Resultado de la búsqueda de tu Boleta",

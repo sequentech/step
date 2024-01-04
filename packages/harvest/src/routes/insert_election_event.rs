@@ -29,7 +29,7 @@ pub async fn insert_election_event_f(
     authorize(
         &claims,
         true,
-        None,
+        Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_CREATE],
     )?;
     let celery_app = get_celery_app().await;

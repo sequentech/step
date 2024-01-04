@@ -69,6 +69,23 @@ select_permissions:
     - tenant_id
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - media_type
+    - name
+    - size
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: user
 update_permissions:
 - comment: ""
   permission:

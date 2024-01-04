@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::s3;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
 use std::env;
@@ -32,8 +32,8 @@ fn get_jwks_secret_path() -> String {
 #[instrument(err)]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let minio_private_uri =
-        env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
-    let bucket = s3::get_public_bucket();
+        env::var("MINIO_PRIVATE_URI").map_err(|err| anyhow!("MINIO_PRIVATE_URI must be set"))?;
+    let bucket = s3::get_public_bucket()?;
 
     let hasura_endpoint = format!(
         "{}/{}/{}",
@@ -57,7 +57,8 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
 
 #[instrument(err)]
 pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey>> {
-    let keycloak_url = env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
+    let keycloak_url =
+        env::var("KEYCLOAK_URL").map_err(|err| anyhow!("KEYCLOAK_URL must be set"))?;
     let hasura_endpoint = format!(
         "{}/realms/{}/protocol/openid-connect/certs",
         keycloak_url, realm
@@ -97,7 +98,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         &jwks_output_str.into_bytes(),
         get_jwks_secret_path(),
         "application/json".to_string(),
-        s3::get_public_bucket(),
+        s3::get_public_bucket()?,
     )
     .await?;
 

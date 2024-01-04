@@ -190,6 +190,7 @@ const spanishTranslation: TranslationType = {
                 dates: "Fechas",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
+                materials: "Materiales de Soporte",
             },
             field: {
                 name: "Nombre",
@@ -199,6 +200,9 @@ const spanishTranslation: TranslationType = {
                 endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
+                materialActivated: "Materiales de Soporte activados",
+                materialTitle: "Titulo",
+                materialSubTitle: "Subtitulo",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -515,6 +519,9 @@ const spanishTranslation: TranslationType = {
                 exportFormat: "Exportar resultados de '{{item}}' en formato {{format}}",
                 allResults: "del evento electoral",
                 globalAreaResults: "de todas las áreas",
+                title: "Título",
+                subtitle: "Subtítulo",
+                kind: "Tipo de archivo",
             },
             language: {
                 es: "Español",
@@ -878,6 +885,20 @@ const spanishTranslation: TranslationType = {
             },
             email: {
                 subject: "Subject",
+            },
+        },
+        materials: {
+            createMaterialSuccess: "Material de soporte creado",
+            createMaterialError: "Error creando material de soporte",
+            updateMaterialSuccess: "Material de soporte actualizado",
+            updateMaterialError: "Error actualizando material de soporte",
+            common: {
+                title: "Materiales de Soporte",
+                subtitle: "Entrar datos del material de soporte.",
+            },
+            error: {
+                title: "El título es obligatorio",
+                document: "El documento es obligatorio",
             },
         },
     },

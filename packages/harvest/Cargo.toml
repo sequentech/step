@@ -22,7 +22,6 @@ tempfile = "3.8.0"
 either = "1.9.0"
 dotenv = "0.15.0"
 graphql_client = "0.13.0"
-rust-s3 = "0.33.0"
 tokio = { version = "1.32.0", features = ["full"] }
 chrono = "0.4.31"
 base64 = "0.21.0"
@@ -30,6 +29,10 @@ celery = "0.5.5"
 strum = "0.25"
 strum_macros = "0.25"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+
+# s3
+aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.11.0"
 
 # logging
 tracing = "0.1"
