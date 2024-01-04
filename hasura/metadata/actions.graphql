@@ -206,6 +206,7 @@ type Mutation {
   publish_tally_sheet (
     election_event_id: uuid!
     tally_sheet_id: uuid!
+    publish: Boolean
   ): PublishTallyOutput
 }
 
