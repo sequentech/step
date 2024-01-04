@@ -58,6 +58,9 @@ lettre = "0.11.2"
 aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
 aws-sdk-sesv2 = "1.4.0"
 aws-sdk-sns = "1.4.0"
+# for s3
+aws-sdk-s3 = "1.11.0"
+aws-smithy-types = "1.1.1"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }

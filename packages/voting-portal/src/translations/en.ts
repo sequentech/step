@@ -143,6 +143,14 @@ const englishTranslation = {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
             },
         },
+        materials: {
+            common: {
+                label: "Support Materials",
+                back: "Back to Election List",
+                close: "Close",
+                preview: "Preview",
+            },
+        },
         ballotLocator: {
             title: "Locate your Ballot",
             titleResult: "Result of your Ballot lookup",

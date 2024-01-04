@@ -6,6 +6,7 @@ module.exports = {
             "Access-Control-Allow-Headers": "*",
             "Access-Control-Allow-Credentials": "true",
             "Cross-Origin-Resource-Policy": "cross-origin",
+            "Cross-Origin-Embedder-Policy": "credentialless",
             "Referrer-Policy": "no-referrer",
         },
     },
