@@ -228,8 +228,8 @@ impl GenerateReports {
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
                 area_id: None,
-                census: 0,
-                total_votes: 0,
+                census: election_input.census,
+                total_votes: election_input.total_votes,
                 reports: computed_reports,
             });
         }
