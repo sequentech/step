@@ -23,5 +23,20 @@ export const GET_ELECTION_EVENT_STATS = gql`
                 count
             }
         }
+        election_event: sequent_backend_election_event(
+            where: {id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
+        ) {
+            statistics
+        }
+        users: get_users(body: {
+            tenant_id: $tenantId,
+            election_event_id: $electionEventId
+        }) {
+            total {
+                aggregate {
+                    count
+                }
+            }
+        }
     }
 `

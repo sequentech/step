@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const GET_ELECTION_EVENT_STATS = gql`
+export const GET_ELECTION_STATS = gql`
     query GetElectionStats($tenantId: uuid, $electionEventId: uuid, $electionId: uuid) {
         castVotes: sequent_backend_cast_vote_aggregate(
             where: {
