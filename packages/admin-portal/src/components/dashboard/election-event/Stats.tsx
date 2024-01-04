@@ -51,41 +51,18 @@ export default function Stats({
         }
     )
 
-    const {data: updatedElectionEvent} = useGetOne<Sequent_Backend_Election_Event>(
-        "sequent_backend_election_event",
-        {
-            id: electionEventId,
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
-
-    const {total: totalUsers} = useGetList(
-        "user",
-        {
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
-
     if (loading) {
         return <CircularProgress />
     }
-    const stats = dataStats?.election_event?.statistics as IElectionEventStatistics | null
+    const stats = (dataStats?.election_event as any)?.statistics as IElectionEventStatistics | null
 
-    const res = {
-        castVotes: dataStats?.castVotes?.total_distinct_voters ?? "-",
-        elections: dataStats?.elections?.aggregate?.count ?? "-",
-        areas: dataStats?.areas?.aggregate?.count ?? "-",
-        emailsSent: stats?.num_emails_sent ?? "-",
-        smsSent: stats?.num_sms_sent ?? "-",
+    const metrics = {
+        votersCount: dataStats?.castVotes?.total_distinct_voters ?? "-",
+        electionsCount: dataStats?.elections?.aggregate?.count ?? "-",
+        areasCount: dataStats?.areas?.aggregate?.count ?? "-",
+        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        emailsSentCount: stats?.num_emails_sent ?? "-",
+        smsSentCount: stats?.num_sms_sent ?? "-",
     }
 
     const iconSize = 60
@@ -94,36 +71,31 @@ export default function Stats({
         <CardList>
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={totalUsers ?? "-"}
+                count={metrics.eligibleVotersCount}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
 
-            {electionId && (
+            {!electionId && (
                 <StatItem
                     icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                    count={res.elections}
+                    count={metrics.electionsCount}
                     label={t("electionEventScreen.stats.elections")}
                 ></StatItem>
             )}
             <StatItem
                 icon={<FenceIcon sx={{fontSize: iconSize}} />}
-                count={res.areas}
+                count={metrics.areasCount}
                 label={t("electionEventScreen.stats.areas")}
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={res.emailsSent}
+                count={metrics.emailsSentCount}
                 label={t("electionEventScreen.stats.sentEmails")}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={res.smsSent}
+                count={metrics.smsSentCount}
                 label={t("electionEventScreen.stats.sentSMS")}
-            ></StatItem>
-            <StatItem
-                icon={<CalendarMonthOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={t("electionEventScreen.stats.calendar.scheduled")}
-                label={t("electionEventScreen.stats.calendar.title")}
             ></StatItem>
         </CardList>
     )

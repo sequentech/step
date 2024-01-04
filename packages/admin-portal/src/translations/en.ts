@@ -176,8 +176,8 @@ const englishTranslation = {
             },
         },
         dashboard: {
-            voteByDay: "Vote by day",
-            voteByChannels: "Vote by channels",
+            voteByDay: "Votes by day",
+            voteByChannels: "Voters by channel",
         },
         electionEventScreen: {
             common: {
@@ -212,7 +212,7 @@ const englishTranslation = {
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
             stats: {
-                elegibleVoters: "Elegible voters",
+                elegibleVoters: "Elegible Voters",
                 elections: "Elections",
                 contests: "Contests",
                 areas: "Areas",

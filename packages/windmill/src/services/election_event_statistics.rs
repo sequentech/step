@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
 use anyhow::Result;
+use uuid::Uuid;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
@@ -36,7 +37,7 @@ pub async fn update_election_event_statistics(
     Ok(())
 }
 
-#[instrument(skip(transaction))]
+#[instrument(skip(transaction), err)]
 pub async fn get_count_distinct_voters(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -45,21 +46,21 @@ pub async fn get_count_distinct_voters(
     let total_distinct_voters_statement = transaction
         .prepare(
             r#"
-            SELECT DISTINCT ON (election_id, voter_id_string)
-                COUNT(*) AS total_distinct_voters
-            FROM sequent_backend.cast_vote
+            SELECT
+                COUNT(DISTINCT voter_id_string) AS total_distinct_voters
+            FROM
+                sequent_backend.cast_vote
             WHERE
-                tenant_id = $1 AND
-                election_event_id = $2
-            ORDER BY election_id, voter_id_string, created_at DESC
-        "#,
+                election_event_id = $1 AND
+                tenant_id = $2;
+            "#,
         )
         .await?;
 
     let rows: Vec<Row> = transaction
         .query(
             &total_distinct_voters_statement,
-            &[&election_event_id, &tenant_id],
+            &[&Uuid::parse_str(election_event_id)?, &Uuid::parse_str(tenant_id)?],
         )
         .await?;
 

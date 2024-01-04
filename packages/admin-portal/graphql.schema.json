@@ -1688,7 +1688,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -1700,7 +1700,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -1787,7 +1787,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "String",
+                "name": "uuid",
                 "ofType": null
               }
             },
