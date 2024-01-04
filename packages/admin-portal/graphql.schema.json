@@ -11348,6 +11348,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "publish",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "tally_sheet_id",
                 "description": null,
                 "type": {

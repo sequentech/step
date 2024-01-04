@@ -4,8 +4,8 @@
 import {gql} from "@apollo/client"
 
 export const PUBLISH_TALLY_SHEET = gql`
-    mutation PublishTallySheet($electionEventId: uuid!, $tallySheetId: uuid!) {
-        publish_tally_sheet(election_event_id: $electionEventId, tally_sheet_id: $tallySheetId) {
+    mutation PublishTallySheet($electionEventId: uuid!, $tallySheetId: uuid!, $publish: Boolean!) {
+        publish_tally_sheet(election_event_id: $electionEventId, tally_sheet_id: $tallySheetId, publish: $publish) {
             tally_sheet_id
         }
     }

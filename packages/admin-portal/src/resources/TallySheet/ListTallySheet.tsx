@@ -16,7 +16,7 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Button, Tooltip, Typography} from "@mui/material"
-import {PublishTallySheetMutation, Sequent_Backend_Contest} from "../../gql/graphql"
+import {PublishTallySheetMutation, Sequent_Backend_Contest, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -130,7 +130,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const deleteAction = (id: Identifier) => {
-        // deleteOne("sequent_backend_TallySheet", {id})
         setOpenDeleteModal(true)
         setDeleteId(id)
     }
@@ -148,17 +147,12 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         setDeleteId(undefined)
     }
 
-    const confirmUnpublishAction = () => {
-        // onClickPublishTallySheet()
-        setDeleteId(undefined)
-    }
-
-    const confirmPublishAction = async () => {
+    const confirmPublishAction = async (isPublished: boolean) => {
         const {data, errors} = await publishTallySheet({
             variables: {
                 electionEventId: contest.election_event_id,
                 tallySheetId: deleteId,
-                publish: true,
+                publish: isPublished,
             },
         })
         if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
@@ -173,7 +167,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         setDeleteId(undefined)
     }
 
-    const actions: Action[] = [
+    const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
         {icon: <EditIcon />, action: editAction, showAction: () => canCreate},
         {icon: <VisibilityIcon />, action: viewAction, showAction: () => canView},
         {
@@ -183,7 +177,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: publishAction,
-            showAction: () => canPublish,
+            showAction: () => (canPublish && record.published_at === null),
         },
         {
             icon: (
@@ -192,7 +186,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: unpublishAction,
-            showAction: () => canPublish,
+            showAction: () => (canPublish && record.published_at !== null),
         },
         {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDelete},
     ]
@@ -223,7 +217,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     contest_id: contest.id || undefined,
                     deleted_at: {
                         format: "hasura-raw-query",
-                        value: { _is_null: true},
+                        value: {_is_null: true},
                     },
                 }}
                 filters={Filters}
@@ -240,7 +234,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                     <FunctionField
                         label={t("tallysheet.table.area")}
-                        render={(record: any) => <AreaItem record={record.area_id} />}
+                        render={(record: Sequent_Backend_Tally_Sheet) => <AreaItem record={record.area_id} />}
                     />
 
                     <FunctionField
@@ -251,7 +245,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     />
 
                     <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
+                        <FunctionField
+                            label={t("tallysheet.table.area")}
+                            render={(record: Sequent_Backend_Tally_Sheet) => <ActionsColumn actions={actions(record)} />}
+                        />
+                        {/* <ActionsColumn actions={actions} /> */}
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
@@ -280,7 +278,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 title={t("tallysheet.common.unpublish")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmUnpublishAction()
+                        confirmPublishAction(false)
                     }
                     setOpenUnpublishDialog(false)
                 }}
@@ -296,7 +294,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 title={t("tallysheet.common.publish")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmPublishAction()
+                        confirmPublishAction(true)
                     }
                     setOpenPublishDialog(false)
                 }}
