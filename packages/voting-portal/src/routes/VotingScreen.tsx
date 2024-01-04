@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -22,7 +22,7 @@ import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
+import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     setBallotSelection,
@@ -99,7 +99,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
     )
 }
 
-export const VotingScreen: React.FC = () => {
+const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
 
     const {electionId} = useParams<{electionId?: string}>()
@@ -119,6 +119,8 @@ export const VotingScreen: React.FC = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
 
+    const submit = useSubmit()
+
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
             ...disableNext,
@@ -133,30 +135,34 @@ export const VotingScreen: React.FC = () => {
             return
         }
 
-        const startMs = Date.now()
-        const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-        const endMs = Date.now()
-        console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
+        try {
+            const startMs = Date.now()
+            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const endMs = Date.now()
+            console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
 
-        dispatch(
-            setAuditableBallot({
-                electionId: ballotStyle?.election_id ?? "",
-                auditableBallot,
-            })
-        )
-
-        let decodedSelectionState = decodeAuditableBallot(auditableBallot)
-
-        if (decodedSelectionState !== null) {
             dispatch(
-                setBallotSelection({
-                    ballotStyle,
-                    ballotSelection: decodedSelectionState,
+                setAuditableBallot({
+                    electionId: ballotStyle?.election_id ?? "",
+                    auditableBallot,
                 })
             )
-        }
 
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/review`)
+            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+
+            if (decodedSelectionState !== null) {
+                dispatch(
+                    setBallotSelection({
+                        ballotStyle,
+                        ballotSelection: decodedSelectionState,
+                    })
+                )
+            }
+
+            submit(null)
+        } catch (error) {
+            submit({error: "Unable to encrypt the Ballot"}, {method: "post"})
+        }
     }
 
     useEffect(() => {
@@ -218,4 +224,17 @@ export const VotingScreen: React.FC = () => {
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
         </PageLimit>
     )
+}
+
+export default VotingScreen
+
+export async function action({request}: {request: Request}) {
+    const data = await request.formData()
+    const error = data.get("error")
+
+    if (error) {
+        throw new Error(error as string)
+    }
+
+    redirect(`review`)
 }

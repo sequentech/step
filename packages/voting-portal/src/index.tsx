@@ -19,7 +19,7 @@ import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvi
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {LoginScreen} from "./routes/LoginScreen"
 import {StartScreen} from "./routes/StartScreen"
-import {VotingScreen} from "./routes/VotingScreen"
+import VotingScreen, {action as votingAction} from "./routes/VotingScreen"
 import {ReviewScreen} from "./routes/ReviewScreen"
 import {ConfirmationScreen} from "./routes/ConfirmationScreen"
 import {AuditScreen} from "./routes/AuditScreen"
@@ -86,6 +86,7 @@ const router = createBrowserRouter([
                             {
                                 path: "vote",
                                 element: <VotingScreen />,
+                                action: votingAction,
                             },
                             {
                                 path: "review",
