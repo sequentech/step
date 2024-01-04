@@ -32,7 +32,7 @@ import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlic
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
-import {TenantEvent} from ".."
+import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledLink = styled(RouterLink)`
@@ -103,7 +103,7 @@ export const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
 
     const {electionId} = useParams<{electionId?: string}>()
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)

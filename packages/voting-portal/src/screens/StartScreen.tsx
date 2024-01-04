@@ -17,7 +17,7 @@ import Button from "@mui/material/Button"
 import {useAppSelector} from "../store/hooks"
 import {IElection, selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
-import {TenantEvent} from ".."
+import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledTitle = styled(Typography)`
@@ -61,7 +61,7 @@ interface ActionButtonsProps {
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const {t} = useTranslation()
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
 
     return (
         <ActionsContainer>

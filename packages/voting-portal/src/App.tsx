@@ -10,7 +10,7 @@ import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
-import {TenantEvent} from "."
+import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 
 const StyledApp = styled(Stack)`
@@ -36,7 +36,7 @@ const App = () => {
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     useEffect(() => {

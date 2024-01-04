@@ -6,11 +6,11 @@ import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useNavigate, useParams} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
-import {TenantEvent} from ".."
+import {TenantEventType} from ".."
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const navigate = useNavigate()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 

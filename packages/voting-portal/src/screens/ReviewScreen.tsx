@@ -37,7 +37,7 @@ import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
-import {TenantEvent} from ".."
+import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledLink = styled(RouterLink)`
@@ -84,7 +84,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const ballotId = hashBallot(auditableBallot)
 
@@ -184,7 +184,7 @@ export const ReviewScreen: React.FC = () => {
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)

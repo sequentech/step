@@ -27,12 +27,13 @@ import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {BallotLocator} from "./screens/BallotLocator"
 import {ErrorPage} from "./screens/ErrorPage"
 import {SupportMaterialsScreen} from "./screens/SupportMaterialsScreen"
+import TenantEvent from "./screens/TenantEvent"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
-export type TenantEvent = {
+export type TenantEventType = {
     tenantId: string
     eventId: string
 }
@@ -64,40 +65,51 @@ const router = createBrowserRouter([
         errorElement: <ErrorPage />,
         children: [
             {
-                path: "/tenant/:tenantId/event/:eventId/login",
-                element: <LoginScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election-chooser",
-                element: <ElectionSelectionScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/start",
-                element: <StartScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/vote",
-                element: <VotingScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/review",
-                element: <ReviewScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/confirmation",
-                element: <ConfirmationScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/audit",
-                element: <AuditScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?",
-                element: <BallotLocator />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/materials",
-                element: <SupportMaterialsScreen />,
+                path: "/tenant/:tenantId/event/:eventId",
+                element: <TenantEvent />,
+                children: [
+                    {
+                        path: "election-chooser",
+                        element: <ElectionSelectionScreen />,
+                    },
+                    {
+                        path: "login",
+                        element: <LoginScreen />,
+                    },
+                    {
+                        path: "election/:electionId",
+                        children: [
+                            {
+                                path: "start",
+                                element: <StartScreen />,
+                            },
+                            {
+                                path: "vote",
+                                element: <VotingScreen />,
+                            },
+                            {
+                                path: "review",
+                                element: <ReviewScreen />,
+                            },
+                            {
+                                path: "confirmation",
+                                element: <ConfirmationScreen />,
+                            },
+                            {
+                                path: "audit",
+                                element: <AuditScreen />,
+                            },
+                            {
+                                path: "ballot-locator/:ballotId?",
+                                element: <BallotLocator />,
+                            },
+                        ],
+                    },
+                    {
+                        path: "materials",
+                        element: <SupportMaterialsScreen />,
+                    },
+                ],
             },
         ],
     },

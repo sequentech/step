@@ -20,7 +20,7 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {SupportMatherial} from "../components/SupportMatherial/SupportMatherial"
-import {TenantEvent} from ".."
+import {TenantEventType} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -46,7 +46,7 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
-    const {tenantId} = useParams<TenantEvent>()
+    const {tenantId} = useParams<TenantEventType>()
     const {i18n} = useTranslation()
 
     return (
