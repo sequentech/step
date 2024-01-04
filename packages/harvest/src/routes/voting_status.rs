@@ -23,7 +23,12 @@ pub async fn update_event_status(
     claims: JwtClaims,
 ) -> Result<Json<voting_status::UpdateEventVotingStatusOutput>, (Status, String)>
 {
-    authorize(&claims, true, None, vec![Permissions::ELECTION_STATE_WRITE])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ELECTION_STATE_WRITE],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
@@ -43,7 +48,12 @@ pub async fn update_election_status(
     Json<voting_status::UpdateElectionVotingStatusOutput>,
     (Status, String),
 > {
-    authorize(&claims, true, None, vec![Permissions::ELECTION_STATE_WRITE])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ELECTION_STATE_WRITE],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let result = voting_status::update_election_status(input, tenant_id)
