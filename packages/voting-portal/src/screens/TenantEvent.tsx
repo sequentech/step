@@ -9,14 +9,14 @@ export default function TenantEvent() {
     const navigate = useNavigate()
     const params = useParams()
 
-    const electionChooserMatch = useMatch("/tenant/:tenantId/event/:eventId/election-chooser")
+    const noMatch = useMatch("/tenant/:tenantId/event/:eventId/")
     const path = `/tenant/${params.tenantId}/event/${params.eventId}/election-chooser`
 
     useEffect(() => {
-        if (!electionChooserMatch) {
+        if (noMatch) {
             navigate(path)
         }
-    }, [navigate, params, electionChooserMatch, path])
+    }, [navigate, params, noMatch, path])
 
     return <Outlet />
 }
