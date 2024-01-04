@@ -344,7 +344,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>
-                        <Typography>No elections found</Typography>
+                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
                     </Box>
                 )}
             </ElectionContainer>
