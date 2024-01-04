@@ -32,7 +32,7 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
-export type TenantEvent = {
+export interface TenantEvent {
     tenantId: string
     eventId: string
 }

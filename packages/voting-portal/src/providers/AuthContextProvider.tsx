@@ -58,7 +58,7 @@ export interface AuthContextValues {
     openProfileLink: () => Promise<void>
 }
 
-type UserProfile = {
+interface UserProfile {
     userId?: string
     username?: string
     email?: string
