@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
-//import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"

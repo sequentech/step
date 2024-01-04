@@ -33,6 +33,7 @@ import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsS
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
+import StyledLinkContainer from "../components/Link"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -232,11 +233,13 @@ export const AuditScreen: React.FC = () => {
                 }
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(
-                    t("auditScreen.step2Description", {
-                        linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start`,
-                    })
-                )}
+                <StyledLinkContainer>
+                    {stringToHtml(
+                        t("auditScreen.step2Description", {
+                            linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start`,
+                        })
+                    )}
+                </StyledLinkContainer>
             </Typography>
             <Box margin="15px 0 25px 0">
                 <WarnBox variant="warning">{stringToHtml(t("auditScreen.bottomWarning"))}</WarnBox>
