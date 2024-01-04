@@ -80,6 +80,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
 
 #[instrument(skip_all)]
 async fn process_plaintexts(
+    auth_headers: AuthHeaders,
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
@@ -148,7 +149,6 @@ async fn process_plaintexts(
         })
         .collect();
 
-    let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -218,12 +218,12 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
 #[instrument(err)]
 pub async fn count_cast_votes_election_with_census(
+    auth_headers: AuthHeaders,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ElectionCastVotes>> {
     let mut cast_votes = count_cast_votes_election(&tenant_id, &election_event_id).await?;
 
-    let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -303,6 +303,7 @@ pub async fn get_eligible_voters(
 
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
+    auth_headers: AuthHeaders,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
@@ -316,9 +317,6 @@ async fn map_plaintext_data(
         Vec<ElectionCastVotes>,
     )>,
 > {
-    // get credentials
-    let auth_headers = keycloak::get_client_credentials().await?;
-
     // fetch election_event
     let election_events = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -493,10 +491,17 @@ async fn map_plaintext_data(
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
-    let plaintexts_data: Vec<AreaContestDataType> =
-        process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data).await?;
+    let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
+        auth_headers.clone(),
+        relevant_plaintexts,
+        ballot_styles,
+        tally_session_data,
+    )
+    .await?;
 
-    let cast_votes_count = count_cast_votes_election(&tenant_id, &election_event_id).await?;
+    let cast_votes_count =
+        count_cast_votes_election_with_census(auth_headers.clone(), &tenant_id, &election_event_id)
+            .await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,
@@ -541,6 +546,7 @@ pub async fn execute_tally_session_wrapped(
     .unwrap();
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
+        auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
@@ -583,11 +589,6 @@ pub async fn execute_tally_session_wrapped(
 
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;
-
-    // get credentials
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     // upload binary data into a document (s3 and hasura)
     let document = upload_and_return_document(
@@ -648,7 +649,7 @@ pub async fn execute_tally_session_wrapped(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 120000, max_retries = 1)]
+#[celery::task(time_limit = 1200000, max_retries = 1)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,

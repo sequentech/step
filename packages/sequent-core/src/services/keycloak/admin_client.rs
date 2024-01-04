@@ -84,6 +84,12 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     );
 
     let client = reqwest::Client::new();
+    event!(
+        Level::INFO,
+        "Acquiring credentials to {} with {:?}",
+        keycloak_endpoint,
+        body_string
+    );
     let res = client
         .post(keycloak_endpoint)
         .header("Content-Type", "application/x-www-form-urlencoded")
