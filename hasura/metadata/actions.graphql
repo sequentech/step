@@ -350,7 +350,7 @@ input CreateKeysCeremonyInput {
 }
 
 input ElectionEventStatsInput {
-  election_event_id : String!
+  election_event_id : uuid!
 }
 
 input GetPrivateKeyInput {
@@ -453,7 +453,7 @@ type GetPrivateKeyOutput {
 }
 
 type ElectionEventStatsOutput {
-  total_distinct_voters : int!
+  total_distinct_voters : Int!
 }
 
 type CheckPrivateKeyOutput {
