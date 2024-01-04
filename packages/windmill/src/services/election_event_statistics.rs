@@ -51,8 +51,8 @@ pub async fn get_count_distinct_voters(
             FROM
                 sequent_backend.cast_vote
             WHERE
-                election_event_id = $1 AND
-                tenant_id = $2;
+                tenant_id = $1 AND
+                election_event_id = $2;
             "#,
         )
         .await?;
@@ -61,8 +61,8 @@ pub async fn get_count_distinct_voters(
         .query(
             &total_distinct_voters_statement,
             &[
-                &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
             ],
         )
         .await?;

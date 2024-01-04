@@ -139,6 +139,12 @@ type Query {
   ): ElectionEventStatsOutput
 }
 
+type Query {
+  getElectionStats (
+    object: ElectionStatsInput!
+  ): ElectionStatsOutput
+}
+
 type Mutation {
   get_upload_url (
     name: String!
@@ -353,6 +359,11 @@ input ElectionEventStatsInput {
   election_event_id : uuid!
 }
 
+input ElectionStatsInput {
+  election_event_id : uuid!
+  election_id : uuid!
+}
+
 input GetPrivateKeyInput {
   election_event_id : String!
   keys_ceremony_id : String!
@@ -453,6 +464,10 @@ type GetPrivateKeyOutput {
 }
 
 type ElectionEventStatsOutput {
+  total_distinct_voters : Int!
+}
+
+type ElectionStatsOutput {
   total_distinct_voters : Int!
 }
 

@@ -48,16 +48,6 @@ export default function Stats({
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
-    const {data: updatedElectionEvent} = useGetOne<Sequent_Backend_Election>(
-        "sequent_backend_election",
-        {
-            id: electionId,
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
-
     const {total: totalUsers} = useGetList(
         "user",
         {
