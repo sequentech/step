@@ -1,24 +1,71 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
-use s3::bucket::Bucket;
-use s3::creds::Credentials;
-use s3::error::S3Error;
-use s3::region::Region;
-use s3::BucketConfiguration;
-use std::env;
-use tracing::instrument;
 
-pub fn get_private_bucket() -> String {
-    let minio_bucket = env::var("MINIO_BUCKET").expect(&format!("MINIO_BUCKET must be set"));
-    minio_bucket
+use crate::util::aws::{
+    get_fetch_expiration_secs, get_from_env_aws_config, get_max_upload_size, get_s3_aws_config,
+    get_upload_expiration_secs,
+};
+
+use anyhow::{anyhow, Result};
+use aws_config::SdkConfig;
+use aws_sdk_s3 as s3;
+use aws_smithy_types::byte_stream::ByteStream;
+use core::time::Duration;
+use s3::presigning::PresigningConfig;
+use std::env;
+use tracing::{info, instrument};
+
+pub fn get_private_bucket() -> Result<String> {
+    let s3_bucket =
+        env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
+    Ok(s3_bucket)
 }
 
-pub fn get_public_bucket() -> String {
-    let minio_bucket =
-        env::var("MINIO_PUBLIC_BUCKET").expect(&format!("MINIO_PUBLIC_BUCKET must be set"));
-    minio_bucket
+pub fn get_public_bucket() -> Result<String> {
+    let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
+        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
+    Ok(s3_bucket)
+}
+
+#[instrument(skip(client, config))]
+async fn create_bucket_if_not_exists(
+    client: &s3::Client,
+    config: &s3::Config,
+    bucket_name: &str,
+) -> Result<()> {
+    let region = config
+        .region()
+        .ok_or(anyhow!("Error getting region"))?
+        .to_string();
+    // Check if the bucket exists
+    if client
+        .head_bucket()
+        .bucket(bucket_name)
+        .send()
+        .await
+        .is_err()
+    {
+        info!("Bucket {bucket_name} doesn't exist - creating it");
+        client
+            .create_bucket()
+            .create_bucket_configuration(
+                s3::types::CreateBucketConfiguration::builder()
+                    .location_constraint(s3::types::BucketLocationConstraint::from(region.as_str()))
+                    .build(),
+            )
+            .bucket(bucket_name)
+            .send()
+            .await?;
+        println!("Bucket {} created", bucket_name);
+    }
+    Ok(())
+}
+
+pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
+    let client = s3::Client::from_conf(config);
+    Ok(client)
 }
 
 #[instrument(skip(data), err)]
@@ -26,65 +73,26 @@ pub async fn upload_to_s3(
     data: &Vec<u8>,
     key: String,
     media_type: String,
-    minio_bucket: String,
+    s3_bucket: String,
 ) -> Result<()> {
-    let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
-    let key_secret =
-        env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
-    let minio_private_uri =
-        env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
-    //let minio_public_uri = env::var("MINIO_PUBLIC_URI")
-    //    .expect(&format!("MINIO_PUBLIC_URI must be set"));
-    let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
-
-    // 1) Instantiate the bucket client
-    println!("=== Bucket instantiation");
-
-    let private_region = Region::Custom {
-        region: minio_region.to_owned(),
-        endpoint: minio_private_uri.to_owned(),
-    };
-    let credentials = Credentials {
-        access_key: Some(key_id.to_owned()),
-        secret_key: Some(key_secret.to_owned()),
-        security_token: None,
-        session_token: None,
-        expiration: None,
-    };
-    let bucket = Bucket::new(
-        minio_bucket.as_str(),
-        private_region.clone(),
-        credentials.clone(),
-    )?
-    .with_path_style();
-    println!("=== Bucket list");
-
-    // 2) Create bucket if does not exist
-    let result = bucket.head_object("/").await;
-    let is_404_error = match result {
-        Err(S3Error::Http(404, _)) => true,
-        _ => false,
-    };
-    if is_404_error {
-        println!("=== Bucket creation");
-        let create_result = Bucket::create_with_path_style(
-            minio_bucket.as_str(),
-            private_region,
-            credentials.clone(),
-            BucketConfiguration::default(),
-        )
-        .await?;
-
-        println!(
-            "=== Bucket created\n{} - {} - {}",
-            bucket.name, create_result.response_code, create_result.response_text
-        );
+    if data.len() > get_max_upload_size()? {
+        return Err(anyhow!(
+            "File is too big: data.len() [{}] > get_max_upload_size() [{}]",
+            data.len(),
+            get_max_upload_size()?
+        ));
     }
 
-    // 3) Create object (binary)
-    println!("=== Put content");
-    bucket
-        .put_object_with_content_type(key, data, media_type.as_str())
+    let config = get_s3_aws_config(/* private = */ true).await?;
+    let client = get_s3_client(config.clone()).await?;
+    create_bucket_if_not_exists(&client, &config, s3_bucket.as_str()).await?;
+    client
+        .put_object()
+        .bucket(s3_bucket)
+        .key(key)
+        .content_type(media_type)
+        .body(ByteStream::from(data.to_vec()))
+        .send()
         .await?;
 
     Ok(())
@@ -108,56 +116,37 @@ pub fn get_public_document_key(tenant_id: String, document_id: String, name: Str
 }
 
 #[instrument(err)]
-pub async fn get_document_url(key: String, minio_bucket: String) -> Result<String> {
-    let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
-    let key_secret =
-        env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
-    let minio_public_uri =
-        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
-    let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
+pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> {
+    let config = get_s3_aws_config(/* private = */ false).await?;
+    let client = get_s3_client(config).await?;
 
-    let credentials = Credentials {
-        access_key: Some(key_id.to_owned()),
-        secret_key: Some(key_secret.to_owned()),
-        security_token: None,
-        session_token: None,
-        expiration: None,
-    };
-    let public_region = Region::Custom {
-        region: minio_region.to_owned(),
-        endpoint: minio_public_uri.to_owned(),
-    };
-    let public_bucket =
-        Bucket::new(minio_bucket.as_str(), public_region, credentials.clone())?.with_path_style();
-    let url = public_bucket.presign_get(key, 86400, None)?;
+    let presigning_config =
+        PresigningConfig::expires_in(Duration::from_secs(get_fetch_expiration_secs()?))?;
 
-    Ok(url)
+    let presigned_request = client
+        .get_object()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .presigned(presigning_config)
+        .await?;
+
+    Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err)]
+#[instrument(err, ret)]
 pub async fn get_upload_url(key: String) -> Result<String> {
-    let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
-    let key_secret =
-        env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
-    let minio_public_uri =
-        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
-    let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
-    let minio_bucket = get_public_bucket();
+    let s3_bucket = get_public_bucket()?;
+    let config = get_s3_aws_config(/* private = */ false).await?;
+    let client = get_s3_client(config.clone()).await?;
 
-    let credentials = Credentials {
-        access_key: Some(key_id.to_owned()),
-        secret_key: Some(key_secret.to_owned()),
-        security_token: None,
-        session_token: None,
-        expiration: None,
-    };
-    let public_region = Region::Custom {
-        region: minio_region.to_owned(),
-        endpoint: minio_public_uri.to_owned(),
-    };
-    let public_bucket =
-        Bucket::new(minio_bucket.as_str(), public_region, credentials.clone())?.with_path_style();
+    let presigning_config =
+        PresigningConfig::expires_in(Duration::from_secs(get_upload_expiration_secs()?))?;
 
-    let upload_url = public_bucket.presign_put(key, 3600, None)?;
-    Ok(upload_url)
+    let presigned_request = client
+        .put_object()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .presigned(presigning_config)
+        .await?;
+    Ok(presigned_request.uri().to_string())
 }
