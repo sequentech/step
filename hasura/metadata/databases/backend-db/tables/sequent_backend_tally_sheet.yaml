@@ -185,3 +185,8 @@ update_permissions:
     - tenant_id
     filter: {}
   role: service-account
+delete_permissions:
+- comment: ""
+  permission:
+    filter: {}
+  role: admin-user
