@@ -14,13 +14,3 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
-
-.link {
-  text-decoration: underline;
-  font-weight: normal;
-  color: black;
-}
-
-.link:hover {
-  text-decoration: none;
-}
