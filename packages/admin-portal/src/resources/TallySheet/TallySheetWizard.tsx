@@ -14,7 +14,6 @@ import {
     Sequent_Backend_Tally_Sheet_Insert_Input,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
-import {CreateTallySheet} from "./CreateTallySheet"
 import {EditTallySheet} from "./EditTallySheet"
 import {ShowTallySheet} from "./ShowTallySheet"
 

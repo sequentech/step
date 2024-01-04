@@ -1,18 +1,14 @@
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 import {
-    Create,
     Identifier,
     TabbedShowLayout,
-    useGetOne,
     useRecordContext,
-    useRefresh,
 } from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
-import {CreateTallySheet} from "../TallySheet/CreateTallySheet"
 
 export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()

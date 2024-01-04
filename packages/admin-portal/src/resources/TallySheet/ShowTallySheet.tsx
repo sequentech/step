@@ -4,10 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {
     Identifier,
-    RecordContext,
-    SaveButton,
     SimpleForm,
-    TextInput,
     useCreate,
     useGetList,
     useNotify,
@@ -17,7 +14,6 @@ import {
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     Sequent_Backend_Area,
     Sequent_Backend_Contest,
