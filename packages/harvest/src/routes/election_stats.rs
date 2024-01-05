@@ -18,6 +18,7 @@ use windmill::services::database::{
     get_hasura_pool, get_keycloak_pool, PgConfig,
 };
 use windmill::services::election_statistics::get_count_distinct_voters;
+use windmill::services::election_statistics::get_count_areas;
 
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
@@ -31,10 +32,8 @@ pub struct ElectionStatsInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionStatsOutput {
-    //total_eligible_voters: i64,
     total_distinct_voters: i64,
-    //total_areas: i64,
-    //total_elections: i64,
+    total_areas: i64,
 }
 
 #[instrument(skip(claims))]
@@ -75,8 +74,22 @@ pub async fn get_election_stats(
             format!("Error retrieving total_distinct_voters: {err}"),
         )
     })?;
+    let total_areas: i64 = get_count_areas(
+        &hasura_transaction,
+        &tenant_id.as_str(),
+        &input.election_event_id.as_str(),
+        &input.election_id.as_str(),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving total_areas: {err}"),
+        )
+    })?;
 
     Ok(Json(ElectionStatsOutput {
         total_distinct_voters,
+        total_areas,
     }))
 }

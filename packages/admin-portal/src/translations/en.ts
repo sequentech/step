@@ -213,6 +213,7 @@ const englishTranslation = {
             createElectionEventError: "Error creating election event",
             stats: {
                 elegibleVoters: "Elegible Voters",
+                voters: "Actual Voters",
                 elections: "Elections",
                 contests: "Contests",
                 areas: "Areas",

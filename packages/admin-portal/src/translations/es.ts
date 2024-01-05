@@ -215,6 +215,7 @@ const spanishTranslation: TranslationType = {
             createElectionEventError: "Error creando Evento Electoral",
             stats: {
                 elegibleVoters: "Electores",
+                voters: "Votantes",
                 elections: "Elecciones",
                 contests: "Preguntas",
                 areas: "Áreas",

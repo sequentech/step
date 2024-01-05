@@ -469,6 +469,7 @@ type ElectionEventStatsOutput {
 
 type ElectionStatsOutput {
   total_distinct_voters : Int!
+  total_areas : Int!
 }
 
 type CheckPrivateKeyOutput {

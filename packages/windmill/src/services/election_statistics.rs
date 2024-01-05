@@ -81,3 +81,58 @@ pub async fn get_count_distinct_voters(
 
     Ok(total_distinct_voters)
 }
+
+
+#[instrument(skip(transaction), err)]
+pub async fn get_count_areas(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<i64> {
+    let total_areas_statement = transaction
+        .prepare(
+            r#"
+            SELECT
+                count(DISTINCT a.id) as total_areas
+            FROM
+                sequent_backend.area a
+            JOIN
+                sequent_backend.area_contest ac ON
+                    a.id = ac.area_id AND
+                    a.election_event_id = ac.election_event_id AND
+                    a.tenant_id = ac.tenant_id
+            JOIN
+                sequent_backend.contest c ON
+                    ac.contest_id = c.id AND
+                    ac.election_event_id = c.election_event_id AND
+                    ac.tenant_id = c.tenant_id
+            WHERE
+                c.tenant_id = $1 AND
+                c.election_event_id = $2 AND
+                c.election_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = transaction
+        .query(
+            &total_areas_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await?;
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let total_areas: i64 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_areas")?
+    };
+
+    Ok(total_areas)
+}

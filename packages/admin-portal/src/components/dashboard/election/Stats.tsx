@@ -39,26 +39,15 @@ export default function Stats({
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
 
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
-        variables: {
-            tenantId,
-            electionEventId,
-            electionId,
-        },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
-
-    const {total: totalUsers} = useGetList(
-        "user",
+    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(
+        GET_ELECTION_STATS,
         {
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
+            variables: {
+                tenantId,
+                electionEventId,
+                electionId,
             },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
@@ -66,8 +55,10 @@ export default function Stats({
         return <CircularProgress />
     }
 
-    const res = {
-        castVotes: dataStats?.castVotes?.aggregate?.count ?? 0,
+    const metrics = {
+        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
+        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        areasCount: dataStats?.stats?.total_areas ?? "-",
     }
 
     const iconSize = 60
@@ -76,13 +67,18 @@ export default function Stats({
         <CardList>
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={totalUsers ?? 0}
+                count={metrics.eligibleVotersCount}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
             <StatItem
-                icon={<CalendarMonthOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={t("electionEventScreen.stats.calendar.scheduled")}
-                label={t("electionEventScreen.stats.calendar.title")}
+                icon={<GroupIcon sx={{fontSize: iconSize}} />}
+                count={metrics.votersCount}
+                label={t("electionEventScreen.stats.voters")}
+            ></StatItem>
+            <StatItem
+                icon={<FenceIcon sx={{fontSize: iconSize}} />}
+                count={metrics.areasCount}
+                label={t("electionEventScreen.stats.areas")}
             ></StatItem>
         </CardList>
     )

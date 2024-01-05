@@ -981,6 +981,88 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "ElectionStatsInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ElectionStatsOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "total_areas",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_distinct_voters",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "ElectoralLogFilter",
         "description": null,
         "fields": null,
@@ -1560,7 +1642,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null
@@ -1570,7 +1652,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null
@@ -1643,7 +1725,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "String",
+                "name": "uuid",
                 "ofType": null
               }
             },
@@ -16742,7 +16824,7 @@
           },
           {
             "name": "getElectionEventStats",
-            "description": "check private key",
+            "description": "get election event stats",
             "args": [
               {
                 "name": "object",
@@ -16762,6 +16844,33 @@
             "type": {
               "kind": "OBJECT",
               "name": "ElectionEventStatsOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "getElectionStats",
+            "description": "get election event stats",
+            "args": [
+              {
+                "name": "object",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "ElectionStatsInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "ElectionStatsOutput",
               "ofType": null
             },
             "isDeprecated": false,
