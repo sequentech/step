@@ -40,7 +40,7 @@ const useActionPermissions = () => {
     }
 }
 
-const OMIT_FIELDS = ["id"]
+const OMIT_FIELDS = ["created_at", "updated_at", "deleted_at"]
 const Filters: Array<ReactElement> = []
 
 export const CommunicationTemplateList: React.FC = () => {
@@ -48,7 +48,6 @@ export const CommunicationTemplateList: React.FC = () => {
     const [deleteOne] = useDelete()
     const {canWriteTenant} = useActionPermissions()
 
-    const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
@@ -57,7 +56,6 @@ export const CommunicationTemplateList: React.FC = () => {
 
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
-        setOpen(false)
         refresh()
 
         setTimeout(() => {
@@ -68,13 +66,11 @@ export const CommunicationTemplateList: React.FC = () => {
     const handleCreateDrawer = () => {
         setRecordId(undefined)
         setOpenDrawer(true)
-        setOpen(true)
     }
 
     const handleEditDrawer = (id: Identifier) => {
         setRecordId(id)
         setOpenDrawer(true)
-        setOpen(true)
     }
 
     const deleteAction = (id: Identifier) => {
@@ -116,12 +112,6 @@ export const CommunicationTemplateList: React.FC = () => {
         </CommunicationTemplateEmpty>
     )
 
-    useEffect(() => {
-        if (recordId) {
-            setOpen(true)
-        }
-    }, [recordId])
-
     if (!canWriteTenant) {
         return <Empty />
     }
@@ -151,7 +141,7 @@ export const CommunicationTemplateList: React.FC = () => {
 
             <Drawer
                 anchor="right"
-                open={open}
+                open={openDrawer}
                 onClose={handleCloseDrawer}
                 PaperProps={{
                     sx: {width: "40%"},
