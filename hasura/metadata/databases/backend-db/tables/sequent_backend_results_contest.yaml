@@ -12,6 +12,7 @@ insert_permissions:
     - implicit_invalid_votes
     - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
     - blank_votes_percent
@@ -19,6 +20,7 @@ insert_permissions:
     - implicit_invalid_votes_percent
     - total_invalid_votes_percent
     - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -41,6 +43,7 @@ insert_permissions:
     - implicit_invalid_votes
     - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
     - blank_votes_percent
@@ -48,6 +51,7 @@ insert_permissions:
     - implicit_invalid_votes_percent
     - total_invalid_votes_percent
     - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -71,6 +75,7 @@ select_permissions:
     - implicit_invalid_votes
     - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
     - blank_votes_percent
@@ -78,6 +83,7 @@ select_permissions:
     - implicit_invalid_votes_percent
     - total_invalid_votes_percent
     - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -101,6 +107,7 @@ select_permissions:
     - implicit_invalid_votes
     - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
     - blank_votes_percent
@@ -108,6 +115,7 @@ select_permissions:
     - implicit_invalid_votes_percent
     - total_invalid_votes_percent
     - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -132,6 +140,7 @@ update_permissions:
     - implicit_invalid_votes
     - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
     - blank_votes_percent
@@ -139,6 +148,7 @@ update_permissions:
     - implicit_invalid_votes_percent
     - total_invalid_votes_percent
     - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -162,6 +172,7 @@ update_permissions:
     - implicit_invalid_votes
     - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
     - blank_votes_percent
@@ -169,6 +180,7 @@ update_permissions:
     - implicit_invalid_votes_percent
     - total_invalid_votes_percent
     - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type

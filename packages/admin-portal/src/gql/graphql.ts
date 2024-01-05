@@ -9731,6 +9731,8 @@ export type Sequent_Backend_Results_Area_Contest = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 
@@ -9795,6 +9797,8 @@ export type Sequent_Backend_Results_Area_Contest_Avg_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.results_area_contest". All fields are combined with a logical 'AND'. */
@@ -9824,6 +9828,8 @@ export type Sequent_Backend_Results_Area_Contest_Bool_Exp = {
   total_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
   total_valid_votes?: InputMaybe<Int_Comparison_Exp>;
   total_valid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
+  total_votes?: InputMaybe<Int_Comparison_Exp>;
+  total_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
 };
 
 /** columns and relationships of "sequent_backend.results_area_contest_candidate" */
@@ -10306,6 +10312,8 @@ export type Sequent_Backend_Results_Area_Contest_Inc_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.results_area_contest" */
@@ -10332,6 +10340,8 @@ export type Sequent_Backend_Results_Area_Contest_Insert_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate max on columns */
@@ -10357,6 +10367,8 @@ export type Sequent_Backend_Results_Area_Contest_Max_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** aggregate min on columns */
@@ -10382,6 +10394,8 @@ export type Sequent_Backend_Results_Area_Contest_Min_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** response of any mutation on the table "sequent_backend.results_area_contest" */
@@ -10424,6 +10438,8 @@ export type Sequent_Backend_Results_Area_Contest_Order_By = {
   total_invalid_votes_percent?: InputMaybe<Order_By>;
   total_valid_votes?: InputMaybe<Order_By>;
   total_valid_votes_percent?: InputMaybe<Order_By>;
+  total_votes?: InputMaybe<Order_By>;
+  total_votes_percent?: InputMaybe<Order_By>;
 };
 
 /** primary key columns input for table: sequent_backend.results_area_contest */
@@ -10485,7 +10501,11 @@ export enum Sequent_Backend_Results_Area_Contest_Select_Column {
   /** column name */
   TotalValidVotes = 'total_valid_votes',
   /** column name */
-  TotalValidVotesPercent = 'total_valid_votes_percent'
+  TotalValidVotesPercent = 'total_valid_votes_percent',
+  /** column name */
+  TotalVotes = 'total_votes',
+  /** column name */
+  TotalVotesPercent = 'total_votes_percent'
 }
 
 /** input type for updating data in table "sequent_backend.results_area_contest" */
@@ -10512,6 +10532,8 @@ export type Sequent_Backend_Results_Area_Contest_Set_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate stddev on columns */
@@ -10528,6 +10550,8 @@ export type Sequent_Backend_Results_Area_Contest_Stddev_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_pop on columns */
@@ -10544,6 +10568,8 @@ export type Sequent_Backend_Results_Area_Contest_Stddev_Pop_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_samp on columns */
@@ -10560,6 +10586,8 @@ export type Sequent_Backend_Results_Area_Contest_Stddev_Samp_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_results_area_contest" */
@@ -10594,6 +10622,8 @@ export type Sequent_Backend_Results_Area_Contest_Stream_Cursor_Value_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate sum on columns */
@@ -10610,6 +10640,8 @@ export type Sequent_Backend_Results_Area_Contest_Sum_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** update columns of table "sequent_backend.results_area_contest" */
@@ -10657,7 +10689,11 @@ export enum Sequent_Backend_Results_Area_Contest_Update_Column {
   /** column name */
   TotalValidVotes = 'total_valid_votes',
   /** column name */
-  TotalValidVotesPercent = 'total_valid_votes_percent'
+  TotalValidVotesPercent = 'total_valid_votes_percent',
+  /** column name */
+  TotalVotes = 'total_votes',
+  /** column name */
+  TotalVotesPercent = 'total_votes_percent'
 }
 
 export type Sequent_Backend_Results_Area_Contest_Updates = {
@@ -10693,6 +10729,8 @@ export type Sequent_Backend_Results_Area_Contest_Var_Pop_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate var_samp on columns */
@@ -10709,6 +10747,8 @@ export type Sequent_Backend_Results_Area_Contest_Var_Samp_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate variance on columns */
@@ -10725,6 +10765,8 @@ export type Sequent_Backend_Results_Area_Contest_Variance_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.results_contest" */
@@ -10753,6 +10795,8 @@ export type Sequent_Backend_Results_Contest = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
 };
 
@@ -10818,6 +10862,8 @@ export type Sequent_Backend_Results_Contest_Avg_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.results_contest". All fields are combined with a logical 'AND'. */
@@ -10848,6 +10894,8 @@ export type Sequent_Backend_Results_Contest_Bool_Exp = {
   total_invalid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
   total_valid_votes?: InputMaybe<Int_Comparison_Exp>;
   total_valid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
+  total_votes?: InputMaybe<Int_Comparison_Exp>;
+  total_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
   voting_type?: InputMaybe<String_Comparison_Exp>;
 };
 
@@ -11319,6 +11367,8 @@ export type Sequent_Backend_Results_Contest_Inc_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.results_contest" */
@@ -11346,6 +11396,8 @@ export type Sequent_Backend_Results_Contest_Insert_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   voting_type?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -11373,6 +11425,8 @@ export type Sequent_Backend_Results_Contest_Max_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
 };
 
@@ -11400,6 +11454,8 @@ export type Sequent_Backend_Results_Contest_Min_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
 };
 
@@ -11444,6 +11500,8 @@ export type Sequent_Backend_Results_Contest_Order_By = {
   total_invalid_votes_percent?: InputMaybe<Order_By>;
   total_valid_votes?: InputMaybe<Order_By>;
   total_valid_votes_percent?: InputMaybe<Order_By>;
+  total_votes?: InputMaybe<Order_By>;
+  total_votes_percent?: InputMaybe<Order_By>;
   voting_type?: InputMaybe<Order_By>;
 };
 
@@ -11510,6 +11568,10 @@ export enum Sequent_Backend_Results_Contest_Select_Column {
   /** column name */
   TotalValidVotesPercent = 'total_valid_votes_percent',
   /** column name */
+  TotalVotes = 'total_votes',
+  /** column name */
+  TotalVotesPercent = 'total_votes_percent',
+  /** column name */
   VotingType = 'voting_type'
 }
 
@@ -11538,6 +11600,8 @@ export type Sequent_Backend_Results_Contest_Set_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   voting_type?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -11555,6 +11619,8 @@ export type Sequent_Backend_Results_Contest_Stddev_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_pop on columns */
@@ -11571,6 +11637,8 @@ export type Sequent_Backend_Results_Contest_Stddev_Pop_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_samp on columns */
@@ -11587,6 +11655,8 @@ export type Sequent_Backend_Results_Contest_Stddev_Samp_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_results_contest" */
@@ -11622,6 +11692,8 @@ export type Sequent_Backend_Results_Contest_Stream_Cursor_Value_Input = {
   total_invalid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
   total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_votes?: InputMaybe<Scalars['Int']['input']>;
+  total_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
   voting_type?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -11639,6 +11711,8 @@ export type Sequent_Backend_Results_Contest_Sum_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['numeric']['output']>;
   total_valid_votes?: Maybe<Scalars['Int']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_votes?: Maybe<Scalars['Int']['output']>;
+  total_votes_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** update columns of table "sequent_backend.results_contest" */
@@ -11690,6 +11764,10 @@ export enum Sequent_Backend_Results_Contest_Update_Column {
   /** column name */
   TotalValidVotesPercent = 'total_valid_votes_percent',
   /** column name */
+  TotalVotes = 'total_votes',
+  /** column name */
+  TotalVotesPercent = 'total_votes_percent',
+  /** column name */
   VotingType = 'voting_type'
 }
 
@@ -11726,6 +11804,8 @@ export type Sequent_Backend_Results_Contest_Var_Pop_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate var_samp on columns */
@@ -11742,6 +11822,8 @@ export type Sequent_Backend_Results_Contest_Var_Samp_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate variance on columns */
@@ -11758,6 +11840,8 @@ export type Sequent_Backend_Results_Contest_Variance_Fields = {
   total_invalid_votes_percent?: Maybe<Scalars['Float']['output']>;
   total_valid_votes?: Maybe<Scalars['Float']['output']>;
   total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_votes?: Maybe<Scalars['Float']['output']>;
+  total_votes_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.results_election" */

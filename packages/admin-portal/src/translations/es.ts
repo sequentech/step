@@ -805,6 +805,8 @@ const spanishTranslation: TranslationType = {
                 elegible_census: "Censo de votantes elegibles",
                 cast_votes: "Número de Votos",
                 cast_votes_percent: "Porcentajes de Votos",
+                total_votes: "Total de votos",
+                total_votes_percent: "Votos totales / Censo",
                 total_valid_votes: "Total de votos válidos",
                 total_valid_votes_percent: "Porcentaje de votos válidos",
                 total_invalid_votes: "Total de votos inválidos",
