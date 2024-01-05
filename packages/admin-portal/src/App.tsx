@@ -75,7 +75,7 @@ const App: React.FC<AppProps> = () => {
             }
             const buildGqlQueryOverrides = {}
             const dataProviderHasura = await buildHasuraProvider(options, buildGqlQueryOverrides)
-            setDataProvider(() => dataProviderHasura as any, )
+            setDataProvider(() => dataProviderHasura as any)
         }
         buildDataProvider()
     }, [])

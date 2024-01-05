@@ -4,7 +4,9 @@
 import {gql} from "@apollo/client"
 
 export const INSERT_COMMUNICATION_TEMPLATE = gql`
-    mutation InsertCommunicationTemplate($object: sequent_backend_communication_template_insert_input!) {
+    mutation InsertCommunicationTemplate(
+        $object: sequent_backend_communication_template_insert_input!
+    ) {
         insert_sequent_backend_communication_template(objects: [$object]) {
             affected_rows
         }

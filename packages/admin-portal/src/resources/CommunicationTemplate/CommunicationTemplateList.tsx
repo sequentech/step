@@ -8,7 +8,15 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, useDelete, Identifier, DatagridConfigurable, useRefresh, WrapperField} from "react-admin"
+import {
+    List,
+    TextField,
+    useDelete,
+    Identifier,
+    DatagridConfigurable,
+    useRefresh,
+    WrapperField,
+} from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
@@ -18,8 +26,8 @@ import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CommunicationTemplateCreate} from "./CommunicationTemplateCreate"
 import {CommunicationTemplateEdit} from "./CommunicationTemplateEdit"
-import { CustomApolloContextProvider } from "@/providers/ApolloContextProvider"
-import ElectionHeader from '@/components/ElectionHeader'
+import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
+import ElectionHeader from "@/components/ElectionHeader"
 
 const CommunicationTemplateEmpty = styled(Box)`
     display: flex;

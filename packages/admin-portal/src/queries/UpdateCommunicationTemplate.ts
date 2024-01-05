@@ -5,12 +5,12 @@ import {gql} from "@apollo/client"
 
 export const UPDATE_COMMUNICATION_TEMPLATE = gql`
     mutation UpdateCommunicationTemplate(
-        $id: uuid!,
-        $tenantId: uuid!,
+        $id: uuid!
+        $tenantId: uuid!
         $set: sequent_backend_communication_template_set_input!
     ) {
         update_sequent_backend_communication_template_by_pk(
-            pk_columns: {id: $id, tenant_id: $tenantId}, 
+            pk_columns: {id: $id, tenant_id: $tenantId}
             _set: $set
         ) {
             id
