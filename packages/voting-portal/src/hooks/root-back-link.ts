@@ -8,10 +8,10 @@ export function useRootBackLink() {
 
     useEffect(() => {
         if (!tenantId || !eventId) {
-            throw new Error("Election Event not found")
+            setBackLink(`/`)
+        } else {
+            setBackLink(`/tenant/${tenantId}/event/${eventId}`)
         }
-
-        setBackLink(`/tenant/${tenantId}/event/${eventId}`)
     }, [eventId, tenantId])
 
     return backLink

@@ -46,11 +46,8 @@ const App = () => {
                 `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser`
             )
         } else {
-            // TODO: what if we don't have TenantEventType?
             if (location.pathname === "/") {
-                navigate(
-                    `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`
-                )
+                throw new Error("No election event")
             }
         }
     }, [

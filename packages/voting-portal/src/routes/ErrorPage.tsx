@@ -80,9 +80,11 @@ export function ErrorPage() {
             >
                 {content}
 
-                <StyledLink to={backLink}>
-                    <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
-                </StyledLink>
+                {!(error instanceof Error && error.message === "No election event") && (
+                    <StyledLink to={backLink}>
+                        <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
+                    </StyledLink>
+                )}
             </Box>
         </Box>
     )
