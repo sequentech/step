@@ -34,7 +34,7 @@ import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import { CustomError } from "./ErrorPage"
+import {CustomError} from "./ErrorPage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

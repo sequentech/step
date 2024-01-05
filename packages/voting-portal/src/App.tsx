@@ -13,7 +13,7 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
-import { CustomError } from "./routes/ErrorPage"
+import {CustomError} from "./routes/ErrorPage"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
