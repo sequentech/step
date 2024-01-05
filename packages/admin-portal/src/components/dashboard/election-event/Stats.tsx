@@ -60,7 +60,7 @@ export default function Stats({
         votersCount: dataStats?.castVotes?.total_distinct_voters ?? "-",
         electionsCount: dataStats?.elections?.aggregate?.count ?? "-",
         areasCount: dataStats?.areas?.aggregate?.count ?? "-",
-        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        eligibleVotersCount: dataStats?.users?.total?.aggregate?.count ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
     }
