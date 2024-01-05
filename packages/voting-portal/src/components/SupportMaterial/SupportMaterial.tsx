@@ -13,6 +13,7 @@ import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {GetDocumentQuery} from "../../gql/graphql"
 
@@ -116,7 +117,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                         <VideoFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
                     ) : kind.includes("audio") ? (
                         <AudioFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
-                    ) : null}
+                    ) : (
+                        <DescriptionIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                    )}
                 </Box>
                 <TextContainer>
                     <StyledTitle>{title}</StyledTitle>

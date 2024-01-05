@@ -22,18 +22,14 @@ import {TextField} from "@mui/material"
 import {Box, styled} from "@mui/material"
 import {JsonInput} from "react-admin-json-view"
 import {useMutation} from "@apollo/client"
-import {
-    GetUploadUrlMutation,
-    Sequent_Backend_Document,
-    Sequent_Backend_Support_Material,
-} from "@/gql/graphql"
+import {GetUploadUrlMutation, Sequent_Backend_Support_Material} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
 import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
-import {useWatch} from "react-hook-form"
+import DescriptionIcon from "@mui/icons-material/Description"
 
 interface CreateSupportMaterialProps {
     record: any
@@ -236,7 +232,9 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                                 <VideoFileIcon sx={{fontSize: "80px"}} />
                             ) : imageType.includes("audio") ? (
                                 <AudioFileIcon sx={{fontSize: "80px"}} />
-                            ) : null}
+                            ) : (
+                                <DescriptionIcon sx={{fontSize: "80px"}} />
+                            )}
                         </Box>
                     ) : null}
                     <Hidden>

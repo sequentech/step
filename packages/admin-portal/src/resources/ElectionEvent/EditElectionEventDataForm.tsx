@@ -38,7 +38,7 @@ import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {TVottingSetting} from "@/types/settings"
+import {TVotingSetting} from "@/types/settings"
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -70,7 +70,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         undoable: false,
     })
 
-    const [votingSettings] = useState<TVottingSetting>({
+    const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
     })

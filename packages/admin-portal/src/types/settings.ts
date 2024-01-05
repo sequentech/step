@@ -11,6 +11,6 @@ export type TTenant = {
     }
 }
 
-export type TVottingSetting = {
+export type TVotingSetting = {
     [key: string]: boolean
 }
