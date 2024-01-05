@@ -899,6 +899,12 @@ const spanishTranslation: TranslationType = {
             },
             create: {
                 title: "Crear una Plantilla de Comunicación",
+                success: "Plantilla de Comunicación creada",
+                error: "Error creando plantilla de comunicación",
+            },
+            update: {
+                success: "Plantilla de Comunicación actualizada",
+                error: "Error actualizando plantilla de comunicación",
             },
             edit: {
                 title: "Editar una Plantilla de Comunición",

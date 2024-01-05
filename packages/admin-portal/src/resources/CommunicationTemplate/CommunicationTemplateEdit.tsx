@@ -1,8 +1,8 @@
-import React, {useState, useRef, useEffect} from "react"
+import React from "react"
 
 import styled from "@emotion/styled"
 
-import {AccordionDetails, AccordionSummary, FormControl, MenuItem} from "@mui/material"
+import {AccordionDetails, AccordionSummary, FormControl} from "@mui/material"
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -25,20 +25,13 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {
-    ICommunicationType,
-    ICommunicationMethod,
-    ISendCommunicationBody,
-} from "@/types/communications"
+import {ICommunicationType, ICommunicationMethod} from "@/types/communications"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTemplate"
 import EmailEditEditor from "@/components/EmailEditEditor"
-import {
-    Sequent_Backend_Area_ExtendedQuery,
-    Sequent_Backend_Communication_Template,
-} from "@/gql/graphql"
+import {Sequent_Backend_Communication_Template} from "@/gql/graphql"
 import {useWatch} from "react-hook-form"
+import {UPDATE_COMMUNICATION_TEMPLATE} from "@/queries/UpdateCommunicationTemplate"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -94,6 +87,8 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
     const refresh = useRefresh()
     const notify = useNotify()
 
+    const [UpdateCommunicationTemplate] = useMutation(UPDATE_COMMUNICATION_TEMPLATE)
+
     const EmailSmsComponents: React.FC<{
         parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
     }> = ({parsedValue}) => {
@@ -130,18 +125,22 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         console.log("Submit Template", data)
 
-        // const {errors} = await createCommunicationTemplate({
-        //     variables: {
-        //         object: {
-        //             tenant_id: tenantId,
-        //             communication_type: communicationTemplate.communication_type,
-        //             communication_method: communicationTemplate.communication_method,
-        //             template: {
-        //                 ...communicationTemplate,
-        //             },
-        //         },
-        //     },
-        // })
+        const {data: updated, errors} = await UpdateCommunicationTemplate({
+            variables: {
+                id: id,
+                tenantId: tenantId,
+                set: {...data},
+            },
+        })
+
+        if (updated) {
+            notify("communicationTemplate.update.success", {type: "success"})
+        }
+
+        if (errors) {
+            notify("communicationTemplate.update.error", {type: "error"})
+        }
+
         close?.()
     }
 
@@ -169,8 +168,8 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
         }
     }
 
-    const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>,"id">) => {
-        const temp= {...incoming as Sequent_Backend_Communication_Template}
+    const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">) => {
+        const temp = {...(incoming as Sequent_Backend_Communication_Template)}
         return temp
     }
 

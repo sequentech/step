@@ -886,39 +886,45 @@ const englishTranslation = {
             },
         },
         communicationTemplate: {
-            title: 'Communication Templates',
-            subtitle: 'List of communication templates',
+            title: "Communication Templates",
+            subtitle: "List of communication templates",
             empty: {
-                title: 'No Communication Template Yet',
-                subtitle: 'Do you want to create one?'
+                title: "No Communication Template Yet",
+                subtitle: "Do you want to create one?",
             },
             action: {
-                createOne: 'Create Communication Template'
+                createOne: "Create Communication Template",
             },
             create: {
-                title: 'Create a Communication Template'
+                title: "Create a Communication Template",
+                success: "Communication Template created",
+                error: "Error creating Communication Template",
+            },
+            update: {
+                success: "Communication Template updated",
+                error: "Error updating Communication Template",
             },
             edit: {
-                title: 'Edit a Communication Template'
+                title: "Edit a Communication Template",
             },
             form: {
                 smsMessage: "SMS Message",
-                name: 'Template Name',
-                alias: 'Template Alias',
-                communicationType: 'Communication Type',
-                communicationMethod: 'Communication Method',
+                name: "Template Name",
+                alias: "Template Alias",
+                communicationType: "Communication Type",
+                communicationMethod: "Communication Method",
             },
             type: {
-                credentials: 'Credentials',
-                ballot_receipt: 'Ballot Receipt',
-                participation_report: 'Participation Report',
-                electoral_results: 'Electoral Results',
-                otp: 'OTP'
+                credentials: "Credentials",
+                ballot_receipt: "Ballot Receipt",
+                participation_report: "Participation Report",
+                electoral_results: "Electoral Results",
+                otp: "OTP",
             },
             method: {
-                email: 'Email',
-                sms: 'SMS'
-            }
+                email: "Email",
+                sms: "SMS",
+            },
         },
         materials: {
             createMaterialSuccess: "Support material created",
