@@ -5,9 +5,9 @@ import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler
 import styledEmotion from "@emotion/styled"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
-import Paper from "@mui/material/Paper"
 import {useForwardedRef} from "../../utils/ref"
 import {Typography} from "@mui/material"
+import theme from "@root/services/theme"
 
 const StyledForm = styledEmotion.form`
     height: 16rem;
@@ -98,33 +98,40 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         }
 
         return (
-            <StyledForm onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
-                <StyledInput
-                    ref={innerRef}
-                    type="file"
-                    onChange={handleChange}
-                    data-testid="drop-input-file"
-                    aria-label="Drop Input File"
-                />
-                <StyledLabel
-                    dragActive={dragActive}
-                    onClick={onButtonClick}
-                    data-testid="drop-label-file"
-                >
-                    {children}
-                </StyledLabel>
-                <Typography variant="h6" sx={{fontSize: "14px", margin: "8px 0"}}>
-                    {fileName}
-                </Typography>
-                {dragActive && (
-                    <DragFileElement
-                        onDragEnter={handleDrag}
-                        onDragLeave={handleDrag}
-                        onDragOver={handleDrag}
-                        onDrop={handleDrop}
+            <>
+                <StyledForm onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+                    <StyledInput
+                        ref={innerRef}
+                        type="file"
+                        onChange={handleChange}
+                        data-testid="drop-input-file"
+                        aria-label="Drop Input File"
                     />
-                )}
-            </StyledForm>
+                    <StyledLabel
+                        dragActive={dragActive}
+                        onClick={onButtonClick}
+                        data-testid="drop-label-file"
+                    >
+                        {children}
+                    </StyledLabel>
+                    {dragActive && (
+                        <DragFileElement
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                        />
+                    )}
+                </StyledForm>
+                {fileName !== "" ? (
+                    <Typography
+                        variant="h6"
+                        sx={{fontSize: "18px", margin: "8px 0", color: theme.palette.brandSuccess}}
+                    >
+                        {fileName}
+                    </Typography>
+                ) : null}
+            </>
         )
     }
 )

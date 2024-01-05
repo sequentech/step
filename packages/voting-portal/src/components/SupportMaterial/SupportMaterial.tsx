@@ -13,7 +13,9 @@ import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
+import {GetDocumentQuery} from "../../gql/graphql"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -71,7 +73,7 @@ const StyledSubTitle = styled(Typography)`
     }
 `
 
-export interface SupportMatherialProps {
+export interface SupportMaterialProps {
     title: string
     subtitle?: string
     kind: string
@@ -79,7 +81,7 @@ export interface SupportMatherialProps {
     documentId: string
 }
 
-export const SupportMatherial: React.FC<SupportMatherialProps> = ({
+export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     title,
     subtitle,
     kind,
@@ -92,7 +94,7 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
 
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
-    const {data: imageData} = useQuery<any>(GET_DOCUMENT, {
+    const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
         variables: {
             id: documentId || "",
             tenantId: tenantId || "",
@@ -115,7 +117,9 @@ export const SupportMatherial: React.FC<SupportMatherialProps> = ({
                         <VideoFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
                     ) : kind.includes("audio") ? (
                         <AudioFileIcon sx={{fontSize: "42px", marginRight: "16px"}} />
-                    ) : null}
+                    ) : (
+                        <DescriptionIcon sx={{fontSize: "42px", marginRight: "16px"}} />
+                    )}
                 </Box>
                 <TextContainer>
                     <StyledTitle>{title}</StyledTitle>
