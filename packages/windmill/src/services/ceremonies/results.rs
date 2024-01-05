@@ -105,6 +105,7 @@ pub async fn save_results(
             } else {
                 let census = cmp::max(contest.contest_result.census, 1) as f64;
                 let total_votes_percent: f64 = (contest.contest_result.total_votes as f64) / census;
+                let total_invalid_votes_percent: f64 = (contest.contest_result.total_invalid_votes as f64) / census;
                 let explicit_invalid_votes_percent: f64 =
                     (contest.contest_result.invalid_votes.explicit as f64) / census;
                 let implicit_invalid_votes_percent: f64 =
@@ -122,6 +123,8 @@ pub async fn save_results(
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.total_invalid_votes as i64),
+                    Some(total_invalid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.invalid_votes.explicit as i64),
                     Some(explicit_invalid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.invalid_votes.implicit as i64),

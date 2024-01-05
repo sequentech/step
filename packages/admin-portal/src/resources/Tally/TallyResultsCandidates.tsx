@@ -199,7 +199,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
-                                    {t("tally.table.number_votes")}
+                                    {t("tally.table.total_valid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].total_valid_votes ?? "-"}
