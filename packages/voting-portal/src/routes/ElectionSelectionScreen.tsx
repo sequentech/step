@@ -37,7 +37,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
-import {TenantEvent} from ".."
+import {TenantEventType} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -64,7 +64,7 @@ interface ElectionWrapperProps {
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
-    const {tenantId, eventId} = useParams<TenantEvent>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()

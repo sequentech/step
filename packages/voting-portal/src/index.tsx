@@ -17,22 +17,23 @@ import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
-import {LoginScreen} from "./screens/LoginScreen"
-import {StartScreen} from "./screens/StartScreen"
-import {VotingScreen} from "./screens/VotingScreen"
-import {ReviewScreen} from "./screens/ReviewScreen"
-import {ConfirmationScreen} from "./screens/ConfirmationScreen"
-import {AuditScreen} from "./screens/AuditScreen"
-import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
-import {BallotLocator} from "./screens/BallotLocator"
-import {ErrorPage} from "./screens/ErrorPage"
-import {SupportMaterialsScreen} from "./screens/SupportMaterialsScreen"
+import {LoginScreen} from "./routes/LoginScreen"
+import {StartScreen} from "./routes/StartScreen"
+import VotingScreen, {action as votingAction} from "./routes/VotingScreen"
+import {ReviewScreen} from "./routes/ReviewScreen"
+import {ConfirmationScreen} from "./routes/ConfirmationScreen"
+import {AuditScreen} from "./routes/AuditScreen"
+import {ElectionSelectionScreen} from "./routes/ElectionSelectionScreen"
+import {BallotLocator} from "./routes/BallotLocator"
+import {ErrorPage} from "./routes/ErrorPage"
+import {SupportMaterialsScreen} from "./routes/SupportMaterialsScreen"
+import TenantEvent from "./routes/TenantEvent"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
-export type TenantEvent = {
+export type TenantEventType = {
     tenantId: string
     eventId: string
 }
@@ -64,40 +65,52 @@ const router = createBrowserRouter([
         errorElement: <ErrorPage />,
         children: [
             {
-                path: "/tenant/:tenantId/event/:eventId/login",
-                element: <LoginScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election-chooser",
-                element: <ElectionSelectionScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/start",
-                element: <StartScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/vote",
-                element: <VotingScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/review",
-                element: <ReviewScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/confirmation",
-                element: <ConfirmationScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/audit",
-                element: <AuditScreen />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?",
-                element: <BallotLocator />,
-            },
-            {
-                path: "/tenant/:tenantId/event/:eventId/materials",
-                element: <SupportMaterialsScreen />,
+                path: "/tenant/:tenantId/event/:eventId",
+                element: <TenantEvent />,
+                children: [
+                    {
+                        path: "election-chooser",
+                        element: <ElectionSelectionScreen />,
+                    },
+                    {
+                        path: "login",
+                        element: <LoginScreen />,
+                    },
+                    {
+                        path: "election/:electionId",
+                        children: [
+                            {
+                                path: "start",
+                                element: <StartScreen />,
+                            },
+                            {
+                                path: "vote",
+                                element: <VotingScreen />,
+                                action: votingAction,
+                            },
+                            {
+                                path: "review",
+                                element: <ReviewScreen />,
+                            },
+                            {
+                                path: "confirmation",
+                                element: <ConfirmationScreen />,
+                            },
+                            {
+                                path: "audit",
+                                element: <AuditScreen />,
+                            },
+                            {
+                                path: "ballot-locator/:ballotId?",
+                                element: <BallotLocator />,
+                            },
+                        ],
+                    },
+                    {
+                        path: "materials",
+                        element: <SupportMaterialsScreen />,
+                    },
+                ],
             },
         ],
     },
