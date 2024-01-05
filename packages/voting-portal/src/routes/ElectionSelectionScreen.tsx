@@ -176,14 +176,20 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const {globalSettings} = useContext(SettingsContext)
     const {t, i18n} = useTranslation()
-    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
+    const navigate = useNavigate()
+
+    const {globalSettings} = useContext(SettingsContext)
+    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+
     const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
+    const dispatch = useAppDispatch()
+
     const [ballotStyleElectionIds, setBallotStyleElectionIds] =
         useState<Array<string>>(existingElectionIds)
     const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
-    const dispatch = useAppDispatch()
+    const [openChooserHelp, setOpenChooserHelp] = useState(false)
+    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
 
     const {
         loading,
@@ -200,11 +206,8 @@ export const ElectionSelectionScreen: React.FC = () => {
             electionIds: ballotStyleElectionIds,
         },
     })
-    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
-    const [openChooserHelp, setOpenChooserHelp] = useState(false)
-    const navigate = useNavigate()
-    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
     const {
         loading: loadingElectionEvent,
@@ -218,6 +221,10 @@ export const ElectionSelectionScreen: React.FC = () => {
     })
 
     const hasNoResults = electionIds.length === 0
+
+    const handleNavigateMaterials = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
+    }
 
     useEffect(() => {
         if (errorBallotStyles || errorElections) {
@@ -259,10 +266,6 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [castVotes, dispatch])
 
     useEffect(() => {
-        console.log("i18n.language", i18n.language)
-    }, [i18n.language])
-
-    useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             setElectionIds(ELECTIONS_LIST.map((election) => election.id))
         }
@@ -281,10 +284,6 @@ export const ElectionSelectionScreen: React.FC = () => {
             )
         }
     }, [dataElectionEvent])
-
-    const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
-    }
 
     return (
         <PageLimit maxWidth="lg">
