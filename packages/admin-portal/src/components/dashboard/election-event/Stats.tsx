@@ -54,7 +54,7 @@ export default function Stats({
     if (loading) {
         return <CircularProgress />
     }
-    const stats = (dataStats?.election_event as any)?.statistics as IElectionEventStatistics | null
+    const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
 
     const metrics = {
         votersCount: dataStats?.castVotes?.total_distinct_voters ?? "-",
