@@ -156,6 +156,7 @@ const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: App
             dispatch(
                 resetBallotSelection({
                     ballotStyle: formattedBallotStyle,
+                    force: true,
                 })
             )
         } catch (error) {
