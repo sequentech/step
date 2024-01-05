@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
-//import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import React, {useEffect, useState} from "react"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -23,7 +22,7 @@ import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
+import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     setBallotSelection,
@@ -33,7 +32,9 @@ import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlic
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
-import {TenantEventContext} from ".."
+import {TenantEventType} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
+import {CustomError} from "./ErrorPage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -71,57 +72,17 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    ballotStyle: IBallotStyle
     disableNext: boolean
+    handleNext: () => void
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
-    const {t, i18n} = useTranslation()
-    const {tenantId, eventId} = useContext(TenantEventContext)
-    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
-    const selectionState = useAppSelector(
-        selectBallotSelectionByElectionId(ballotStyle.election_id)
-    )
-    const navigate = useNavigate()
-    const dispatch = useAppDispatch()
-
-    const encryptAndReview = () => {
-        if (isUndefined(selectionState) || disableNext) {
-            return
-        }
-        try {
-            const startMs = Date.now()
-            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-            const endMs = Date.now()
-            console.log(`Success encrypting ballot: ${endMs - startMs} ms`)
-            console.log(auditableBallot)
-            dispatch(
-                setAuditableBallot({
-                    electionId: ballotStyle.election_id,
-                    auditableBallot,
-                })
-            )
-            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
-            if (null !== decodedSelectionState) {
-                dispatch(
-                    setBallotSelection({
-                        ballotStyle,
-                        ballotSelection: decodedSelectionState,
-                    })
-                )
-            }
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/review`
-            )
-        } catch (error) {
-            console.log("ERROR encrypting ballot:")
-            console.log(error)
-        }
-    }
+const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
+    const {t} = useTranslation()
+    const backLink = useRootBackLink()
 
     return (
         <ActionsContainer>
-            <StyledLink to="/" sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Icon icon={faAngleLeft} size="sm" />
                     <Box>{t("votingScreen.backButton")}</Box>
@@ -129,7 +90,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
             </StyledLink>
             <StyledButton
                 sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={encryptAndReview}
+                onClick={() => handleNext()}
                 disabled={disableNext}
             >
                 <Box>{t("votingScreen.reviewButton")}</Box>
@@ -139,13 +100,26 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
     )
 }
 
-export const VotingScreen: React.FC = () => {
-    let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
-    const {electionId} = useParams<{electionId?: string}>()
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-    const election = useAppSelector(selectElectionById(String(electionId)))
+const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
+
+    const {electionId} = useParams<{electionId?: string}>()
+
+    let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+
+    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
+    const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
+
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
+    const dispatch = useAppDispatch()
+
+    const submit = useSubmit()
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
@@ -153,6 +127,49 @@ export const VotingScreen: React.FC = () => {
             [id]: value,
         })
     }
+
+    const skipNextButton = Object.values(disableNext).some((v) => v)
+
+    const encryptAndReview = () => {
+        if (isUndefined(selectionState) || skipNextButton || !ballotStyle) {
+            return
+        }
+
+        try {
+            const startMs = Date.now()
+            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const endMs = Date.now()
+            console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
+
+            dispatch(
+                setAuditableBallot({
+                    electionId: ballotStyle?.election_id ?? "",
+                    auditableBallot,
+                })
+            )
+
+            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+
+            if (null !== decodedSelectionState) {
+                dispatch(
+                    setBallotSelection({
+                        ballotStyle,
+                        ballotSelection: decodedSelectionState,
+                    })
+                )
+            }
+
+            submit(null, {method: "post"})
+        } catch (error) {
+            submit({error: "Unable to encrypt the Ballot"}, {method: "post"})
+        }
+    }
+
+    useEffect(() => {
+        if (!election || !ballotStyle) {
+            navigate(backLink)
+        }
+    }, [navigate, backLink, election, ballotStyle])
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
@@ -204,10 +221,20 @@ export const VotingScreen: React.FC = () => {
                     setDisableNext={onSetDisableNext(question.id)}
                 />
             ))}
-            <ActionButtons
-                ballotStyle={ballotStyle}
-                disableNext={Object.values(disableNext).some((v) => v)}
-            />
+            <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
         </PageLimit>
     )
+}
+
+export default VotingScreen
+
+export async function action({request}: {request: Request}) {
+    const data = await request.formData()
+    const error = data.get("error")
+
+    if (error) {
+        throw new CustomError(error as string)
+    }
+
+    return redirect(`../review`)
 }
