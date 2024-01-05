@@ -16,7 +16,11 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Button, Tooltip, Typography} from "@mui/material"
-import {PublishTallySheetMutation, Sequent_Backend_Contest, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
+import {
+    PublishTallySheetMutation,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Tally_Sheet,
+} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -130,7 +134,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const deleteAction = (id: Identifier) => {
-            setOpenDeleteModal(true)
+        setOpenDeleteModal(true)
         setDeleteId(id)
     }
 
@@ -148,7 +152,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmPublishAction = async (isPublished: boolean) => {
-        const {data, errors} = await publishTallySheet({    
+        const {data, errors} = await publishTallySheet({
             variables: {
                 electionEventId: contest.election_event_id,
                 tallySheetId: deleteId,
@@ -177,7 +181,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: publishAction,
-            showAction: () => (canPublish && record.published_at === null),
+            showAction: () => canPublish && record.published_at === null,
         },
         {
             icon: (
@@ -186,7 +190,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: unpublishAction,
-            showAction: () => (canPublish && record.published_at !== null),
+            showAction: () => canPublish && record.published_at !== null,
         },
         {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDelete},
     ]
@@ -234,7 +238,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                     <FunctionField
                         label={t("tallysheet.table.area")}
-                        render={(record: Sequent_Backend_Tally_Sheet) => <AreaItem record={record.area_id} />}
+                        render={(record: Sequent_Backend_Tally_Sheet) => (
+                            <AreaItem record={record.area_id} />
+                        )}
                     />
 
                     <FunctionField
@@ -247,7 +253,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <WrapperField source="actions" label="Actions">
                         <FunctionField
                             label={t("tallysheet.table.area")}
-                            render={(record: Sequent_Backend_Tally_Sheet) => <ActionsColumn actions={actions(record)} />}
+                            render={(record: Sequent_Backend_Tally_Sheet) => (
+                                <ActionsColumn actions={actions(record)} />
+                            )}
                         />
                         {/* <ActionsColumn actions={actions} /> */}
                     </WrapperField>
