@@ -33,12 +33,11 @@ import {IElection, selectElectionById, setElection} from "../store/elections/ele
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
 import {ELECTIONS_LIST} from "../fixtures/election"
-import {TenantEventContext} from ".."
-import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
+import {CustomError} from "./ErrorPage"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -65,25 +64,12 @@ interface ElectionWrapperProps {
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
-    const {tenantId, eventId} = useContext(TenantEventContext)
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
     const onClickToVote = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
-    }
-
-    const formatDate = (dateStr: string): string => {
-        let date = new Date(dateStr)
-        let dateFormat = new Intl.DateTimeFormat("en", {
-            hour12: false,
-            day: "numeric",
-            month: "short",
-            hour: "numeric",
-            minute: "2-digit",
-        })
-        return dateFormat.format(date)
+        navigate(`../election/${electionId}/start`)
     }
 
     if (!election) {
@@ -91,7 +77,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     }
 
     const handleClickBallotLocator = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`)
+        navigate(`../election/${electionId}/ballot-locator`)
     }
 
     return (
@@ -191,13 +177,27 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
+    const {t} = useTranslation()
+    const navigate = useNavigate()
+
+    const {globalSettings} = useContext(SettingsContext)
+    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
 
     const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
+    const dispatch = useAppDispatch()
+
     const [ballotStyleElectionIds, setBallotStyleElectionIds] =
         useState<Array<string>>(existingElectionIds)
     const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
-    const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const [openChooserHelp, setOpenChooserHelp] = useState(false)
+    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
+
+    const {
+        loading,
+        error: errorBallotStyles,
+        data,
+    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+
     const {
         loading: loadingElections,
         error: errorElections,
@@ -207,13 +207,8 @@ export const ElectionSelectionScreen: React.FC = () => {
             electionIds: ballotStyleElectionIds,
         },
     })
+
     const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
-    const dispatch = useAppDispatch()
-    const {globalSettings} = useContext(SettingsContext)
-    const {t, i18n} = useTranslation()
-    const [openChooserHelp, setOpenChooserHelp] = useState(false)
-    const navigate = useNavigate()
-    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
 
     const {
         loading: loadingElectionEvent,
@@ -226,6 +221,23 @@ export const ElectionSelectionScreen: React.FC = () => {
         },
     })
 
+    const hasNoResults = electionIds.length === 0
+
+    const handleNavigateMaterials = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
+    }
+
+    useEffect(() => {
+        if (errorBallotStyles || errorElections) {
+            if (errorBallotStyles?.message === 'missing session variable: "x-hasura-area-id"') {
+                // handle no ballot styles
+                return
+            }
+
+            throw new CustomError("Unable to fetch data")
+        }
+    }, [errorElections, errorBallotStyles])
+
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
             setElectionIds(dataElections.sequent_backend_election.map((election) => election.id))
@@ -236,7 +248,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [loadingElections, errorElections, dataElections, dispatch])
 
     useEffect(() => {
-        if (!loading && !error && data) {
+        if (!loading && !errorBallotStyles && data) {
             updateBallotStyleAndSelection(data, dispatch)
 
             let electionIds = data.sequent_backend_ballot_style
@@ -245,7 +257,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
             setBallotStyleElectionIds(electionIds)
         }
-    }, [loading, error, data, dispatch])
+    }, [loading, errorBallotStyles, data, dispatch])
 
     useEffect(() => {
         if (!castVotes?.sequent_backend_cast_vote) {
@@ -253,10 +265,6 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
         dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
     }, [castVotes, dispatch])
-
-    useEffect(() => {
-        console.log("i18n.language", i18n.language)
-    }, [i18n.language])
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -267,7 +275,7 @@ export const ElectionSelectionScreen: React.FC = () => {
             dispatch(setElection(convertToElection(election)))
             fakeUpdateBallotStyleAndSelection(dispatch)
         }
-    }, [])
+    }, [dispatch, globalSettings.DISABLE_AUTH])
 
     useEffect(() => {
         if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
@@ -277,10 +285,6 @@ export const ElectionSelectionScreen: React.FC = () => {
             )
         }
     }, [dataElectionEvent])
-
-    const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
-    }
 
     return (
         <PageLimit maxWidth="lg">
@@ -332,9 +336,15 @@ export const ElectionSelectionScreen: React.FC = () => {
                 ) : null}
             </Box>
             <ElectionContainer>
-                {electionIds.map((electionId) => (
-                    <ElectionWrapper electionId={electionId} key={electionId} />
-                ))}
+                {!hasNoResults ? (
+                    electionIds.map((electionId) => (
+                        <ElectionWrapper electionId={electionId} key={electionId} />
+                    ))
+                ) : (
+                    <Box sx={{margin: "auto"}}>
+                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
+                    </Box>
+                )}
             </ElectionContainer>
         </PageLimit>
     )

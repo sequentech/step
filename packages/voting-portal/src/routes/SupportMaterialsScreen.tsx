@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, Button, Typography} from "@mui/material"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -13,6 +14,7 @@ import {
     translateElection,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
@@ -21,7 +23,6 @@ import {
     GetSupportMaterialsQuery,
     Sequent_Backend_Support_Material,
 } from "../gql/graphql"
-import {TenantEventContext} from ".."
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
@@ -61,7 +62,7 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
-    const {tenantId} = useContext(TenantEventContext)
+    const {tenantId} = useParams<TenantEventType>()
     const {i18n} = useTranslation()
 
     return (
