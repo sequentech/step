@@ -23,20 +23,25 @@ import {
     selectBallotStyleElectionIds,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
+import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
+    IElection,
+    selectElectionById,
+    setElection,
+    selectElectionIds,
+} from "../store/elections/electionsSlice"
+import {AppDispatch} from "../store/store"
+import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery, GetCastVotesQuery, GetElectionsQuery} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {GET_ELECTIONS} from "../queries/GetElections"
-import {AppDispatch} from "../store/store"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
-import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {CustomError} from "./ErrorPage"
 
 const StyledTitle = styled(Typography)`
@@ -110,6 +115,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 labels: null,
                 last_updated_at: "",
             }
+            dispatch(setElection(election))
             dispatch(setBallotStyle(formattedBallotStyle))
             dispatch(
                 resetBallotSelection({
@@ -119,6 +125,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
         } catch (error) {
             console.log(`Error loading fake EML: ${error}`)
             console.log(election)
+            throw new CustomError("Error loading fake ballot style and election")
         }
     }
 }
@@ -153,6 +160,7 @@ const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: App
         } catch (error) {
             console.log(`Error loading EML: ${error}`)
             console.log(ballotEml)
+            throw error
         }
     }
 }
@@ -183,19 +191,17 @@ export const ElectionSelectionScreen: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
 
-    const existingElectionIds = useAppSelector(selectBallotStyleElectionIds())
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+    const electionIds = useAppSelector(selectElectionIds)
     const dispatch = useAppDispatch()
 
-    const [ballotStyleElectionIds, setBallotStyleElectionIds] =
-        useState<Array<string>>(existingElectionIds)
-    const [electionIds, setElectionIds] = useState<Array<string>>(ballotStyleElectionIds)
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
 
     const {
         loading,
         error: errorBallotStyles,
-        data,
+        data: dataBallotStyles,
     } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
     const {
@@ -240,7 +246,6 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
-            setElectionIds(dataElections.sequent_backend_election.map((election) => election.id))
             for (let election of dataElections.sequent_backend_election) {
                 dispatch(setElection(election))
             }
@@ -248,16 +253,12 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [loadingElections, errorElections, dataElections, dispatch])
 
     useEffect(() => {
-        if (!loading && !errorBallotStyles && data) {
-            updateBallotStyleAndSelection(data, dispatch)
-
-            let electionIds = data.sequent_backend_ballot_style
-                .map((ballotStyle) => ballotStyle.election_id as string | null)
-                .filter((ballotStyle) => isString(ballotStyle)) as Array<string>
-
-            setBallotStyleElectionIds(electionIds)
+        if (!loading && !errorBallotStyles && dataBallotStyles) {
+            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+        } else if (globalSettings.DISABLE_AUTH) {
+            fakeUpdateBallotStyleAndSelection(dispatch)
         }
-    }, [loading, errorBallotStyles, data, dispatch])
+    }, [globalSettings.DISABLE_AUTH, loading, errorBallotStyles, dataBallotStyles, dispatch])
 
     useEffect(() => {
         if (!castVotes?.sequent_backend_cast_vote) {
@@ -265,17 +266,6 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
         dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
     }, [castVotes, dispatch])
-
-    useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            setElectionIds(ELECTIONS_LIST.map((election) => election.id))
-        }
-
-        for (let election of ELECTIONS_LIST) {
-            dispatch(setElection(convertToElection(election)))
-            fakeUpdateBallotStyleAndSelection(dispatch)
-        }
-    }, [dispatch, globalSettings.DISABLE_AUTH])
 
     useEffect(() => {
         if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
