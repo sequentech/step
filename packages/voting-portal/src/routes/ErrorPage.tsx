@@ -16,10 +16,19 @@ const StyledLink = styled(Link)`
     margin-top: 40px;
 `
 
+export class CustomError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = "CustomError"
+    }
+}
+
 export function ErrorPage() {
     const error = useRouteError()
     const {t} = useTranslation()
     const backLink = useRootBackLink()
+
+    const isErrorType = error instanceof Error || error instanceof CustomError
 
     let content = (
         <>
@@ -48,7 +57,7 @@ export function ErrorPage() {
                 )}
             </>
         )
-    } else if (error instanceof Error) {
+    } else if (isErrorType) {
         content = (
             <>
                 <Typography variant="h3" sx={{marginBottom: "24px"}}>

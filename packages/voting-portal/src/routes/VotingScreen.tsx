@@ -34,6 +34,7 @@ import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
+import { CustomError } from "./ErrorPage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -149,7 +150,7 @@ const VotingScreen: React.FC = () => {
 
             let decodedSelectionState = decodeAuditableBallot(auditableBallot)
 
-            if (decodedSelectionState !== null) {
+            if (null !== decodedSelectionState) {
                 dispatch(
                     setBallotSelection({
                         ballotStyle,
@@ -232,7 +233,7 @@ export async function action({request}: {request: Request}) {
     const error = data.get("error")
 
     if (error) {
-        throw new Error(error as string)
+        throw new CustomError(error as string)
     }
 
     return redirect(`../review`)

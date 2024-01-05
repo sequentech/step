@@ -37,6 +37,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
+import { CustomError } from "./ErrorPage"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -176,7 +177,7 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const navigate = useNavigate()
 
     const {globalSettings} = useContext(SettingsContext)
@@ -233,7 +234,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                 return
             }
 
-            throw new Error("Unable to fetch data")
+            throw new CustomError("Unable to fetch data")
         }
     }, [errorElections, errorBallotStyles])
 

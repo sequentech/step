@@ -38,6 +38,7 @@ import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
+import {CustomError} from "./ErrorPage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -194,7 +195,7 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                throw new Error("Impossible to go to the ballot audit")
+                throw new CustomError("Impossible to go to the ballot audit")
             }
         }
     }
