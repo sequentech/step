@@ -67,10 +67,6 @@ const App = () => {
         }
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
-    useEffect(() => {
-        localStorage.setItem("tenant-event", JSON.stringify({tenantId, eventId}))
-    }, [tenantId, eventId])
-
     return (
         <StyledApp>
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
