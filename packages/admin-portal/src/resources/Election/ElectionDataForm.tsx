@@ -18,6 +18,7 @@ import {
     RaRecord,
     Identifier,
     RecordContext,
+    NumberInput,
 } from "react-admin"
 import {
     Accordion,
@@ -188,6 +189,9 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
             temp.presentation.i18n.en.description = temp.description
+
+            // defaults
+            temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
             return temp
         },
@@ -565,6 +569,8 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <NumberInput source="num_allowed_revotes" min={0} />
+
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
