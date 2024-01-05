@@ -4,13 +4,12 @@ import styled from "@emotion/styled"
 
 import {AccordionDetails, AccordionSummary, FormControl, MenuItem} from "@mui/material"
 
-import EditorTextInput from "@/components/Editor"
-import EmailEditor from "@/components/EmailEditor"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {
     EditBase,
     Identifier,
+    RaRecord,
     RecordContext,
     SaveButton,
     SelectInput,
@@ -34,7 +33,12 @@ import {
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTemplate"
-import EmailEditEditor from '@/components/EmailEditEditor'
+import EmailEditEditor from "@/components/EmailEditEditor"
+import {
+    Sequent_Backend_Area_ExtendedQuery,
+    Sequent_Backend_Communication_Template,
+} from "@/gql/graphql"
+import {useWatch} from "react-hook-form"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -63,21 +67,6 @@ const CommunicationTemplateCreateStyle = {
     `,
 }
 
-type TCommunicationTemplateEdit = {
-    id?: Identifier | undefined
-    close?: () => void
-}
-
-const CommunicationTemplateByLanguage: React.FC<any> = ({sources, editorRef}) => {
-    return (
-        <CommunicationTemplateCreateStyle.ContainerLanguage>
-            <FormStyles.TextInput source={sources.name} label="Name" validate={required()} />
-
-            <EditorTextInput initialValue="" editorRef={editorRef} onEditorChange={console.log} />
-        </CommunicationTemplateCreateStyle.ContainerLanguage>
-    )
-}
-
 const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) => {
     return (
         <CommunicationTemplateCreateStyle.Box>
@@ -90,6 +79,11 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
+type TCommunicationTemplateEdit = {
+    id?: Identifier | undefined
+    close?: () => void
+}
+
 export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (props) => {
     const {id, close} = props
 
@@ -100,60 +94,24 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
     const refresh = useRefresh()
     const notify = useNotify()
 
-    const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE)
+    const EmailSmsComponents: React.FC<{
+        parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
+    }> = ({parsedValue}) => {
+        const communicationMethod = useWatch({name: "communication_method"})
 
-    const [communicationTemplate, setCommunicationTemplate] = useState<any>({
-        audience_selection: null,
-        audience_voter_ids: [],
-        communication_type: ICommunicationType.CREDENTIALS,
-        communication_method: ICommunicationMethod.EMAIL,
-        schedule_now: null,
-        schedule_date: null,
-        email: null,
-        sms: null,
-    })
-
-    // const handleSelectChange = async (e: any) => {
-    //     const {value, name} = e.target
-
-    //     if (name === "communication_method") {
-    //         if (value === ICommunicationMethod.EMAIL) {
-    //             communicationTemplate.sms = null
-    //         } else {
-    //             communicationTemplate.email = null
-    //         }
-    //     }
-
-    //     setCommunicationTemplate({
-    //         ...communicationTemplate,
-    //         [name]: value,
-    //     })
-    // }
-
-    // const handleSmsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    //     const {value} = e.target
-
-    //     setCommunicationTemplate({
-    //         ...communicationTemplate,
-    //         sms: value,
-    //     })
-    // }
-
-    // const handelEmailChange = async (newEmail: any) => {
-    //     setCommunicationTemplate({
-    //         ...communicationTemplate,
-    //         email: newEmail,
-    //     })
-    // }
-
-    // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    //     const {value, name} = e.target
-
-    //     setCommunicationTemplate({
-    //         ...communicationTemplate,
-    //         [name]: value,
-    //     })
-    // }
+        if (communicationMethod === ICommunicationMethod.EMAIL) {
+            return <EmailEditEditor record={parsedValue} />
+        } else {
+            return (
+                <FormStyles.TextInput
+                    minRows={4}
+                    multiline={true}
+                    source="template.sms"
+                    label={t("communicationTemplate.form.smsMessage")}
+                />
+            )
+        }
+    }
 
     const communicationTypeChoices = () => {
         return (Object.values(ICommunicationType) as ICommunicationType[]).map((value) => ({
@@ -168,10 +126,6 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
         }))
     }
-
-    useEffect(() => {
-        console.log("Communication Template", communicationTemplate)
-    }, [communicationTemplate])
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         console.log("Submit Template", data)
@@ -215,57 +169,14 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
         }
     }
 
-    function shallowEqual(object1: any, object2: any) {
-        const keys1 = Object.keys(object1)
-        const keys2 = Object.keys(object2)
-
-        if (keys1.length !== keys2.length) {
-            return false
-        }
-
-        for (let key of keys1) {
-            if (object1[key] !== object2[key]) {
-                return false
-            }
-        }
-
-        return true
-    }
-
-    const parseValues = (incoming: any) => {
-        const temp = {...incoming}
-
-        if (!shallowEqual(temp.template, communicationTemplate)) {
-            setCommunicationTemplate((prev: any) => ({
-                ...prev,
-                ...temp.template,
-            }))
-        }
-
-        console.log("parseValues TEMPLATE", {
-            ...communicationTemplate,
-            ...temp.template,
-        })
-        console.log("parseValues TEMP", temp)
-
+    const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>,"id">) => {
+        const temp= {...incoming as Sequent_Backend_Communication_Template}
         return temp
-    }
-
-    useEffect(() => {
-        console.log("CommunicationTemplateEdit", communicationTemplate)
-    }, [communicationTemplate])
-
-    const transform = async (data: any, {previousData}: any) => {
-        const temp = {...data}
-        console.log("transform", temp);
-        
-        // return temp
     }
 
     return (
         <EditBase
             id={id}
-            transform={transform}
             resource="sequent_backend_communication_template"
             mutationMode="pessimistic"
             mutationOptions={{onSuccess, onError}}
@@ -274,9 +185,10 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
             <PageHeaderStyles.Wrapper>
                 <RecordContext.Consumer>
                     {(incoming) => {
-                        const parsedValue = parseValues(incoming)
-                        console.log("parsedValue :>> ", parsedValue);
-                        
+                        const parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id"> =
+                            parseValues(incoming)
+                        console.log("parsedValue :>> ", parsedValue)
+
                         return (
                             <SimpleForm
                                 record={parsedValue}
@@ -332,22 +244,7 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
-                                            {parsedValue.communication_method ===
-                                                ICommunicationMethod.EMAIL && (
-                                                <EmailEditEditor record={parsedValue} />
-                                            )}
-                                            {parsedValue.communication_method ===
-                                                ICommunicationMethod.SMS && (
-                                                <FormStyles.TextInput
-                                                    minRows={4}
-                                                    multiline={true}
-                                                    // onChange={handleSmsChange}
-                                                    source="template.sms"
-                                                    label={t(
-                                                        "communicationTemplate.form.smsMessage"
-                                                    )}
-                                                />
-                                            )}
+                                            <EmailSmsComponents parsedValue={parsedValue} />
                                         </AccordionDetails>
                                     </FormStyles.AccordionExpanded>
                                 </FormControl>

@@ -886,6 +886,8 @@ const englishTranslation = {
             },
         },
         communicationTemplate: {
+            title: 'Communication Templates',
+            subtitle: 'List of communication templates',
             empty: {
                 title: 'No Communication Template Yet',
                 subtitle: 'Do you want to create one?'

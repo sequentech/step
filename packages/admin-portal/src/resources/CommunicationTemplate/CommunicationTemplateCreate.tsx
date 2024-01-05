@@ -1,14 +1,21 @@
-import React, {useState, useRef, useEffect} from "react"
+import React from "react"
 
 import styled from "@emotion/styled"
 
-import {AccordionDetails, AccordionSummary, FormControl, MenuItem} from "@mui/material"
+import {AccordionDetails, AccordionSummary, FormControl} from "@mui/material"
 
-import EditorTextInput from "@/components/Editor"
-import EmailEditor from "@/components/EmailEditor"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {Create, SimpleForm, required, useNotify} from "react-admin"
+import {
+    CreateBase,
+    Identifier,
+    RaRecord,
+    RecordContext,
+    SelectInput,
+    SimpleForm,
+    required,
+    useNotify,
+} from "react-admin"
 
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -16,14 +23,13 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {
-    ICommunicationType,
-    ICommunicationMethod,
-    ISendCommunicationBody,
-} from "@/types/communications"
-import { useTranslation } from 'react-i18next'
-import { useTenantStore } from '@/providers/TenantContextProvider'
-import { INSERT_COMMUNICATION_TEMPLATE } from "@/queries/InsertCommunicationTemplate"
+import {ICommunicationType, ICommunicationMethod} from "@/types/communications"
+import {useTranslation} from "react-i18next"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTemplate"
+import {useWatch} from "react-hook-form"
+import {Sequent_Backend_Communication_Template} from "@/gql/graphql"
+import EmailEditEditor from "@/components/EmailEditEditor"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -56,16 +62,6 @@ type TCommunicationTemplateCreate = {
     close?: () => void
 }
 
-const CommunicationTemplateByLanguage: React.FC<any> = ({sources, editorRef}) => {
-    return (
-        <CommunicationTemplateCreateStyle.ContainerLanguage>
-            <FormStyles.TextInput source={sources.name} label="Name" validate={required()} />
-
-            <EditorTextInput initialValue="" editorRef={editorRef} onEditorChange={console.log} />
-        </CommunicationTemplateCreateStyle.ContainerLanguage>
-    )
-}
-
 const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) => {
     return (
         <CommunicationTemplateCreateStyle.Box>
@@ -79,167 +75,162 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
 }
 
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = ({close}) => {
-    const editorRef = useRef()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
-    const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE) // <InsertCommunicationTemplateMutation>
+    const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE)
 
-    const [communicationTemplate, setCommunicationTemplate] = useState<any>({
-        audience_selection: null,
-        audience_voter_ids: [],
-        communication_type: ICommunicationType.CREDENTIALS,
-        communication_method: ICommunicationMethod.EMAIL,
-        schedule_now: null,
-        schedule_date: null,
-        email: null,
-        sms: null,
-    })
+    const EmailSmsComponents: React.FC<{
+        parsedValue: Sequent_Backend_Communication_Template
+    }> = ({parsedValue}) => {
+        const communicationMethod = useWatch({name: "communication_method"})
 
-    const handleSelectChange = async (e: any) => {
-        const {value, name} = e.target
-
-        if (name === 'communication_method') {
-            if (value === ICommunicationMethod.EMAIL) {
-                communicationTemplate.sms = null
-            } else {
-                communicationTemplate.email = null
-            }
+        if (communicationMethod === ICommunicationMethod.EMAIL) {
+            return <EmailEditEditor record={parsedValue} />
+        } else {
+            return (
+                <FormStyles.TextInput
+                    minRows={4}
+                    multiline={true}
+                    source="template.sms"
+                    label={t("communicationTemplate.form.smsMessage")}
+                />
+            )
         }
-
-        setCommunicationTemplate({
-            ...communicationTemplate,
-            [name]: value,
-        })
     }
 
-    const handleSmsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {value} = e.target
-
-        setCommunicationTemplate({
-            ...communicationTemplate,
-            sms: value,
-        })
+    const communicationTypeChoices = () => {
+        return (Object.values(ICommunicationType) as ICommunicationType[]).map((value) => ({
+            id: value,
+            name: t(`communicationTemplate.type.${value.toLowerCase()}`),
+        }))
     }
 
-    const handelEmailChange = async (newEmail: any) => {
-        setCommunicationTemplate({
-            ...communicationTemplate,
-            email: newEmail,
-        })
+    const communicationMethodChoices = () => {
+        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+            id: value,
+            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+        }))
     }
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {value, name} = e.target
-
-        setCommunicationTemplate({
-            ...communicationTemplate,
-            [name]: value
-        })
-    }
-
-    useEffect(() => {
-        console.log('Communication Template', communicationTemplate)
-    }, [communicationTemplate])
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         console.log("Communication Template", data)
 
-        const {errors} = await createCommunicationTemplate({
+        const {data: created, errors} = await createCommunicationTemplate({
             variables: {
                 object: {
                     tenant_id: tenantId,
-                    communication_type: communicationTemplate.communication_type,
-                    communication_method: communicationTemplate.communication_method,
+                    communication_type: data.communication_type,
+                    communication_method: data.communication_method,
                     template: {
-                        ...communicationTemplate,
-                    }
-                }
-            }
+                        ...data.template,
+                    },
+                },
+            },
         })
+
+        if (created) {
+            notify("communicationTemplate.create.success", {type: "success"})
+        }
+
+        if (errors) {
+            notify("communicationTemplate.create.error", {type: "error"})
+        }
+
         close?.()
     }
 
+    const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">) => {
+        const temp = {...(incoming as Sequent_Backend_Communication_Template)}
+
+        if (!incoming?.template) {
+            temp.communication_type = ICommunicationType.CREDENTIALS
+            temp.communication_method = ICommunicationMethod.EMAIL
+            temp.template = {
+                audience_selection: null,
+                audience_voter_ids: [],
+                schedule_date: null,
+                schedule_now: null,
+                email: null,
+                sms: null,
+            }
+        }
+        return temp
+    }
+
     return (
-        <Create>
-            <SimpleForm onSubmit={onSubmit}>
-                <PageHeaderStyles.Title>
-                    {t('communicationTemplate.create.title')}
-                </PageHeaderStyles.Title>
+        <CreateBase resource="sequent_backend_communication_template" redirect={false}>
+            <PageHeaderStyles.Wrapper>
+                <RecordContext.Consumer>
+                    {(incoming) => {
+                        const parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id"> =
+                            parseValues(incoming)
+                        // console.log("parsedValue :>> ", parsedValue)
 
-                <FormStyles.TextInput 
-                    source="alias" 
-                    validate={required()} 
-                    onChange={handleInputChange} 
-                    label={t('communicationTemplate.form.alias')} 
-                />
+                        return (
+                            <SimpleForm record={parsedValue} onSubmit={onSubmit}>
+                                <PageHeaderStyles.Title>
+                                    {t("communicationTemplate.edit.title")}
+                                </PageHeaderStyles.Title>
 
-                <FormStyles.TextInput 
-                    source="name" 
-                    validate={required()} 
-                    onChange={handleInputChange} 
-                    label={t('communicationTemplate.form.name')} 
-                />
-
-                <FormControl fullWidth>
-                    <CommunicationTemplateTitleContainer title={t('communicationTemplate.form.communicationType')}>
-                        <FormStyles.Select 
-                            name="communication_type"
-                            onChange={handleSelectChange}
-                            value={communicationTemplate.communication_type}
-                        >
-                            {(Object.values(ICommunicationType) as ICommunicationType[]).map((value) => (
-                                <MenuItem key={value} value={value}>
-                                    {t(`communicationTemplate.type.${value.toLowerCase()}`)}
-                                </MenuItem>
-                            ))}
-                        </FormStyles.Select>
-                    </CommunicationTemplateTitleContainer>
-
-                    <FormStyles.AccordionExpanded expanded={true} disableGutters>
-                    <AccordionSummary
-                        expandIcon={<ExpandMoreIcon id="communication-template-method-id" />}
-                    >
-                        <ElectionHeaderStyles.Wrapper>
-                            <ElectionHeaderStyles.Title>
-                                {t("communicationTemplate.form.communicationMethod")}
-                            </ElectionHeaderStyles.Title>
-                        </ElectionHeaderStyles.Wrapper>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                        <FormStyles.Select
-                            name="communication_method"
-                            onChange={handleSelectChange}
-                            value={communicationTemplate.communication_method}
-                        >
-                            {(Object.keys(ICommunicationMethod) as ICommunicationMethod[]).map(
-                                (key) => (
-                                    <MenuItem key={key} value={key}>
-                                        {t(`communicationTemplate.method.${key.toLowerCase()}`)}
-                                    </MenuItem>
-                                )
-                            )}
-                        </FormStyles.Select>
-                        {communicationTemplate.communication_method === ICommunicationMethod.EMAIL && (
-                                <EmailEditor
-                                    record={communicationTemplate.email}
-                                    setRecord={handelEmailChange}
+                                <FormStyles.TextInput
+                                    source="template.alias"
+                                    validate={required()}
+                                    // onChange={handleInputChange}
+                                    label={t("communicationTemplate.form.alias")}
                                 />
-                            )}
-                        {communicationTemplate.communication_method === ICommunicationMethod.SMS && (
-                            <FormStyles.TextField
-                                name="sms"
-                                minRows={4}
-                                multiline={true}
-                                onChange={handleSmsChange}
-                                value={communicationTemplate.sms}
-                                label={t("communicationTemplate.form.smsMessage")}
-                            />
-                        )}
-                    </AccordionDetails>
-                </FormStyles.AccordionExpanded>
-                </FormControl>
-            </SimpleForm>
-        </Create>
+
+                                <FormStyles.TextInput
+                                    source="template.name"
+                                    validate={required()}
+                                    // onChange={handleInputChange}
+                                    label={t("communicationTemplate.form.name")}
+                                />
+
+                                <FormControl fullWidth>
+                                    <CommunicationTemplateTitleContainer
+                                        title={t("communicationTemplate.form.communicationType")}
+                                    >
+                                        <SelectInput
+                                            source="communication_type"
+                                            validate={required()}
+                                            choices={communicationTypeChoices()}
+                                        />
+                                    </CommunicationTemplateTitleContainer>
+
+                                    <FormStyles.AccordionExpanded expanded={true} disableGutters>
+                                        <AccordionSummary
+                                            expandIcon={
+                                                <ExpandMoreIcon id="communication-template-method-id" />
+                                            }
+                                        >
+                                            <ElectionHeaderStyles.Wrapper>
+                                                <ElectionHeaderStyles.Title>
+                                                    {t(
+                                                        "communicationTemplate.form.communicationMethod"
+                                                    )}
+                                                </ElectionHeaderStyles.Title>
+                                            </ElectionHeaderStyles.Wrapper>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                            <SelectInput
+                                                source="communication_method"
+                                                validate={required()}
+                                                choices={communicationMethodChoices()}
+                                            />
+                                            <EmailSmsComponents
+                                                parsedValue={
+                                                    parsedValue as Sequent_Backend_Communication_Template
+                                                }
+                                            />
+                                        </AccordionDetails>
+                                    </FormStyles.AccordionExpanded>
+                                </FormControl>
+                            </SimpleForm>
+                        )
+                    }}
+                </RecordContext.Consumer>
+            </PageHeaderStyles.Wrapper>
+        </CreateBase>
     )
 }

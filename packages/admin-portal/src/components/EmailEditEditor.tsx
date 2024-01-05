@@ -3,11 +3,11 @@ import {useTranslation} from "react-i18next"
 import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import {TextInput, useInput} from "react-admin"
+import {Identifier, RaRecord, TextInput, useInput} from "react-admin"
 import {Sequent_Backend_Communication_Template} from "@/gql/graphql"
 
 type EmailEditEditorProps = {
-    record: Sequent_Backend_Communication_Template
+    record: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
 }
 
 const CustomRichTextEditor: React.FC<{source: string; label?: string}> = ({source}) => {

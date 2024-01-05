@@ -8,7 +8,7 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, useDelete, Identifier, DatagridConfigurable, useRefresh} from "react-admin"
+import {List, TextField, useDelete, Identifier, DatagridConfigurable, useRefresh, WrapperField} from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
@@ -19,6 +19,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CommunicationTemplateCreate} from "./CommunicationTemplateCreate"
 import {CommunicationTemplateEdit} from "./CommunicationTemplateEdit"
 import { CustomApolloContextProvider } from "@/providers/ApolloContextProvider"
+import ElectionHeader from '@/components/ElectionHeader'
 
 const CommunicationTemplateEmpty = styled(Box)`
     display: flex;
@@ -40,7 +41,7 @@ const useActionPermissions = () => {
     }
 }
 
-const OMIT_FIELDS = ["created_at", "updated_at", "deleted_at"]
+const OMIT_FIELDS = ["id"]
 const Filters: Array<ReactElement> = []
 
 export const CommunicationTemplateList: React.FC = () => {
@@ -118,6 +119,11 @@ export const CommunicationTemplateList: React.FC = () => {
 
     return (
         <>
+            <ElectionHeader
+                title={t("communicationTemplate.title")}
+                subtitle={t("communicationTemplate.subtitle")}
+            />
+
             <List
                 resource="sequent_backend_communication_template"
                 filters={Filters}
@@ -134,8 +140,13 @@ export const CommunicationTemplateList: React.FC = () => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-
-                    <ActionsColumn actions={actions} />
+                    <TextField source="template.alias" />
+                    <TextField source="template.name" />
+                    <TextField source="communication_method" />
+                    <TextField source="communication_type" />
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
                 </DatagridConfigurable>
             </List>
 
