@@ -39,17 +39,14 @@ export default function Stats({
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
 
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(
-        GET_ELECTION_STATS,
-        {
-            variables: {
-                tenantId,
-                electionEventId,
-                electionId,
-            },
-            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
+    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
+        variables: {
+            tenantId,
+            electionEventId,
+            electionId,
+        },
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    })
 
     if (loading) {
         return <CircularProgress />

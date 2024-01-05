@@ -17,8 +17,8 @@ use tracing::{event, instrument, Level};
 use windmill::services::database::{
     get_hasura_pool, get_keycloak_pool, PgConfig,
 };
-use windmill::services::election_statistics::get_count_distinct_voters;
 use windmill::services::election_statistics::get_count_areas;
+use windmill::services::election_statistics::get_count_distinct_voters;
 
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,

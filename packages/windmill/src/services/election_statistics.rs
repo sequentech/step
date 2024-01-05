@@ -8,8 +8,8 @@ use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
 use std::default::Default;
-use tracing::instrument;
 use tokio_postgres::row::Row;
+use tracing::instrument;
 use uuid::Uuid;
 
 pub fn get_election_statistics(statistics_json_opt: Option<Value>) -> Option<ElectionStatistics> {
@@ -24,9 +24,9 @@ pub fn get_election_statistics(statistics_json_opt: Option<Value>) -> Option<Ele
 //     statistics: ElectionStatistics,
 // ) -> Result<()> {
 //     let auth_headers = get_client_credentials().await?;
-// 
+//
 //     let statistics_json = serde_json::to_value(&statistics)?;
-// 
+//
 //     hasura::election::update_election_statistics(
 //         auth_headers.clone(),
 //         tenant_id.clone(),
@@ -34,7 +34,7 @@ pub fn get_election_statistics(statistics_json_opt: Option<Value>) -> Option<Ele
 //         statistics_json,
 //     )
 //     .await?;
-// 
+//
 //     Ok(())
 // }
 
@@ -81,7 +81,6 @@ pub async fn get_count_distinct_voters(
 
     Ok(total_distinct_voters)
 }
-
 
 #[instrument(skip(transaction), err)]
 pub async fn get_count_areas(
