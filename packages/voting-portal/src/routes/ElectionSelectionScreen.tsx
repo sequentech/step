@@ -234,15 +234,10 @@ export const ElectionSelectionScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if (errorBallotStyles || errorElections) {
-            if (errorBallotStyles?.message === 'missing session variable: "x-hasura-area-id"') {
-                // handle no ballot styles
-                return
-            }
-
+        if (errorBallotStyles || errorElections || errorElectionEvent) {
             throw new CustomError("Unable to fetch data")
         }
-    }, [errorElections, errorBallotStyles])
+    }, [errorElections, errorBallotStyles, errorElectionEvent])
 
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
