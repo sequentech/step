@@ -6,6 +6,8 @@ use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use reqwest;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{event, instrument, Level};
@@ -83,19 +85,31 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
         login_config.url, login_config.realm
     );
 
-    let client = reqwest::Client::new();
+    // Retry up to 3 times with increasing intervals between attempts.
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
     event!(
         Level::INFO,
         "Acquiring credentials to {} with {:?}",
         keycloak_endpoint,
         body_string
     );
-    let res = client
-        .post(keycloak_endpoint)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body_string)
-        .send()
-        .await?;
+
+    let res = async {
+        let res_future = client
+            .post(keycloak_endpoint)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body_string)
+            .send();
+        event!(Level::INFO, "Awaiting future from endpoint");
+        let res = res_future.await;
+        event!(Level::INFO, "Result from endpoint: {:?}", res);
+        res
+    }
+    .await?;
+
     let text = res.text().await?;
 
     let credentials: TokenResponse = serde_json::from_str(&text)

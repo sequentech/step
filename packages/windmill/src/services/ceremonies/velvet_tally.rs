@@ -135,7 +135,9 @@ pub fn create_election_configs(
                 id: Uuid::parse_str(&election_id)?,
                 tenant_id: Uuid::parse_str(&contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&contest.election_event_id)?,
-                census: 0,
+                census: election_cast_votes_count
+                    .map(|data| data.census as u64)
+                    .unwrap_or(0),
                 total_votes: election_cast_votes_count
                     .map(|data| data.cast_votes as u64)
                     .unwrap_or(0),

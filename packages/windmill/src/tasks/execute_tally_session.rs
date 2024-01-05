@@ -570,6 +570,7 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
+    let _auth_headers = keycloak::get_client_credentials().await?;
 
     let status = run_velvet_tally(
         base_tempdir.path().to_path_buf(),
@@ -649,7 +650,7 @@ pub async fn execute_tally_session_wrapped(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 1)]
+#[celery::task(time_limit = 1200000, max_retries = 0)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
