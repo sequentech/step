@@ -103,7 +103,6 @@ const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
 
     const {electionId} = useParams<{electionId?: string}>()
-    const {tenantId, eventId} = useParams<TenantEventType>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
