@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, Typography} from "@mui/material"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -14,13 +14,29 @@ import {
     translateElection,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import {TenantEventType} from ".."
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
+import {
+    GetElectionEventQuery,
+    GetSupportMaterialsQuery,
+    Sequent_Backend_Support_Material,
+} from "../gql/graphql"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
-import {SupportMatherial} from "../components/SupportMatherial/SupportMatherial"
-import {TenantEventType} from ".."
+import {SupportMaterial} from "../components/SupportMaterial/SupportMaterial"
+import {
+    ISupportMaterial,
+    getSupportMaterialsList,
+    setSupportMaterial,
+} from "../store/supportMaterials/supportMaterialsSlice"
+import {
+    IElectionEvent,
+    selectElectionEventById,
+    setElectionEvent,
+} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -42,7 +58,7 @@ const ElectionContainer = styled(Box)`
 `
 
 interface ElectionWrapperProps {
-    material: any
+    material: Sequent_Backend_Support_Material
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
@@ -50,7 +66,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
     const {i18n} = useTranslation()
 
     return (
-        <SupportMatherial
+        <SupportMaterial
             title={translate(material.data, "title", i18n.language) || ""}
             subtitle={translate(material.data, "subtitle", i18n.language) || ""}
             kind={material.kind || ""}
@@ -64,28 +80,67 @@ export const SupportMaterialsScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+    const dispatch = useAppDispatch()
+    const materials = useAppSelector(getSupportMaterialsList())
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
-    const {data: dataMaterials} = useQuery<any>(GET_SUPPORT_MATERIALS, {
+    const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
+
+    // Materials
+    const {
+        data: dataMaterials,
+        error: errorMaterials,
+        loading: loadingMaterials,
+    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
         variables: {
             electionEventId: eventId || "",
             tenantId: tenantId || "",
         },
     })
 
-    const {data: dataElectionEvent} = useQuery<any>(GET_ELECTION_EVENT, {
+    useEffect(() => {
+        if (!loadingMaterials && !errorMaterials && dataMaterials) {
+            for (let material of dataMaterials.sequent_backend_support_material) {
+                dispatch(setSupportMaterial(material))
+            }
+        }
+    }, [loadingMaterials, errorMaterials, dataMaterials, dispatch])
+
+    useEffect(() => {
+        const materialsList: Array<ISupportMaterial> = []
+        for (const material in materials) {
+            materialsList.push(materials[material] as ISupportMaterial)
+        }
+        setMaterialsList(materialsList)
+    }, [materials])
+
+    // Election Event
+    const {
+        data: dataElectionEvent,
+        error: errorElectionEvent,
+        loading: loadingElectionEvent,
+    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
             electionEventId: eventId,
             tenantId,
         },
     })
 
-    const [materialsTitles, setMaterialsTitles] = useState<any>({})
+    useEffect(() => {
+        if (!loadingElectionEvent && !errorElectionEvent && dataElectionEvent) {
+            for (let material of dataElectionEvent.sequent_backend_election_event) {
+                dispatch(setElectionEvent(material))
+            }
+        }
+    }, [loadingElectionEvent, errorElectionEvent, dataElectionEvent, dispatch])
+
+    const [materialsTitles, setMaterialsTitles] = useState<IElectionEvent | undefined>()
 
     useEffect(() => {
-        if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            setMaterialsTitles(dataElectionEvent?.sequent_backend_election_event?.[0])
+        if (electionEvent) {
+            setMaterialsTitles(electionEvent)
         }
-    }, [dataElectionEvent])
+    }, [electionEvent])
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
@@ -116,12 +171,19 @@ export const SupportMaterialsScreen: React.FC = () => {
                 <Box>
                     <StyledTitle variant="h1">
                         <Box>
-                            {translateElection(materialsTitles, "materialsTitle", i18n.language)}
+                            {materialsTitles &&
+                                translateElection(materialsTitles, "materialsTitle", i18n.language)}
                         </Box>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                         {stringToHtml(
-                            translateElection(materialsTitles, "materialsSubtitle", i18n.language)
+                            materialsTitles
+                                ? translateElection(
+                                      materialsTitles,
+                                      "materialsSubtitle",
+                                      i18n.language
+                                  )
+                                : ""
                         )}
                     </Typography>
                 </Box>
@@ -130,8 +192,11 @@ export const SupportMaterialsScreen: React.FC = () => {
                 </Button>
             </Box>
             <ElectionContainer>
-                {dataMaterials?.sequent_backend_support_material?.map((material: any) => (
-                    <ElectionWrapper material={material} key={material.id} />
+                {materialsList?.map((material: ISupportMaterial) => (
+                    <ElectionWrapper
+                        material={material as Sequent_Backend_Support_Material}
+                        key={material.id}
+                    />
                 ))}
             </ElectionContainer>
         </PageLimit>
