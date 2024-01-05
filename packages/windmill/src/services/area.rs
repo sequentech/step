@@ -56,13 +56,13 @@ pub async fn get_elections_by_area(
     let mut areas_to_elections = HashMap::new();
 
     for row in rows {
-        let area_id: String = row.try_get("area_id")?;
-        let election_id: String = row.try_get("election_id")?;
+        let area_id: Uuid = row.try_get("area_id")?;
+        let election_id: Uuid = row.try_get("election_id")?;
 
         areas_to_elections
-            .entry(area_id)
+            .entry(area_id.to_string())
             .or_insert_with(Vec::new)
-            .push(election_id);
+            .push(election_id.to_string());
     }
 
     Ok(areas_to_elections)

@@ -5,7 +5,7 @@ use crate::hasura::election_event::get_election_event;
 use crate::services::area::get_elections_by_area;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_statistics::{
-    get_election_event_statistics, update_election_event_statistics,
+    parse_election_event_statistics, update_election_event_statistics,
 };
 use crate::services::users::list_users;
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
@@ -13,7 +13,7 @@ use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 
 use anyhow::{anyhow, Context};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
@@ -23,6 +23,7 @@ use lettre::message::MultiPart;
 use lettre::Message;
 
 use celery::error::TaskError;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::{User, UserArea};
@@ -423,6 +424,32 @@ fn update_metrics(
     });
 }
 
+async fn update_stats(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &String,
+    election_event_id: &Option<String>,
+    metrics: &Metrics,
+) -> Result<()> {
+    let &Some(ref election_event_id) = election_event_id else {
+        return Ok(());
+    };
+    let totals = metrics.election_event.num_emails_sent + metrics.election_event.num_sms_sent;
+    if totals > 0 {
+        event!(Level::INFO, "updating election event statistics");
+
+        update_election_event_statistics(
+            hasura_transaction,
+            tenant_id.as_str(),
+            election_event_id.as_str(),
+            /* inc_emails_sent */ metrics.election_event.num_emails_sent,
+            /* inc_sms_sent */ metrics.election_event.num_sms_sent,
+        )
+        .await
+        .with_context(|| "can't updated election event statistics")?;
+    }
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -487,26 +514,27 @@ pub async fn send_communication(
         .await
         .with_context(|| "can't set transaction isolation level")?;
     event!(Level::INFO, "after isolation");
-
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
         .with_context(|| "Error loading hasura db client")?;
-    let mut hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error creating a transaction")?;
 
     let elections_by_area = match election_event_id.clone() {
         None => HashMap::new(),
-        Some(ref election_event_id) => get_elections_by_area(
-            &hasura_transaction,
-            tenant_id.as_str(),
-            election_event_id.as_str(),
-        )
-        .await
-        .with_context(|| "Error listing elections by area")?,
+        Some(ref election_event_id) => {
+            let mut hasura_transaction = hasura_db_client
+                .transaction()
+                .await
+                .with_context(|| "Error creating a transaction")?;
+            get_elections_by_area(
+                &hasura_transaction,
+                tenant_id.as_str(),
+                election_event_id.as_str(),
+            )
+            .await
+            .with_context(|| "Error listing elections by area")?
+        }
     };
 
     loop {
@@ -539,8 +567,6 @@ pub async fn send_communication(
             },
             metrics_by_election_id: Default::default(),
         };
-        let mut num_emails_sent = 0;
-        let mut num_sms_sent = 0;
 
         for user in users.iter() {
             event!(
@@ -595,38 +621,25 @@ pub async fn send_communication(
         processed += TryInto::<i32>::try_into(users.len()).map_err(|err| anyhow!("{err}"))?;
 
         // update stats
-        if let Some(ref election_event_id) = election_event_id {
-            let election_event_response = get_election_event(
-                auth_headers.clone(),
-                tenant_id.clone(),
-                election_event_id.clone(),
-            )
+        let mut hasura_transaction = hasura_db_client
+            .transaction()
             .await
-            .with_context(|| "can't find election event")?;
+            .with_context(|| "Error creating a transaction")?;
+        update_stats(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &metrics,
+        )
+        .await
+        .with_context(|| "Error updating stats")?;
 
-            let election_event = &election_event_response
-                .data
-                .with_context(|| "can't find election event")?
-                .sequent_backend_election_event[0];
-
-            let mut statistics = get_election_event_statistics(election_event.statistics.clone())
-                .unwrap_or(Default::default());
-            event!(Level::INFO, "statistics= {statistics:?}");
-
-            statistics.num_emails_sent += num_emails_sent;
-            statistics.num_sms_sent += num_sms_sent;
-            event!(Level::INFO, "updated_statistics = {statistics:?}");
-
-            update_election_event_statistics(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                statistics,
-            )
+        hasura_transaction
+            .commit()
             .await
-            .with_context(|| "can't updated election event statistics")?;
-        }
+            .with_context(|| "Error committing update stats transaction")?;
 
-        if (processed >= total_count) {
+        if processed >= total_count {
             break;
         }
     }

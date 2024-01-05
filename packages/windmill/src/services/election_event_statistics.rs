@@ -5,34 +5,58 @@ use crate::hasura;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
-use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub fn get_election_event_statistics(
+pub fn parse_election_event_statistics(
     statistics_json_opt: Option<Value>,
 ) -> Option<ElectionEventStatistics> {
     statistics_json_opt.and_then(|statistics_json| serde_json::from_value(statistics_json).ok())
 }
 
-#[instrument(err)]
+#[instrument(skip(transaction), err)]
 pub async fn update_election_event_statistics(
-    tenant_id: String,
-    election_event_id: String,
-    statistics: ElectionEventStatistics,
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    inc_emails_sent: i64,
+    inc_sms_sent: i64,
 ) -> Result<()> {
-    let auth_headers = get_client_credentials().await?;
-    let statistics_json = serde_json::to_value(&statistics)?;
+    let update_stats_statement = transaction
+        .prepare(
+            r#"
+            UPDATE
+                sequent_backend.election_event
+            SET
+                statistics = jsonb_set(
+                    jsonb_set(
+                        statistics, 
+                        '{num_emails_sent}', 
+                        (COALESCE(statistics->>'num_emails_sent', '0')::int8 + $3)::text::jsonb
+                    ),
+                    '{num_sms_sent}', 
+                    (COALESCE(statistics->>'num_sms_sent', '0')::int8 + $4)::text::jsonb
+                )
+            WHERE
+                tenant_id = $1 AND
+                id = $2;
+            "#,
+        )
+        .await?;
 
-    hasura::election_event::update_election_event_statistics(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        statistics_json,
-    )
-    .await?;
+    transaction
+        .query(
+            &update_stats_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &inc_emails_sent,
+                &inc_sms_sent,
+            ],
+        )
+        .await?;
 
     Ok(())
 }
