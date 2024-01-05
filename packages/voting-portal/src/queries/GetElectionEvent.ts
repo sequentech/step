@@ -8,6 +8,7 @@ export const GET_ELECTION_EVENT = gql`
         sequent_backend_election_event(
             where: {_and: {id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}}
         ) {
+            id
             presentation
         }
     }
