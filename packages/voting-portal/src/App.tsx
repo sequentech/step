@@ -20,9 +20,11 @@ const StyledApp = styled(Stack)`
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
 
     return (
         <Header
+            appVersion={{main: globalSettings.APP_VERSION}}
             userProfile={{
                 username: authContext.username,
                 email: authContext.email,
