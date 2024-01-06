@@ -17,8 +17,8 @@ insert_permissions:
     - name
     - results_event_id
     - tenant_id
-    - total_valid_votes
-    - total_valid_votes_percent
+    - total_voters
+    - total_voters_percent
   role: admin-user
 - comment: ""
   permission:
@@ -35,8 +35,8 @@ insert_permissions:
     - name
     - results_event_id
     - tenant_id
-    - total_valid_votes
-    - total_valid_votes_percent
+    - total_voters
+    - total_voters_percent
   role: service-account
 select_permissions:
 - comment: ""
@@ -54,8 +54,8 @@ select_permissions:
     - name
     - results_event_id
     - tenant_id
-    - total_valid_votes
-    - total_valid_votes_percent
+    - total_voters
+    - total_voters_percent
     filter: {}
   role: admin-user
 - comment: ""
@@ -73,8 +73,8 @@ select_permissions:
     - name
     - results_event_id
     - tenant_id
-    - total_valid_votes
-    - total_valid_votes_percent
+    - total_voters
+    - total_voters_percent
     filter: {}
   role: service-account
 update_permissions:
@@ -93,8 +93,8 @@ update_permissions:
     - name
     - results_event_id
     - tenant_id
-    - total_valid_votes
-    - total_valid_votes_percent
+    - total_voters
+    - total_voters_percent
     filter: {}
   role: admin-user
 - comment: ""
@@ -112,7 +112,7 @@ update_permissions:
     - name
     - results_event_id
     - tenant_id
-    - total_valid_votes
-    - total_valid_votes_percent
+    - total_voters
+    - total_voters_percent
     filter: {}
   role: service-account

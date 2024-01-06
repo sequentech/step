@@ -27,18 +27,18 @@ pub async fn save_results(
     results_event_id: &str,
 ) -> Result<()> {
     for election in &results {
-        let total_valid_votes_percent: f64 =
-            (election.census as f64) / (cmp::max(election.total_votes, 1) as f64);
+        let total_voters_percent: f64 =
+            (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
         insert_results_election(
             &auth_headers,
             tenant_id,
             election_event_id,
             results_event_id,
             &election.election_id,
-            &None,                                            // name
-            &Some(election.census as i64),                    // census
-            &Some(election.total_votes as i64),               // total_valid_votes,
-            &Some(total_valid_votes_percent.clamp(0.0, 1.0)), // total_valid_votes_percent,
+            &None,                                       // name
+            &Some(election.census as i64),               // census
+            &Some(election.total_votes as i64),          // total_voters,
+            &Some(total_voters_percent.clamp(0.0, 1.0)), // total_votes_percent,
         )
         .await?;
 
@@ -46,7 +46,8 @@ pub async fn save_results(
             if let Some(area_id) = &contest.area_id {
                 let total_votes_percent: f64 = (contest.contest_result.total_votes as f64)
                     / (cmp::max(contest.contest_result.census, 1) as f64);
-                let total_valid_votes_percent: f64 = (contest.contest_result.total_valid_votes as f64)
+                let total_valid_votes_percent: f64 = (contest.contest_result.total_valid_votes
+                    as f64)
                     / (cmp::max(contest.contest_result.total_votes, 1) as f64);
                 let total_votes = cmp::max(contest.contest_result.total_votes, 1) as f64;
                 let total_invalid_votes_percent: f64 =
@@ -110,9 +111,11 @@ pub async fn save_results(
                 let census = cmp::max(contest.contest_result.census, 1) as f64;
                 let total_votes_percent: f64 = (contest.contest_result.total_votes as f64)
                     / (cmp::max(contest.contest_result.census, 1) as f64);
-                let total_valid_votes_percent: f64 = (contest.contest_result.total_valid_votes as f64)
+                let total_valid_votes_percent: f64 = (contest.contest_result.total_valid_votes
+                    as f64)
                     / (cmp::max(contest.contest_result.total_votes, 1) as f64);
-                let total_invalid_votes_percent: f64 = (contest.contest_result.total_invalid_votes as f64) / census;
+                let total_invalid_votes_percent: f64 =
+                    (contest.contest_result.total_invalid_votes as f64) / census;
                 let explicit_invalid_votes_percent: f64 =
                     (contest.contest_result.invalid_votes.explicit as f64) / census;
                 let implicit_invalid_votes_percent: f64 =

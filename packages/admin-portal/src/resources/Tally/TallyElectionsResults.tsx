@@ -23,8 +23,8 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     id: string
     status: string
     elegible_census: number | "-"
-    total_valid_votes: number | "-"
-    total_valid_votes_percent: number | "-"
+    total_voters: number | "-"
+    total_voters_percent: number | "-"
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
@@ -33,7 +33,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
-    const {data: elections} = useGetMany("sequent_backend_election", {
+    const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
         ids: electionIds || [],
     })
 
@@ -60,7 +60,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         console.log("elections :>> ", elections)
         if (elections && results) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
-                (item, index) => {
+                (item, index): Sequent_Backend_Election_Extended => {
                     const result = results?.find((r) => r.election_id === item.id)
                     console.log("result :>> ", result)
 
@@ -71,8 +71,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         name: item.name,
                         status: item.status || "",
                         elegible_census: result?.elegible_census ?? "-",
-                        total_valid_votes: result?.total_valid_votes ?? "-",
-                        total_valid_votes_percent: result?.total_valid_votes_percent ?? "-",
+                        total_voters: result?.total_voters ?? "-",
+                        total_voters_percent: result?.total_voters_percent ?? "-",
                     }
                 }
             )
@@ -96,15 +96,15 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
         },
         {
-            field: "total_valid_votes",
-            headerName: t("tally.table.total_valid_votes"),
+            field: "total_voters",
+            headerName: t("tally.table.total_votes"),
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
         },
         {
-            field: "total_valid_votes_percent",
-            headerName: t("tally.table.total_valid_votes_percent"),
+            field: "total_voters_percent",
+            headerName: t("tally.table.total_votes_percent"),
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) =>

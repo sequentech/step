@@ -76359,7 +76359,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -76371,7 +76371,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -76660,7 +76660,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -76672,7 +76672,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -76852,7 +76852,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -76862,7 +76862,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -77019,7 +77019,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -77029,7 +77029,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -77160,7 +77160,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -77170,7 +77170,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -77298,7 +77298,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -77310,7 +77310,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -77441,7 +77441,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -77453,7 +77453,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -77695,7 +77695,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -77705,7 +77705,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -77892,13 +77892,13 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -78023,7 +78023,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -78033,7 +78033,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -78065,7 +78065,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78077,7 +78077,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -78112,7 +78112,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78124,7 +78124,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -78159,7 +78159,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78171,7 +78171,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -78340,7 +78340,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -78350,7 +78350,7 @@
             "defaultValue": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -78382,7 +78382,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78394,7 +78394,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -78486,13 +78486,13 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -78613,7 +78613,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78625,7 +78625,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -78660,7 +78660,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78672,7 +78672,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {
@@ -78707,7 +78707,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes",
+            "name": "total_voters",
             "description": null,
             "args": [],
             "type": {
@@ -78719,7 +78719,7 @@
             "deprecationReason": null
           },
           {
-            "name": "total_valid_votes_percent",
+            "name": "total_voters_percent",
             "description": null,
             "args": [],
             "type": {

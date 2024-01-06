@@ -28,8 +28,8 @@ pub async fn insert_results_election(
     election_id: &str,
     name: &Option<String>,
     elegible_census: &Option<i64>,
-    total_valid_votes: &Option<i64>,
-    total_valid_votes_percent: &Option<f64>,
+    total_voters: &Option<i64>,
+    total_voters_percent: &Option<f64>,
 ) -> Result<Response<insert_results_election::ResponseData>> {
     let variables = insert_results_election::Variables {
         tenant_id: tenant_id.to_string(),
@@ -38,8 +38,8 @@ pub async fn insert_results_election(
         election_id: Some(election_id.to_string()),
         name: name.clone(),
         elegible_census: elegible_census.clone(),
-        total_valid_votes: total_valid_votes.clone(),
-        total_valid_votes_percent: total_valid_votes_percent.clone(),
+        total_voters: total_voters.clone(),
+        total_voters_percent: total_voters_percent.clone(),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

@@ -11858,8 +11858,8 @@ export type Sequent_Backend_Results_Election = {
   name?: Maybe<Scalars['String']['output']>;
   results_event_id: Scalars['uuid']['output'];
   tenant_id: Scalars['uuid']['output'];
-  total_valid_votes?: Maybe<Scalars['Int']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_voters?: Maybe<Scalars['Int']['output']>;
+  total_voters_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 
@@ -11914,8 +11914,8 @@ export type Sequent_Backend_Results_Election_Append_Input = {
 export type Sequent_Backend_Results_Election_Avg_Fields = {
   __typename?: 'sequent_backend_results_election_avg_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.results_election". All fields are combined with a logical 'AND'. */
@@ -11934,8 +11934,8 @@ export type Sequent_Backend_Results_Election_Bool_Exp = {
   name?: InputMaybe<String_Comparison_Exp>;
   results_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
-  total_valid_votes?: InputMaybe<Int_Comparison_Exp>;
-  total_valid_votes_percent?: InputMaybe<Numeric_Comparison_Exp>;
+  total_voters?: InputMaybe<Int_Comparison_Exp>;
+  total_voters_percent?: InputMaybe<Numeric_Comparison_Exp>;
 };
 
 /** unique or primary key constraints on table "sequent_backend.results_election" */
@@ -11965,8 +11965,8 @@ export type Sequent_Backend_Results_Election_Delete_Key_Input = {
 /** input type for incrementing numeric columns in table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Inc_Input = {
   elegible_census?: InputMaybe<Scalars['Int']['input']>;
-  total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
-  total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_voters?: InputMaybe<Scalars['Int']['input']>;
+  total_voters_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.results_election" */
@@ -11982,8 +11982,8 @@ export type Sequent_Backend_Results_Election_Insert_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
-  total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
-  total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_voters?: InputMaybe<Scalars['Int']['input']>;
+  total_voters_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate max on columns */
@@ -11998,8 +11998,8 @@ export type Sequent_Backend_Results_Election_Max_Fields = {
   name?: Maybe<Scalars['String']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
-  total_valid_votes?: Maybe<Scalars['Int']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_voters?: Maybe<Scalars['Int']['output']>;
+  total_voters_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** aggregate min on columns */
@@ -12014,8 +12014,8 @@ export type Sequent_Backend_Results_Election_Min_Fields = {
   name?: Maybe<Scalars['String']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
-  total_valid_votes?: Maybe<Scalars['Int']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_voters?: Maybe<Scalars['Int']['output']>;
+  total_voters_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** response of any mutation on the table "sequent_backend.results_election" */
@@ -12047,8 +12047,8 @@ export type Sequent_Backend_Results_Election_Order_By = {
   name?: InputMaybe<Order_By>;
   results_event_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
-  total_valid_votes?: InputMaybe<Order_By>;
-  total_valid_votes_percent?: InputMaybe<Order_By>;
+  total_voters?: InputMaybe<Order_By>;
+  total_voters_percent?: InputMaybe<Order_By>;
 };
 
 /** primary key columns input for table: sequent_backend.results_election */
@@ -12090,9 +12090,9 @@ export enum Sequent_Backend_Results_Election_Select_Column {
   /** column name */
   TenantId = 'tenant_id',
   /** column name */
-  TotalValidVotes = 'total_valid_votes',
+  TotalVoters = 'total_voters',
   /** column name */
-  TotalValidVotesPercent = 'total_valid_votes_percent'
+  TotalVotersPercent = 'total_voters_percent'
 }
 
 /** input type for updating data in table "sequent_backend.results_election" */
@@ -12108,32 +12108,32 @@ export type Sequent_Backend_Results_Election_Set_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
-  total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
-  total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_voters?: InputMaybe<Scalars['Int']['input']>;
+  total_voters_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate stddev on columns */
 export type Sequent_Backend_Results_Election_Stddev_Fields = {
   __typename?: 'sequent_backend_results_election_stddev_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_pop on columns */
 export type Sequent_Backend_Results_Election_Stddev_Pop_Fields = {
   __typename?: 'sequent_backend_results_election_stddev_pop_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate stddev_samp on columns */
 export type Sequent_Backend_Results_Election_Stddev_Samp_Fields = {
   __typename?: 'sequent_backend_results_election_stddev_samp_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_results_election" */
@@ -12157,16 +12157,16 @@ export type Sequent_Backend_Results_Election_Stream_Cursor_Value_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
-  total_valid_votes?: InputMaybe<Scalars['Int']['input']>;
-  total_valid_votes_percent?: InputMaybe<Scalars['numeric']['input']>;
+  total_voters?: InputMaybe<Scalars['Int']['input']>;
+  total_voters_percent?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate sum on columns */
 export type Sequent_Backend_Results_Election_Sum_Fields = {
   __typename?: 'sequent_backend_results_election_sum_fields';
   elegible_census?: Maybe<Scalars['Int']['output']>;
-  total_valid_votes?: Maybe<Scalars['Int']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['numeric']['output']>;
+  total_voters?: Maybe<Scalars['Int']['output']>;
+  total_voters_percent?: Maybe<Scalars['numeric']['output']>;
 };
 
 /** update columns of table "sequent_backend.results_election" */
@@ -12194,9 +12194,9 @@ export enum Sequent_Backend_Results_Election_Update_Column {
   /** column name */
   TenantId = 'tenant_id',
   /** column name */
-  TotalValidVotes = 'total_valid_votes',
+  TotalVoters = 'total_voters',
   /** column name */
-  TotalValidVotesPercent = 'total_valid_votes_percent'
+  TotalVotersPercent = 'total_voters_percent'
 }
 
 export type Sequent_Backend_Results_Election_Updates = {
@@ -12222,24 +12222,24 @@ export type Sequent_Backend_Results_Election_Updates = {
 export type Sequent_Backend_Results_Election_Var_Pop_Fields = {
   __typename?: 'sequent_backend_results_election_var_pop_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate var_samp on columns */
 export type Sequent_Backend_Results_Election_Var_Samp_Fields = {
   __typename?: 'sequent_backend_results_election_var_samp_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** aggregate variance on columns */
 export type Sequent_Backend_Results_Election_Variance_Fields = {
   __typename?: 'sequent_backend_results_election_variance_fields';
   elegible_census?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes?: Maybe<Scalars['Float']['output']>;
-  total_valid_votes_percent?: Maybe<Scalars['Float']['output']>;
+  total_voters?: Maybe<Scalars['Float']['output']>;
+  total_voters_percent?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.results_event" */
