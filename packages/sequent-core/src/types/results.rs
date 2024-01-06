@@ -4,8 +4,9 @@
 #![allow(non_camel_case_types)]
 
 use serde::{Deserialize, Serialize};
+use std::default::Default;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ResultDocuments {
     pub json: Option<String>,
     pub pdf: Option<String>,
