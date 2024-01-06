@@ -20,7 +20,7 @@ use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::compress::compress_folder;
-use crate::services::database::{get_keycloak_pool, get_hasura_pool};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
@@ -234,11 +234,8 @@ pub async fn count_cast_votes_election_with_census(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ElectionCastVotes>> {
-    let mut cast_votes = count_cast_votes_election(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id
-    ).await?;
+    let mut cast_votes =
+        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id).await?;
 
     for cast_vote in &mut cast_votes {
         let realm = get_event_realm(tenant_id, election_event_id);
@@ -508,15 +505,14 @@ async fn map_plaintext_data(
     )
     .await?;
 
-    let cast_votes_count =
-        count_cast_votes_election_with_census(
-            auth_headers.clone(),
-            &hasura_transaction,
-            &keycloak_transaction,
-            &tenant_id, 
-            &election_event_id
-        )
-        .await?;
+    let cast_votes_count = count_cast_votes_election_with_census(
+        auth_headers.clone(),
+        &hasura_transaction,
+        &keycloak_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,

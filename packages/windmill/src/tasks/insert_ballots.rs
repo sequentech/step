@@ -4,8 +4,8 @@
 use anyhow::Context;
 use board_messages::braid::newtypes::BatchNumber;
 use celery::error::TaskError;
-use sequent_core::ballot::ElectionEventStatus;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::keycloak;

@@ -135,12 +135,12 @@ pub async fn list_users(
     } else {
         None
     };
-    let (area_ids, area_ids_join_clause, area_ids_where_clause) =
-        get_area_ids(
-            hasura_transaction,
-            filter.election_id.clone(),
-            filter.area_id.clone()
-        ).await?;
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+    )
+    .await?;
     let statement = keycloak_transaction.prepare(format!(r#"
         SELECT
             u.id,
