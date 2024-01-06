@@ -6,6 +6,7 @@ import {useGetList, useGetOne} from "react-admin"
 
 import {
     Sequent_Backend_Candidate,
+    Sequent_Backend_Election,
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
@@ -43,7 +44,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
-    const {data: election} = useGetOne("sequent_backend_election", {
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
         id: electionId,
         meta: {
             tenant_id: tenantId,
@@ -52,7 +53,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         },
     })
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         pagination: {page: 1, perPage: 9999},
         filter: {
             contest_id: contestId,
@@ -106,7 +107,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
-                (candidate, index) => {
+                (candidate, index): Sequent_Backend_Candidate_Extended => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
                     return {
@@ -114,7 +115,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         rowId: index,
                         id: candidate.id || "",
                         name: candidate.name,
-                        status: candidate.status || "",
+                        status: "",
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
                         winning_position: candidateResult?.winning_position,

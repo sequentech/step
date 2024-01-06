@@ -58,15 +58,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         }
     )
 
-    const {data: election} = useGetOne("sequent_backend_election", {
-        id: electionId,
-        meta: {
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-            election_id: electionId,
-        },
-    })
-
     const {data: general} = useGetList<Sequent_Backend_Results_Area_Contest>(
         "sequent_backend_results_area_contest",
         {
