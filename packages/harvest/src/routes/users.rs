@@ -18,6 +18,7 @@ use std::env;
 use tracing::instrument;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::list_users;
+use windmill::services::users::ListUsersFilter;
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
@@ -174,18 +175,21 @@ pub async fn get_users(
     let (users, count) = list_users(
         &hasura_transaction,
         &keycloak_transaction,
-        input.tenant_id.clone(),
-        input.election_event_id.clone(),
-        input.election_id.clone(),
-        &realm,
-        input.search,
-        input.first_name,
-        input.last_name,
-        input.username,
-        input.email,
-        input.limit,
-        input.offset,
-        /* user_ids = */ None,
+        ListUsersFilter {
+            tenant_id: input.tenant_id.clone(),
+            election_event_id: input.election_event_id.clone(),
+            election_id: input.election_id.clone(),
+            area_id: None,
+            realm: realm.clone(),
+            search: input.search,
+            first_name: input.first_name,
+            last_name: input.last_name,
+            username: input.username,
+            email: input.email,
+            limit: input.limit,
+            offset: input.offset,
+            user_ids: None,
+        },
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

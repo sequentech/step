@@ -9,6 +9,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -17,26 +18,22 @@ interface TallyElectionsResultsProps {
     electionIds: any
 }
 
+type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
+    rowId: number
+    id: string
+    status: string
+    elegible_census: number | "-"
+    total_voters: number | "-"
+    total_voters_percent: number | "-"
+}
+
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
     const {tenantId, electionEventId, resultsEventId, electionIds} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [resultsData, setResultsData] = useState<
-        Array<
-            Sequent_Backend_Election & {
-                rowId: number
-                id: string
-                status: string
-                elegible_census: number
-                total_valid_votes: number
-                explicit_invalid_votes: number
-                implicit_invalid_votes: number
-                blank_votes: number
-            }
-        >
-    >([])
+    const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
-    const {data: elections} = useGetMany("sequent_backend_election", {
+    const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
         ids: electionIds || [],
     })
 
@@ -62,36 +59,23 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         console.log("results :>> ", results)
         console.log("elections :>> ", elections)
         if (elections && results) {
-            const temp:
-                | Array<
-                      Sequent_Backend_Election & {
-                          rowId: number
-                          id: string
-                          status: string
-                          elegible_census: number
-                          total_valid_votes: number
-                          explicit_invalid_votes: number
-                          implicit_invalid_votes: number
-                          blank_votes: number
-                      }
-                  >
-                | undefined = elections?.map((item, index) => {
-                const result = results?.find((r) => r.election_id === item.id)
-                console.log("result :>> ", result)
+            const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
+                (item, index): Sequent_Backend_Election_Extended => {
+                    const result = results?.find((r) => r.election_id === item.id)
+                    console.log("result :>> ", result)
 
-                return {
-                    ...item,
-                    rowId: index,
-                    id: item.id || "",
-                    name: item.name,
-                    status: item.status || "",
-                    elegible_census: result?.elegible_census ?? 0,
-                    total_valid_votes: result?.total_valid_votes ?? 0,
-                    explicit_invalid_votes: result?.explicit_invalid_votes ?? 0,
-                    implicit_invalid_votes: result?.implicit_invalid_votes ?? 0,
-                    blank_votes: result?.blank_votes ?? 0,
+                    return {
+                        ...item,
+                        rowId: index,
+                        id: item.id || "",
+                        name: item.name,
+                        status: item.status || "",
+                        elegible_census: result?.elegible_census ?? "-",
+                        total_voters: result?.total_voters ?? "-",
+                        total_voters_percent: result?.total_voters_percent ?? "-",
+                    }
                 }
-            })
+            )
 
             setResultsData(temp)
         }
@@ -109,35 +93,22 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.elegible_census"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
         },
         {
-            field: "total_valid_votes",
-            headerName: t("tally.table.total_valid_votes"),
+            field: "total_voters",
+            headerName: t("tally.table.total_votes"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || "-",
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
         },
         {
-            field: "explicit_invalid_votes",
-            headerName: t("tally.table.explicit_invalid_votes"),
+            field: "total_voters_percent",
+            headerName: t("tally.table.total_votes_percent"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || "-",
-        },
-        {
-            field: "implicit_invalid_votes",
-            headerName: t("tally.table.implicit_invalid_votes"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || "-",
-        },
-        {
-            field: "blank_votes",
-            headerName: t("tally.table.blank_votes"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || "-",
+            renderCell: (props: GridRenderCellParams<any, number>) =>
+                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
         },
     ]
 

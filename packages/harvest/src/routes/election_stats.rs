@@ -14,15 +14,9 @@ use tracing::instrument;
 use windmill::services::cast_votes::{
     get_count_votes_per_day, CastVotesPerDay,
 };
-use windmill::services::database::{
-    get_hasura_pool, get_keycloak_pool, PgConfig,
-};
+use windmill::services::database::get_hasura_pool;
 use windmill::services::election_statistics::get_count_areas;
 use windmill::services::election_statistics::get_count_distinct_voters;
-
-use crate::types::resources::{
-    Aggregate, DataList, OrderDirection, TotalAggregate,
-};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionStatsInput {

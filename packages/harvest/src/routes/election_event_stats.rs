@@ -19,7 +19,7 @@ use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_statistics::{
     get_count_areas, get_count_distinct_voters, get_count_elections,
 };
-use windmill::services::users::list_users;
+use windmill::services::users::{list_users, ListUsersFilter};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsInput {
@@ -136,18 +136,21 @@ pub async fn get_election_event_stats(
     let (_, total_eligible_voters) = list_users(
         &hasura_transaction,
         &keycloak_transaction,
-        tenant_id.clone(),
-        Some(input.election_event_id.clone()),
-        None,
-        &realm_name,
-        /* search */ None,
-        /* first_name */ None,
-        /* last_name */ None,
-        /* username */ None,
-        /* email */ None,
-        /* limit */ Some(1),
-        /* offset */ None,
-        /* user_ids */ None,
+        ListUsersFilter {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: Some(input.election_event_id.to_string()),
+            election_id: None,
+            area_id: None,
+            realm: realm_name,
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(1),
+            offset: None,
+            user_ids: None,
+        },
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

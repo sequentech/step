@@ -6,7 +6,7 @@ use crate::services::area::get_elections_by_area;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
-use crate::services::users::list_users;
+use crate::services::users::{list_users, ListUsersFilter};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
@@ -18,12 +18,10 @@ use anyhow::{anyhow, Context};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
 use aws_sdk_sesv2::Client as AwsSesClient;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
+use celery::error::TaskError;
 use lettre::message::MultiPart;
 use lettre::Message;
-
-use celery::error::TaskError;
-use sequent_core::services::connection::AuthHeaders;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::{User, UserArea};
 use serde::{Deserialize, Serialize};
@@ -558,18 +556,21 @@ pub async fn send_communication(
         let (users, total_count) = list_users(
             &hasura_transaction,
             &keycloak_transaction,
-            tenant_id.clone(),
-            election_event_id.clone(),
-            /*election_id */ None,
-            &realm,
-            /* search */ None,
-            /* first_name */ None,
-            /* last_name */ None,
-            /* username */ None,
-            /* email */ None,
-            /* limit */ Some(batch_size),
-            /* offset */ Some(processed),
-            /* user_ids */ user_ids.clone(),
+            ListUsersFilter {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                area_id: None,
+                realm: realm.clone(),
+                search: None,
+                first_name: None,
+                last_name: None,
+                username: None,
+                email: None,
+                limit: Some(batch_size),
+                offset: Some(processed),
+                user_ids: user_ids.clone(),
+            },
         )
         .await?;
         event!(Level::INFO, "after list_users");

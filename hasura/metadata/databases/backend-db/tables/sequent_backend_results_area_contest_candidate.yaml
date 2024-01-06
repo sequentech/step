@@ -11,6 +11,7 @@ insert_permissions:
     - winning_position
     - annotations
     - labels
+    - cast_votes_percent
     - created_at
     - last_updated_at
     - area_id
@@ -31,6 +32,7 @@ insert_permissions:
     - winning_position
     - annotations
     - labels
+    - cast_votes_percent
     - created_at
     - last_updated_at
     - area_id
@@ -52,6 +54,7 @@ select_permissions:
     - winning_position
     - annotations
     - labels
+    - cast_votes_percent
     - created_at
     - last_updated_at
     - area_id
@@ -73,6 +76,7 @@ select_permissions:
     - winning_position
     - annotations
     - labels
+    - cast_votes_percent
     - created_at
     - last_updated_at
     - area_id
@@ -95,6 +99,7 @@ update_permissions:
     - winning_position
     - annotations
     - labels
+    - cast_votes_percent
     - created_at
     - last_updated_at
     - area_id
@@ -116,6 +121,7 @@ update_permissions:
     - winning_position
     - annotations
     - labels
+    - cast_votes_percent
     - created_at
     - last_updated_at
     - area_id

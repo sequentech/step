@@ -6,6 +6,7 @@ import {useGetList, useGetOne} from "react-admin"
 
 import {
     Sequent_Backend_Candidate,
+    Sequent_Backend_Election,
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
@@ -24,6 +25,7 @@ import {
 } from "@mui/material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
+import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -42,7 +44,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
-    const {data: election} = useGetOne("sequent_backend_election", {
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
         id: electionId,
         meta: {
             tenant_id: tenantId,
@@ -51,7 +53,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         },
     })
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         pagination: {page: 1, perPage: 9999},
         filter: {
             contest_id: contestId,
@@ -105,7 +107,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
-                (candidate, index) => {
+                (candidate, index): Sequent_Backend_Candidate_Extended => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
                     return {
@@ -113,11 +115,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         rowId: index,
                         id: candidate.id || "",
                         name: candidate.name,
-                        status: candidate.status || "",
-                        cast_votes: candidateResult?.cast_votes || 0,
-                        winning_position: candidateResult?.winning_position || 0,
-                        turnout: 0,
-                        // turnout: candidateResult?.turnout || 0,
+                        status: "",
+                        cast_votes: candidateResult?.cast_votes,
+                        cast_votes_percent: candidateResult?.cast_votes_percent,
+                        winning_position: candidateResult?.winning_position,
                     }
                 }
             )
@@ -138,28 +139,29 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         },
         {
             field: "cast_votes",
-            headerName: t("tally.table.number"),
+            headerName: t("tally.table.cast_votes"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
+            align: "right",
+            headerAlign: "right",
+        },
+        {
+            field: "cast_votes_percent",
+            headerName: t("tally.table.cast_votes_percent"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) =>
+                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
             align: "right",
             headerAlign: "right",
         },
         {
             field: "winning_position",
-            headerName: t("tally.table.voters"),
+            headerName: t("tally.table.winning_position"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || "-",
-            align: "right",
-            headerAlign: "right",
-        },
-        {
-            field: "turnout",
-            headerName: t("tally.table.turnout"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || "-"}`,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
             align: "right",
             headerAlign: "right",
         },
@@ -171,7 +173,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 {t("tally.table.global")}
             </Typography>
 
-            {general && general?.length ? (
+            {general && general.length ? (
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableHead>
@@ -189,19 +191,19 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 <TableCell align="right">
                                     {general?.[0].elegible_census ?? "-"}
                                 </TableCell>
-                                <TableCell align="right">
-                                    {general?.[0].elegible_census ?? "-"} %
-                                </TableCell>
+                                <TableCell align="right"></TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
-                                    {t("tally.table.number_votes")}
+                                    {t("tally.table.total_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].elegible_census ?? "-"}
+                                    {general?.[0].total_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].elegible_census ?? "-"} %
+                                    {isNumber(general?.[0].total_votes_percent)
+                                        ? formatPercentOne(general[0].total_votes_percent)
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -212,7 +214,22 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {general?.[0].total_valid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].total_valid_votes ?? "-"} %
+                                    {isNumber(general?.[0].total_valid_votes_percent)
+                                        ? formatPercentOne(general[0].total_valid_votes_percent)
+                                        : "-"}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.total_invalid_votes")}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].total_invalid_votes ?? "-"}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {isNumber(general?.[0].total_invalid_votes_percent)
+                                        ? formatPercentOne(general[0].total_invalid_votes_percent)
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -223,7 +240,11 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {general?.[0].explicit_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].explicit_invalid_votes ?? "-"} %
+                                    {isNumber(general?.[0].explicit_invalid_votes_percent)
+                                        ? formatPercentOne(
+                                              general[0].explicit_invalid_votes_percent
+                                          )
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -234,7 +255,11 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {general?.[0].implicit_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].implicit_invalid_votes ?? "-"} %
+                                    {isNumber(general?.[0].implicit_invalid_votes_percent)
+                                        ? formatPercentOne(
+                                              general[0].implicit_invalid_votes_percent
+                                          )
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -245,7 +270,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {general?.[0].blank_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].blank_votes ?? "-"} %
+                                    {isNumber(general?.[0].blank_votes_percent)
+                                        ? formatPercentOne(general[0].blank_votes_percent)
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                         </TableBody>

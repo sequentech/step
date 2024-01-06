@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
@@ -50,23 +50,18 @@ impl TryFrom<Row> for CastVote {
 
 #[instrument(err)]
 pub async fn find_area_ballots(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
 ) -> Result<Vec<CastVote>> {
-    let hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring hasura db client")?;
-
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
-    let areas_statement = hasura_db_client
+    let areas_statement = hasura_transaction
         .prepare(
             r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
@@ -89,7 +84,7 @@ pub async fn find_area_ballots(
                 "#,
         )
         .await?;
-    let rows: Vec<Row> = hasura_db_client
+    let rows: Vec<Row> = hasura_transaction
         .query(
             &areas_statement,
             &[&tenant_uuid, &election_event_uuid, &area_uuid],
@@ -102,6 +97,24 @@ pub async fn find_area_ballots(
         .collect::<Result<Vec<CastVote>>>()?;
 
     Ok(cast_votes)
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ElectionCastVotes {
+    pub election_id: String,
+    pub census: i64,
+    pub cast_votes: i64,
+}
+
+impl TryFrom<Row> for ElectionCastVotes {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(ElectionCastVotes {
+            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
+            census: 0,
+            cast_votes: item.get("cast_votes"),
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -118,6 +131,41 @@ impl TryFrom<Row> for CastVotesPerDay {
             day_count: item.try_get::<_, i64>("day_count")?,
         })
     }
+}
+
+#[instrument(err)]
+pub async fn count_cast_votes_election(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<ElectionCastVotes>> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let areas_statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT election_id, COUNT(DISTINCT voter_id_string) AS cast_votes
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2
+                GROUP BY
+                    election_id
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(&areas_statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+    let count_data = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionCastVotes> { row.try_into() })
+        .collect::<Result<Vec<ElectionCastVotes>>>()?;
+
+    Ok(count_data)
 }
 
 #[instrument(skip(transaction), err)]
