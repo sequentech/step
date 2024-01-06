@@ -8,12 +8,12 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tokio_postgres::row::Row;
-use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
+use windmill::services::cast_votes::{
+    get_count_votes_per_day, CastVotesPerDay,
+};
 use windmill::services::database::{
     get_hasura_pool, get_keycloak_pool, PgConfig,
 };
@@ -28,12 +28,15 @@ use crate::types::resources::{
 pub struct ElectionStatsInput {
     election_event_id: String,
     election_id: String,
+    start_date: String,
+    end_date: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionStatsOutput {
     total_distinct_voters: i64,
     total_areas: i64,
+    votes_per_day: Vec<CastVotesPerDay>,
 }
 
 #[instrument(skip(claims))]
@@ -88,8 +91,25 @@ pub async fn get_election_stats(
         )
     })?;
 
+    let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
+        &hasura_transaction,
+        &tenant_id.as_str(),
+        &input.election_event_id.as_str(),
+        &input.start_date.as_str(),
+        &input.end_date.as_str(),
+        Some(input.election_id),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving votes_per_day: {err}"),
+        )
+    })?;
+
     Ok(Json(ElectionStatsOutput {
         total_distinct_voters,
         total_areas,
+        votes_per_day,
     }))
 }

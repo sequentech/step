@@ -7,7 +7,12 @@ import {styled} from "@mui/material/styles"
 import {Box, Paper, Typography} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 
-const now = new Date()
+export const getToday: () => Date = () => {
+    const date = new Date()
+    const diffMinutes = date.getTimezoneOffset()
+    date.setHours(-Math.floor(diffMinutes / 60), -diffMinutes % 60, 0, 0)
+    return date
+}
 
 export function daysBefore(date: Date, days: number): Date {
     let before = new Date(date)

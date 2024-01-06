@@ -8,10 +8,11 @@ import {Box, CircularProgress} from "@mui/material"
 
 import styled from "@emotion/styled"
 import {Stats} from "./Stats"
-//import {VotesPerDay} from "../charts/VotesPerDay"
+import {VotesPerDay} from "../charts/VotesPerDay"
+import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotersByChannel, VotingChanel} from "../charts/VotersByChannel"
 import {useRecordContext} from "react-admin"
-import {GetElectionStatsQuery, Sequent_Backend_Election} from "@/gql/graphql"
+import {CastVotesPerDay, GetElectionStatsQuery, Sequent_Backend_Election} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
@@ -28,12 +29,16 @@ export default function DashboardElection() {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election>()
+    const endDate = getToday()
+    const startDate = daysBefore(endDate, 6)
 
     const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
             tenantId,
             electionEventId: record.election_event_id,
             electionId: record.id,
+            startDate: formatDate(startDate),
+            endDate: formatDate(endDate),
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
@@ -61,7 +66,12 @@ export default function DashboardElection() {
                     <Stats metrics={metrics} />
 
                     <Container>
-                        {/*<VotesByDay width={cardWidth} height={cardHeight} />*/}
+                        <VotesPerDay
+                            data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                            width={cardWidth}
+                            height={cardHeight}
+                            endDate={endDate}
+                        />
                         <VotersByChannel
                             data={[
                                 {

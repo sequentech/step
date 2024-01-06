@@ -364,6 +364,8 @@ input ElectionEventStatsInput {
 input ElectionStatsInput {
   election_event_id : uuid!
   election_id : uuid!
+  start_date: String!
+  end_date: String!
 }
 
 input GetPrivateKeyInput {
@@ -481,6 +483,7 @@ type ElectionEventStatsOutput {
 type ElectionStatsOutput {
   total_distinct_voters : Int!
   total_areas : Int!
+  votes_per_day : [CastVotesPerDay]!
 }
 
 type CheckPrivateKeyOutput {

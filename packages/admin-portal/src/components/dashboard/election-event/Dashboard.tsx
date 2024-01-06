@@ -9,7 +9,7 @@ import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {Stats} from "./Stats"
-import {daysBefore, formatDate} from "../charts/Charts"
+import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {VotingChanel, VotersByChannel} from "../charts/VotersByChannel"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -28,13 +28,6 @@ const Container = styled(Box)`
     flex-wrap: wrap;
     justify-content: space-between;
 `
-
-const getToday: () => Date = () => {
-    const date = new Date()
-    const diffMinutes = date.getTimezoneOffset()
-    date.setHours(-Math.floor(diffMinutes / 60), -diffMinutes % 60, 0, 0)
-    return date
-}
 
 export default function DashboardElectionEvent() {
     const [tenantId] = useTenantStore()

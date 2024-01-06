@@ -133,9 +133,14 @@ pub async fn get_count_votes_per_day(
         .with_context(|| "Error parsing start_date")?;
     let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
         .with_context(|| "Error parsing end_date")?;
+    let election_uuid = match election_id {
+        Some(ref election_id_r) => Some(Uuid::parse_str(election_id_r.as_str())?),
+        None => None,
+    };
     let total_areas_statement = transaction
         .prepare(
-            r#"
+            format!(
+                r#"
             WITH date_series AS (
                 SELECT
                     t.day::date 
@@ -154,6 +159,7 @@ pub async fn get_count_votes_per_day(
             LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
+                AND (v.election_id = $5 OR $5 IS NULL)
             WHERE
                 (
                     DATE(v.created_at) >= $3 AND
@@ -163,7 +169,9 @@ pub async fn get_count_votes_per_day(
             GROUP BY ds.day
             ORDER BY ds.day;
             
-            "#,
+            "#
+            )
+            .as_str(),
         )
         .await?;
 
@@ -175,6 +183,7 @@ pub async fn get_count_votes_per_day(
                 &Uuid::parse_str(election_event_id)?,
                 &start_date_naive,
                 &end_date_naive,
+                &election_uuid,
             ],
         )
         .await?;
