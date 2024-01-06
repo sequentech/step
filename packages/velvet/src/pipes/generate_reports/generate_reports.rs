@@ -27,9 +27,9 @@ use crate::pipes::{
     Pipe,
 };
 
-const OUTPUT_PDF: &str = "report.pdf";
-const OUTPUT_HTML: &str = "report.html";
-const OUTPUT_JSON: &str = "report.json";
+pub const OUTPUT_PDF: &str = "report.pdf";
+pub const OUTPUT_HTML: &str = "report.html";
+pub const OUTPUT_JSON: &str = "report.json";
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,

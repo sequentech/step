@@ -11,7 +11,6 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::Ge
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::*;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
