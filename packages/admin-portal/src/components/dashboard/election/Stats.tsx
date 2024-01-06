@@ -1,25 +1,18 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
-import {Box, CircularProgress} from "@mui/material"
+import React from "react"
+import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import FenceIcon from "@mui/icons-material/Fence"
 import GroupIcon from "@mui/icons-material/Group"
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined"
-import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
-import {GetElectionStatsQuery, Sequent_Backend_Election} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "../StatItem"
-import {IElectionStatistics} from "@/types/CoreTypes"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const CardList = styled(Box)`
     display: flex;
@@ -28,38 +21,21 @@ const CardList = styled(Box)`
     margin: 20px 0;
 `
 
-export default function Stats({
-    electionEventId,
-    electionId,
-}: {
-    electionEventId: String
-    electionId: String
-}) {
+interface Metrics {
+    eligibleVotersCount: number | string
+    votersCount: number | string
+    areasCount: number | string
+    emailsSentCount: number | string
+    smsSentCount: number | string
+}
+
+interface StatsProps {
+    metrics: Metrics
+}
+
+export const Stats: React.FC<StatsProps> = ({metrics}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const {globalSettings} = useContext(SettingsContext)
-
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
-        variables: {
-            tenantId,
-            electionEventId,
-            electionId,
-        },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
-
-    if (loading) {
-        return <CircularProgress />
-    }
-    const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
-
-    const metrics = {
-        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
-        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
-        areasCount: dataStats?.stats?.total_areas ?? "-",
-        emailsSentCount: stats?.num_emails_sent ?? "-",
-        smsSentCount: stats?.num_sms_sent ?? "-",
-    }
 
     const iconSize = 60
 

@@ -179,7 +179,7 @@ const spanishTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Votos por día",
-            voteByChannels: "Votantes por canales",
+            votersByChannels: "Votantes por canales",
         },
         electionEventScreen: {
             common: {

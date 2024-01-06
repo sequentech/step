@@ -177,7 +177,7 @@ const englishTranslation = {
         },
         dashboard: {
             voteByDay: "Votes by day",
-            voteByChannels: "Voters by channel",
+            votersByChannels: "Voters by channel",
         },
         electionEventScreen: {
             common: {

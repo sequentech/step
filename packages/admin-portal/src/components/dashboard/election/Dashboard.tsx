@@ -1,17 +1,22 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
-import {Box} from "@mui/material"
+import React, {useContext} from "react"
+import {Box, CircularProgress} from "@mui/material"
 
 import styled from "@emotion/styled"
-import Stats from "./Stats"
+import {Stats} from "./Stats"
 import VotesByDay from "../charts/VoteByDay"
-import VotesByChannel from "../charts/VoteByChannels"
+import {VotersByChannel, VotingChanel} from "../charts/VotersByChannels"
 import {useRecordContext} from "react-admin"
-import {Sequent_Backend_Election} from "@/gql/graphql"
+import {GetElectionStatsQuery, Sequent_Backend_Election} from "@/gql/graphql"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useQuery} from "@apollo/client"
+import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
+import {IElectionStatistics} from "@/types/CoreTypes"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const Container = styled(Box)`
     display: flex;
@@ -20,22 +25,62 @@ const Container = styled(Box)`
 `
 
 export default function DashboardElection() {
+    const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
+    const record = useRecordContext<Sequent_Backend_Election>()
+
+    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
+        variables: {
+            tenantId,
+            electionEventId: record.election_event_id,
+            electionId: record.id,
+        },
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    })
+
+    if (loading) {
+        return <CircularProgress />
+    }
+    const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
+
+    const metrics = {
+        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
+        eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        areasCount: dataStats?.stats?.total_areas ?? "-",
+        emailsSentCount: stats?.num_emails_sent ?? "-",
+        smsSentCount: stats?.num_sms_sent ?? "-",
+    }
+
     const cardWidth = 470
     const cardHeight = 250
-
-    const record = useRecordContext<Sequent_Backend_Election>()
 
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
                 <Box>
-                    <Stats electionEventId={record.election_event_id} electionId={record.id} />
+                    <Stats metrics={metrics} />
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />
-                        <VotesByChannel
-                            electionEventId={record.election_event_id}
-                            electionId={record.id}
+                        <VotersByChannel
+                            data={[
+                                {
+                                    channel: VotingChanel.Online,
+                                    count: dataStats?.stats?.total_distinct_voters ?? 0,
+                                },
+                                {
+                                    channel: VotingChanel.Paper,
+                                    count: 0,
+                                },
+                                {
+                                    channel: VotingChanel.Telephone,
+                                    count: 0,
+                                },
+                                {
+                                    channel: VotingChanel.Postal,
+                                    count: 0,
+                                },
+                            ]}
                             width={cardWidth}
                             height={cardHeight}
                         />
