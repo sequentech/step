@@ -18,6 +18,67 @@ pub const MIME_HTML: &str = "text/html";
 
 pub type ResultDocumentPaths = ResultDocuments;
 
+async fn generic_save_documents(
+    auth_headers: &AuthHeaders,
+    document_paths: &ResultDocumentPaths,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<ResultDocuments> {
+    let mut documents: ResultDocuments = Default::default();
+
+    // PDF
+    if let Some(pdf_path) = document_paths.pdf.clone() {
+        let bytes = read_file_to_bytes(&PathBuf::from(pdf_path))?;
+
+        // upload binary data into a document (s3 and hasura)
+        let document = upload_and_return_document(
+            bytes,
+            MIME_PDF.to_string(),
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            OUTPUT_PDF.to_string(),
+        )
+        .await?;
+        documents.pdf = Some(document.id);
+    }
+
+    // json
+    if let Some(json_path) = document_paths.json.clone() {
+        let bytes = read_file_to_bytes(&PathBuf::from(json_path))?;
+
+        // upload binary data into a document (s3 and hasura)
+        let document = upload_and_return_document(
+            bytes,
+            MIME_JSON.to_string(),
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            OUTPUT_JSON.to_string(),
+        )
+        .await?;
+        documents.json = Some(document.id);
+    }
+
+    // HTML
+    if let Some(html_path) = document_paths.html.clone() {
+        let bytes = read_file_to_bytes(&PathBuf::from(html_path))?;
+
+        // upload binary data into a document (s3 and hasura)
+        let document = upload_and_return_document(
+            bytes,
+            MIME_HTML.to_string(),
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            OUTPUT_HTML.to_string(),
+        )
+        .await?;
+        documents.html = Some(document.id);
+    }
+    Ok(documents)
+}
+
 pub trait GenerateResultDocuments {
     fn get_document_paths(
         self,
@@ -53,7 +114,6 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         auth_headers: &AuthHeaders,
         document_paths: &ResultDocumentPaths,
     ) -> Result<ResultDocuments> {
-        let mut documents: ResultDocuments = Default::default();
         let contest = self
             .reports
             .first()
@@ -61,57 +121,13 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
-        // PDF
-        if let Some(pdf_path) = document_paths.pdf.clone() {
-            let bytes = read_file_to_bytes(&PathBuf::from(pdf_path))?;
-
-            // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document(
-                bytes,
-                MIME_PDF.to_string(),
-                auth_headers.clone(),
-                contest.tenant_id.to_string(),
-                contest.election_event_id.to_string(),
-                OUTPUT_PDF.to_string(),
-            )
-            .await?;
-            documents.pdf = Some(document.id);
-        }
-
-        // json
-        if let Some(json_path) = document_paths.json.clone() {
-            let bytes = read_file_to_bytes(&PathBuf::from(json_path))?;
-
-            // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document(
-                bytes,
-                MIME_JSON.to_string(),
-                auth_headers.clone(),
-                contest.tenant_id.to_string(),
-                contest.election_event_id.to_string(),
-                OUTPUT_JSON.to_string(),
-            )
-            .await?;
-            documents.json = Some(document.id);
-        }
-
-        // HTML
-        if let Some(html_path) = document_paths.html.clone() {
-            let bytes = read_file_to_bytes(&PathBuf::from(html_path))?;
-
-            // upload binary data into a document (s3 and hasura)
-            let document = upload_and_return_document(
-                bytes,
-                MIME_HTML.to_string(),
-                auth_headers.clone(),
-                contest.tenant_id.to_string(),
-                contest.election_event_id.to_string(),
-                OUTPUT_HTML.to_string(),
-            )
-            .await?;
-            documents.html = Some(document.id);
-        }
-        Ok(documents)
+        generic_save_documents(
+            auth_headers,
+            document_paths,
+            &contest.tenant_id.to_string(),
+            &contest.election_event_id.to_string(),
+        )
+        .await
     }
 }
 
@@ -143,6 +159,12 @@ impl GenerateResultDocuments for ReportDataComputed {
         auth_headers: &AuthHeaders,
         document_paths: &ResultDocumentPaths,
     ) -> Result<ResultDocuments> {
-        Ok(Default::default())
+        generic_save_documents(
+            auth_headers,
+            document_paths,
+            &self.contest.tenant_id.to_string(),
+            &self.contest.election_event_id.to_string(),
+        )
+        .await
     }
 }
