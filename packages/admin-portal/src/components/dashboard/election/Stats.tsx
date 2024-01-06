@@ -18,7 +18,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "../StatItem"
-import {IElectionEventStatistics} from "@/types/CoreTypes"
+import {IElectionStatistics} from "@/types/CoreTypes"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const CardList = styled(Box)`
@@ -51,11 +51,15 @@ export default function Stats({
     if (loading) {
         return <CircularProgress />
     }
+    const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
+
 
     const metrics = {
         votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
         eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
         areasCount: dataStats?.stats?.total_areas ?? "-",
+        emailsSentCount: stats?.num_emails_sent ?? "-",
+        smsSentCount: stats?.num_sms_sent ?? "-",
     }
 
     const iconSize = 60
@@ -76,6 +80,16 @@ export default function Stats({
                 icon={<FenceIcon sx={{fontSize: iconSize}} />}
                 count={metrics.areasCount}
                 label={t("electionEventScreen.stats.areas")}
+            ></StatItem>
+            <StatItem
+                icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
+                count={metrics.emailsSentCount}
+                label={t("electionEventScreen.stats.sentEmails")}
+            ></StatItem>
+            <StatItem
+                icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
+                count={metrics.smsSentCount}
+                label={t("electionEventScreen.stats.sentSMS")}
             ></StatItem>
         </CardList>
     )

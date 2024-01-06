@@ -57,10 +57,10 @@ export default function Stats({
     const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
 
     const metrics = {
-        votersCount: dataStats?.castVotes?.total_distinct_voters ?? "-",
-        electionsCount: dataStats?.elections?.aggregate?.count ?? "-",
-        areasCount: dataStats?.areas?.aggregate?.count ?? "-",
-        eligibleVotersCount: dataStats?.users?.total?.aggregate?.count ?? "-",
+        eligibleVotersCount: dataStats?.stats?.total_eligible_voters ?? "-",
+        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
+        electionsCount: dataStats?.stats?.total_elections ?? "-",
+        areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
     }

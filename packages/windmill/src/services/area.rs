@@ -1,12 +1,75 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use sequent_core::types::keycloak::UserArea;
+use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+/**
+ * Returns the count of areas per election event
+ */
+#[instrument(skip(transaction), err)]
+pub async fn get_areas_by_ids(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_ids: Vec<String>,
+) -> Result<Vec<UserArea>> {
+    let area_uuids: Vec<Uuid> = area_ids
+        .iter()
+        .map(|id| Uuid::parse_str(id))
+        .collect::<Result<Vec<Uuid>, uuid::Error>>()
+        .with_context(|| "Error parsing as uuids the area_ids")?;
+    let total_areas_statement = transaction
+        .prepare(
+            r#"
+            SELECT
+                id, name
+            FROM
+                sequent_backend.area a
+            WHERE
+                a.tenant_id = $1 AND
+                a.election_event_id = $2 AND
+                id = any($3);
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = transaction
+        .query(
+            &total_areas_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &area_uuids.as_slice()
+            ],
+        )
+        .await?;
+
+    let areas: Vec<UserArea> = rows
+        .iter()
+        .map(|row| {
+            let area_id: Uuid = row
+                .try_get("id")
+                .with_context(|| "Error getting id from row")?;
+
+            let area_name: String = row
+                .try_get("name")
+                .with_context(|| "Error getting name from row")?;
+
+            Ok(UserArea {
+                id: Some(area_id.to_string()),
+                name: Some(area_name),
+            })
+        })
+        .collect::<Result<Vec<UserArea>>>()?;
+
+    Ok(areas)
+}
 
 /**
  * Returns a hash map with the list of elections (Vec<String> value) associated

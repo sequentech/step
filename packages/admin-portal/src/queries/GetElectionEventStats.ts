@@ -6,34 +6,16 @@ import {gql} from "@apollo/client"
 
 export const GET_ELECTION_EVENT_STATS = gql`
     query GetElectionEventStats($tenantId: uuid!, $electionEventId: uuid!) {
-        castVotes: getElectionEventStats(object: {election_event_id: $electionEventId}) {
+        stats: getElectionEventStats(object: {election_event_id: $electionEventId}) {
+            total_eligible_voters
             total_distinct_voters
-        }
-        elections: sequent_backend_election_aggregate(
-            where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
-        ) {
-            aggregate {
-                count
-            }
-        }
-        areas: sequent_backend_area_aggregate(
-            where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
-        ) {
-            aggregate {
-                count
-            }
+            total_areas
+            total_elections
         }
         election_event: sequent_backend_election_event(
             where: {id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
             statistics
-        }
-        users: get_users(body: {tenant_id: $tenantId, election_event_id: $electionEventId}) {
-            total {
-                aggregate {
-                    count
-                }
-            }
         }
     }
 `

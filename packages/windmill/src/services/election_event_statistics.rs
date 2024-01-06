@@ -1,19 +1,98 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::*;
-use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub fn parse_election_event_statistics(
-    statistics_json_opt: Option<Value>,
-) -> Option<ElectionEventStatistics> {
-    statistics_json_opt.and_then(|statistics_json| serde_json::from_value(statistics_json).ok())
+/**
+ * Returns the count of areas per election event
+ */
+#[instrument(skip(transaction), err)]
+pub async fn get_count_areas(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<i64> {
+    let total_areas_statement = transaction
+        .prepare(
+            r#"
+            SELECT
+                COUNT(*) AS total_areas
+            FROM
+                sequent_backend.area a
+            WHERE
+                a.tenant_id = $1 AND
+                a.election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = transaction
+        .query(
+            &total_areas_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let total_areas: i64 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_areas")?
+    };
+
+    Ok(total_areas)
+}
+
+/**
+ * Returns the count of elections in an election event
+ */
+#[instrument(skip(transaction), err)]
+pub async fn get_count_elections(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<i64> {
+    let total_elections_statement = transaction
+        .prepare(
+            r#"
+            SELECT
+                COUNT(*) AS total_elections
+            FROM
+                sequent_backend.election e
+            WHERE
+                e.tenant_id = $1 AND
+                e.election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = transaction
+        .query(
+            &total_elections_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let total_elections: i64 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_elections")?
+    };
+
+    Ok(total_elections)
 }
 
 #[instrument(skip(transaction), err)]

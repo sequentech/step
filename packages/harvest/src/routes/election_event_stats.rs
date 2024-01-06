@@ -1,26 +1,23 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Result};
+use sequent_core::services::keycloak::get_event_realm;
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tokio_postgres::row::Row;
-use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
-use tracing::{event, instrument, Level};
-use windmill::services::database::{
-    get_hasura_pool, get_keycloak_pool, PgConfig,
-};
-use windmill::services::election_event_statistics::get_count_distinct_voters;
-
-use crate::types::resources::{
-    Aggregate, DataList, OrderDirection, TotalAggregate,
+use tracing::instrument;
+use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::users::list_users;
+use windmill::services::election_event_statistics::{
+    get_count_distinct_voters,
+    get_count_areas,
+    get_count_elections
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,10 +27,10 @@ pub struct ElectionEventStatsInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsOutput {
-    //total_eligible_voters: i64,
+    total_eligible_voters: i64,
     total_distinct_voters: i64,
-    //total_areas: i64,
-    //total_elections: i64,
+    total_areas: i64,
+    total_elections: i64,
 }
 
 #[instrument(skip(claims))]
@@ -53,8 +50,22 @@ pub async fn get_election_event_stats(
                 format!("Error loading hasura db client: {err}"),
             )
         })?;
-    let mut hasura_transaction =
+    let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error creating a transaction: {err}"),
+            )
+        })?;
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error loading keycloak db client: {err}"),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error creating a transaction: {err}"),
@@ -73,8 +84,59 @@ pub async fn get_election_event_stats(
             format!("Error retrieving total_distinct_voters: {err}"),
         )
     })?;
+    let total_areas: i64 = get_count_areas(
+        &hasura_transaction,
+        &tenant_id.as_str(),
+        &input.election_event_id.as_str(),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving total_areas: {err}"),
+        )
+    })?;
+    let total_elections: i64 = get_count_elections(
+        &hasura_transaction,
+        &tenant_id.as_str(),
+        &input.election_event_id.as_str(),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving total_elections: {err}"),
+        )
+    })?;
+
+    let realm_name = get_event_realm(
+        tenant_id.as_str(),
+        input.election_event_id.as_str()
+    );
+
+    let (_, total_eligible_voters) = list_users(
+        &hasura_transaction,
+        &keycloak_transaction,
+        tenant_id.clone(),
+        Some(input.election_event_id.clone()),
+        None,
+        &realm_name,
+        /* search */ None,
+        /* first_name */ None,
+        /* last_name */ None,
+        /* username */ None,
+        /* email */ None,
+        /* limit */ Some(1),
+        /* offset */ None,
+        /* user_ids */ None,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(ElectionEventStatsOutput {
         total_distinct_voters,
+        total_areas,
+        total_eligible_voters: total_eligible_voters.into(),
+        total_elections: total_elections.into(),
     }))
 }
