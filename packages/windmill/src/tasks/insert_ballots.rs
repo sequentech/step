@@ -5,6 +5,7 @@ use anyhow::Context;
 use board_messages::braid::newtypes::BatchNumber;
 use celery::error::TaskError;
 use sequent_core::ballot::ElectionEventStatus;
+use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::keycloak;
@@ -18,6 +19,7 @@ use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::cast_votes::find_area_ballots;
+use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
@@ -102,7 +104,18 @@ pub async fn insert_ballots(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura db client")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
     let ballots_list = find_area_ballots(
+        &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session_contest.area_id,

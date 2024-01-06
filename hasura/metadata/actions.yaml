@@ -17,6 +17,38 @@ actions:
   - role: trustee-ceremony
   - role: admin-user
   comment: check private key
+- name: getElectionStats
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/election/stats
+    forward_client_headers: true
+    headers:
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-dashboard-view
+  - role: admin-user
+  comment: get election event stats
+- name: getElectionEventStats
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/election-event/stats
+    forward_client_headers: true
+    headers:
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-dashboard-view
+  - role: admin-user
+  comment: get election event stats
 - name: createScheduledEvent
   definition:
     kind: synchronous
@@ -542,6 +574,8 @@ custom_types:
   - name: GetUsersInput
   - name: CreateKeysCeremonyInput
   - name: GetPrivateKeyInput
+  - name: ElectionEventStatsInput
+  - name: ElectionStatsInput
   - name: CheckPrivateKeyInput
   - name: GetPermissionsInput
   - name: GetRolesInput
@@ -556,6 +590,8 @@ custom_types:
   objects:
   - name: CreateKeysCeremonyOutput
   - name: GetPrivateKeyOutput
+  - name: ElectionEventStatsOutput
+  - name: ElectionStatsOutput
   - name: CheckPrivateKeyOutput
   - name: TemplateOutput
   - name: FetchDocumentOutput

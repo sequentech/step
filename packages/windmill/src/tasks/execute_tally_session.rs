@@ -20,7 +20,7 @@ use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::compress::compress_folder;
-use crate::services::database::get_keycloak_pool;
+use crate::services::database::{get_keycloak_pool, get_hasura_pool};
 use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
@@ -153,11 +153,20 @@ async fn process_plaintexts(
         .await
         .get()
         .await
-        .map_err(|err| anyhow!("{err}"))?;
+        .with_context(|| "Error acquiring keycloak db client")?;
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
-        .map_err(|err| anyhow!("{err}"))?;
+        .with_context(|| "Error acquiring keycloak transaction")?;
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura db client")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
 
     let mut data: Vec<AreaContestDataType> = vec![];
 
@@ -165,6 +174,7 @@ async fn process_plaintexts(
         let (_plaintexts, tally_session_contest, contest, _ballots_style, _count) = almost.clone();
         let count = get_eligible_voters(
             auth_headers.clone(),
+            &hasura_transaction,
             &keycloak_transaction,
             &contest.tenant_id,
             &contest.election_event_id,
@@ -219,26 +229,22 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 #[instrument(err)]
 pub async fn count_cast_votes_election_with_census(
     auth_headers: AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ElectionCastVotes>> {
-    let mut cast_votes = count_cast_votes_election(&tenant_id, &election_event_id).await?;
-
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("{err}"))?;
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("{err}"))?;
+    let mut cast_votes = count_cast_votes_election(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id
+    ).await?;
 
     for cast_vote in &mut cast_votes {
         let realm = get_event_realm(tenant_id, election_event_id);
 
         let (_users, census) = list_users(
-            auth_headers.clone(),
+            &hasura_transaction,
             &keycloak_transaction,
             ListUsersFilter {
                 tenant_id: tenant_id.to_string(),
@@ -259,10 +265,10 @@ pub async fn count_cast_votes_election_with_census(
         .await?;
         cast_vote.census = census as i64;
     }
-    keycloak_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;
+    //keycloak_transaction
+    //    .commit()
+    //    .await
+    //    .with_context(|| "error comitting transaction")?;
 
     Ok(cast_votes)
 }
@@ -270,7 +276,8 @@ pub async fn count_cast_votes_election_with_census(
 #[instrument(skip_all, err)]
 pub async fn get_eligible_voters(
     auth_headers: connection::AuthHeaders,
-    transaction: &Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
@@ -279,8 +286,8 @@ pub async fn get_eligible_voters(
     let realm = get_event_realm(tenant_id, election_event_id);
 
     let (_users, census) = list_users(
-        auth_headers.clone(),
-        &transaction,
+        &hasura_transaction,
+        &keycloak_transaction,
         ListUsersFilter {
             tenant_id: tenant_id.to_string(),
             election_event_id: Some(election_event_id.to_string()),
@@ -304,6 +311,8 @@ pub async fn get_eligible_voters(
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
     auth_headers: AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
@@ -500,8 +509,14 @@ async fn map_plaintext_data(
     .await?;
 
     let cast_votes_count =
-        count_cast_votes_election_with_census(auth_headers.clone(), &tenant_id, &election_event_id)
-            .await?;
+        count_cast_votes_election_with_census(
+            auth_headers.clone(),
+            &hasura_transaction,
+            &keycloak_transaction,
+            &tenant_id, 
+            &election_event_id
+        )
+        .await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,
@@ -535,6 +550,8 @@ pub async fn execute_tally_session_wrapped(
     election_event_id: String,
     tally_session_id: String,
     auth_headers: AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let (tally_session_execution, tally_session) = find_last_tally_session_execution(
         auth_headers.clone(),
@@ -547,6 +564,8 @@ pub async fn execute_tally_session_wrapped(
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         auth_headers.clone(),
+        &hasura_transaction,
+        &keycloak_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
@@ -667,12 +686,32 @@ pub async fn execute_tally_session(
         Some(ISO8601::now() + Duration::seconds(120)),
     )
     .await?;
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring keycloak db client")?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring keycloak transaction")?;
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura db client")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
 
     let res = execute_tally_session_wrapped(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
         auth_headers.clone(),
+        &hasura_transaction,
+        &keycloak_transaction,
     )
     .await;
     lock.release(auth_headers.clone()).await?;

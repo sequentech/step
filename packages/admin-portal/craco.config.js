@@ -9,6 +9,7 @@ module.exports = {
             "Access-Control-Allow-Credentials": "true",
             "Cross-Origin-Resource-Policy": "cross-origin",
             "Referrer-Policy": "no-referrer",
+            "Cross-Origin-Embedder-Policy": "credentialless",
         },
     },
     webpack: {

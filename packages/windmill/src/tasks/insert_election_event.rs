@@ -9,7 +9,7 @@ use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::env;
 use std::fs;
 use tracing::{event, instrument, Level};
@@ -86,7 +86,15 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let _hasura_response = insert_election_event(auth_headers.clone(), object.clone()).await?;
+    let new_election_input = InsertElectionEventInput {
+        statistics: Some(json!({
+            "num_emails_sent": 0,
+            "num_sms_sent": 0
+        })),
+        ..object.clone()
+    };
+
+    let _hasura_response = insert_election_event(auth_headers.clone(), new_election_input).await?;
 
     Ok(())
 }

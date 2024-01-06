@@ -1,43 +1,34 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura::area::get_areas_by_ids;
+use crate::services::area::get_areas_by_ids;
 use anyhow::{anyhow, Context, Result};
-use keycloak::types::{CredentialRepresentation, UserRepresentation};
-use sequent_core::services::connection;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::*;
-use serde_json::Value;
-use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
+use crate::services::database::PgConfig;
+use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
+use tokio_postgres::types::ToSql;
 
 async fn get_area_ids(
+    hasura_transaction: &Transaction<'_>,
     election_id: Option<String>,
     area_id: Option<String>,
 ) -> Result<(Option<Vec<String>>, String, String)> {
     let res = match election_id {
         Some(ref election_id) => {
-            let mut hasura_db_client: DbClient = get_hasura_pool()
-                .await
-                .get()
-                .await
-                .with_context(|| "Error acquiring hasura db client")?;
             let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
                 .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
             let area_ids: Vec<String> = match area_id {
                 Some(area_id_value) => vec![area_id_value],
                 None => {
-                    let areas_statement = hasura_db_client
+                    let areas_statement = hasura_transaction
                         .prepare(
                             r#"
                         SELECT DISTINCT
@@ -52,7 +43,7 @@ async fn get_area_ids(
                     "#,
                         )
                         .await?;
-                    let rows: Vec<Row> = hasura_db_client
+                    let rows: Vec<Row> = hasura_transaction
                         .query(&areas_statement, &[&election_uuid])
                         .await
                         .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
@@ -109,10 +100,10 @@ pub struct ListUsersFilter {
     pub user_ids: Option<Vec<String>>,
 }
 
-#[instrument(skip(auth_headers, transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users(
-    auth_headers: connection::AuthHeaders,
-    transaction: &Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
@@ -145,8 +136,12 @@ pub async fn list_users(
         None
     };
     let (area_ids, area_ids_join_clause, area_ids_where_clause) =
-        get_area_ids(filter.election_id.clone(), filter.area_id.clone()).await?;
-    let statement = transaction.prepare(format!(r#"
+        get_area_ids(
+            hasura_transaction,
+            filter.election_id.clone(),
+            filter.area_id.clone()
+        ).await?;
+    let statement = keycloak_transaction.prepare(format!(r#"
         SELECT
             u.id,
             u.email,
@@ -191,7 +186,7 @@ pub async fn list_users(
     if area_ids.is_some() {
         params.push(&area_ids);
     }
-    let rows: Vec<Row> = transaction
+    let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
@@ -217,24 +212,21 @@ pub async fn list_users(
     if let Some(ref some_election_event_id) = filter.election_event_id {
         let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
         let areas_by_ids = get_areas_by_ids(
-            auth_headers.clone(),
-            filter.tenant_id,
-            some_election_event_id.clone(),
+            hasura_transaction,
+            filter.tenant_id.as_str(),
+            some_election_event_id.as_str(),
             area_ids,
         )
         .await
-        .map_err(|err| anyhow!("{:?}", err))?
-        .data
-        .with_context(|| "can't find areas by ids")?
-        .sequent_backend_area;
+        .with_context(|| "can't find areas by ids")?;
         let get_area = |user: &User| {
             let area_id = user.get_area_id()?;
             return areas_by_ids.iter().find_map(|area| {
-                if (area.id == area_id) {
-                    Some(UserArea {
-                        id: Some(area.id.clone()),
-                        name: area.name.clone(),
-                    })
+                let Some(ref area_dot_id) = area.id else {
+                    return None;
+                };
+                if area_dot_id == &area_id {
+                    Some(area.clone())
                 } else {
                     None
                 }

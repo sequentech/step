@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
-//import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -36,8 +35,10 @@ import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
-import {TenantEventContext} from ".."
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
+import {TenantEventType} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
+import {CustomError} from "./ErrorPage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -80,10 +81,10 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
-    const {tenantId, eventId} = useContext(TenantEventContext)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const ballotId = hashBallot(auditableBallot)
 
@@ -181,6 +182,29 @@ export const ReviewScreen: React.FC = () => {
     const {t} = useTranslation()
     const {hashBallot} = provideBallotService()
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
+    const {tenantId, eventId} = useParams<TenantEventType>()
+
+    function handleCloseDialog(val: boolean) {
+        setOpenBallotIdHelp(false)
+
+        if (val) {
+            if (ballotStyle && tenantId && eventId) {
+                navigate(
+                    `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
+                )
+            } else {
+                throw new CustomError("Impossible to go to the ballot audit")
+            }
+        }
+    }
+
+    useEffect(() => {
+        if (!ballotStyle || !auditableBallot) {
+            navigate(backLink)
+        }
+    })
 
     if (!ballotStyle || !auditableBallot) {
         return <CircularProgress />
@@ -190,7 +214,7 @@ export const ReviewScreen: React.FC = () => {
         <PageLimit maxWidth="lg">
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             <Dialog
-                handleClose={() => setOpenBallotIdHelp(false)}
+                handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
                 ok={t("reviewScreen.ballotIdHelpDialog.ok")}

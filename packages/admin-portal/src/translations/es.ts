@@ -178,8 +178,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         dashboard: {
-            voteByDay: "Voto por día",
-            voteByChannels: "Voto por canales",
+            voteByDay: "Votos por día",
+            votersByChannels: "Votantes por canales",
         },
         electionEventScreen: {
             common: {
@@ -214,12 +214,13 @@ const spanishTranslation: TranslationType = {
             createElectionEventSuccess: "Evento Electoral creado",
             createElectionEventError: "Error creando Evento Electoral",
             stats: {
-                elegibleVoters: "Votantes elegibles",
+                elegibleVoters: "Electores",
+                voters: "Votantes",
                 elections: "Elecciones",
                 contests: "Preguntas",
                 areas: "Áreas",
-                sentEmails: "Emails enviados",
-                sentSMS: "SMS enviados",
+                sentEmails: "Emails Enviados",
+                sentSMS: "SMS Enviados",
                 calendar: {
                     title: "Calendario",
                     scheduled: "Programado",

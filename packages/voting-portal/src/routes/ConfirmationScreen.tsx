@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useContext} from "react"
+import React, {useState, useContext, useEffect} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -23,7 +23,8 @@ import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
-import {TenantEventContext} from ".."
+import {TenantEventType} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -104,7 +105,7 @@ interface ActionButtonsProps {
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t} = useTranslation()
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
@@ -141,7 +142,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
 }
 
 export const ConfirmationScreen: React.FC = () => {
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()
@@ -151,6 +152,15 @@ export const ConfirmationScreen: React.FC = () => {
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
 
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
+
+    const backLink = useRootBackLink()
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        if (!ballotId) {
+            navigate(backLink)
+        }
+    })
 
     return (
         <PageLimit maxWidth="lg">
