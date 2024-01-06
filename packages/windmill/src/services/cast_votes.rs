@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
+use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -100,4 +102,86 @@ pub async fn find_area_ballots(
         .collect::<Result<Vec<CastVote>>>()?;
 
     Ok(cast_votes)
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CastVotesPerDay {
+    pub day: String,
+    pub day_count: i64,
+}
+
+impl TryFrom<Row> for CastVotesPerDay {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(CastVotesPerDay {
+            day: item.try_get::<_, chrono::NaiveDate>("day")?.to_string(),
+            day_count: item.try_get::<_, i64>("day_count")?,
+        })
+    }
+}
+
+#[instrument(skip(transaction), err)]
+pub async fn get_count_votes_per_day(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    start_date: &str,
+    end_date: &str,
+    election_id: Option<String>,
+) -> Result<Vec<CastVotesPerDay>> {
+    let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
+        .with_context(|| "Error parsing start_date")?;
+    let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
+        .with_context(|| "Error parsing end_date")?;
+    let total_areas_statement = transaction
+        .prepare(
+            r#"
+            WITH date_series AS (
+                SELECT
+                    t.day::date 
+                FROM 
+                    generate_series(
+                        $3::date,
+                        $4::date,
+                        interval  '1 day'
+                    ) AS t(day)
+            )
+            SELECT
+                ds.day,
+                COALESCE(COUNT(v.created_at), 0) AS day_count
+            FROM
+                date_series ds
+            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at)
+                AND v.tenant_id = $1
+                AND v.election_event_id = $2
+            WHERE
+                (
+                    DATE(v.created_at) >= $3 AND
+                    DATE(v.created_at) <= $4
+                )
+                OR v.created_at IS NULL
+            GROUP BY ds.day
+            ORDER BY ds.day;
+            
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = transaction
+        .query(
+            &total_areas_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &start_date_naive,
+                &end_date_naive,
+            ],
+        )
+        .await?;
+    let cast_votes_by_day = rows
+        .into_iter()
+        .map(|row| -> Result<CastVotesPerDay> { row.try_into() })
+        .collect::<Result<Vec<CastVotesPerDay>>>()?;
+
+    Ok(cast_votes_by_day)
 }

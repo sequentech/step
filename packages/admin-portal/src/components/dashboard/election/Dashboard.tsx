@@ -8,8 +8,8 @@ import {Box, CircularProgress} from "@mui/material"
 
 import styled from "@emotion/styled"
 import {Stats} from "./Stats"
-import VotesByDay from "../charts/VoteByDay"
-import {VotersByChannel, VotingChanel} from "../charts/VotersByChannels"
+//import {VotesPerDay} from "../charts/VotesPerDay"
+import {VotersByChannel, VotingChanel} from "../charts/VotersByChannel"
 import {useRecordContext} from "react-admin"
 import {GetElectionStatsQuery, Sequent_Backend_Election} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -44,8 +44,8 @@ export default function DashboardElection() {
     const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
 
     const metrics = {
-        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
         eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",
+        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
@@ -61,7 +61,7 @@ export default function DashboardElection() {
                     <Stats metrics={metrics} />
 
                     <Container>
-                        <VotesByDay width={cardWidth} height={cardHeight} />
+                        {/*<VotesByDay width={cardWidth} height={cardHeight} />*/}
                         <VotersByChannel
                             data={[
                                 {

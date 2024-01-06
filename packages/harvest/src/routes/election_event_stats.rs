@@ -12,6 +12,9 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::services::cast_votes::{
+    get_count_votes_per_day, CastVotesPerDay,
+};
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_statistics::{
     get_count_areas, get_count_distinct_voters, get_count_elections,
@@ -21,6 +24,8 @@ use windmill::services::users::list_users;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsInput {
     election_event_id: String,
+    start_date: String,
+    end_date: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,6 +34,7 @@ pub struct ElectionEventStatsOutput {
     total_distinct_voters: i64,
     total_areas: i64,
     total_elections: i64,
+    votes_per_day: Vec<CastVotesPerDay>,
 }
 
 #[instrument(skip(claims))]
@@ -82,6 +88,19 @@ pub async fn get_election_event_stats(
             format!("Error retrieving total_distinct_voters: {err}"),
         )
     })?;
+    let total_elections: i64 = get_count_elections(
+        &hasura_transaction,
+        &tenant_id.as_str(),
+        &input.election_event_id.as_str(),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving total_elections: {err}"),
+        )
+    })?;
+
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,
         &tenant_id.as_str(),
@@ -94,16 +113,20 @@ pub async fn get_election_event_stats(
             format!("Error retrieving total_areas: {err}"),
         )
     })?;
-    let total_elections: i64 = get_count_elections(
+
+    let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
         &hasura_transaction,
         &tenant_id.as_str(),
         &input.election_event_id.as_str(),
+        &input.start_date.as_str(),
+        &input.end_date.as_str(),
+        None,
     )
     .await
     .map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error retrieving total_elections: {err}"),
+            format!("Error retrieving votes_per_day: {err}"),
         )
     })?;
 
@@ -134,5 +157,6 @@ pub async fn get_election_event_stats(
         total_areas,
         total_eligible_voters: total_eligible_voters.into(),
         total_elections: total_elections.into(),
+        votes_per_day,
     }))
 }

@@ -5,12 +5,27 @@
 import {gql} from "@apollo/client"
 
 export const GET_ELECTION_EVENT_STATS = gql`
-    query GetElectionEventStats($tenantId: uuid!, $electionEventId: uuid!) {
-        stats: getElectionEventStats(object: {election_event_id: $electionEventId}) {
+    query GetElectionEventStats(
+        $tenantId: uuid!
+        $electionEventId: uuid!
+        $startDate: String!
+        $endDate: String!
+    ) {
+        stats: getElectionEventStats(
+            object: {
+                election_event_id: $electionEventId
+                start_date: $startDate
+                end_date: $endDate
+            }
+        ) {
             total_eligible_voters
             total_distinct_voters
             total_areas
             total_elections
+            votes_per_day {
+                day
+                day_count
+            }
         }
         election_event: sequent_backend_election_event(
             where: {id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}

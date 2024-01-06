@@ -9,10 +9,15 @@ import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {Stats} from "./Stats"
-import VotesByDay from "../charts/VoteByDay"
-import {VotingChanel, VotersByChannel} from "../charts/VotersByChannels"
+import {daysBefore, formatDate} from "../charts/Charts"
+import {VotesPerDay} from "../charts/VotesPerDay"
+import {VotingChanel, VotersByChannel} from "../charts/VotersByChannel"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {GetElectionEventStatsQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    CastVotesPerDay,
+    GetElectionEventStatsQuery,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@/types/CoreTypes"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -24,6 +29,13 @@ const Container = styled(Box)`
     justify-content: space-between;
 `
 
+const getToday: () => Date = () => {
+    const date = new Date()
+    const diffMinutes = date.getTimezoneOffset()
+    date.setHours(-Math.floor(diffMinutes / 60), -diffMinutes % 60, 0, 0)
+    return date
+}
+
 export default function DashboardElectionEvent() {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -31,6 +43,8 @@ export default function DashboardElectionEvent() {
     const [selected, setSelected] = useState(0)
     const cardWidth = 470
     const cardHeight = 300
+    const endDate = getToday()
+    const startDate = daysBefore(endDate, 6)
 
     const {loading, data: dataStats} = useQuery<GetElectionEventStatsQuery>(
         GET_ELECTION_EVENT_STATS,
@@ -38,6 +52,8 @@ export default function DashboardElectionEvent() {
             variables: {
                 tenantId,
                 electionEventId: record?.id,
+                startDate: formatDate(startDate),
+                endDate: formatDate(endDate),
             },
             pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
@@ -103,7 +119,12 @@ export default function DashboardElectionEvent() {
                     <Stats metrics={metrics} />
 
                     <Container>
-                        <VotesByDay width={cardWidth} height={cardHeight} />
+                        <VotesPerDay
+                            data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                            width={cardWidth}
+                            height={cardHeight}
+                            endDate={endDate}
+                        />
                         <VotersByChannel
                             data={[
                                 {

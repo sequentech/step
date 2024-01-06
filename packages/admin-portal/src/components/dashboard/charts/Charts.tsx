@@ -15,9 +15,14 @@ export function daysBefore(date: Date, days: number): Date {
     return before
 }
 
-export function getWeekLegend(): Array<string> {
+export const formatDate: (date: Date) => String = (date: Date) => {
+    return date.toISOString().substring(0, 4 + 3 + 3)
+}
+
+export function getWeekLegend(date: Date): Array<string> {
+    console.log(`getWeekLegend: ${date}`)
     const legend = ["M", "T", "W", "T", "F", "S", "S"]
-    const dayOfWeek = now.getDay() // 0-6 day of week
+    const dayOfWeek = date.getDay() // 0-6 day of week
 
     return [...legend.slice(dayOfWeek, 7), ...legend.slice(0, dayOfWeek)]
 }
