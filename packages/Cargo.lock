@@ -2935,6 +2935,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tempfile",
  "tokio",
+ "tokio-postgres",
  "tracing",
  "uuid",
  "windmill",

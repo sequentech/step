@@ -2,33 +2,31 @@ import React from "react"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "./Charts"
 import {useTranslation} from "react-i18next"
-import {useVotesHook} from "./use-votes-hook"
 
-export default function VotesByChannel({
-    electionEventId,
-    electionId,
-    width,
-    height,
-}: {
-    electionEventId: string
-    electionId?: string
+export enum VotingChanel {
+    Online = "Online",
+    Paper = "Paper",
+    Telephone = "Telephone",
+    Postal = "Postal",
+}
+
+export interface TotalVotersRow {
+    count: number
+    channel: VotingChanel
+}
+
+interface VotersByChannelProps {
+    data: TotalVotersRow[]
     width: number
     height: number
-}) {
+}
+
+export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, height}) => {
     const {t} = useTranslation()
-
-    const {data} = useVotesHook({
-        electionEventId,
-        electionId,
-    })
-
-    const votesCount = data?.["sequent_backend_cast_vote"]?.length ?? 0
-
-    const series = [votesCount, 0, 0, 0]
 
     const state: Props = {
         options: {
-            labels: ["Online", "Paper", "IVR", "Postal"],
+            labels: data.map((item) => item.channel.toString()),
             plotOptions: {
                 pie: {
                     donut: {
@@ -43,11 +41,11 @@ export default function VotesByChannel({
                 },
             },
         },
-        series,
+        series: data.map((item) => item.count),
     }
 
     return (
-        <CardChart title={t("dashboard.voteByChannels")}>
+        <CardChart title={t("dashboard.votersByChannels")}>
             <Chart
                 options={state.options}
                 series={state.series}
