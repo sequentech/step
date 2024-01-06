@@ -4,25 +4,30 @@
 import {Box} from "@mui/system"
 import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useNavigate} from "react-router-dom"
+import {useNavigate, useParams} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
-import {TenantEventContext} from ".."
+import {TenantEventType} from ".."
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
-    const {tenantId, eventId} = useContext(TenantEventContext)
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const navigate = useNavigate()
+    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     useEffect(() => {
-        if (authContext.isAuthenticated) {
-            console.log(`navigate to: /tenant/${tenantId}/event/${eventId}/election-chooser`)
+        if (!isAuthenticated && tenantId && eventId) {
+            setTenantEvent(tenantId, eventId)
+        } else if (authContext.isAuthenticated) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
         }
-    }, [authContext.isAuthenticated, navigate])
+    }, [authContext.isAuthenticated, navigate, isAuthenticated, tenantId, eventId, setTenantEvent])
 
     return (
         <Box>
             <CircularProgress />
+            {
+                // TODO: Handle error no login
+            }
         </Box>
     )
 }
