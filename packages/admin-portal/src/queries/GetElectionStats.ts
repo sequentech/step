@@ -26,8 +26,8 @@ export const GET_ELECTION_STATS = gql`
         }
         election: sequent_backend_election(
             where: {
-                tenant_id: {_eq: $tenantId},
-                election_event_id: {_eq: $electionEventId},
+                tenant_id: {_eq: $tenantId}
+                election_event_id: {_eq: $electionEventId}
                 id: {_eq: $electionId}
             }
         ) {

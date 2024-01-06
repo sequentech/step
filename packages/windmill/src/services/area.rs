@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use sequent_core::types::keycloak::UserArea;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::types::keycloak::UserArea;
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -45,7 +45,7 @@ pub async fn get_areas_by_ids(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &area_uuids.as_slice()
+                &area_uuids.as_slice(),
             ],
         )
         .await?;

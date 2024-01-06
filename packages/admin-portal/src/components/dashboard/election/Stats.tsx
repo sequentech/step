@@ -53,7 +53,6 @@ export default function Stats({
     }
     const stats = dataStats?.election?.[0]?.statistics as IElectionStatistics | null
 
-
     const metrics = {
         votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
         eligibleVotersCount: (dataStats?.users as any)?.total?.aggregate?.count ?? "-",

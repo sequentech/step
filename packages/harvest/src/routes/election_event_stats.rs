@@ -3,22 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use sequent_core::services::keycloak::get_event_realm;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::users::list_users;
 use windmill::services::election_event_statistics::{
-    get_count_distinct_voters,
-    get_count_areas,
-    get_count_elections
+    get_count_areas, get_count_distinct_voters, get_count_elections,
 };
+use windmill::services::users::list_users;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsInput {
@@ -109,10 +107,8 @@ pub async fn get_election_event_stats(
         )
     })?;
 
-    let realm_name = get_event_realm(
-        tenant_id.as_str(),
-        input.election_event_id.as_str()
-    );
+    let realm_name =
+        get_event_realm(tenant_id.as_str(), input.election_event_id.as_str());
 
     let (_, total_eligible_voters) = list_users(
         &hasura_transaction,
