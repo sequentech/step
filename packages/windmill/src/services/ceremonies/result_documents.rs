@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -13,7 +11,9 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::connection;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
+use std::path::PathBuf;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
@@ -89,22 +89,22 @@ async fn generic_save_documents(
 
 pub trait GenerateResultDocuments {
     fn get_document_paths(
-        self,
+        &self,
         area_id: Option<String>,
         base_path: &PathBuf,
     ) -> ResultDocumentPaths;
     async fn save_documents(
-        self,
+        &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
-        results_id: &str,
+        results_event_id: &str,
     ) -> Result<ResultDocuments>;
 }
 
 impl GenerateResultDocuments for ElectionReportDataComputed {
     fn get_document_paths(
-        self,
+        &self,
         _area_id: Option<String>,
         base_path: &PathBuf,
     ) -> ResultDocumentPaths {
@@ -121,11 +121,11 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 
     #[instrument(err, skip(self, auth_headers, hasura_transaction))]
     async fn save_documents(
-        self,
+        &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
-        results_id: &str,
+        results_event_id: &str,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -145,7 +145,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         update_results_election_documents(
             hasura_transaction,
             &contest.tenant_id,
-            results_id,
+            results_event_id,
             &contest.election_event_id,
             &contest.election_id,
             &documents,
@@ -158,7 +158,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 
 impl GenerateResultDocuments for ReportDataComputed {
     fn get_document_paths(
-        self,
+        &self,
         area_id: Option<String>,
         base_path: &PathBuf,
     ) -> ResultDocumentPaths {
@@ -181,11 +181,11 @@ impl GenerateResultDocuments for ReportDataComputed {
 
     #[instrument(err, skip(self, auth_headers))]
     async fn save_documents(
-        self,
+        &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
-        results_id: &str,
+        results_event_id: &str,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             auth_headers,
@@ -199,7 +199,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             update_results_area_contest_documents(
                 hasura_transaction,
                 &self.contest.tenant_id,
-                results_id,
+                results_event_id,
                 &self.contest.election_event_id,
                 &self.contest.election_id,
                 &self.contest.id,
@@ -211,7 +211,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             update_results_contest_documents(
                 hasura_transaction,
                 &self.contest.tenant_id,
-                results_id,
+                results_event_id,
                 &self.contest.election_event_id,
                 &self.contest.election_id,
                 &self.contest.id,
@@ -222,4 +222,41 @@ impl GenerateResultDocuments for ReportDataComputed {
 
         Ok(documents)
     }
+}
+
+#[instrument(skip(auth_headers, results, hasura_transaction), err)]
+pub async fn save_result_documents(
+    auth_headers: &connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    results: Vec<ElectionReportDataComputed>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    base_tally_path: &PathBuf,
+) -> Result<()> {
+    for election_report in results {
+        let document_paths =
+            election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);
+        election_report
+            .save_documents(
+                auth_headers,
+                hasura_transaction,
+                &document_paths,
+                results_event_id,
+            )
+            .await?;
+        for contest_report in election_report.reports {
+            let contest_document_paths =
+                contest_report.get_document_paths(contest_report.area_id.clone(), base_tally_path);
+            contest_report
+                .save_documents(
+                    auth_headers,
+                    hasura_transaction,
+                    &contest_document_paths,
+                    results_event_id,
+                )
+                .await?;
+        }
+    }
+    Ok(())
 }

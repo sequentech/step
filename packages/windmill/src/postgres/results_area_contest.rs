@@ -12,7 +12,7 @@ use uuid::Uuid;
 pub async fn update_results_area_contest_documents(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    results_id: &str,
+    results_event_id: &str,
     election_event_id: &str,
     election_id: &str,
     contest_id: &str,
@@ -22,8 +22,8 @@ pub async fn update_results_area_contest_documents(
     let documents_value = serde_json::to_value(documents.clone())?;
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_uuid: uuid::Uuid = Uuid::parse_str(&results_id)
-        .map_err(|err| anyhow!("Error parsing results_id as UUID: {}", err))?;
+    let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
@@ -41,7 +41,7 @@ pub async fn update_results_area_contest_documents(
                     documents = $1
                 WHERE
                     tenant_id = $2 AND
-                    results_id = $3 AND
+                    results_event_id = $3 AND
                     election_event_id = $4 AND
                     election_id = $5 AND
                     contest_id = $6 AND
@@ -57,7 +57,7 @@ pub async fn update_results_area_contest_documents(
             &[
                 &documents_value,
                 &tenant_uuid,
-                &results_uuid,
+                &results_event_uuid,
                 &election_event_uuid,
                 &election_uuid,
                 &contest_uuid,
