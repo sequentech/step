@@ -3,13 +3,20 @@ use std::path::PathBuf;
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::{compress::read_file_to_bytes, documents::upload_and_return_document};
+use crate::{
+    postgres::{
+        results_area_contest::update_results_area_contest_documents,
+        results_contest::update_results_contest_documents,
+        results_election::update_results_election_documents,
+    },
+    services::{compress::read_file_to_bytes, documents::upload_and_return_document},
+};
 use anyhow::{Context, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
-    CandidateResultForReport, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML,
-    OUTPUT_JSON, OUTPUT_PDF,
+    ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 
 pub const MIME_PDF: &str = "application/pdf";
@@ -18,6 +25,7 @@ pub const MIME_HTML: &str = "text/html";
 
 pub type ResultDocumentPaths = ResultDocuments;
 
+#[instrument(err, skip(auth_headers))]
 async fn generic_save_documents(
     auth_headers: &AuthHeaders,
     document_paths: &ResultDocumentPaths,
@@ -88,7 +96,9 @@ pub trait GenerateResultDocuments {
     async fn save_documents(
         self,
         auth_headers: &AuthHeaders,
+        hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
+        results_id: &str,
     ) -> Result<ResultDocuments>;
 }
 
@@ -109,10 +119,13 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         }
     }
 
+    #[instrument(err, skip(self, auth_headers, hasura_transaction))]
     async fn save_documents(
         self,
         auth_headers: &AuthHeaders,
+        hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
+        results_id: &str,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -121,13 +134,25 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .contest
             .clone();
 
-        generic_save_documents(
+        let documents = generic_save_documents(
             auth_headers,
             document_paths,
             &contest.tenant_id.to_string(),
             &contest.election_event_id.to_string(),
         )
-        .await
+        .await?;
+
+        update_results_election_documents(
+            hasura_transaction,
+            &contest.tenant_id,
+            results_id,
+            &contest.election_event_id,
+            &contest.election_id,
+            &documents,
+        )
+        .await?;
+
+        Ok(documents)
     }
 }
 
@@ -154,17 +179,47 @@ impl GenerateResultDocuments for ReportDataComputed {
         }
     }
 
+    #[instrument(err, skip(self, auth_headers))]
     async fn save_documents(
         self,
         auth_headers: &AuthHeaders,
+        hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
+        results_id: &str,
     ) -> Result<ResultDocuments> {
-        generic_save_documents(
+        let documents = generic_save_documents(
             auth_headers,
             document_paths,
             &self.contest.tenant_id.to_string(),
             &self.contest.election_event_id.to_string(),
         )
-        .await
+        .await?;
+
+        if let Some(area_id) = self.area_id.clone() {
+            update_results_area_contest_documents(
+                hasura_transaction,
+                &self.contest.tenant_id,
+                results_id,
+                &self.contest.election_event_id,
+                &self.contest.election_id,
+                &self.contest.id,
+                &area_id,
+                &documents,
+            )
+            .await?;
+        } else {
+            update_results_contest_documents(
+                hasura_transaction,
+                &self.contest.tenant_id,
+                results_id,
+                &self.contest.election_event_id,
+                &self.contest.election_id,
+                &self.contest.id,
+                &documents,
+            )
+            .await?;
+        }
+
+        Ok(documents)
     }
 }
