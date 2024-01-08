@@ -9,14 +9,16 @@ use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::*;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
+
+use super::result_documents::save_result_documents;
 
 #[instrument(skip_all)]
 pub async fn save_results(
@@ -217,18 +219,15 @@ pub async fn generate_results_id_if_necessary(
 
 #[instrument(skip_all)]
 pub async fn populate_results_tables(
-    base_tally_path: PathBuf,
+    auth_headers: connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    base_tally_path: &PathBuf,
     state: State,
     tenant_id: &str,
     election_event_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
 ) -> Result<Option<String>> {
-    // get credentials
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
-
     let results_event_id_opt = generate_results_id_if_necessary(
         &auth_headers,
         tenant_id,
@@ -242,10 +241,20 @@ pub async fn populate_results_tables(
         if let Ok(results) = state.get_results() {
             save_results(
                 auth_headers.clone(),
-                results,
+                results.clone(),
                 tenant_id,
                 election_event_id,
                 &results_event_id,
+            )
+            .await?;
+            save_result_documents(
+                &auth_headers,
+                hasura_transaction,
+                results.clone(),
+                tenant_id,
+                election_event_id,
+                &results_event_id,
+                base_tally_path,
             )
             .await?;
         }

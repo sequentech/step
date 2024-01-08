@@ -15,6 +15,7 @@ use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 
+#[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
     election_id: Option<String>,

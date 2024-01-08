@@ -237,6 +237,7 @@ export const TallyCeremony: React.FC = () => {
         e.preventDefault()
         console.log("EXPORT RESULTS", e)
     }
+    let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
     return (
         <>
@@ -346,9 +347,7 @@ export const TallyCeremony: React.FC = () => {
                                     tenantId={tally?.tenant_id}
                                     electionEventId={tally?.election_event_id}
                                     electionIds={tally?.election_ids}
-                                    resultsEventId={
-                                        tallySessionExecutions?.[0]?.results_event_id ?? null
-                                    }
+                                    resultsEventId={resultsEventId}
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -371,12 +370,7 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults
-                                    tally={tally}
-                                    resultsEventId={
-                                        tallySessionExecutions?.[0]?.results_event_id ?? null
-                                    }
-                                />
+                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -442,9 +436,7 @@ export const TallyCeremony: React.FC = () => {
                                     tenantId={tally?.tenant_id}
                                     electionEventId={tally?.election_event_id}
                                     electionIds={tally?.election_ids}
-                                    resultsEventId={
-                                        tallySessionExecutions?.[0]?.results_event_id ?? null
-                                    }
+                                    resultsEventId={resultsEventId}
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -469,16 +461,12 @@ export const TallyCeremony: React.FC = () => {
                                     <ExportElectionMenu
                                         resource="sequent_backend_results_event"
                                         event={data}
+                                        resultsEventId={resultsEventId}
                                     />
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <TallyResults
-                                    tally={tally}
-                                    resultsEventId={
-                                        tallySessionExecutions?.[0]?.results_event_id ?? null
-                                    }
-                                />
+                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>

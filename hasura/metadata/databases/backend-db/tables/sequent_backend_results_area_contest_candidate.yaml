@@ -10,6 +10,7 @@ insert_permissions:
     - points
     - winning_position
     - annotations
+    - documents
     - labels
     - cast_votes_percent
     - created_at
@@ -31,6 +32,7 @@ insert_permissions:
     - points
     - winning_position
     - annotations
+    - documents
     - labels
     - cast_votes_percent
     - created_at
@@ -53,6 +55,7 @@ select_permissions:
     - points
     - winning_position
     - annotations
+    - documents
     - labels
     - cast_votes_percent
     - created_at
@@ -75,6 +78,7 @@ select_permissions:
     - points
     - winning_position
     - annotations
+    - documents
     - labels
     - cast_votes_percent
     - created_at
@@ -98,6 +102,7 @@ update_permissions:
     - points
     - winning_position
     - annotations
+    - documents
     - labels
     - cast_votes_percent
     - created_at
@@ -120,6 +125,7 @@ update_permissions:
     - points
     - winning_position
     - annotations
+    - documents
     - labels
     - cast_votes_percent
     - created_at
