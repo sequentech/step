@@ -36,7 +36,12 @@ import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/cast
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetCastVotesQuery, GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
+import {
+    GetBallotStylesQuery,
+    GetCastVotesQuery,
+    GetElectionEventQuery,
+    GetElectionsQuery,
+} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
