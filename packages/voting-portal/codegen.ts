@@ -6,7 +6,7 @@ const config: CodegenConfig = {
         {
             "http://graphql-engine:8080/v1/graphql": {
                 headers: {
-                    // "x-hasura-admin-secret": process.env.ADMIN_SECRET,
+                    "x-hasura-admin-secret": process.env.ADMIN_SECRET,
                 },
             },
         },

@@ -30,7 +30,7 @@ use crate::services::protocol_manager;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::types::error::{Error, Result};
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;

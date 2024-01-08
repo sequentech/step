@@ -24,15 +24,13 @@ pub struct TokenResponse {
     pub scope: String,
 }
 
-#[derive(Debug)]
 struct KeycloakLoginConfig {
-    pub url: String,
-    pub client_id: String,
-    pub client_secret: String,
-    pub realm: String,
+    url: String,
+    client_id: String,
+    client_secret: String,
+    realm: String,
 }
 
-#[instrument]
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
     let url =
         env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
@@ -51,7 +49,6 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
     }
 }
 
-#[instrument]
 fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     let url =
         env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
@@ -129,7 +126,7 @@ pub struct KeycloakAdminClient {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(err, name = "KeycloakAdminClient::new")]
+    #[instrument]
     pub async fn new() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
         let client = reqwest::Client::new();
