@@ -101,9 +101,6 @@ export const ElectionDataForm: React.FC = () => {
             }
         }
 
-        console.log("buildLanguageSettings :: tempSettings :>> ", tempSettings)
-        console.log("buildLanguageSettings :: temp :>> ", temp)
-
         return temp
     }
 
@@ -138,12 +135,6 @@ export const ElectionDataForm: React.FC = () => {
                 for (const setting of languageSettings) {
                     const enabled_item: any = {}
 
-                    console.log("setting :>> ", setting)
-                    console.log(
-                        "enabled_language_codes :>> ",
-                        incoming?.presentation?.language_conf?.enabled_language_codes
-                    )
-
                     const isInEnabled =
                         incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
                             ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
@@ -156,8 +147,6 @@ export const ElectionDataForm: React.FC = () => {
                     } else {
                         enabled_item[setting] = false // setting[Object.keys(setting)[0]]
                     }
-
-                    console.log("enabled_item :>> ", enabled_item)
 
                     temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
@@ -339,11 +328,9 @@ export const ElectionDataForm: React.FC = () => {
                     refetchImage()
                     refresh()
                 } catch (e) {
-                    console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})
                 }
             } else {
-                console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})
             }
         }
@@ -353,7 +340,6 @@ export const ElectionDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
-                console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm
                         validate={formValidator}

@@ -18,6 +18,7 @@ import {CustomError} from "./routes/ErrorPage"
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
+//
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)

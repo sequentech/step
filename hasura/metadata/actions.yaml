@@ -463,6 +463,21 @@ actions:
   permissions:
   - role: publish-write
   - role: admin-user
+- name: publish_tally_sheet
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/publish-tally-sheet
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: tally-sheet-publish
+  - role: admin-user
+  comment: publish_tally_sheet
 - name: restore_private_key
   definition:
     kind: synchronous
@@ -627,4 +642,5 @@ custom_types:
   - name: BallotPublicationStyles
   - name: GetBallotPublicationChangesOutput
   - name: RestorePrivateKeyOutput
+  - name: PublishTallyOutput
   scalars: []
