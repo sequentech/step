@@ -222,7 +222,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             tallySheetData.id = tallySheet.id
         }
 
-        if (doCreatedTallySheet) {
+        if (doCreatedTallgit ySheet) {
             localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
             doCreatedTallySheet(tallySheetData)
         }
