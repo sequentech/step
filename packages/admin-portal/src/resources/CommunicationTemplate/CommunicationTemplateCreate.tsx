@@ -130,11 +130,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         })
 
         if (created) {
-            notify("communicationTemplate.create.success", {type: "success"})
+            notify(t("communicationTemplate.create.success"), {type: "success"})
         }
 
         if (errors) {
-            notify("communicationTemplate.create.error", {type: "error"})
+            notify(t("communicationTemplate.create.error"), {type: "error"})
         }
 
         close?.()
