@@ -24,6 +24,14 @@ use lettre::Message;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::{User, UserArea};
+use sequent_core::types::communications::{
+    AudienceSelection,
+    CommunicationType,
+    CommunicationMethod,
+    EmailConfig,
+    SmsConfig,
+    SendCommunicationBody,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
