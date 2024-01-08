@@ -58,63 +58,68 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+    [
+        {
+            path: "/",
+            element: <App />,
+            errorElement: <ErrorPage />,
+            children: [
+                {
+                    path: "/tenant/:tenantId/event/:eventId",
+                    element: <TenantEvent />,
+                    children: [
+                        {
+                            path: "election-chooser",
+                            element: <ElectionSelectionScreen />,
+                        },
+                        {
+                            path: "login",
+                            element: <LoginScreen />,
+                        },
+                        {
+                            path: "election/:electionId",
+                            children: [
+                                {
+                                    path: "start",
+                                    element: <StartScreen />,
+                                },
+                                {
+                                    path: "vote",
+                                    element: <VotingScreen />,
+                                    action: votingAction,
+                                },
+                                {
+                                    path: "review",
+                                    element: <ReviewScreen />,
+                                },
+                                {
+                                    path: "confirmation",
+                                    element: <ConfirmationScreen />,
+                                },
+                                {
+                                    path: "audit",
+                                    element: <AuditScreen />,
+                                },
+                                {
+                                    path: "ballot-locator/:ballotId?",
+                                    element: <BallotLocator />,
+                                },
+                            ],
+                        },
+                        {
+                            path: "materials",
+                            element: <SupportMaterialsScreen />,
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
     {
-        path: "/",
-        element: <App />,
-        errorElement: <ErrorPage />,
-        children: [
-            {
-                path: "/tenant/:tenantId/event/:eventId",
-                element: <TenantEvent />,
-                children: [
-                    {
-                        path: "election-chooser",
-                        element: <ElectionSelectionScreen />,
-                    },
-                    {
-                        path: "login",
-                        element: <LoginScreen />,
-                    },
-                    {
-                        path: "election/:electionId",
-                        children: [
-                            {
-                                path: "start",
-                                element: <StartScreen />,
-                            },
-                            {
-                                path: "vote",
-                                element: <VotingScreen />,
-                                action: votingAction,
-                            },
-                            {
-                                path: "review",
-                                element: <ReviewScreen />,
-                            },
-                            {
-                                path: "confirmation",
-                                element: <ConfirmationScreen />,
-                            },
-                            {
-                                path: "audit",
-                                element: <AuditScreen />,
-                            },
-                            {
-                                path: "ballot-locator/:ballotId?",
-                                element: <BallotLocator />,
-                            },
-                        ],
-                    },
-                    {
-                        path: "materials",
-                        element: <SupportMaterialsScreen />,
-                    },
-                ],
-            },
-        ],
-    },
-])
+        basename: "/",
+    }
+)
 
 root.render(
     <React.StrictMode>
