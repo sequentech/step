@@ -4,6 +4,7 @@
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
+use crate::services::cast_votes::ElectionCastVotes;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
@@ -24,6 +25,7 @@ pub type AreaContestDataType = (
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
     Contest,
     BallotStyle,
+    u64,
 );
 
 #[instrument(skip_all)]
@@ -56,7 +58,8 @@ pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest_plaintext: &AreaContestDataType,
 ) -> Result<()> {
-    let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext.clone();
+    let (plaintexts, tally_session_contest, contest, ballot_style, census) =
+        area_contest_plaintext.clone();
 
     let area_id = tally_session_contest.area_id.clone();
     let contest_id = contest.id.clone();
@@ -88,12 +91,13 @@ pub fn prepare_tally_for_area_contest(
     let area_config_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
     ));
+
     let area_config = AreaConfig {
         id: Uuid::parse_str(&area_id)?,
         tenant_id: Uuid::parse_str(&contest.tenant_id)?,
         election_event_id: Uuid::parse_str(&contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
-        census: biguit_ballots.len() as u64,
+        census: census as u64,
     };
     let mut area_config_file = fs::File::create(area_config_path)?;
     writeln!(area_config_file, "{}", serde_json::to_string(&area_config)?)?;
@@ -112,22 +116,31 @@ pub fn prepare_tally_for_area_contest(
 pub fn create_election_configs(
     base_tempdir: PathBuf,
     area_contest_plaintexts: &Vec<AreaContestDataType>,
+    cast_votes_count: &Vec<ElectionCastVotes>,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
 
     // aggregate all ballot styles for each election
     for area_contest_plaintext in area_contest_plaintexts {
-        let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
+        let (plaintexts, tally_session_contest, contest, ballot_style, eligible_voters) =
+            area_contest_plaintext;
 
-        let area_id = tally_session_contest.area_id.clone();
-        let contest_id = contest.id.clone();
         let election_id = contest.election_id.clone();
+        let election_cast_votes_count = cast_votes_count
+            .iter()
+            .find(|data| data.election_id == election_id);
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 tenant_id: Uuid::parse_str(&contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&contest.election_event_id)?,
+                census: election_cast_votes_count
+                    .map(|data| data.census as u64)
+                    .unwrap_or(0),
+                total_votes: election_cast_votes_count
+                    .map(|data| data.cast_votes as u64)
+                    .unwrap_or(0),
                 ballot_styles: vec![],
             },
         };
@@ -200,11 +213,16 @@ pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
 pub fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contest_plaintexts: &Vec<AreaContestDataType>,
+    cast_votes_count: &Vec<ElectionCastVotes>,
 ) -> Result<State> {
     for area_contest_plaintext in area_contest_plaintexts {
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest_plaintext)?;
     }
-    create_election_configs(base_tally_path.clone(), area_contest_plaintexts)?;
+    create_election_configs(
+        base_tally_path.clone(),
+        area_contest_plaintexts,
+        cast_votes_count,
+    )?;
     create_config_file(base_tally_path.clone())?;
     call_velvet(base_tally_path.clone())
 }

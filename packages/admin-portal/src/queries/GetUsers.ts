@@ -19,9 +19,9 @@ export const getUsers = (fields: any) => {
     let limit: number | null = fields.pagination?.perPage ? fields.pagination?.perPage : null
     return gql`
         query getUsers(
-            $tenant_id: String! = "${fields.filter.tenant_id}"
-            $election_event_id: String = ${electionEventId}
-            $election_id: String = ${electionId}
+            $tenant_id: uuid! = "${fields.filter.tenant_id}"
+            $election_event_id: uuid = ${electionEventId}
+            $election_id: uuid = ${electionId}
             $email: String = ${email}
             $username: String = ${username}
             $first_name: String = ${first_name}

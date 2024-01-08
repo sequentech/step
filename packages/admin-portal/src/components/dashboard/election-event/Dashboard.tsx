@@ -1,19 +1,27 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
-import {Box, Button} from "@mui/material"
+import React, {useContext, useEffect, useState} from "react"
+import {Box, Button, CircularProgress} from "@mui/material"
+import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
-import Stats from "../Stats"
-import VotesByDay from "../charts/VoteByDay"
-import VotesByChannel from "../charts/VoteByChannels"
-import {Link} from "react-router-dom"
+import {Stats} from "./Stats"
+import {daysBefore, formatDate, getToday} from "../charts/Charts"
+import {VotesPerDay} from "../charts/VotesPerDay"
+import {VotingChanel, VotersByChannel} from "../charts/VotersByChannel"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    CastVotesPerDay,
+    GetElectionEventStatsQuery,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@/types/CoreTypes"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 
 const Container = styled(Box)`
     display: flex;
@@ -23,10 +31,37 @@ const Container = styled(Box)`
 
 export default function DashboardElectionEvent() {
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [selected, setSelected] = useState(0)
     const cardWidth = 470
     const cardHeight = 300
+    const endDate = getToday()
+    const startDate = daysBefore(endDate, 6)
+
+    const {loading, data: dataStats} = useQuery<GetElectionEventStatsQuery>(
+        GET_ELECTION_EVENT_STATS,
+        {
+            variables: {
+                tenantId,
+                electionEventId: record?.id,
+                startDate: formatDate(startDate),
+                endDate: formatDate(endDate),
+            },
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+
+    const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
+
+    const metrics = {
+        eligibleVotersCount: dataStats?.stats?.total_eligible_voters ?? "-",
+        votersCount: dataStats?.stats?.total_distinct_voters ?? "-",
+        electionsCount: dataStats?.stats?.total_elections ?? "-",
+        areasCount: dataStats?.stats?.total_areas ?? "-",
+        emailsSentCount: stats?.num_emails_sent ?? "-",
+        smsSentCount: stats?.num_sms_sent ?? "-",
+    }
 
     useEffect(() => {
         if (!record?.status) {
@@ -52,6 +87,10 @@ export default function DashboardElectionEvent() {
         setSelected(Math.max(...data))
     }, [record?.status])
 
+    if (loading) {
+        return <CircularProgress />
+    }
+
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
@@ -70,12 +109,34 @@ export default function DashboardElectionEvent() {
                 />
 
                 <Box>
-                    <Stats forElection={true} />
+                    <Stats metrics={metrics} />
 
                     <Container>
-                        <VotesByDay width={cardWidth} height={cardHeight} />
-                        <VotesByChannel
-                            electionEventId={record.id}
+                        <VotesPerDay
+                            data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                            width={cardWidth}
+                            height={cardHeight}
+                            endDate={endDate}
+                        />
+                        <VotersByChannel
+                            data={[
+                                {
+                                    channel: VotingChanel.Online,
+                                    count: dataStats?.stats?.total_distinct_voters ?? 0,
+                                },
+                                {
+                                    channel: VotingChanel.Paper,
+                                    count: 0,
+                                },
+                                {
+                                    channel: VotingChanel.Telephone,
+                                    count: 0,
+                                },
+                                {
+                                    channel: VotingChanel.Postal,
+                                    count: 0,
+                                },
+                            ]}
                             width={cardWidth}
                             height={cardHeight}
                         />

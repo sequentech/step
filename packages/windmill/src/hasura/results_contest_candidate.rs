@@ -29,6 +29,7 @@ pub async fn insert_results_contest_candidate(
     candidate_id: &str,
     results_event_id: &str,
     cast_votes: Option<i64>,
+    cast_votes_percent: Option<f64>,
     winning_position: Option<i64>,
     points: Option<i64>,
 ) -> Result<Response<insert_results_contest_candidate::ResponseData>> {
@@ -40,6 +41,7 @@ pub async fn insert_results_contest_candidate(
         candidate_id: Some(candidate_id.to_string()),
         results_event_id: results_event_id.to_string(),
         cast_votes,
+        cast_votes_percent,
         winning_position,
         points,
     };
