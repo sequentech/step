@@ -20,6 +20,28 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 
+const ExportButton = styled.div`
+    cursor: pointer;
+    margin-left: 10px;
+    margin-right: 10px;
+    padding: 5px 10px;
+    background-color: transparent;
+    color: ${theme.palette.primary.dark};
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    &:hover {
+        background-color: ${theme.palette.primary.dark};
+        color: ${theme.palette.white};
+    }
+`
+
 interface PerformDownloadProps {
     onDownload: () => void
     fileName: string
@@ -56,6 +78,12 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     return <CircularProgress />
 }
 
+interface IDocumentData {
+    id: string
+    kind: EExportFormat
+    name: string
+}
+
 interface ExportElectionMenuProps {
     resource: string
     event?: Sequent_Backend_Tally_Session
@@ -64,34 +92,6 @@ interface ExportElectionMenuProps {
     area?: Sequent_Backend_Area_Contest | string | undefined
     areaName?: string | undefined
     resultsEventId: string | null
-}
-
-const ExportButton = styled.div`
-    cursor: pointer;
-    margin-left: 10px;
-    margin-right: 10px;
-    padding: 5px 10px;
-    background-color: transparent;
-    color: ${theme.palette.primary.dark};
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: center;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    &:hover {
-        background-color: ${theme.palette.primary.dark};
-        color: ${theme.palette.white};
-    }
-`
-
-interface IDocumentData {
-    id: string
-    kind: EExportFormat
-    name: string
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
@@ -149,6 +149,10 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
             kind: format,
             name: `report.${format}`,
         })
+    }
+
+    if (election) {
+        if 
     }
 
     const exportFormatItem = election

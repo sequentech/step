@@ -33,6 +33,7 @@ import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
+    Sequent_Backend_Results_Election,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
@@ -126,6 +127,23 @@ export const TallyCeremony: React.FC = () => {
             filter: {
                 tally_session_id: tallyId,
                 tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Election>(
+        "sequent_backend_results_event",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: record?.id,
+                results_event_id: tallySessionExecutions?.[0]?.results_event_id,
             },
         },
         {
@@ -459,7 +477,6 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
                                     <ExportElectionMenu
-                                        resource="sequent_backend_results_event"
                                         event={data}
                                         resultsEventId={resultsEventId}
                                     />
