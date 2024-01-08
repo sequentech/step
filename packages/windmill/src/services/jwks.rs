@@ -32,7 +32,7 @@ fn get_jwks_secret_path() -> String {
 #[instrument(err)]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let minio_private_uri =
-        env::var("MINIO_PRIVATE_URI").map_err(|err| anyhow!("MINIO_PRIVATE_URI must be set"))?;
+        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = s3::get_public_bucket()?;
 
     let hasura_endpoint = format!(
