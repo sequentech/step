@@ -16,8 +16,9 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
-use windmill::services::database::get_keycloak_pool;
+use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::list_users;
+use windmill::services::users::ListUsersFilter;
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
@@ -152,9 +153,6 @@ pub async fn get_users(
         None => get_tenant_realm(&input.tenant_id),
     };
 
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -164,23 +162,34 @@ pub async fn get_users(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
-        auth_headers.clone(),
+        &hasura_transaction,
         &keycloak_transaction,
-        &client,
-        input.tenant_id.clone(),
-        input.election_event_id.clone(),
-        input.election_id.clone(),
-        &realm,
-        input.search,
-        input.first_name,
-        input.last_name,
-        input.username,
-        input.email,
-        input.limit,
-        input.offset,
-        /* user_ids = */ None,
+        ListUsersFilter {
+            tenant_id: input.tenant_id.clone(),
+            election_event_id: input.election_event_id.clone(),
+            election_id: input.election_id.clone(),
+            area_id: None,
+            realm: realm.clone(),
+            search: input.search,
+            first_name: input.first_name,
+            last_name: input.last_name,
+            username: input.username,
+            email: input.email,
+            limit: input.limit,
+            offset: input.offset,
+            user_ids: None,
+        },
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

@@ -6,6 +6,7 @@ mutation InsertResultsContestCandidate(
     $candidateId: uuid,
     $resultsEventId: uuid!,
     $castVotes: Int,
+    $castVotesPercent: numeric,
     $winningPosition: Int,
     $points: Int,
 ) {
@@ -19,6 +20,7 @@ mutation InsertResultsContestCandidate(
         candidate_id: $candidateId,
         results_event_id: $resultsEventId,
         cast_votes: $castVotes,
+        cast_votes_percent: $castVotesPercent,
         winning_position: $winningPosition,
         points: $points
     }

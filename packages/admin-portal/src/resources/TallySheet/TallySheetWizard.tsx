@@ -108,7 +108,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         <EditTallySheet
                             contest={contest}
                             doSelectArea={(id: Identifier) => setAreaId(id)}
-                            doCreatedTalySheet={(
+                            doCreatedTallySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
                             ) => setCreatedTallySheet(tallySheet)}
                             submitRef={submitRef}
@@ -121,7 +121,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         <EditTallySheet
                             tallySheet={tallySheet}
                             contest={contest}
-                            doCreatedTalySheet={(
+                            doCreatedTallySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
                             ) => setCreatedTallySheet(tallySheet)}
                             submitRef={submitRef}

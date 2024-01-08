@@ -16,7 +16,7 @@ import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import {ITallyTrusteeStatus} from "@/types/ceremonies"
+import {ICeremonyStatus, ITallyTrusteeStatus, ITrusteeStatus} from "@/types/ceremonies"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
@@ -48,7 +48,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
-    const [trusteeStatus, setTrusteeStatus] = useState<String | null>(null)
+    const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
     const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
@@ -90,10 +90,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
     useEffect(() => {
         if (tallySessionExecutions) {
             const username = authContext?.username
-            const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find(
-                (item: any) => item.name === username
+            const ceremonyStatus: ICeremonyStatus | undefined = tallySessionExecutions?.[0]?.status
+            const trusteeStatus = ceremonyStatus?.trustees.find(
+                (item) => item.name === username
             )?.status
-            setTrusteeStatus(trusteeStatus)
+            setTrusteeStatus(trusteeStatus ?? null)
         }
     }, [tallySessionExecutions])
 
@@ -101,7 +102,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         setPage(
             !trusteeStatus
                 ? WizardSteps.Start
-                : trusteeStatus === ITallyTrusteeStatus.WAITING
+                : trusteeStatus === ITrusteeStatus.WAITING
                 ? WizardSteps.Start
                 : WizardSteps.Status
         )

@@ -16,6 +16,14 @@ import styled from "@emotion/styled"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
+
+type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
+    rowId: number
+    id: string
+    status: string
+    progress: number
+}
 
 export const TallyElectionsProgress: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
@@ -23,11 +31,7 @@ export const TallyElectionsProgress: React.FC = () => {
     const [rand, setRand] = useState<number>(0)
     const {globalSettings} = useContext(SettingsContext)
 
-    const [electionsData, setElectionsData] = useState<
-        Array<
-            Sequent_Backend_Election & {rowId: number; id: string; status: string; progress: number}
-        >
-    >([])
+    const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
     useEffect(() => {
         let rand: number = Math.floor(Math.random() * (100 + 1) + 0)
@@ -61,20 +65,22 @@ export const TallyElectionsProgress: React.FC = () => {
         }
     )
 
-    const {data: elections} = useGetMany("sequent_backend_election", {
+    const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
         ids: tally?.election_ids || [],
     })
 
     useEffect(() => {
         if (elections) {
-            const temp = (elections || []).map((election, index) => ({
-                ...election,
-                rowId: index,
-                id: election.id || "",
-                name: election.name,
-                status: election.status || "",
-                progress: election.progress,
-            }))
+            const temp: Array<Sequent_Backend_Election_Extended> = (elections || []).map(
+                (election, index) => ({
+                    ...election,
+                    rowId: index,
+                    id: election.id || "",
+                    name: election.name,
+                    status: election.status || "",
+                    progress: 0,
+                })
+            )
             setElectionsData(temp)
         }
     }, [elections])
@@ -92,10 +98,15 @@ export const TallyElectionsProgress: React.FC = () => {
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                const election_data = execution?.[0].status?.elections_status?.find(
-                    (item: any) => item.election_id === props["id"]
+                let status: ITallyCeremonyStatus | undefined = execution?.[0].status
+                const election_data = status?.elections_status?.find(
+                    (item) => item.election_id === props["id"]
                 )
-                return <ElectionStatusItem name={election_data?.status ?? "PENDING"} />
+                return (
+                    <ElectionStatusItem
+                        name={election_data?.status ?? ITallyElectionStatus.WAITING}
+                    />
+                )
             },
         },
         {
@@ -104,8 +115,9 @@ export const TallyElectionsProgress: React.FC = () => {
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => {
-                const election_data = execution?.[0].status?.elections_status?.find(
-                    (item: any) => item.election_id === props["id"]
+                let status: ITallyCeremonyStatus | undefined = execution?.[0].status
+                const election_data = status?.elections_status?.find(
+                    (item) => item.election_id === props["id"]
                 )
 
                 return (

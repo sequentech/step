@@ -35,7 +35,7 @@ interface EditTallySheetProps {
     contest: Sequent_Backend_Contest
     tallySheet?: Sequent_Backend_Tally_Sheet | undefined
     doSelectArea?: (areaId: Identifier) => void
-    doCreatedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input) => void
+    doCreatedTallySheet?: (tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input) => void
     doEditedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet) => void
     submitRef: LegacyRef<HTMLButtonElement> | undefined
 }
@@ -45,7 +45,7 @@ interface ICandidateResultsExtended extends ICandidateResults {
 }
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
-    const {tallySheet, contest, doCreatedTalySheet, submitRef} = props
+    const {tallySheet, contest, doCreatedTallySheet, submitRef} = props
 
     const {t} = useTranslation()
 
@@ -222,9 +222,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             tallySheetData.id = tallySheet.id
         }
 
-        if (doCreatedTalySheet) {
+        if (doCreatedTallySheet) {
             localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
-            doCreatedTalySheet(tallySheetData)
+            doCreatedTallySheet(tallySheetData)
         }
     }
 

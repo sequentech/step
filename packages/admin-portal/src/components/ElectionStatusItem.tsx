@@ -14,7 +14,7 @@ import styled from "@emotion/styled"
     */
 
 interface ElectionStatusItemProps {
-    name: string | undefined
+    name: ITallyElectionStatus | undefined
 }
 
 const StyledChips = styled.div`
