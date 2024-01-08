@@ -43,6 +43,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import { CustomApolloContextProvider } from "@/providers/ApolloContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -52,6 +53,16 @@ const Filters: Array<ReactElement> = [
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Published" source="published_at" key={3} />,
 ]
+
+const ActionPublish: React.FC<{publish: boolean, setPublish: (val: boolean) => void, llamarGraphql: () => void}> = ({publish, setPublish}) => {
+    useEffect(() => {
+        if (publish) {
+            // llamarGraphql
+            setPublish(false)
+        }
+    }, [publish, setPublish])
+    return null
+}
 
 type TTallySheetList = {
     contest: Sequent_Backend_Contest
@@ -75,6 +86,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
+    const [publish, setPublish] = React.useState(false)
 
     const authContext = useContext(AuthContext)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
@@ -197,6 +209,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     return (
         <>
+            <CustomApolloContextProvider role="tally-sheet-view">
+                <ActionPublish publish={publish} setPublish={setPublish} />
+            </CustomApolloContextProvider>
             <List
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
