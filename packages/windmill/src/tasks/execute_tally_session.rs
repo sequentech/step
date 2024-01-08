@@ -715,6 +715,14 @@ pub async fn execute_tally_session(
         &keycloak_transaction,
     )
     .await;
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
+    keycloak_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     lock.release(auth_headers.clone()).await?;
 
     res
