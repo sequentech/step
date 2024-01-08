@@ -2,8 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export interface IResultDocuments {
-    pdf?: string
-    json?: string
-    html?: string
+export enum EExportFormat {
+    PDF = "pdf",
+    JSON = "json",
+    HTML = "html",
+}
+
+export type IResultDocuments = {
+    [F in EExportFormat]?: string
 }

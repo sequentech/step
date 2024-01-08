@@ -1,14 +1,19 @@
-export const EXPORT_FORMATS = [
+import {EExportFormat} from "@/types/results"
+
+export const EXPORT_FORMATS: Array<{
+    label: string
+    value: EExportFormat
+}> = [
     {
         label: "PDF",
-        value: "pdf",
+        value: EExportFormat.PDF,
     },
     {
         label: "HTML",
-        value: "html",
+        value: EExportFormat.HTML,
     },
     {
         label: "JSON",
-        value: "json",
+        value: EExportFormat.JSON,
     },
 ]
