@@ -42,6 +42,8 @@ export const electionsSlice = createSlice({
 
 export const {setElection} = electionsSlice.actions
 
+export const selectElectionIds = (state: RootState) => Object.keys(state.elections)
+
 export const selectElectionById = (electionId: string) => (state: RootState) =>
     state.elections[electionId]
 
