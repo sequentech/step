@@ -337,9 +337,9 @@ input CreateElectionEventInput {
 }
 
 input GetUsersInput {
-  tenant_id : String!
-  election_event_id : String
-  election_id : String
+  tenant_id : uuid!
+  election_event_id : uuid
+  election_id : uuid
   search : String
   first_name : String
   last_name : String
@@ -373,6 +373,12 @@ input GetPrivateKeyInput {
   keys_ceremony_id : String!
 }
 
+input CheckPrivateKeyInput {
+  election_event_id : String!
+  keys_ceremony_id : String!
+  private_key_base64 : String!
+}
+
 type CastVotesPerDay {
   day: date!
   day_count: Int!
@@ -390,12 +396,6 @@ type ElectionStatsOutput {
   total_distinct_voters : Int!
   total_areas : Int!
   votes_per_day : [CastVotesPerDay]!
-}
-
-input CheckPrivateKeyInput {
-  election_event_id : String!
-  keys_ceremony_id : String!
-  private_key_base64 : String!
 }
 
 input GetPermissionsInput {
