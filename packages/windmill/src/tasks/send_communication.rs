@@ -23,6 +23,10 @@ use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
+use sequent_core::types::communications::{
+    AudienceSelection, CommunicationMethod, CommunicationType, EmailConfig, SendCommunicationBody,
+    SmsConfig,
+};
 use sequent_core::types::keycloak::{User, UserArea};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -31,61 +35,6 @@ use std::collections::HashMap;
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-pub enum AudienceSelection {
-    #[strum(serialize = "ALL_USERS")]
-    ALL_USERS,
-    #[strum(serialize = "NOT_VOTED")]
-    NOT_VOTED,
-    #[strum(serialize = "VOTED")]
-    VOTED,
-    #[strum(serialize = "SELECTED")]
-    SELECTED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-enum CommunicationType {
-    #[strum(serialize = "CREDENTIALS")]
-    CREDENTIALS,
-    #[strum(serialize = "RECEIPT")]
-    RECEIPT,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-enum CommunicationMethod {
-    #[strum(serialize = "EMAIL")]
-    EMAIL,
-    #[strum(serialize = "SMS")]
-    SMS,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct EmailConfig {
-    subject: String,
-    plaintext_body: String,
-    html_body: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SmsConfig {
-    message: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SendCommunicationBody {
-    audience_selection: AudienceSelection,
-    audience_voter_ids: Option<Vec<String>>,
-    communication_type: CommunicationType,
-    communication_method: CommunicationMethod,
-    schedule_now: bool,
-    schedule_date: Option<String>,
-    email: Option<EmailConfig>,
-    sms: Option<SmsConfig>,
-}
 
 #[instrument(err)]
 fn get_variables(

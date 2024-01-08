@@ -2,18 +2,20 @@ import React, {useRef} from "react"
 import {Editor} from "@tinymce/tinymce-react"
 
 type Props = {
-    initialValue: string
+    initialValue?: string
+    value?: string
     editorRef: any
     onEditorChange?: () => void
 }
 
-export default function MyEditor({initialValue, editorRef, onEditorChange}: Props) {
+export default function MyEditor({value, initialValue, editorRef, onEditorChange}: Props) {
     return (
         <>
             <Editor
                 tinymceScriptSrc={process.env.PUBLIC_URL + "/tinymce/tinymce.min.js"}
                 onInit={(_evt, editor) => (editorRef.current = editor)}
                 initialValue={initialValue}
+                value={value}
                 init={{
                     promotion: false,
                     branding: false,
