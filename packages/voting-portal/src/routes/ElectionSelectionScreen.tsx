@@ -36,7 +36,7 @@ import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/cast
 import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery, GetCastVotesQuery, GetElectionsQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVotesQuery, GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
 import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
@@ -212,12 +212,15 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     )
 
-    const {error: errorElectionEvent, data: dataElectionEvent} = useQuery<any>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-    })
+    const {error: errorElectionEvent, data: dataElectionEvent} = useQuery<GetElectionEventQuery>(
+        GET_ELECTION_EVENT,
+        {
+            variables: {
+                electionEventId: eventId,
+                tenantId,
+            },
+        }
+    )
 
     const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
