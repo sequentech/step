@@ -5,11 +5,19 @@ use crate::services::temp_path::generate_random_path;
 use crate::types::error::Result;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::{fs::File, path::PathBuf};
 use tar;
 use tracing::{event, instrument, Level};
+
+pub fn read_file_to_bytes(path: &PathBuf) -> Result<Vec<u8>> {
+    let mut opened_file = File::open(path.clone())?;
+    let mut data: Vec<u8> = Vec::new();
+    opened_file.read_to_end(&mut data)?;
+    event!(Level::INFO, "Vec size: {}", data.len());
+    Ok(data)
+}
 
 // .tar.gz file
 #[instrument(err)]
@@ -29,11 +37,7 @@ pub fn compress_folder(folder_path: &Path) -> Result<Vec<u8>> {
         finished_file.metadata().unwrap().len()
     );
 
-    //let tar_file_path = "my.tar";
-    let mut opened_file = File::open(tar_file_path.clone())?;
-    let mut data: Vec<u8> = Vec::new();
-    opened_file.read_to_end(&mut data)?;
-    event!(Level::INFO, "Vec size: {}", data.len());
+    let data = read_file_to_bytes(&tar_file_path)?;
 
     // Remove the tar file since it's no longer needed
     std::fs::remove_file(tar_file_path)?;

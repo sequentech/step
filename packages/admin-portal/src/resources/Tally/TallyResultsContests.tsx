@@ -127,6 +127,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                 <ExportElectionMenu
                     resource="sequent_backend_results_contest"
                     contest={contestsData?.[value ?? 0]}
+                    resultsEventId={resultsEventId}
                 />
             </Box>
 

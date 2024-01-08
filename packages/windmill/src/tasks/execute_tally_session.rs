@@ -585,7 +585,10 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
-    let _auth_headers = keycloak::get_client_credentials().await?;
+    // get credentials
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = run_velvet_tally(
         base_tempdir.path().to_path_buf(),
@@ -594,7 +597,9 @@ pub async fn execute_tally_session_wrapped(
     )?;
 
     let results_event_id = populate_results_tables(
-        base_tempdir.path().to_path_buf(),
+        auth_headers.clone(),
+        hasura_transaction,
+        &base_tempdir.path().to_path_buf(),
         status,
         &tenant_id,
         &election_event_id,
@@ -710,6 +715,10 @@ pub async fn execute_tally_session(
         &keycloak_transaction,
     )
     .await;
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     lock.release(auth_headers.clone()).await?;
 
     res

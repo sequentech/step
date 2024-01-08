@@ -112,6 +112,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                     <ExportElectionMenu
                         resource="sequent_backend_results_election"
                         election={electionsData?.[value ?? 0]}
+                        resultsEventId={resultsEventId}
                     />
                 </Box>
                 {electionsData?.map((election, index) => (
