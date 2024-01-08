@@ -234,12 +234,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 {
                     id: tallySheet.id,
                     data: tallySheetData,
-                    meta: {
-                        headers: {
-                            "x-hasura-role": "can-write-here",
-                            "x-hasura-test": "test test test",
-                        },
-                    },
                 } as any,
                 {
                     onSuccess: () => {

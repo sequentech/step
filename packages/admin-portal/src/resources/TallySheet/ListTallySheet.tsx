@@ -64,7 +64,7 @@ const Filters: Array<ReactElement> = [
 //     return null
 // }
 
-type TTallySheetList = {
+interface TTallySheetList {
     contest: Sequent_Backend_Contest
     doAction: (action: number, id?: Identifier) => void
     reload: string | null
