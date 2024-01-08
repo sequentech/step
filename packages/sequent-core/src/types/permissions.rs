@@ -105,4 +105,12 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
+    #[strum(serialize = "tally-sheet-view")]
+    TALLY_SHEET_VIEW,
+    #[strum(serialize = "tally-sheet-create")]
+    TALLY_SHEET_CREATE,
+    #[strum(serialize = "tally-sheet-publish")]
+    TALLY_SHEET_PUBLISH,
+    #[strum(serialize = "tally-sheet-delete")]
+    TALLY_SHEET_DELETE,
 }
