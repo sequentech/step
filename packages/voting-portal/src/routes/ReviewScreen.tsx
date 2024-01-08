@@ -2,7 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useNavigate, useParams} from "react-router-dom"
+import {
+    Link as RouterLink,
+    Form,
+    useNavigate,
+    useParams,
+    useSubmit,
+    redirect,
+} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -26,7 +33,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink} from "react-router-dom"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {useMutation} from "@apollo/client"
@@ -87,6 +93,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const ballotId = hashBallot(auditableBallot)
+    const submit = useSubmit()
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -115,11 +122,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             if (newCastVote) {
                 dispatch(addCastVotes(newCastVote))
             }
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/confirmation`
-            )
+
+            submit(null, {method: "post"})
         } catch (error) {
             console.log(`error casting vote: ${error}`)
+            submit({error: "Unable to cast the Ballot"}, {method: "post"})
         }
     }
 
@@ -267,4 +274,17 @@ export const ReviewScreen: React.FC = () => {
             <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
         </PageLimit>
     )
+}
+
+export default ReviewScreen
+
+export async function action({params, request}: {request: Request; params: any}) {
+    const data = await request.formData()
+    const error = data.get("error")
+
+    if (error) {
+        throw new CustomError(error as string)
+    }
+
+    return redirect(`../confirmation`)
 }
