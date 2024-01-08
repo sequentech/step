@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod ceremonies;
+pub mod communications;
 pub mod hasura_types;
 pub mod keycloak;
 pub mod permissions;
+pub mod tally_sheets;

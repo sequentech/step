@@ -6,6 +6,7 @@ use crate::routes::scheduled_event;
 use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::{anyhow, Result};
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::communications::SendCommunicationBody;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;

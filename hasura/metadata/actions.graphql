@@ -215,6 +215,14 @@ type Mutation {
 }
 
 type Mutation {
+  publish_tally_sheet (
+    election_event_id: uuid!
+    tally_sheet_id: uuid!
+    publish: Boolean
+  ): PublishTallyOutput
+}
+
+type Mutation {
   restore_private_key (
     object: RestorePrivateKeyInput!
   ): RestorePrivateKeyOutput
@@ -679,5 +687,9 @@ type GetBallotPublicationChangesOutput {
 
 type RestorePrivateKeyOutput {
   is_valid : Boolean!
+}
+
+type PublishTallyOutput {
+  tally_sheet_id : uuid
 }
 
