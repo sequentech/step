@@ -41,9 +41,9 @@ pub async fn update_results_contest_documents(
                     results_event_id = $3 AND
                     election_event_id = $4 AND
                     election_id = $5 AND
-                    contest_id = $6;
+                    contest_id = $6
                 RETURNING
-                    id
+                    id;
             "#,
         )
         .await?;
