@@ -215,6 +215,14 @@ type Mutation {
 }
 
 type Mutation {
+  publish_tally_sheet (
+    election_event_id: uuid!
+    tally_sheet_id: uuid!
+    publish: Boolean
+  ): PublishTallyOutput
+}
+
+type Mutation {
   restore_private_key (
     object: RestorePrivateKeyInput!
   ): RestorePrivateKeyOutput
@@ -379,25 +387,6 @@ input CheckPrivateKeyInput {
   private_key_base64 : String!
 }
 
-type CastVotesPerDay {
-  day: date!
-  day_count: Int!
-}
-
-type ElectionEventStatsOutput {
-  total_distinct_voters : Int!
-  total_areas: Int!
-  total_eligible_voters: Int!
-  total_elections: Int!
-  votes_per_day : [CastVotesPerDay]!
-}
-
-type ElectionStatsOutput {
-  total_distinct_voters : Int!
-  total_areas : Int!
-  votes_per_day : [CastVotesPerDay]!
-}
-
 input GetPermissionsInput {
   tenant_id : String!
   search : String
@@ -484,6 +473,25 @@ type CreateKeysCeremonyOutput {
 
 type GetPrivateKeyOutput {
   private_key_base64 : String!
+}
+
+type CastVotesPerDay {
+  day: date!
+  day_count: Int!
+}
+
+type ElectionEventStatsOutput {
+  total_distinct_voters : Int!
+  total_areas: Int!
+  total_eligible_voters: Int!
+  total_elections: Int!
+  votes_per_day : [CastVotesPerDay]!
+}
+
+type ElectionStatsOutput {
+  total_distinct_voters : Int!
+  total_areas : Int!
+  votes_per_day : [CastVotesPerDay]!
 }
 
 type CheckPrivateKeyOutput {
@@ -679,5 +687,9 @@ type GetBallotPublicationChangesOutput {
 
 type RestorePrivateKeyOutput {
   is_valid : Boolean!
+}
+
+type PublishTallyOutput {
+  tally_sheet_id : uuid
 }
 
