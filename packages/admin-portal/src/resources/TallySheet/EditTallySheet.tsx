@@ -252,7 +252,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 
     return (
-        // <SimpleForm toolbar={false} onSubmit={onSubmit} validate={formValidator}>
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
                 <PageHeaderStyles.Title>{t("tallysheet.common.title")}</PageHeaderStyles.Title>
