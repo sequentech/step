@@ -158,6 +158,10 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         }
     }, [areas])
 
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [])
+
     const handleChange = (event: SelectChangeEvent) => {
         // setArea(event.target.value as string)
         setResults((prev: IAreaContestResults) => ({

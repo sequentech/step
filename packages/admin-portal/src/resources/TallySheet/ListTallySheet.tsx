@@ -54,15 +54,15 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Published" source="published_at" key={3} />,
 ]
 
-const ActionPublish: React.FC<{publish: boolean, setPublish: (val: boolean) => void, llamarGraphql: () => void}> = ({publish, setPublish}) => {
-    useEffect(() => {
-        if (publish) {
-            // llamarGraphql
-            setPublish(false)
-        }
-    }, [publish, setPublish])
-    return null
-}
+// const ActionPublish: React.FC<{publish: boolean, setPublish: (val: boolean) => void, llamarGraphql: () => void}> = ({publish, setPublish}) => {
+//     useEffect(() => {
+//         if (publish) {
+//             // llamarGraphql
+//             setPublish(false)
+//         }
+//     }, [publish, setPublish])
+//     return null
+// }
 
 type TTallySheetList = {
     contest: Sequent_Backend_Contest
@@ -209,9 +209,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     return (
         <>
-            <CustomApolloContextProvider role="tally-sheet-view">
+            {/* <CustomApolloContextProvider role="tally-sheet-view">
                 <ActionPublish publish={publish} setPublish={setPublish} />
-            </CustomApolloContextProvider>
+            </CustomApolloContextProvider> */}
             <List
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
