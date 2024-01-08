@@ -137,6 +137,23 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         window.scrollTo(0, 0)
     }, [])
 
+    useEffect(() => {
+        if (candidates && !tallySheet) {
+            const candidatesTemp = []
+            for (const candidate of candidates) {
+                const candidateTemp: ICandidateResultsExtended = {
+                    candidate_id: candidate.id,
+                    name: candidate.name,
+                }
+                candidatesTemp.push(candidateTemp)
+            }
+            candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
+            if (!tallySheet) {
+                setCandidatesResults(candidatesTemp)
+            }
+        }
+    }, [candidates])
+
     const handleChange = (event: SelectChangeEvent) => {
         // setArea(event.target.value as string)
         setResults((prev: IAreaContestResults) => ({
@@ -152,31 +169,46 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }))
     }
 
+    const handleNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.value !== "-" && +event.target.value > -1) {
+            console.log("handleNumberChange solo positivos", event.target.value)
+
+            setResults((prev: IAreaContestResults) => ({
+                ...prev,
+                [event.target.name as string]: event.target.value as string,
+            }))
+        }
+    }
+
     const handleInvalidChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setInvalids((prev: IInvalidVotes) => ({
-            ...prev,
-            [event.target.name as string]: event.target.value as string,
-        }))
+        if (event.target.value !== "-" && +event.target.value >= 0) {
+            setInvalids((prev: IInvalidVotes) => ({
+                ...prev,
+                [event.target.name as string]: event.target.value as string,
+            }))
+        }
     }
 
     const handleCandidateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const candidateTemp = candidatesResults.find(
-            (item) => item.candidate_id === event.target.id
-        )
-        const candidateRest = candidatesResults.filter(
-            (item) => item.candidate_id !== event.target.id
-        )
-        if (candidateTemp) {
-            if (!event.target.value) {
-                delete candidateTemp.total_votes
-            } else {
-                candidateTemp.total_votes =
-                    event.target.value !== "" ? parseInt(event.target.value) : 0
-            }
+        if (event.target.value !== "-" && +event.target.value >= 0) {
+            const candidateTemp = candidatesResults.find(
+                (item) => item.candidate_id === event.target.id
+            )
+            const candidateRest = candidatesResults.filter(
+                (item) => item.candidate_id !== event.target.id
+            )
+            if (candidateTemp) {
+                if (!event.target.value) {
+                    delete candidateTemp.total_votes
+                } else {
+                    candidateTemp.total_votes =
+                        event.target.value !== "" ? parseInt(event.target.value) : 0
+                }
 
-            const finalCandidates = [...candidateRest, candidateTemp]
-            finalCandidates.sort((a, b) => a.name.localeCompare(b.name))
-            setCandidatesResults(finalCandidates)
+                const finalCandidates = [...candidateRest, candidateTemp]
+                finalCandidates.sort((a, b) => a.name.localeCompare(b.name))
+                setCandidatesResults(finalCandidates)
+            }
         }
     }
 
@@ -217,15 +249,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (doCreatedTalySheet) {
             doCreatedTalySheet(tallySheetData)
         }
-    }
-
-    const formValidator = (values: any): any => {
-        console.log("TallySheetformValidator", values)
-        // const errors: any = {}
-        // if (!values?.area_id) {
-        //     errors.area_id = t("required")
-        // }
-        // return errors
     }
 
     return (
@@ -288,8 +311,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <TextField
                     label={t("tallysheet.label.total_votes")}
                     name="total_votes"
-                    value={results.total_votes}
-                    onChange={handleTextChange}
+                    value={results.total_votes || ""}
+                    onChange={handleNumberChange}
                     size="small"
                     type="number"
                     required
@@ -297,8 +320,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <TextField
                     label={t("tallysheet.label.total_valid_votes")}
                     name="total_valid_votes"
-                    value={results.total_valid_votes}
-                    onChange={handleTextChange}
+                    value={results.total_valid_votes || ""}
+                    onChange={handleNumberChange}
                     size="small"
                     type="number"
                     required
@@ -317,7 +340,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <TextField
                         label={t("tallysheet.label.total_invalid")}
                         name="total_invalid"
-                        value={invalids.total_invalid}
+                        value={invalids.total_invalid || ""}
                         onChange={handleInvalidChange}
                         size="small"
                         type="number"
@@ -326,7 +349,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <TextField
                         label={t("tallysheet.label.implicit_invalid")}
                         name="implicit_invalid"
-                        value={invalids.implicit_invalid}
+                        value={invalids.implicit_invalid || ""}
                         onChange={handleInvalidChange}
                         size="small"
                         type="number"
@@ -335,7 +358,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <TextField
                         label={t("tallysheet.label.explicit_invalid")}
                         name="explicit_invalid"
-                        value={invalids.explicit_invalid}
+                        value={invalids.explicit_invalid || ""}
                         onChange={handleInvalidChange}
                         size="small"
                         type="number"
@@ -346,8 +369,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <TextField
                     label={t("tallysheet.label.total_blank_votes")}
                     name="total_blank_votes"
-                    value={results.total_blank_votes}
-                    onChange={handleTextChange}
+                    value={results.total_blank_votes || ""}
+                    onChange={handleNumberChange}
                     size="small"
                     type="number"
                     required
@@ -355,8 +378,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <TextField
                     label={t("tallysheet.label.census")}
                     name="census"
-                    value={results.census}
-                    onChange={handleTextChange}
+                    value={results.census || ""}
+                    onChange={handleNumberChange}
                     size="small"
                     type="number"
                     required
@@ -387,7 +410,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                             id={candidate.candidate_id}
                             label={t("tallysheet.label.total_votes")}
                             name="total_votes"
-                            value={candidate.total_votes}
+                            value={candidate.total_votes || ""}
                             onChange={handleCandidateChange}
                             size="small"
                             type="number"
