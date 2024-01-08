@@ -17,6 +17,12 @@ interface TallyElectionsListProps {
     update: (elections: Array<string>) => void
 }
 
+type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
+    rowId: number
+    id: string
+    active: boolean
+}
+
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
     const {disabled, update, electionEventId} = props
 
@@ -24,9 +30,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
 
-    const [electionsData, setElectionsData] = useState<
-        Array<Sequent_Backend_Election & {rowId: number; id: string; active: boolean}>
-    >([])
+    const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -40,27 +44,29 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         }
     )
 
-    const {data: elections} = useGetList("sequent_backend_election", {
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
     useEffect(() => {
         if (elections) {
-            const temp = (elections || []).map((election, index) => ({
-                ...election,
-                rowId: index,
-                id: election.id || "",
-                name: election.name,
-                active: election.active,
-            }))
+            const temp: Array<Sequent_Backend_Election_Extended> = (elections || []).map(
+                (election, index) => ({
+                    ...election,
+                    rowId: index,
+                    id: election.id || "",
+                    name: election.name,
+                    active: false,
+                })
+            )
             setElectionsData(temp)
         }
     }, [elections])
 
     useEffect(() => {
         if (electionsData) {
-            const temp = electionsData
+            const temp: Array<string> = electionsData
                 .filter((election) => election.active)
                 .map((election) => election.id)
             update(temp)
@@ -90,9 +96,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     ]
 
     function handleConfirmChange(clickedRow: any) {
-        const updatedData: Array<
-            Sequent_Backend_Election & {rowId: number; id: string; active: boolean}
-        > = electionsData?.map((x) => {
+        const updatedData: Array<Sequent_Backend_Election_Extended> = electionsData?.map((x) => {
             if (x.rowId === clickedRow.rowId) {
                 return {
                     ...x,

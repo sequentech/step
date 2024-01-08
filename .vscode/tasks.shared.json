@@ -125,6 +125,34 @@
             "problemMatcher": []
         },
         {
+            "label": "logs.restart.keycloak",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop keycloak; docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.restart.hasura",
             "command": "bash",
             "args": [
@@ -388,6 +416,29 @@
                 "bash",
                 "-c",
                 "./.devcontainer/scripts/fix-vscode-settings-nix.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "update.graphql",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "./.devcontainer/scripts/update-graphql.sh",
             ],
             "presentation": {
                 "echo": true,
