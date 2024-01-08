@@ -9,7 +9,9 @@ import {
     TextInput,
     Toolbar,
     SaveButton,
-    DeleteButton,
+    RaRecord,
+    Identifier,
+    useEditController,
 } from "react-admin"
 import {
     Accordion,
@@ -18,7 +20,6 @@ import {
     Tabs,
     Tab,
     Grid,
-    Button,
     Drawer,
     Box,
 } from "@mui/material"
@@ -33,12 +34,20 @@ import {IPermissions} from "@/types/keycloak"
 import {useAtom} from "jotai"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {Dialog} from "@sequentech/ui-essentials"
-import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
 import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
+import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {TVotingSetting} from "@/types/settings"
+
+export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
     const canEdit = authContext.isAuthorized(
@@ -48,13 +57,27 @@ export const EditElectionEventDataForm: React.FC = () => {
     )
 
     const [value, setValue] = useState(0)
+    const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
-    const [votingSettings] = useState<any>({online: true, kiosk: true})
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
 
-    const parseValues = (incoming: any) => {
+    const {record: tenant} = useEditController({
+        resource: "sequent_backend_tenant",
+        id: tenantId,
+        redirect: false,
+        undoable: false,
+    })
+
+    const [votingSettings] = useState<TVotingSetting>({
+        online: tenant?.voting_channels?.online || true,
+        kiosk: tenant?.voting_channels?.kiosk || false,
+    })
+
+    const parseValues = (
+        incoming: Sequent_Backend_Support_Material_Extended
+    ): Sequent_Backend_Support_Material_Extended => {
         const temp = {...incoming}
 
         // languages
@@ -90,22 +113,23 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         // set english first lang always
-        const en = {en: temp.enabled_languages["en"]}
-        delete temp.enabled_languages.en
-        const rest = temp.enabled_languages
-        temp.enabled_languages = {...en, ...rest}
-
+        if (temp.enabled_languages) {
+            const en = {en: temp.enabled_languages["en"]}
+            delete temp.enabled_languages.en
+            const rest = temp.enabled_languages
+            temp.enabled_languages = {...en, ...rest}
+        }
         // voting channels
         const all_channels = {...incoming?.voting_channels}
 
         // delete incoming.voting_channels
         temp.voting_channels = {}
+
         for (const setting in votingSettings) {
             const enabled_item: any = {}
             enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            // temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-            temp.voting_channels = {...all_channels}
+            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
 
         return temp
@@ -113,6 +137,10 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
+    }
+
+    const handleChangeMaterials = (event: React.SyntheticEvent, newValue: number) => {
+        setValueMaterials(newValue)
     }
 
     const formValidator = (values: any): any => {
@@ -123,7 +151,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return errors
     }
 
-    const renderLangs = (parsedValue: any) => {
+    const renderLangs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let langNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             langNodes.push(
@@ -138,7 +166,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         return <div>{langNodes}</div>
     }
 
-    const renderVotingChannels = (parsedValue: any) => {
+    const renderVotingChannels = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let channelNodes = []
         for (const channel in parsedValue?.voting_channels) {
             channelNodes.push(
@@ -153,7 +181,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         return channelNodes
     }
 
-    const renderTabs = (parsedValue: any) => {
+    const renderTabs = (
+        parsedValue: Sequent_Backend_Support_Material_Extended,
+        type: string = "general"
+    ) => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
@@ -163,13 +194,17 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         // reset actived tab to first tab if only one
         if (tabNodes.length === 1) {
-            setValue(0)
+            if (type === "materials") {
+                setValueMaterials(0)
+            } else {
+                setValue(0)
+            }
         }
 
         return tabNodes
     }
 
-    const renderTabContent = (parsedValue: any) => {
+    const renderTabContent = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let tabNodes = []
         let index = 0
         for (const lang in parsedValue?.enabled_languages) {
@@ -191,6 +226,33 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
+                            />
+                        </div>
+                    </CustomTabPanel>
+                )
+                index++
+            }
+        }
+        return tabNodes
+    }
+
+    const renderTabContentMaterials = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
+        let tabNodes = []
+        let index = 0
+        for (const lang in parsedValue?.enabled_languages) {
+            if (parsedValue?.enabled_languages[lang]) {
+                tabNodes.push(
+                    <CustomTabPanel key={lang} value={valueMaterials} index={index}>
+                        <div style={{marginTop: "16px"}}>
+                            <TextInput
+                                disabled={!canEdit}
+                                source={`presentation.i18n[${lang}].materialsTitle`}
+                                label={t("electionEventScreen.field.materialTitle")}
+                            />
+                            <TextInput
+                                disabled={!canEdit}
+                                source={`presentation.i18n[${lang}].materialsSubtitle`}
+                                label={t("electionEventScreen.field.materialSubTitle")}
                             />
                         </div>
                     </CustomTabPanel>
@@ -236,8 +298,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             </Box>
             <RecordContext.Consumer>
                 {(incoming) => {
-                    const parsedValue = parseValues(incoming)
-                    console.log("parsedValue :>> ", parsedValue)
+                    const parsedValue = parseValues(
+                        incoming as Sequent_Backend_Support_Material_Extended
+                    )
+                    console.log("parsedValue eevent form :>> ", parsedValue)
                     return (
                         <SimpleForm
                             validate={formValidator}
@@ -349,6 +413,38 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             {renderVotingChannels(parsedValue)}
                                         </Grid>
                                     </Grid>
+                                </AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-materials"}
+                                onChange={() => setExpanded("election-event-data-materials")}
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-materials" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.materials")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <BooleanInput
+                                        disabled={!canEdit}
+                                        source={`presentation.materials.activated`}
+                                        label={t(`electionEventScreen.field.materialActivated`)}
+                                    />
+                                    <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
+                                        {renderTabs(parsedValue, "materials")}
+                                    </Tabs>
+                                    {renderTabContentMaterials(parsedValue)}
+                                    <Box>
+                                        <ListSupportMaterials electionEventId={parsedValue?.id} />
+                                    </Box>
                                 </AccordionDetails>
                             </Accordion>
                         </SimpleForm>

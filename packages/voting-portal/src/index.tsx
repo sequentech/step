@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useContext} from "react"
 import ReactDOM from "react-dom/client"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
-import {BrowserRouter, useParams} from "react-router-dom"
 import "./index.css"
 import App from "./App"
 import "./services/i18n"
@@ -15,33 +16,26 @@ import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
+import {createBrowserRouter, RouterProvider} from "react-router-dom"
+import {LoginScreen} from "./routes/LoginScreen"
+import {StartScreen} from "./routes/StartScreen"
+import VotingScreen, {action as votingAction} from "./routes/VotingScreen"
+import {ReviewScreen} from "./routes/ReviewScreen"
+import {ConfirmationScreen} from "./routes/ConfirmationScreen"
+import {AuditScreen} from "./routes/AuditScreen"
+import {ElectionSelectionScreen} from "./routes/ElectionSelectionScreen"
+import {BallotLocator} from "./routes/BallotLocator"
+import {ErrorPage} from "./routes/ErrorPage"
+import {SupportMaterialsScreen} from "./routes/SupportMaterialsScreen"
+import TenantEvent from "./routes/TenantEvent"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
-interface TenantEventContextValues {
-    tenantId: string | null
-    eventId: string | null
-}
-
-export const TenantEventContext = React.createContext<TenantEventContextValues>({
-    tenantId: null,
-    eventId: null,
-})
-
-// This component will be used to provide tenantId and eventId to the context
-export const TenantEventProvider: React.FC<{
-    tenantId: string | null
-    eventId: string | null
-    children: React.ReactNode
-}> = ({tenantId, eventId, children}) => {
-    console.log(`TenantEventProvider: tenantId=${tenantId}, eventId=${eventId}`)
-    return (
-        <TenantEventContext.Provider value={{tenantId, eventId}}>
-            {children}
-        </TenantEventContext.Provider>
-    )
+export type TenantEventType = {
+    tenantId: string
+    eventId: string
 }
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
@@ -49,9 +43,6 @@ export interface KeycloakProviderProps extends React.PropsWithChildren {
 }
 
 const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) => {
-    const {tenantId, eventId} = useContext(TenantEventContext)
-    console.log(`KeycloakProvider: tenantId=${tenantId}, eventId=${eventId}`)
-
     return disable ? (
         <>{children}</>
     ) : (
@@ -61,35 +52,78 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
     )
 }
 
-export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
-    console.log(`RouteParameterProvider: tenantId=${tenantId}, eventId=${eventId}`)
-
-    return (
-        <TenantEventProvider
-            tenantId={tenantId ? tenantId : null}
-            eventId={eventId ? eventId : null}
-        >
-            {children}
-        </TenantEventProvider>
-    )
-}
-
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
+
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
+
+const router = createBrowserRouter([
+    {
+        path: "/",
+        element: <App />,
+        errorElement: <ErrorPage />,
+        children: [
+            {
+                path: "/tenant/:tenantId/event/:eventId",
+                element: <TenantEvent />,
+                children: [
+                    {
+                        path: "election-chooser",
+                        element: <ElectionSelectionScreen />,
+                    },
+                    {
+                        path: "login",
+                        element: <LoginScreen />,
+                    },
+                    {
+                        path: "election/:electionId",
+                        children: [
+                            {
+                                path: "start",
+                                element: <StartScreen />,
+                            },
+                            {
+                                path: "vote",
+                                element: <VotingScreen />,
+                                action: votingAction,
+                            },
+                            {
+                                path: "review",
+                                element: <ReviewScreen />,
+                            },
+                            {
+                                path: "confirmation",
+                                element: <ConfirmationScreen />,
+                            },
+                            {
+                                path: "audit",
+                                element: <AuditScreen />,
+                            },
+                            {
+                                path: "ballot-locator/:ballotId?",
+                                element: <BallotLocator />,
+                            },
+                        ],
+                    },
+                    {
+                        path: "materials",
+                        element: <SupportMaterialsScreen />,
+                    },
+                ],
+            },
+        ],
+    },
+])
 
 root.render(
     <React.StrictMode>
         <SettingsWrapper>
             <KeycloakProviderContainer>
                 <Provider store={store}>
-                    <BrowserRouter>
-                        <ThemeProvider theme={theme}>
-                            <App />
-                        </ThemeProvider>
-                    </BrowserRouter>
+                    <ThemeProvider theme={theme}>
+                        <RouterProvider router={router} />
+                    </ThemeProvider>
                 </Provider>
             </KeycloakProviderContainer>
         </SettingsWrapper>

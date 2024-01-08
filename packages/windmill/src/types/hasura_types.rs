@@ -11,3 +11,4 @@ pub type timestamptz = String;
 pub type bytea = String;
 pub type text = String;
 pub type varchar = String;
+pub type numeric = f64;

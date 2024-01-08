@@ -176,8 +176,8 @@ const englishTranslation = {
             },
         },
         dashboard: {
-            voteByDay: "Vote by day",
-            voteByChannels: "Vote by channels",
+            voteByDay: "Votes by day",
+            votersByChannels: "Voters by channel",
         },
         electionEventScreen: {
             common: {
@@ -188,6 +188,7 @@ const englishTranslation = {
                 dates: "Dates",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
+                materials: "Support Materials",
             },
             field: {
                 name: "Name",
@@ -197,6 +198,9 @@ const englishTranslation = {
                 endDateTime: "End Date and Time",
                 language: "Language",
                 votingChannels: "Voting Channels",
+                materialActivated: "Support Materials Activated",
+                materialTitle: "Title",
+                materialSubTitle: "Subtitle",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -208,7 +212,8 @@ const englishTranslation = {
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
             stats: {
-                elegibleVoters: "Elegible voters",
+                elegibleVoters: "Elegible Voters",
+                voters: "Actual Voters",
                 elections: "Elections",
                 contests: "Contests",
                 areas: "Areas",
@@ -513,6 +518,9 @@ const englishTranslation = {
                 exportFormat: "Export '{{item}}' results in {{format}} format",
                 allResults: "election event",
                 globalAreaResults: "all areas",
+                title: "Title",
+                subtitle: "Subtitle",
+                kind: "File type",
             },
             language: {
                 es: "Spanish",
@@ -794,13 +802,22 @@ const englishTranslation = {
                 options: "Options",
                 global: "Participation Summary",
                 elegible_census: "Elegible Voters",
-                number_votes: "Number of Votes",
+                cast_votes: "Number of Votes",
+                cast_votes_percent: "Percent of Votes",
+                total_votes: "Total Voters",
+                total_votes_percent: "Participation",
                 total_valid_votes: "Total Valid Votes",
+                total_valid_votes_percent: "Valid Votes Percent",
+                total_invalid_votes: "Total Invalid Votes",
+                total_invalid_votes_percent: "Invalid Votes Percent",
                 explicit_invalid_votes: "Explicitly Invalid Votes",
+                explicit_invalid_votes_percent: "Explicitly Invalid Votes Percent",
                 implicit_invalid_votes: "Implicitly Invalid Votes",
+                implicit_invalid_votes_percent: "Implicitly Invalid Votes Percent",
                 blank_votes: "Blank Votes",
+                blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
-                voters: "Winning position",
+                winning_position: "Winning position",
             },
         },
         publish: {
@@ -876,6 +893,20 @@ const englishTranslation = {
             },
             email: {
                 subject: "Subject",
+            },
+        },
+        materials: {
+            createMaterialSuccess: "Support material created",
+            createMaterialError: "Error creating support material",
+            updateMaterialSuccess: "Support material updated",
+            updateMaterialError: "Error updating support material",
+            common: {
+                title: "Support Material",
+                subtitle: "Enter suppot material data.",
+            },
+            error: {
+                title: "Title is required",
+                document: "Document is required",
             },
         },
     },

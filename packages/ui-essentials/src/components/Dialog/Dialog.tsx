@@ -24,6 +24,7 @@ export interface DialogProps extends PropsWithChildren {
     ok: string
     okEnabled?: () => boolean
     variant?: "warning" | "info" | "action"
+    fullWidth?: boolean
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -35,6 +36,7 @@ const Dialog: React.FC<DialogProps> = ({
     ok,
     okEnabled,
     variant,
+    fullWidth = false,
 }) => {
     const okVariant = "info" === variant ? "primary" : "solidWarning"
     const faIcon = "info" === variant ? faInfoCircle : faExclamationTriangle
@@ -44,7 +46,12 @@ const Dialog: React.FC<DialogProps> = ({
     const clickOk = () => handleClose(true)
 
     return (
-        <MaterialDialog onClose={closeDialog} open={open} slots={{backdrop: StyledBackdrop}}>
+        <MaterialDialog
+            onClose={closeDialog}
+            open={open}
+            slots={{backdrop: StyledBackdrop}}
+            fullWidth={fullWidth}
+        >
             <DialogTitle>
                 <Icon variant={infoVariant} icon={faIcon} fontSize="24px" />
                 <Box component="span" flexGrow={2} pt="3px" fontWeight="bold">

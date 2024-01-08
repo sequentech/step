@@ -10,9 +10,17 @@ insert_permissions:
     - elegible_census
     - explicit_invalid_votes
     - implicit_invalid_votes
+    - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
+    - blank_votes_percent
+    - explicit_invalid_votes_percent
+    - implicit_invalid_votes_percent
+    - total_invalid_votes_percent
+    - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -33,9 +41,17 @@ insert_permissions:
     - elegible_census
     - explicit_invalid_votes
     - implicit_invalid_votes
+    - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
+    - blank_votes_percent
+    - explicit_invalid_votes_percent
+    - implicit_invalid_votes_percent
+    - total_invalid_votes_percent
+    - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -57,9 +73,17 @@ select_permissions:
     - elegible_census
     - explicit_invalid_votes
     - implicit_invalid_votes
+    - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
+    - blank_votes_percent
+    - explicit_invalid_votes_percent
+    - implicit_invalid_votes_percent
+    - total_invalid_votes_percent
+    - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -81,9 +105,17 @@ select_permissions:
     - elegible_census
     - explicit_invalid_votes
     - implicit_invalid_votes
+    - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
+    - blank_votes_percent
+    - explicit_invalid_votes_percent
+    - implicit_invalid_votes_percent
+    - total_invalid_votes_percent
+    - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -106,9 +138,17 @@ update_permissions:
     - elegible_census
     - explicit_invalid_votes
     - implicit_invalid_votes
+    - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
+    - blank_votes_percent
+    - explicit_invalid_votes_percent
+    - implicit_invalid_votes_percent
+    - total_invalid_votes_percent
+    - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type
@@ -130,9 +170,17 @@ update_permissions:
     - elegible_census
     - explicit_invalid_votes
     - implicit_invalid_votes
+    - total_invalid_votes
     - total_valid_votes
+    - total_votes
     - annotations
     - labels
+    - blank_votes_percent
+    - explicit_invalid_votes_percent
+    - implicit_invalid_votes_percent
+    - total_invalid_votes_percent
+    - total_valid_votes_percent
+    - total_votes_percent
     - counting_algorithm
     - name
     - voting_type

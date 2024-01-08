@@ -5,6 +5,9 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        common: {
+            goBack: "Regresar",
+        },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Papeleta",
@@ -104,7 +107,7 @@ const spanishTranslation: TranslationType = {
             downloadButton: "Descargar",
             step2Title: "2. Verifica tu papeleta",
             step2Description:
-                "<a href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
+                "<a class=\"link\" href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
             step2HelpDialog: {
                 title: "Tutorial sobre la Auditoría del Voto",
                 content:
@@ -123,6 +126,7 @@ const spanishTranslation: TranslationType = {
                     'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto. En el caso de que una elección esté cerrada y su administrador electoral haya publicado el resultado, verá un botón "Resultado electoral" que le llevará a la página pública de resultados.',
                 ok: "OK",
             },
+            noResults: "No hay elecciones por ahora.",
         },
         errors: {
             encoding: {
@@ -144,6 +148,19 @@ const spanishTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
+            },
+            page: {
+                oopsWithStatus: "¡Vaya! {{status}}",
+                oopsWithoutStatus: "¡Vaya! Error Inesperado",
+                somethingWrong: "Algo salió mal.",
+            },
+        },
+        materials: {
+            common: {
+                label: "Materiales de Soporte",
+                back: "Volver a la Lista de Votaciones",
+                close: "Cerrar",
+                preview: "Vista previa",
             },
         },
         ballotLocator: {

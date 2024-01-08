@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        common: {
+            goBack: "Go back",
+        },
         breadcrumbSteps: {
             electionList: "Election List",
             ballot: "Ballot",
@@ -102,7 +105,7 @@ const englishTranslation = {
             downloadButton: "Download",
             step2Title: "2. Verify your ballot",
             step2Description:
-                '<a href="{{linkToBallotVerifier}}" target="_blank">Access to the ballot verifier</a>, a new tab will open in your browser.',
+                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Access to the ballot verifier</a>, a new tab will open in your browser.',
             step2HelpDialog: {
                 title: "Audit ballot tutorial",
                 content:
@@ -121,6 +124,7 @@ const englishTranslation = {
                     'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
                 ok: "OK",
             },
+            noResults: "No elections for now.",
         },
         errors: {
             encoding: {
@@ -141,6 +145,19 @@ const englishTranslation = {
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+            },
+            page: {
+                oopsWithStatus: "Oops! {{status}}",
+                oopsWithoutStatus: "Oops! Unexpected Error",
+                somethingWrong: "Something went wrong.",
+            },
+        },
+        materials: {
+            common: {
+                label: "Support Materials",
+                back: "Back to Election List",
+                close: "Close",
+                preview: "Preview",
             },
         },
         ballotLocator: {

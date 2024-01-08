@@ -178,8 +178,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         dashboard: {
-            voteByDay: "Voto por día",
-            voteByChannels: "Voto por canales",
+            voteByDay: "Votos por día",
+            votersByChannels: "Votantes por canales",
         },
         electionEventScreen: {
             common: {
@@ -190,6 +190,7 @@ const spanishTranslation: TranslationType = {
                 dates: "Fechas",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
+                materials: "Materiales de Soporte",
             },
             field: {
                 name: "Nombre",
@@ -199,6 +200,9 @@ const spanishTranslation: TranslationType = {
                 endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
+                materialActivated: "Materiales de Soporte activados",
+                materialTitle: "Titulo",
+                materialSubTitle: "Subtitulo",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -210,12 +214,13 @@ const spanishTranslation: TranslationType = {
             createElectionEventSuccess: "Evento Electoral creado",
             createElectionEventError: "Error creando Evento Electoral",
             stats: {
-                elegibleVoters: "Votantes elegibles",
+                elegibleVoters: "Electores",
+                voters: "Votantes",
                 elections: "Elecciones",
                 contests: "Preguntas",
                 areas: "Áreas",
-                sentEmails: "Emails enviados",
-                sentSMS: "SMS enviados",
+                sentEmails: "Emails Enviados",
+                sentSMS: "SMS Enviados",
                 calendar: {
                     title: "Calendario",
                     scheduled: "Programado",
@@ -515,6 +520,9 @@ const spanishTranslation: TranslationType = {
                 exportFormat: "Exportar resultados de '{{item}}' en formato {{format}}",
                 allResults: "del evento electoral",
                 globalAreaResults: "de todas las áreas",
+                title: "Título",
+                subtitle: "Subtítulo",
+                kind: "Tipo de archivo",
             },
             language: {
                 es: "Español",
@@ -796,13 +804,22 @@ const spanishTranslation: TranslationType = {
                 options: "Optiones",
                 global: "Resumen de participación",
                 elegible_census: "Censo de votantes elegibles",
-                number_votes: "Número de Votos",
+                cast_votes: "Número de Votos",
+                cast_votes_percent: "Porcentajes de Votos",
+                total_votes: "Total de votantes",
+                total_votes_percent: "Participación",
                 total_valid_votes: "Total de votos válidos",
+                total_valid_votes_percent: "Porcentaje de votos válidos",
+                total_invalid_votes: "Total de votos inválidos",
+                total_invalid_votes_percent: "Porcentaje de votos inválidos",
                 explicit_invalid_votes: "Votos explícitamente inválidos",
+                explicit_invalid_votes_percent: "Porcentaje de votos explícitamente inválidos",
                 implicit_invalid_votes: "Votos implícitamente inválidos",
+                implicit_invalid_votes_percent: "Porcentaje de votos implícitamente inválidos",
                 blank_votes: "Votos en blanco",
+                blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
-                voters: "Winning position",
+                winning_position: "Winning position",
             },
         },
         publish: {
@@ -878,6 +895,20 @@ const spanishTranslation: TranslationType = {
             },
             email: {
                 subject: "Subject",
+            },
+        },
+        materials: {
+            createMaterialSuccess: "Material de soporte creado",
+            createMaterialError: "Error creando material de soporte",
+            updateMaterialSuccess: "Material de soporte actualizado",
+            updateMaterialError: "Error actualizando material de soporte",
+            common: {
+                title: "Materiales de Soporte",
+                subtitle: "Entrar datos del material de soporte.",
+            },
+            error: {
+                title: "El título es obligatorio",
+                document: "El documento es obligatorio",
             },
         },
     },

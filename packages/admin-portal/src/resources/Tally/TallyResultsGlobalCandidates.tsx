@@ -6,6 +6,7 @@ import {useGetList, useGetOne} from "react-admin"
 
 import {
     Sequent_Backend_Candidate,
+    Sequent_Backend_Election,
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
@@ -23,6 +24,8 @@ import {
     TableHead,
 } from "@mui/material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {Sequent_Backend_Candidate_Extended} from "./types"
+import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -39,20 +42,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    const [resultsData, setResultsData] = useState<
-        Array<
-            Sequent_Backend_Candidate & {
-                rowId: number
-                id: string
-                status: string
-                voters: number
-                number: number
-                turnout: number
-            }
-        >
-    >([])
+    const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
-    const {data: election} = useGetOne("sequent_backend_election", {
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
         id: electionId,
         meta: {
             tenant_id: tenantId,
@@ -61,7 +53,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         },
     })
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         pagination: {page: 1, perPage: 9999},
         filter: {
             contest_id: contestId,
@@ -90,6 +82,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     )
 
+    console.log("TallyResultsGlobalCandidates :: general", general)
+
     const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
         "sequent_backend_results_contest_candidate",
         {
@@ -112,31 +106,22 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     useEffect(() => {
         if (results && candidates) {
-            const temp:
-                | Array<
-                      Sequent_Backend_Candidate & {
-                          rowId: number
-                          id: string
-                          status: string
-                          number: number
-                          voters: number
-                          turnout: number
-                      }
-                  >
-                | undefined = candidates?.map((candidate, index) => {
-                let candidateResult = results.find((r) => r.candidate_id === candidate.id)
+            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
+                (candidate, index): Sequent_Backend_Candidate_Extended => {
+                    let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
-                return {
-                    ...candidate,
-                    rowId: index,
-                    id: candidate.id || "",
-                    name: candidate.name,
-                    status: candidate.status || "",
-                    number: candidateResult?.cast_votes || 0,
-                    voters: candidateResult?.winning_position || 0,
-                    turnout: candidateResult?.winning_position || 0,
+                    return {
+                        ...candidate,
+                        rowId: index,
+                        id: candidate.id || "",
+                        name: candidate.name,
+                        status: "",
+                        cast_votes: candidateResult?.cast_votes,
+                        cast_votes_percent: candidateResult?.cast_votes_percent,
+                        winning_position: candidateResult?.winning_position,
+                    }
                 }
-            })
+            )
 
             console.log("TallyResultsGlobalCandidates :: temp", temp)
 
@@ -153,29 +138,30 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             align: "left",
         },
         {
-            field: "method",
-            headerName: t("tally.table.number"),
+            field: "cast_votes",
+            headerName: t("tally.table.cast_votes"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || 0,
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
             align: "right",
             headerAlign: "right",
         },
         {
-            field: "number",
-            headerName: t("tally.table.voters"),
+            field: "cast_votes_percent",
+            headerName: t("tally.table.cast_votes_percent"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+            renderCell: (props: GridRenderCellParams<any, string>) =>
+                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
             align: "right",
             headerAlign: "right",
         },
         {
-            field: "turnout",
-            headerName: t("tally.table.turnout"),
+            field: "winning_position",
+            headerName: t("tally.table.winning_position"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || 0}%`,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
             align: "right",
             headerAlign: "right",
         },
@@ -187,7 +173,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 {t("tally.table.global")}
             </Typography>
 
-            {general && general?.length ? (
+            {general && general.length ? (
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableHead>
@@ -203,21 +189,21 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {t("tally.table.elegible_census")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].elegible_census ?? 0}
+                                    {general?.[0].elegible_census ?? "-"}
                                 </TableCell>
-                                <TableCell align="right">
-                                    {general?.[0].elegible_census ?? 0} %
-                                </TableCell>
+                                <TableCell align="right"></TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
-                                    {t("tally.table.number_votes")}
+                                    {t("tally.table.total_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].elegible_census ?? 0}
+                                    {general?.[0].total_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].elegible_census ?? 0} %
+                                    {isNumber(general?.[0].total_votes_percent)
+                                        ? formatPercentOne(general[0].total_votes_percent)
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -225,10 +211,25 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {t("tally.table.total_valid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].total_valid_votes ?? 0}
+                                    {general?.[0].total_valid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].total_valid_votes ?? 0} %
+                                    {isNumber(general?.[0].total_valid_votes_percent)
+                                        ? formatPercentOne(general[0].total_valid_votes_percent)
+                                        : "-"}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.total_invalid_votes")}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].total_invalid_votes ?? "-"}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {isNumber(general?.[0].total_invalid_votes_percent)
+                                        ? formatPercentOne(general[0].total_invalid_votes_percent)
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -236,10 +237,14 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {t("tally.table.explicit_invalid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].explicit_invalid_votes ?? 0}
+                                    {general?.[0].explicit_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].explicit_invalid_votes ?? 0} %
+                                    {isNumber(general?.[0].explicit_invalid_votes_percent)
+                                        ? formatPercentOne(
+                                              general[0].explicit_invalid_votes_percent
+                                          )
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -247,19 +252,27 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     {t("tally.table.implicit_invalid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].implicit_invalid_votes ?? 0}
+                                    {general?.[0].implicit_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].implicit_invalid_votes ?? 0} %
+                                    {isNumber(general?.[0].implicit_invalid_votes_percent)
+                                        ? formatPercentOne(
+                                              general[0].implicit_invalid_votes_percent
+                                          )
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
-                                <TableCell align="right">{general?.[0].blank_votes ?? 0}</TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].blank_votes ?? 0} %
+                                    {general?.[0].blank_votes ?? "-"}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {isNumber(general?.[0].blank_votes_percent)
+                                        ? formatPercentOne(general[0].blank_votes_percent)
+                                        : "-"}
                                 </TableCell>
                             </TableRow>
                         </TableBody>

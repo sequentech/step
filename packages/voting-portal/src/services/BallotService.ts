@@ -31,18 +31,18 @@ export interface IBallotService {
 export const toHashableBallot = (auditableBallot: string): string => {
     try {
         return to_hashable_ballot_js(auditableBallot)
-    } catch (e) {
-        console.log(e)
-        throw e
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
 export const hashBallot = (auditableBallot: string): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
-    } catch (e) {
-        console.log(e)
-        throw e
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
@@ -52,9 +52,9 @@ export const encryptBallotSelection = (
 ): string => {
     try {
         return encrypt_decoded_contest_js(ballotSelection, election)
-    } catch (e) {
-        console.log(e)
-        throw e
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
@@ -70,9 +70,9 @@ export const interpretContestSelection = (
 ): IDecodedVoteContest => {
     try {
         return test_contest_reencoding_js(contestSelection, election)
-    } catch (e) {
-        console.log(e)
-        throw e
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
@@ -82,9 +82,9 @@ export const getWriteInAvailableCharacters = (
 ): number => {
     try {
         return get_write_in_available_characters_js(contestSelection, election)
-    } catch (e) {
-        console.log(e)
-        throw e
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
@@ -96,7 +96,7 @@ export const decodeAuditableBallot = (
         return decodedBallot as Array<IDecodedVoteContest>
     } catch (error) {
         console.log(error)
-        return null
+        throw error
     }
 }
 

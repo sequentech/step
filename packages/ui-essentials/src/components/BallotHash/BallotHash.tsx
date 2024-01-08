@@ -25,10 +25,8 @@ const HashContainer = styled(Box)`
 `
 
 const BallotHashText = styled(Box)`
-    overflow-wrap: anywhere;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
+    word-break: break-all;
+    text-align: center;
 `
 
 export interface BallotHashProps {
