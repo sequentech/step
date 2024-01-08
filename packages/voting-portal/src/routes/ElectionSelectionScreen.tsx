@@ -79,12 +79,14 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
-    const onClickToVote = () => {
-        navigate(`../election/${electionId}/start`)
+    if (!election) {
+        throw new CustomError("Internal Error")
     }
 
-    if (!election) {
-        return null
+    const canVote = castVotes.length < (election?.num_allowed_revotes ?? 1)
+
+    const onClickToVote = () => {
+        navigate(`../election/${electionId}/start`)
     }
 
     const handleClickBallotLocator = () => {
@@ -95,6 +97,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         <SelectElection
             isActive={true}
             isOpen={true}
+            canVote={canVote}
             title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}

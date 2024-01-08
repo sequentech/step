@@ -144,6 +144,7 @@ const StyledTitle = styled(Typography)`
 export interface SelectElectionProps {
     isActive: boolean // it could be active and closed in the demo/preview
     isOpen: boolean
+    canVote: boolean
     title: string
     electionHomeUrl?: string
     hasVoted: boolean
@@ -157,6 +158,7 @@ export interface SelectElectionProps {
 const SelectElection: React.FC<SelectElectionProps> = ({
     isActive,
     isOpen,
+    canVote,
     title,
     electionHomeUrl,
     hasVoted,
@@ -167,20 +169,24 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickBallotLocator,
 }) => {
     const {t} = useTranslation()
+
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
     ) => {
         event.stopPropagation()
+
         if (!isUndefined(onClickToVote)) {
             onClickToVote()
         }
     }
+
     const handleClickElectionResults: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         event.stopPropagation()
         if (!isUndefined(onClickElectionResults)) {
             onClickElectionResults()
         }
     }
+
     const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
     ) => {
@@ -194,7 +200,11 @@ const SelectElection: React.FC<SelectElectionProps> = ({
 
     return (
         <BorderBox
-            onClick={handleClickToVote}
+            onClick={(e) => {
+                if (canVote) {
+                    handleClickToVote(e)
+                }
+            }}
             isopen={String(!!isOpen)}
             isactive={String(!!isActive)}
             role="button"
@@ -257,7 +267,14 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledButton>
                 )}
                 {isOpen ? (
-                    <StyledButton onClick={handleClickToVote}>
+                    <StyledButton
+                        disabled={!canVote}
+                        onClick={(e) => {
+                            if (canVote) {
+                                handleClickToVote(e)
+                            }
+                        }}
+                    >
                         {t("selectElection.voteButton")}
                     </StyledButton>
                 ) : (
