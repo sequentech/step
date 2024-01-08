@@ -6,7 +6,7 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, useGetOne} from "react-admin"
+import {Identifier, Notification, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
@@ -40,6 +40,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {action, contest, tallySheetId, doAction} = props
 
     const submitRef = React.useRef<HTMLButtonElement>(null)
+    const notify = useNotify()
 
     const {t} = useTranslation()
     const [page, setPage] = useState<number>(WizardSteps.Edit)
@@ -63,7 +64,14 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
-            doAction(WizardSteps.Confirm)
+            setTimeout(() => {
+                const tallySheet = localStorage.getItem("tallySheetData")
+                if (tallySheet) {
+                    doAction(WizardSteps.Confirm)
+                } else {
+                    notify(t("tallysheet.allFieldsRequired"), {type: "error"})
+                }
+            }, 400)
         } else if (page === WizardSteps.Confirm) {
             submitRef.current?.click()
             doAction(WizardSteps.List)
@@ -110,7 +118,10 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                             doSelectArea={(id: Identifier) => setAreaId(id)}
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
-                            ) => setCreatedTallySheet(tallySheet)}
+                            ) => {
+                                console.log("CTallySheet Create PREV", tallySheet)
+                                setCreatedTallySheet(tallySheet)
+                            }}
                             submitRef={submitRef}
                         />
                     </>
@@ -123,7 +134,10 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                             contest={contest}
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
-                            ) => setCreatedTallySheet(tallySheet)}
+                            ) => {
+                                console.log("CTallySheet Edit PREV", tallySheet)
+                                setCreatedTallySheet(tallySheet)
+                            }}
                             submitRef={submitRef}
                         />
                     </>

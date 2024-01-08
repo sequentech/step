@@ -21,14 +21,13 @@ import {
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
 } from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {IconButton} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
@@ -101,6 +100,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }, [reload, refresh])
 
     const createAction = () => {
+        localStorage.removeItem("tallySheetData")
         doAction(WizardSteps.Start)
     }
 

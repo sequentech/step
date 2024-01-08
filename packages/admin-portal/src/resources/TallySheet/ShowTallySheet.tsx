@@ -88,7 +88,9 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     })
 
     useEffect(() => {
+
         const tallySaved: string | null = localStorage.getItem("tallySheet")
+        
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
             if (tallySheetTemp.content) {

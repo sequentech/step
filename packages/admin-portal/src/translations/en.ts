@@ -887,6 +887,8 @@ const englishTranslation = {
         },
         tallysheet: {
             createTallySuccess: "Tally Sheet saved",
+            createTallyError: "Error saving Tally Sheet",
+            allFieldsRequired: "All fields are required",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",

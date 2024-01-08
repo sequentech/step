@@ -889,6 +889,8 @@ const spanishTranslation: TranslationType = {
         },
         tallysheet: {
             createTallySuccess: "Hoja de Recuento creada",
+            createTallyError: "Error creando Hoja de Recuento",
+            allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",

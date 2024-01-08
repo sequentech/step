@@ -77,7 +77,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     })
 
     useEffect(() => {
-        const tallySaved: string | null = localStorage.getItem("tallySheet")
+
+        const tallySaved: string | null = localStorage.getItem("tallySheetData")
+        
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
             if (tallySheetTemp.content) {
@@ -87,7 +89,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     setInvalids(invalidsTemp)
                 }
                 if (contentTemp.candidate_results) {
-                    const candidatesResultsTemp: ICandidateResultsExtended[] = []
+                    let candidatesResultsTemp: ICandidateResultsExtended[] = []
                     for (const candidate of candidates) {
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
@@ -119,23 +121,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [contest])
 
     useEffect(() => {
-        if (candidates) {
-            const candidatesTemp = []
-            for (const candidate of candidates) {
-                const candidateTemp: ICandidateResultsExtended = {
-                    candidate_id: candidate.id,
-                    name: candidate.name,
-                }
-                candidatesTemp.push(candidateTemp)
-            }
-            candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
-            if (!tallySheet) {
-                setCandidatesResults(candidatesTemp)
-            }
-        }
-    }, [candidates])
-
-    useEffect(() => {
         if (areas) {
             const areatListTemp = areas.sequent_backend_area_contest.map(
                 (item: {area: {id: string; name: string}}) => {
@@ -148,6 +133,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             setAreasList(areatListTemp)
         }
     }, [areas])
+
+
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [])
 
     const handleChange = (event: SelectChangeEvent) => {
         // setArea(event.target.value as string)
@@ -193,6 +183,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
+        console.log("CTallySheet enter onSubmit :: ")
+
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
         const candidatesResultsTemp: {[id: string]: ICandidateResults} = {}
@@ -222,13 +214,24 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             tallySheetData.id = tallySheet.id
         }
 
+        localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
+
         if (doCreatedTalySheet) {
-            localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
             doCreatedTalySheet(tallySheetData)
         }
     }
 
+    const formValidator = (values: any): any => {
+        console.log("TallySheetformValidator", values)
+        // const errors: any = {}
+        // if (!values?.area_id) {
+        //     errors.area_id = t("required")
+        // }
+        // return errors
+    }
+
     return (
+        // <SimpleForm toolbar={false} onSubmit={onSubmit} validate={formValidator}>
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
                 <PageHeaderStyles.Title>{t("tallysheet.common.title")}</PageHeaderStyles.Title>
@@ -243,6 +246,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         value={results.area_id || ""}
                         label={t("tallysheet.label.area")}
                         onChange={handleChange}
+                        required
                     >
                         {areasList.map((item) => (
                             <MenuItem key={item.id} value={item.id}>
@@ -259,6 +263,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         value={channel || ""}
                         label={t("tallysheet.label.channel")}
                         onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
+                        required
                     >
                         {votingChannels.map((item) => (
                             <MenuItem key={item.id} value={item.id}>
@@ -279,6 +284,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleTextChange}
                     size="small"
                     style={{display: "none"}}
+                    required
                 />
 
                 <TextField
@@ -288,6 +294,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleTextChange}
                     size="small"
                     type="number"
+                    required
                 />
                 <TextField
                     label={t("tallysheet.label.total_valid_votes")}
@@ -296,6 +303,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleTextChange}
                     size="small"
                     type="number"
+                    required
                 />
 
                 <Box
@@ -315,6 +323,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         onChange={handleInvalidChange}
                         size="small"
                         type="number"
+                        required
                     />
                     <TextField
                         label={t("tallysheet.label.implicit_invalid")}
@@ -323,6 +332,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         onChange={handleInvalidChange}
                         size="small"
                         type="number"
+                        required
                     />
                     <TextField
                         label={t("tallysheet.label.explicit_invalid")}
@@ -331,6 +341,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         onChange={handleInvalidChange}
                         size="small"
                         type="number"
+                        required
                     />
                 </Box>
 
@@ -341,6 +352,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleTextChange}
                     size="small"
                     type="number"
+                    required
                 />
                 <TextField
                     label={t("tallysheet.label.census")}
@@ -349,6 +361,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleTextChange}
                     size="small"
                     type="number"
+                    required
                 />
 
                 <PageHeaderStyles.Wrapper>
@@ -380,6 +393,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                             onChange={handleCandidateChange}
                             size="small"
                             type="number"
+                            required
                         />
                     </Box>
                 ))}
