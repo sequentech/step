@@ -39,6 +39,7 @@ const StyledLink = styled.a`
 
 const StyledImage = styled(Image)`
     max-height: 100%;
+    min-width: 200px;
 `
 
 type ApplicationVersion = {
@@ -96,7 +97,7 @@ export default function Header({
                             alignItems="center"
                             sx={{gap: {xs: "11px", lg: "31px"}}}
                         >
-                            <Version version={appVersion ?? {main: "7.1.0"}} />
+                            <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu />
                             {userProfile && (
                                 <div>

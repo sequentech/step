@@ -58,7 +58,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         }
     )
 
-    const {data: trustees} = useGetList("sequent_backend_trustee", {
+    const {data: trustees} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 1000},
         filter: {tenant_id: tenantId},
     })

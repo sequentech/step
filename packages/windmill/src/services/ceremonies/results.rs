@@ -8,12 +8,11 @@ use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
 use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
-use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
-use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
+use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
@@ -21,30 +20,44 @@ use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
 #[instrument(skip_all)]
 pub async fn save_results(
+    auth_headers: connection::AuthHeaders,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
     results_event_id: &str,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     for election in &results {
+        let total_voters_percent: f64 =
+            (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
         insert_results_election(
             &auth_headers,
             tenant_id,
             election_event_id,
             results_event_id,
             &election.election_id,
-            &None, // name
-            &None, // elegible_census,
-            &None, // total_valid_votes,
-            &None, // explicit_invalid_votes,
-            &None, // implicit_invalid_votes,
-            &None, // blank_votes,
+            &None,                                       // name
+            &Some(election.census as i64),               // census
+            &Some(election.total_votes as i64),          // total_voters,
+            &Some(total_voters_percent.clamp(0.0, 1.0)), // total_votes_percent,
         )
         .await?;
 
         for contest in &election.reports {
             if let Some(area_id) = &contest.area_id {
+                let total_votes_percent: f64 = (contest.contest_result.total_votes as f64)
+                    / (cmp::max(contest.contest_result.census, 1) as f64);
+                let total_valid_votes_percent: f64 = (contest.contest_result.total_valid_votes
+                    as f64)
+                    / (cmp::max(contest.contest_result.total_votes, 1) as f64);
+                let total_votes = cmp::max(contest.contest_result.total_votes, 1) as f64;
+                let total_invalid_votes_percent: f64 =
+                    (contest.contest_result.total_invalid_votes as f64) / total_votes;
+                let explicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.explicit as f64) / total_votes;
+                let implicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.implicit as f64) / total_votes;
+                let total_blank_votes_percent: f64 =
+                    (contest.contest_result.total_blank_votes as f64) / total_votes;
                 insert_results_area_contest(
                     &auth_headers,
                     tenant_id,
@@ -53,16 +66,31 @@ pub async fn save_results(
                     &contest.contest.id,
                     area_id,
                     results_event_id,
-                    None, // elegible_census
+                    Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
-                    // missing total valid votes
+                    Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.total_valid_votes as i64),
+                    Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
-                    None, // implicit_invalid_votes
-                    None, // blank_votes
+                    Some(total_invalid_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.invalid_votes.explicit as i64),
+                    Some(explicit_invalid_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.invalid_votes.implicit as i64),
+                    Some(implicit_invalid_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.total_blank_votes as i64),
+                    Some(total_blank_votes_percent.clamp(0.0, 1.0)),
                 )
                 .await?;
 
+                let votes_base: f64 = cmp::max(
+                    contest.contest_result.total_votes
+                        - contest.contest_result.total_invalid_votes
+                        - contest.contest_result.total_blank_votes,
+                    1,
+                ) as f64;
+
                 for candidate in &contest.candidate_result {
+                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     insert_results_area_contest_candidate(
                         &auth_headers,
                         tenant_id,
@@ -73,12 +101,28 @@ pub async fn save_results(
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
+                        Some(cast_votes_percent.clamp(0.0, 1.0)),
                         candidate.winning_position.map(|val| val as i64),
                         None, // points
                     )
                     .await?;
                 }
             } else {
+                let census = cmp::max(contest.contest_result.census, 1) as f64;
+                let total_votes_percent: f64 = (contest.contest_result.total_votes as f64)
+                    / (cmp::max(contest.contest_result.census, 1) as f64);
+                let total_valid_votes_percent: f64 = (contest.contest_result.total_valid_votes
+                    as f64)
+                    / (cmp::max(contest.contest_result.total_votes, 1) as f64);
+                let total_invalid_votes_percent: f64 =
+                    (contest.contest_result.total_invalid_votes as f64) / census;
+                let explicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.explicit as f64) / census;
+                let implicit_invalid_votes_percent: f64 =
+                    (contest.contest_result.invalid_votes.implicit as f64) / census;
+                let blank_votes_percent: f64 =
+                    (contest.contest_result.total_blank_votes as f64) / census;
+
                 insert_results_contest(
                     &auth_headers,
                     tenant_id,
@@ -86,19 +130,34 @@ pub async fn save_results(
                     &election.election_id,
                     &contest.contest.id,
                     results_event_id,
-                    None, // elegible_census
+                    Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
-                    // missing total valid votes
+                    Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.total_valid_votes as i64),
+                    Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
-                    None, // implicit_invalid_votes
-                    None, // blank_votes
+                    Some(total_invalid_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.invalid_votes.explicit as i64),
+                    Some(explicit_invalid_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.invalid_votes.implicit as i64),
+                    Some(implicit_invalid_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.total_blank_votes as i64),
+                    Some(blank_votes_percent.clamp(0.0, 1.0)),
                     contest.contest.voting_type.clone(),
                     contest.contest.counting_algorithm.clone(),
                     contest.contest.name.clone(),
                 )
                 .await?;
 
+                let votes_base: f64 = cmp::max(
+                    contest.contest_result.total_votes
+                        - contest.contest_result.total_invalid_votes
+                        - contest.contest_result.total_blank_votes,
+                    1,
+                ) as f64;
+
                 for candidate in &contest.candidate_result {
+                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     insert_results_contest_candidate(
                         &auth_headers,
                         tenant_id,
@@ -108,6 +167,7 @@ pub async fn save_results(
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
+                        Some(cast_votes_percent.clamp(0.0, 1.0)),
                         candidate.winning_position.map(|val| val as i64),
                         None, // points
                     )
@@ -155,6 +215,7 @@ pub async fn generate_results_id_if_necessary(
     Ok(Some(results_event_id))
 }
 
+#[instrument(skip_all)]
 pub async fn populate_results_tables(
     base_tally_path: PathBuf,
     state: State,
@@ -163,6 +224,9 @@ pub async fn populate_results_tables(
     session_ids: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
 ) -> Result<Option<String>> {
+    // get credentials
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id_opt = generate_results_id_if_necessary(
@@ -176,7 +240,14 @@ pub async fn populate_results_tables(
 
     if let Some(results_event_id) = results_event_id_opt.clone() {
         if let Ok(results) = state.get_results() {
-            save_results(results, tenant_id, election_event_id, &results_event_id).await?;
+            save_results(
+                auth_headers.clone(),
+                results,
+                tenant_id,
+                election_event_id,
+                &results_event_id,
+            )
+            .await?;
         }
         Ok(results_event_id_opt)
     } else {

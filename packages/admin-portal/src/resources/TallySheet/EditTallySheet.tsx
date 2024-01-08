@@ -77,9 +77,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     })
 
     useEffect(() => {
-
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
-        
+
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
             if (tallySheetTemp.content) {
@@ -133,7 +132,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             setAreasList(areatListTemp)
         }
     }, [areas])
-
 
     useEffect(() => {
         window.scrollTo(0, 0)

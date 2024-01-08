@@ -110,6 +110,8 @@ impl PipeInputs {
             ballot_styles: election.ballot_styles,
             contest_list: configs,
             path: path.to_path_buf(),
+            census: election.census,
+            total_votes: election.total_votes,
         })
     }
 
@@ -182,6 +184,8 @@ pub struct InputElectionConfig {
     pub ballot_styles: Vec<BallotStyle>,
     pub contest_list: Vec<InputContestConfig>,
     pub path: PathBuf,
+    pub census: u64,
+    pub total_votes: u64,
 }
 
 #[derive(Debug)]
@@ -207,6 +211,8 @@ pub struct ElectionConfig {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
+    pub census: u64,
+    pub total_votes: u64,
     pub ballot_styles: Vec<BallotStyle>,
 }
 

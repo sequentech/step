@@ -52,6 +52,9 @@ import {CreateContestData} from "./resources/Contest/CreateContestData"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
+import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/CommunicationTemplateEdit"
+import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
+import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {Logs} from "./screens/Logs"
 import {ApolloContext} from "./providers/ApolloContextProvider"
 
@@ -72,7 +75,7 @@ const App: React.FC<AppProps> = () => {
             }
             const buildGqlQueryOverrides = {}
             const dataProviderHasura = await buildHasuraProvider(options, buildGqlQueryOverrides)
-            setDataProvider(() => dataProviderHasura)
+            setDataProvider(() => dataProviderHasura as any)
         }
         buildDataProvider()
     }, [])
@@ -188,6 +191,14 @@ const App: React.FC<AppProps> = () => {
                 list={ListTrustee}
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
+            />
+
+            <Resource
+                name="sequent_backend_communication_template"
+                edit={CommunicationTemplateEdit}
+                list={CommunicationTemplateList}
+                create={CommunicationTemplateCreate}
+                options={{label: "Communication Template"}}
             />
             <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
         </Admin>

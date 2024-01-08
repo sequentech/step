@@ -7,12 +7,7 @@ import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
-import {
-    faTimesCircle,
-    faInfoCircle,
-    faExclamationTriangle,
-    faBullseye,
-} from "@fortawesome/free-solid-svg-icons"
+import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
 import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"

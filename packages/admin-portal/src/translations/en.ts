@@ -176,8 +176,8 @@ const englishTranslation = {
             },
         },
         dashboard: {
-            voteByDay: "Vote by day",
-            voteByChannels: "Vote by channels",
+            voteByDay: "Votes by day",
+            votersByChannels: "Voters by channel",
         },
         electionEventScreen: {
             common: {
@@ -212,7 +212,8 @@ const englishTranslation = {
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
             stats: {
-                elegibleVoters: "Elegible voters",
+                elegibleVoters: "Elegible Voters",
+                voters: "Actual Voters",
                 elections: "Elections",
                 contests: "Contests",
                 areas: "Areas",
@@ -801,13 +802,22 @@ const englishTranslation = {
                 options: "Options",
                 global: "Participation Summary",
                 elegible_census: "Elegible Voters",
-                number_votes: "Number of Votes",
+                cast_votes: "Number of Votes",
+                cast_votes_percent: "Percent of Votes",
+                total_votes: "Total Voters",
+                total_votes_percent: "Participation",
                 total_valid_votes: "Total Valid Votes",
+                total_valid_votes_percent: "Valid Votes Percent",
+                total_invalid_votes: "Total Invalid Votes",
+                total_invalid_votes_percent: "Invalid Votes Percent",
                 explicit_invalid_votes: "Explicitly Invalid Votes",
+                explicit_invalid_votes_percent: "Explicitly Invalid Votes Percent",
                 implicit_invalid_votes: "Implicitly Invalid Votes",
+                implicit_invalid_votes_percent: "Implicitly Invalid Votes Percent",
                 blank_votes: "Blank Votes",
+                blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
-                voters: "Winning position",
+                winning_position: "Winning position",
             },
         },
         publish: {
@@ -948,6 +958,47 @@ const englishTranslation = {
             message: {
                 publishError: "Error publishing tally sheet",
                 publishSuccess: "Tally sheet published",
+            },
+        },
+        communicationTemplate: {
+            title: "Communication Templates",
+            subtitle: "List of communication templates",
+            empty: {
+                title: "No Communication Template Yet",
+                subtitle: "Do you want to create one?",
+            },
+            action: {
+                createOne: "Create Communication Template",
+            },
+            create: {
+                title: "Create a Communication Template",
+                success: "Communication Template created",
+                error: "Error creating Communication Template",
+            },
+            update: {
+                success: "Communication Template updated",
+                error: "Error updating Communication Template",
+            },
+            edit: {
+                title: "Edit a Communication Template",
+            },
+            form: {
+                smsMessage: "SMS Message",
+                name: "Template Name",
+                alias: "Template Alias",
+                communicationType: "Communication Type",
+                communicationMethod: "Communication Method",
+            },
+            type: {
+                credentials: "Credentials",
+                ballot_receipt: "Ballot Receipt",
+                participation_report: "Participation Report",
+                electoral_results: "Electoral Results",
+                otp: "OTP",
+            },
+            method: {
+                email: "Email",
+                sms: "SMS",
             },
         },
         materials: {

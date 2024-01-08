@@ -1,102 +1,40 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::area::get_election_event_areas;
 use crate::hasura::election_event::get_election_event;
-use crate::hasura::tally_session::{get_tally_session_highest_batch, insert_tally_session};
-use crate::hasura::tally_session_contest::insert_tally_session_contest;
-use crate::hasura::trustee::get_trustees_by_id;
+use crate::services::area::get_elections_by_area;
 use crate::services::celery_app::get_celery_app;
-use crate::services::election_event_statistics::{
-    get_election_event_statistics, update_election_event_statistics,
-};
-use crate::services::users::list_users;
-use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
+use crate::services::election_event_statistics::update_election_event_statistics;
+use crate::services::election_statistics::update_election_statistics;
+use crate::services::users::{list_users, ListUsersFilter};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
 
-use crate::services::database::{get_keycloak_pool, PgConfig};
-use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::ElectionEventStatistics;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use deadpool_postgres::{Client as DbClient, Transaction};
 
 use anyhow::{anyhow, Context};
-use aws_config::{meta::region::RegionProviderChain, Region};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
-use aws_sdk_sesv2::{Client as AwsSesClient, Error as AwsSesError};
-use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient, Error as AwsSnsError};
-use lettre::message::{header::ContentType, MultiPart, SinglePart};
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
-
-use board_messages::braid::newtypes::BatchNumber;
+use aws_sdk_sesv2::Client as AwsSesClient;
+use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
-use sequent_core::services::{keycloak, pdf, reports};
-use sequent_core::types::ceremonies::*;
-use sequent_core::types::keycloak::User;
+use lettre::message::MultiPart;
+use lettre::Message;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::{keycloak, reports};
+use sequent_core::types::communications::{
+    AudienceSelection, CommunicationMethod, CommunicationType, EmailConfig, SendCommunicationBody,
+    SmsConfig,
+};
+use sequent_core::types::keycloak::{User, UserArea};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-pub enum AudienceSelection {
-    #[strum(serialize = "ALL_USERS")]
-    ALL_USERS,
-    #[strum(serialize = "NOT_VOTED")]
-    NOT_VOTED,
-    #[strum(serialize = "VOTED")]
-    VOTED,
-    #[strum(serialize = "SELECTED")]
-    SELECTED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-enum CommunicationType {
-    #[strum(serialize = "CREDENTIALS")]
-    CREDENTIALS,
-    #[strum(serialize = "RECEIPT")]
-    RECEIPT,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-enum CommunicationMethod {
-    #[strum(serialize = "EMAIL")]
-    EMAIL,
-    #[strum(serialize = "SMS")]
-    SMS,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct EmailConfig {
-    subject: String,
-    plaintext_body: String,
-    html_body: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SmsConfig {
-    message: String,
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub struct SendCommunicationBody {
-    audience_selection: AudienceSelection,
-    audience_voter_ids: Option<Vec<String>>,
-    communication_type: CommunicationType,
-    communication_method: CommunicationMethod,
-    schedule_now: bool,
-    schedule_date: Option<String>,
-    email: Option<EmailConfig>,
-    sms: Option<SmsConfig>,
-}
 
 #[instrument(err)]
 fn get_variables(
@@ -367,6 +305,112 @@ async fn send_communication_email(
     Ok(())
 }
 
+#[derive(Default, Debug)]
+struct MetricsUnit {
+    num_emails_sent: i64,
+    num_sms_sent: i64,
+}
+
+#[derive(Default, Debug)]
+struct Metrics {
+    election_event: MetricsUnit,
+    metrics_by_election_id: HashMap<String, MetricsUnit>,
+}
+
+fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &CommunicationMethod) {
+    match communication_method {
+        &CommunicationMethod::EMAIL => {
+            metrics_unit.num_emails_sent += 1;
+        }
+        &CommunicationMethod::SMS => {
+            metrics_unit.num_sms_sent += 1;
+        }
+    };
+}
+
+fn update_metrics(
+    metrics: &mut Metrics,
+    elections_by_area: &HashMap<String, Vec<String>>,
+    user: &User,
+    communication_method: &CommunicationMethod,
+    success: bool,
+) {
+    // if the op was not successful, then do not update
+    if !success {
+        return;
+    }
+    update_metrics_unit(&mut metrics.election_event, communication_method);
+    let Some(UserArea {
+        id: Some(ref area_id),
+        ..
+    }) = user.area
+    else {
+        // voter has no area associated, so no need to update metrics related to
+        // the area
+        return;
+    };
+    let Some(election_ids) = elections_by_area.get(area_id) else {
+        // area not found in list. strange! but we continue
+        event!(
+            Level::INFO,
+            "Area id={area_id} not found in elections_by_area, strange"
+        );
+        return;
+    };
+    election_ids.iter().for_each(|election_id| {
+        metrics
+            .metrics_by_election_id
+            .entry(election_id.clone())
+            .and_modify(|metrics_unit| update_metrics_unit(metrics_unit, communication_method))
+            .or_insert_with(|| {
+                let mut metrics_unit = Default::default();
+                update_metrics_unit(&mut metrics_unit, communication_method);
+                metrics_unit
+            });
+    });
+}
+
+async fn update_stats(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &String,
+    election_event_id: &Option<String>,
+    metrics: &Metrics,
+) -> Result<()> {
+    let &Some(ref election_event_id) = election_event_id else {
+        return Ok(());
+    };
+    let totals = metrics.election_event.num_emails_sent + metrics.election_event.num_sms_sent;
+    if totals > 0 {
+        event!(Level::INFO, "updating election event statistics");
+
+        update_election_event_statistics(
+            hasura_transaction,
+            tenant_id.as_str(),
+            election_event_id.as_str(),
+            /* inc_emails_sent */ metrics.election_event.num_emails_sent,
+            /* inc_sms_sent */ metrics.election_event.num_sms_sent,
+        )
+        .await
+        .with_context(|| "can't updated election event statistics")?;
+    }
+    for (election_id, election_metrics) in metrics.metrics_by_election_id.iter() {
+        let totals = election_metrics.num_emails_sent + election_metrics.num_sms_sent;
+        if totals > 0 {
+            update_election_statistics(
+                hasura_transaction,
+                tenant_id.as_str(),
+                election_event_id.as_str(),
+                election_id.as_str(),
+                /* inc_emails_sent */ metrics.election_event.num_emails_sent,
+                /* inc_sms_sent */ metrics.election_event.num_sms_sent,
+            )
+            .await
+            .with_context(|| "can't updated election event statistics")?;
+        }
+    }
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -377,7 +421,6 @@ pub async fn send_communication(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
-    let client = KeycloakAdminClient::new().await?;
     let realm = match election_event_id {
         Some(ref election_event_id) => get_event_realm(&tenant_id, &election_event_id),
         None => get_tenant_realm(&tenant_id),
@@ -431,42 +474,76 @@ pub async fn send_communication(
         .await
         .with_context(|| "can't set transaction isolation level")?;
     event!(Level::INFO, "after isolation");
-    while true {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error loading hasura db client")?;
+
+    let elections_by_area = match election_event_id.clone() {
+        None => HashMap::new(),
+        Some(ref election_event_id) => {
+            let hasura_transaction = hasura_db_client
+                .transaction()
+                .await
+                .with_context(|| "Error creating a transaction")?;
+            get_elections_by_area(
+                &hasura_transaction,
+                tenant_id.as_str(),
+                election_event_id.as_str(),
+            )
+            .await
+            .with_context(|| "Error listing elections by area")?
+        }
+    };
+
+    loop {
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error creating a transaction")?;
         let (users, total_count) = list_users(
-            auth_headers.clone(),
+            &hasura_transaction,
             &keycloak_transaction,
-            &client,
-            tenant_id.clone(),
-            election_event_id.clone(),
-            /*election_id */ None,
-            &realm,
-            /* search */ None,
-            /* first_name */ None,
-            /* last_name */ None,
-            /* username */ None,
-            /* email */ None,
-            /* limit */ Some(batch_size),
-            /* offset */ Some(processed),
-            /* user_ids */ user_ids.clone(),
+            ListUsersFilter {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                area_id: None,
+                realm: realm.clone(),
+                search: None,
+                first_name: None,
+                last_name: None,
+                username: None,
+                email: None,
+                limit: Some(batch_size),
+                offset: Some(processed),
+                user_ids: user_ids.clone(),
+            },
         )
         .await?;
         event!(Level::INFO, "after list_users");
 
         let email_sender = EmailSender::new().await?;
         let sms_sender = SmsSender::new().await?;
-        let mut num_emails_sent = 0;
-        let mut num_sms_sent = 0;
+        let mut metrics = Metrics {
+            election_event: MetricsUnit {
+                num_emails_sent: 0,
+                num_sms_sent: 0,
+            },
+            metrics_by_election_id: Default::default(),
+        };
 
         for user in users.iter() {
             event!(
                 Level::INFO,
-                "Sending communication to user with id={:?} and email={:?}",
+                "Sending communication to user with id={id:?} and email={email:?}",
                 id = user.id,
                 email = user.email,
             );
             let variables: Map<String, Value> =
                 get_variables(user, election_event.clone(), tenant_id.clone())?;
-            match body.communication_method {
+            let success = match body.communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(
                         /* receiver */ &user.email,
@@ -477,8 +554,9 @@ pub async fn send_communication(
                     .await;
                     if let Err(error) = sending_result {
                         event!(Level::ERROR, "error sending email: {error:?}, continuing..");
+                        Err(())
                     } else {
-                        num_emails_sent += 1;
+                        Ok(())
                     }
                 }
                 CommunicationMethod::SMS => {
@@ -491,48 +569,39 @@ pub async fn send_communication(
                     .await;
                     if let Err(error) = sending_result {
                         event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                        Err(())
                     } else {
-                        num_sms_sent += 1;
+                        Ok(())
                     }
                 }
             };
+            update_metrics(
+                &mut metrics,
+                &elections_by_area,
+                &user,
+                /* communication_method */ &body.communication_method,
+                /* success */ success.is_ok(),
+            );
         }
 
         processed += TryInto::<i32>::try_into(users.len()).map_err(|err| anyhow!("{err}"))?;
 
         // update stats
-        if let Some(ref election_event_id) = election_event_id {
-            let election_event_response = get_election_event(
-                auth_headers.clone(),
-                tenant_id.clone(),
-                election_event_id.clone(),
-            )
+        update_stats(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &metrics,
+        )
+        .await
+        .with_context(|| "Error updating stats")?;
+
+        hasura_transaction
+            .commit()
             .await
-            .with_context(|| "can't find election event")?;
+            .with_context(|| "Error committing update stats transaction")?;
 
-            let election_event = &election_event_response
-                .data
-                .with_context(|| "can't find election event")?
-                .sequent_backend_election_event[0];
-
-            let mut statistics = get_election_event_statistics(election_event.statistics.clone())
-                .unwrap_or(Default::default());
-            event!(Level::INFO, "statistics= {statistics:?}");
-
-            statistics.num_emails_sent += num_emails_sent;
-            statistics.num_sms_sent += num_sms_sent;
-            event!(Level::INFO, "updated_statistics = {statistics:?}");
-
-            update_election_event_statistics(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                statistics,
-            )
-            .await
-            .with_context(|| "can't updated election event statistics")?;
-        }
-
-        if (processed >= total_count) {
+        if processed >= total_count {
             break;
         }
     }

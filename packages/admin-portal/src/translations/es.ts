@@ -178,8 +178,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         dashboard: {
-            voteByDay: "Voto por día",
-            voteByChannels: "Voto por canales",
+            voteByDay: "Votos por día",
+            votersByChannels: "Votantes por canales",
         },
         electionEventScreen: {
             common: {
@@ -214,12 +214,13 @@ const spanishTranslation: TranslationType = {
             createElectionEventSuccess: "Evento Electoral creado",
             createElectionEventError: "Error creando Evento Electoral",
             stats: {
-                elegibleVoters: "Votantes elegibles",
+                elegibleVoters: "Electores",
+                voters: "Votantes",
                 elections: "Elecciones",
                 contests: "Preguntas",
                 areas: "Áreas",
-                sentEmails: "Emails enviados",
-                sentSMS: "SMS enviados",
+                sentEmails: "Emails Enviados",
+                sentSMS: "SMS Enviados",
                 calendar: {
                     title: "Calendario",
                     scheduled: "Programado",
@@ -803,13 +804,22 @@ const spanishTranslation: TranslationType = {
                 options: "Optiones",
                 global: "Resumen de participación",
                 elegible_census: "Censo de votantes elegibles",
-                number_votes: "Número de Votos",
+                cast_votes: "Número de Votos",
+                cast_votes_percent: "Porcentajes de Votos",
+                total_votes: "Total de votantes",
+                total_votes_percent: "Participación",
                 total_valid_votes: "Total de votos válidos",
+                total_valid_votes_percent: "Porcentaje de votos válidos",
+                total_invalid_votes: "Total de votos inválidos",
+                total_invalid_votes_percent: "Porcentaje de votos inválidos",
                 explicit_invalid_votes: "Votos explícitamente inválidos",
+                explicit_invalid_votes_percent: "Porcentaje de votos explícitamente inválidos",
                 implicit_invalid_votes: "Votos implícitamente inválidos",
+                implicit_invalid_votes_percent: "Porcentaje de votos implícitamente inválidos",
                 blank_votes: "Votos en blanco",
+                blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
-                voters: "Winning position",
+                winning_position: "Winning position",
             },
         },
         publish: {
@@ -950,6 +960,48 @@ const spanishTranslation: TranslationType = {
             message: {
                 publishError: "Error publicando la Hoja de Recuento",
                 publishSuccess: "Hoja de Recuento publicada",
+            },
+        },
+
+        communicationTemplate: {
+            title: "Plantillas de Comunicación",
+            subtitle: "Listado de plantillas de comunicación",
+            empty: {
+                title: "No hay plantillas de comunicación",
+                subtitle: "¿Quieres crear una nueva?",
+            },
+            action: {
+                createOne: "Crear Plantilla de Comunicación",
+            },
+            create: {
+                title: "Crear una Plantilla de Comunicación",
+                success: "Plantilla de Comunicación creada",
+                error: "Error creando plantilla de comunicación",
+            },
+            update: {
+                success: "Plantilla de Comunicación actualizada",
+                error: "Error actualizando plantilla de comunicación",
+            },
+            edit: {
+                title: "Editar una Plantilla de Comunición",
+            },
+            form: {
+                smsMessage: "Mensaje SMS",
+                name: "Nombre de la Plantilla",
+                alias: "Alias de la Plantilla",
+                communicationType: "Tipo de Comunicación",
+                communicationMethod: "Método de Comunicación",
+            },
+            type: {
+                credentials: "Credenciales",
+                ballot_receipt: "Recibo de Votación",
+                participation_report: "Informe de Participación",
+                electoral_results: "Resultados Electorales",
+                otp: "OTP",
+            },
+            method: {
+                email: "Email",
+                sms: "SMS",
             },
         },
         materials: {
