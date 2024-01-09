@@ -207,6 +207,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "4134de6a-f322-43ed-b424-f8419fda98a1",
+      "name" : "document-download",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "1f8a329d-0ec6-484c-b06c-621e42b33fe1",
       "name" : "user-permission-read",
       "description" : "",
@@ -798,7 +806,7 @@
     "name" : "admin",
     "path" : "/admin",
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "election-type-create", "publish-read", "tally-sheet-view", "tally-sheet-create", "tally-sheet-publish", "tally-sheet-delete" ],
+    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "document-upload", "document-download", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "election-type-create", "publish-read", "tally-sheet-view", "tally-sheet-create", "tally-sheet-publish", "tally-sheet-delete" ],
     "clientRoles" : { },
     "subGroups" : [ ]
   }, {
