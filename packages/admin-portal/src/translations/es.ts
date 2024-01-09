@@ -485,6 +485,8 @@ const spanishTranslation: TranslationType = {
                 "publish-write": "Edit Publish",
                 "logs-read": "Read Logs",
                 "keys-read": "Read Keys",
+                "document-upload": "Upload Documents",
+                "document-download": "Download Documents",
             },
         },
         common: {
