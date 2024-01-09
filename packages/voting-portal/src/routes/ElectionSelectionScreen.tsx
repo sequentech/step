@@ -15,6 +15,8 @@ import {
     stringToHtml,
     theme,
     translateElection,
+    EVotingStatus,
+    IElectionEventStatus,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
@@ -262,11 +264,21 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            setIsMaterialsActivated(
-                dataElectionEvent?.sequent_backend_election_event?.[0]?.presentation?.materials
-                    ?.activated || false
-            )
+            const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+
+            setIsMaterialsActivated(record?.presentation?.materials?.activated || false)
         }
+    }, [dataElectionEvent])
+
+    useEffect(() => {
+        const record = dataElectionEvent?.sequent_backend_election_event?.[0] ?? null
+
+        if (!record?.status) {
+            return
+        }
+
+        const status = record.status as IElectionEventStatus
+        console.log("LS -> src/routes/ElectionSelectionScreen.tsx:278 -> status: ", status)
     }, [dataElectionEvent])
 
     useEffect(() => {
