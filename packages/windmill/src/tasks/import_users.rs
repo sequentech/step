@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::hasura::election_event::get_election_event;
 use crate::services::celery_app::get_celery_app;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
-use crate::hasura::election_event::get_election_event;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use deadpool_postgres::{Client as DbClient, Transaction};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use serde::{Deserialize, Serialize};
@@ -29,9 +29,7 @@ pub struct ImportUsersBody {
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn import_users(
-    body: ImportUsersBody,
-) -> Result<()> {
+pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let _election_event = match body.election_event_id.clone() {
         None => None,
@@ -78,7 +76,7 @@ pub async fn import_users(
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
-    
+
     // TODO: bad-ass insert here
     Ok(())
 }

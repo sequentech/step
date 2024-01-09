@@ -16,12 +16,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
+use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::list_users;
 use windmill::services::users::ListUsersFilter;
-use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::import_users;
-
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
@@ -388,15 +387,10 @@ pub async fn import_users_f(
     let celery_app = get_celery_app().await;
     // always set an id;
     let task = celery_app
-        .send_task(import_users::import_users::new(
-            input,
-        ))
+        .send_task(import_users::import_users::new(input))
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    info!(
-        "Sent INSERT_ELECTION_EVENT task {}",
-        task.task_id
-    );
+    info!("Sent INSERT_ELECTION_EVENT task {}", task.task_id);
 
     Ok(Json(Default::default()))
 }
