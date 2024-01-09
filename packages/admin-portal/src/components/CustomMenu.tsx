@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
-import {Menu, useSidebarState} from "react-admin"
+import React, { useEffect } from "react"
+import {Menu, Sidebar, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box} from "@mui/material"
@@ -18,6 +18,8 @@ import ChecklistIcon from "@mui/icons-material/Checklist"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
+    height: "unset";
+    min-height: "unset";
 
     &.RaMenuItemLink-active,
     .MuiIconButton-root {
@@ -28,7 +30,7 @@ const StyledItem = styled(Menu.Item)`
 const StyledMenu = styled(Menu)`
     background-color: ${adminTheme.palette.white};
     color: ${adminTheme.palette.brandColor};
-    margin-top: 0;
+    margin-top: 0px;
     margin-right: 4px;
     box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
