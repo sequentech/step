@@ -1,27 +1,20 @@
-import * as React from 'react';
-import { styled } from '@mui/material/styles';
-import { ReactElement } from 'react';
-import PropTypes from 'prop-types';
-import {
-    Drawer,
-    DrawerProps,
-    useMediaQuery,
-    Theme,
-    useScrollTrigger,
-} from '@mui/material';
-import lodashGet from 'lodash/get';
-import { useSidebarState } from 'react-admin';
-
+import * as React from "react"
+import {styled} from "@mui/material/styles"
+import {ReactElement} from "react"
+import PropTypes from "prop-types"
+import {Drawer, DrawerProps, useMediaQuery, Theme, useScrollTrigger} from "@mui/material"
+import lodashGet from "lodash/get"
+import {useSidebarState} from "react-admin"
 
 export const CustomSidebar = (props: SidebarProps) => {
-    const { appBarAlwaysOn, children, closedSize, size, ...rest } = props;
+    const {appBarAlwaysOn, children, closedSize, size, ...rest} = props
     // const isXSmall = useMediaQuery<Theme>(theme =>
     //     theme.breakpoints.down('sm')
     // );
-    const [open, setOpen] = useSidebarState();
-    const trigger = useScrollTrigger();
+    const [open, setOpen] = useSidebarState()
+    const trigger = useScrollTrigger()
 
-    const toggleSidebar = () => setOpen(!open);
+    const toggleSidebar = () => setOpen(!open)
 
     return (
         <StyledDrawer
@@ -29,25 +22,23 @@ export const CustomSidebar = (props: SidebarProps) => {
             open={open}
             onClose={toggleSidebar}
             classes={SidebarClasses}
-            className={
-                trigger && !appBarAlwaysOn ? SidebarClasses.appBarCollapsed : ''
-            }
+            className={trigger && !appBarAlwaysOn ? SidebarClasses.appBarCollapsed : ""}
             {...rest}
         >
             {/* <div className={SidebarClasses.fixed}>{children}</div> */}
             {children}
         </StyledDrawer>
-    );
-};
-
-export interface SidebarProps extends DrawerProps {
-    appBarAlwaysOn?: boolean;
-    children: ReactElement;
-    closedSize?: number;
-    size?: number;
+    )
 }
 
-const PREFIX = 'RaSidebar';
+export interface SidebarProps extends DrawerProps {
+    appBarAlwaysOn?: boolean
+    children: ReactElement
+    closedSize?: number
+    size?: number
+}
+
+const PREFIX = "RaSidebar"
 
 export const SidebarClasses = {
     docked: `${PREFIX}-docked`,
@@ -63,17 +54,17 @@ export const SidebarClasses = {
     modal: `${PREFIX}-modal`,
     fixed: `${PREFIX}-fixed`,
     appBarCollapsed: `${PREFIX}-appBarCollapsed`,
-};
+}
 
 const StyledDrawer = styled(Drawer, {
     name: PREFIX,
-    slot: 'Root',
+    slot: "Root",
     overridesResolver: (props, styles) => styles.root,
     shouldForwardProp: () => true,
-})(({ open, theme }) => ({
-    height: 'calc(100vh - 3em)',
+})(({open, theme}) => ({
+    height: "calc(100vh - 3em)",
     marginTop: 0,
-    transition: theme.transitions.create('margin', {
+    transition: theme.transitions.create("margin", {
         easing: theme.transitions.easing.easeOut,
         duration: theme.transitions.duration.enteringScreen,
     }),
@@ -82,10 +73,10 @@ const StyledDrawer = styled(Drawer, {
         // because otherwise, the appFrame content without margin may revert the scrollTrigger,
         // leading to a visual jiggle
         marginTop: theme.spacing(-6),
-        [theme.breakpoints.down('sm')]: {
+        [theme.breakpoints.down("sm")]: {
             marginTop: theme.spacing(-7),
         },
-        transition: theme.transitions.create('margin', {
+        transition: theme.transitions.create("margin", {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
         }),
@@ -103,40 +94,40 @@ const StyledDrawer = styled(Drawer, {
     [`& .${SidebarClasses.modal}`]: {},
 
     [`& .${SidebarClasses.fixed}`]: {
-        position: 'fixed',
+        "position": "fixed",
         // height: 'calc(100vh - 3em)',
-        overflowX: 'hidden',
+        "overflowX": "hidden",
         // hide scrollbar
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-        '&::-webkit-scrollbar': {
-            display: 'none',
+        "scrollbarWidth": "none",
+        "msOverflowStyle": "none",
+        "&::-webkit-scrollbar": {
+            display: "none",
         },
     },
 
     [`& .MuiPaper-root`]: {
-        position: 'relative',
+        position: "relative",
         width: open
-            ? lodashGet(theme, 'sidebar.width', DRAWER_WIDTH)
-            : lodashGet(theme, 'sidebar.closedWidth', CLOSED_DRAWER_WIDTH),
-        transition: theme.transitions.create('width', {
+            ? lodashGet(theme, "sidebar.width", DRAWER_WIDTH)
+            : lodashGet(theme, "sidebar.closedWidth", CLOSED_DRAWER_WIDTH),
+        transition: theme.transitions.create("width", {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
         }),
-        backgroundColor: 'transparent',
-        borderRight: 'none',
-        [theme.breakpoints.only('xs')]: {
+        backgroundColor: "transparent",
+        borderRight: "none",
+        [theme.breakpoints.only("xs")]: {
             marginTop: 0,
             // height: '100vh',
-            position: 'inherit',
+            position: "inherit",
             backgroundColor: theme.palette.background.default,
         },
-        [theme.breakpoints.up('md')]: {
-            border: 'none',
+        [theme.breakpoints.up("md")]: {
+            border: "none",
         },
-        zIndex: 'inherit',
+        zIndex: "inherit",
     },
-}));
+}))
 
-export const DRAWER_WIDTH = 240;
-export const CLOSED_DRAWER_WIDTH = 55;
+export const DRAWER_WIDTH = 240
+export const CLOSED_DRAWER_WIDTH = 55
