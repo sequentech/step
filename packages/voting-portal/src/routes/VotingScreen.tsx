@@ -24,6 +24,7 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
+    resetBallotSelection,
     selectBallotSelectionByElectionId,
     setBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
@@ -155,6 +156,13 @@ const VotingScreen: React.FC = () => {
                     setBallotSelection({
                         ballotStyle,
                         ballotSelection: decodedSelectionState,
+                    })
+                )
+
+                dispatch(
+                    resetBallotSelection({
+                        ballotStyle,
+                        force: true,
                     })
                 )
             }
