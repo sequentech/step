@@ -36,7 +36,7 @@ pub async fn fetch_document(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::DOCUMENT_UPLOAD],
+        vec![Permissions::DOCUMENT_DOWNLOAD],
     )?;
     let input = body.into_inner();
     let url = documents::fetch_document(
