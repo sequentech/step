@@ -51,6 +51,11 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {CustomError} from "./ErrorPage"
+import {
+    selectElectionEventById,
+    setElectionEvent,
+} from "../store/electionEvents/electionEventsSlice"
+import {TenantEventType} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -76,16 +81,21 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
-    const election = useAppSelector(selectElectionById(electionId))
-    const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()
+
+    const {eventId} = useParams<TenantEventType>()
+    const election = useAppSelector(selectElectionById(electionId))
+    const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     if (!election) {
         throw new CustomError("Internal Error")
     }
 
-    const canVote = castVotes.length < (election?.num_allowed_revotes ?? 1)
+    const eventStatus = electionEvent?.status as IElectionEventStatus | null
+    const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
+    const canVote = castVotes.length < (election?.num_allowed_revotes ?? 1) && isVotingOpen
 
     const onClickToVote = () => {
         navigate(`../election/${electionId}/start`)
@@ -265,21 +275,10 @@ export const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
             const record = dataElectionEvent?.sequent_backend_election_event?.[0]
-
+            dispatch(setElectionEvent(record))
             setIsMaterialsActivated(record?.presentation?.materials?.activated || false)
         }
-    }, [dataElectionEvent])
-
-    useEffect(() => {
-        const record = dataElectionEvent?.sequent_backend_election_event?.[0] ?? null
-
-        if (!record?.status) {
-            return
-        }
-
-        const status = record.status as IElectionEventStatus
-        console.log("LS -> src/routes/ElectionSelectionScreen.tsx:278 -> status: ", status)
-    }, [dataElectionEvent])
+    }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
         if (!castVotes?.sequent_backend_cast_vote) {
