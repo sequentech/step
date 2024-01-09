@@ -21,3 +21,10 @@ export interface ISendCommunicationBody {
     email?: any
     sms?: any
 }
+
+export interface IRECEIPTS {
+    [key: string]: {
+        allowed?: boolean
+        template?: string | null
+    }
+}

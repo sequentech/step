@@ -216,6 +216,20 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.i18n.en.alias = temp.alias
             temp.presentation.i18n.en.description = temp.description
 
+            // receipts
+            const template: {[key:string]: string | null} = {}
+            const allowed: {[key: string]: boolean} = {}
+
+            if (temp.receipts) {
+                for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
+                    const key = Object.keys(ICommunicationMethod)[value]
+                    allowed[key] = temp.receipts[key].allowed
+                    template[key] = temp.receipts[key].template
+                }
+                temp.allowed = allowed
+                temp.template = template
+            }
+
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
@@ -508,17 +522,17 @@ export const ElectionDataForm: React.FC = () => {
                                             key={choice.id}
                                         >
                                             <BooleanInput
-                                                source={`allowed.${choice.name}`}
+                                                source={`allowed.${choice.id}`}
                                                 label={choice.name}
                                                 defaultValue={true}
                                             />
                                             <SelectInput
-                                                source={`template.${choice.name}`}
+                                                source={`template.${choice.id}`}
+                                                label={choice.name}
                                                 choices={recepitsList
                                                     .filter(
                                                         (item) =>
-                                                            item.communication_method ===
-                                                            choice.id
+                                                            item.communication_method === choice.id
                                                     )
                                                     .map((type) => ({
                                                         id: type.id,
