@@ -47,6 +47,7 @@ async fn rocket() -> _ {
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
+                //routes::users::import_users,
                 routes::users::delete_user,
                 routes::users::get_users,
                 routes::users::get_user,
