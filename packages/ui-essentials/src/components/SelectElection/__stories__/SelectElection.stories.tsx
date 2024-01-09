@@ -42,6 +42,7 @@ export const OpenVoted: Story = {
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: true,
         openDate: "6 Aug, 13:22",
+        canVote: true,
     },
     parameters: {
         backgrounds: {
@@ -62,6 +63,7 @@ export const OnHover: Story = {
         hasVoted: true,
         openDate: "6 Aug, 13:22",
         className: "hover",
+        canVote: true,
     },
     parameters: {
         pseudo: {
@@ -84,6 +86,7 @@ export const OnActive: Story = {
         hasVoted: true,
         openDate: "6 Aug, 13:22",
         className: "active",
+        canVote: true,
     },
     parameters: {
         pseudo: {
@@ -106,6 +109,7 @@ export const OnFocus: Story = {
         hasVoted: true,
         openDate: "6 Aug, 13:22",
         className: "focus",
+        canVote: true,
     },
     parameters: {
         pseudo: {
@@ -127,6 +131,7 @@ export const ClosedNotVoted: Story = {
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: false,
         openDate: "6 Aug, 13:22",
+        canVote: true,
     },
     parameters: {
         viewport: {
@@ -143,9 +148,27 @@ export const DisplayBallotLocator: Story = {
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: false,
         openDate: "6 Aug, 13:22",
+        canVote: true,
         onClickBallotLocator() {
             console.log("Clicked to locate the ballot")
         },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const CanNotVote: Story = {
+    args: {
+        isActive: true,
+        isOpen: true,
+        title: "Executive Board",
+        electionHomeUrl: "/election/34570007/public/home",
+        hasVoted: false,
+        openDate: "6 Aug, 13:22",
+        canVote: false,
     },
     parameters: {
         viewport: {
