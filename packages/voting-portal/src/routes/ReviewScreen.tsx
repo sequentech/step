@@ -2,13 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {
-    Link as RouterLink,
-    useNavigate,
-    useParams,
-    useSubmit,
-    redirect,
-} from "react-router-dom"
+import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
