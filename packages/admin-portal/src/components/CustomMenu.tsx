@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useEffect } from "react"
+import React, {useEffect} from "react"
 import {Menu, Sidebar, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
