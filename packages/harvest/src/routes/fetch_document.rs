@@ -2,18 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
-use rocket::response::Debug;
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::authorization::authorize;
+use anyhow::Result;
+use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::connection;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::hasura;
-use windmill::services::s3;
+use windmill::services::documents;
 
 #[derive(Deserialize, Debug)]
 pub struct GetDocumentUrlBody {
-    tenant_id: String,
     election_event_id: String,
     document_id: String,
 }
@@ -23,37 +26,26 @@ pub struct GetDocumentUrlResponse {
     url: String,
 }
 
-#[instrument]
+#[instrument(skip(claims))]
 #[post("/fetch-document", format = "json", data = "<body>")]
 pub async fn fetch_document(
     body: Json<GetDocumentUrlBody>,
-    auth_headers: connection::AuthHeaders,
-) -> Result<Json<GetDocumentUrlResponse>, Debug<anyhow::Error>> {
+    claims: JwtClaims,
+) -> Result<Json<GetDocumentUrlResponse>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::DOCUMENT_UPLOAD],
+    )?;
     let input = body.into_inner();
-    let document_result = hasura::document::find_document(
-        auth_headers,
-        input.tenant_id.clone(),
+    let url = documents::fetch_document(
+        claims.hasura_claims.tenant_id.clone(),
         input.election_event_id.clone(),
         input.document_id.clone(),
     )
-    .await?;
-
-    let document = &document_result
-        .data
-        .ok_or(anyhow!("expected data"))?
-        .sequent_backend_document[0];
-
-    let document_s3_key = s3::get_document_key(
-        input.tenant_id,
-        input.election_event_id,
-        input.document_id,
-    );
-    let bucket = if document.is_public.unwrap_or(false) {
-        s3::get_public_bucket()?
-    } else {
-        s3::get_private_bucket()?
-    };
-    let url = s3::get_document_url(document_s3_key, bucket).await?;
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(GetDocumentUrlResponse { url: url }))
 }
