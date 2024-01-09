@@ -106,10 +106,12 @@ export const ElectionDataForm: React.FC = () => {
         setReceiptsList(receipts || [])
         console.log(
             "receipts filter",
-            receipts?.filter((item) => item.communication_method === "EMAIL").map((type) => ({
-                id: type.id,
-                name: type.template.alias,
-            }))
+            receipts
+                ?.filter((item) => item.communication_method === "EMAIL")
+                .map((type) => ({
+                    id: type.id,
+                    name: type.template.alias,
+                }))
         )
     }, [receipts])
 
@@ -217,7 +219,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.i18n.en.description = temp.description
 
             // receipts
-            const template: {[key:string]: string | null} = {}
+            const template: {[key: string]: string | null} = {}
             const allowed: {[key: string]: boolean} = {}
 
             if (temp.receipts) {
