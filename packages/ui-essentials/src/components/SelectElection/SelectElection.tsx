@@ -278,9 +278,10 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         {t("selectElection.voteButton")}
                     </StyledButton>
                 ) : (
-                    <StyledButton variant="secondary" onClick={handleClickElectionResults}>
-                        {t("selectElection.resultsButton")}
-                    </StyledButton>
+                    <></>
+                    // <StyledButton variant="secondary" onClick={handleClickElectionResults}>
+                    //     {t("selectElection.resultsButton")}
+                    // </StyledButton>
                 )}
             </Box>
         </BorderBox>
