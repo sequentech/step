@@ -32,6 +32,7 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -71,6 +72,7 @@ interface IElectionEventSubmit {
 export const CreateElectionList: React.FC = () => {
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -83,9 +85,13 @@ export const CreateElectionList: React.FC = () => {
         data: newElectionEvent,
         isLoading: isOneLoading,
         error,
-    } = useGetOne("sequent_backend_election_event", {
-        id: newId,
-    })
+    } = useGetOne(
+        "sequent_backend_election_event",
+        {id: newId},
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
     const {
         data: tenant,
         isLoading: isOneTenantLoading,
@@ -166,7 +172,7 @@ export const CreateElectionList: React.FC = () => {
 
         setTimeout(() => {
             refetchTreeMenu()
-        }, 3000)
+        }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
     return (
         <SimpleForm
