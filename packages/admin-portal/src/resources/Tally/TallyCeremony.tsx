@@ -33,6 +33,7 @@ import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
+    Sequent_Backend_Results_Election,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
@@ -108,7 +109,7 @@ export const TallyCeremony: React.FC = () => {
         "sequent_backend_keys_ceremony",
         {
             pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
+            filter: {election_event_id: record?.id, tenant_id: tenantId},
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -126,6 +127,26 @@ export const TallyCeremony: React.FC = () => {
             filter: {
                 tally_session_id: tallyId,
                 tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+
+    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Election>(
+        "sequent_backend_results_event",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: record?.id,
+                results_event_id: resultsEventId,
             },
         },
         {
@@ -237,7 +258,6 @@ export const TallyCeremony: React.FC = () => {
         e.preventDefault()
         console.log("EXPORT RESULTS", e)
     }
-    let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
     return (
         <>
@@ -458,11 +478,16 @@ export const TallyCeremony: React.FC = () => {
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
-                                    <ExportElectionMenu
-                                        resource="sequent_backend_results_event"
-                                        event={data}
-                                        resultsEventId={resultsEventId}
-                                    />
+                                    {
+                                        (resultsEventId && resultsEvent?.[0].documents)
+                                        ? <ExportElectionMenu
+                                            documents={resultsEvent?.[0].documents}
+                                            electionEventId={resultsEvent?.[0].election_event_id}
+                                            item={t("common.label.allResults")}
+                                        />
+                                        : null
+                                    }
+                                    
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>
