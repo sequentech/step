@@ -1,0 +1,44 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+#![allow(non_camel_case_types)]
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::default::Default;
+use strum_macros::{Display, EnumString};
+
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+pub enum VotingChannel {
+    PAPER,
+    POSTAL,
+    IN_PERSON,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InvalidVotes {
+    pub total_invalid: Option<u64>,
+    pub implicit_invalid: Option<u64>,
+    pub explicit_invalid: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CandidateResults {
+    pub candidate_id: String,
+    pub total_votes: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AreaContestResults {
+    pub area_id: String,
+    pub contest_id: String,
+    pub total_votes: Option<u64>,
+    pub total_valid_votes: Option<u64>,
+    pub invalid_votes: Option<InvalidVotes>,
+    pub total_blank_votes: Option<u64>,
+    pub census: Option<u64>,
+    pub candidate_results: HashMap<String, CandidateResults>,
+}

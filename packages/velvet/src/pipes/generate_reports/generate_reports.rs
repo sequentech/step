@@ -27,9 +27,9 @@ use crate::pipes::{
     Pipe,
 };
 
-const OUTPUT_PDF: &str = "report.pdf";
-const OUTPUT_HTML: &str = "report.html";
-const OUTPUT_JSON: &str = "report.json";
+pub const OUTPUT_PDF: &str = "report.pdf";
+pub const OUTPUT_HTML: &str = "report.html";
+pub const OUTPUT_JSON: &str = "report.json";
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -340,7 +340,7 @@ pub struct ReportData {
     pub winners: Vec<WinnerResult>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ElectionReportDataComputed {
     pub election_id: String,
     pub area_id: Option<String>,
@@ -349,7 +349,7 @@ pub struct ElectionReportDataComputed {
     pub reports: Vec<ReportDataComputed>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReportDataComputed {
     pub contest: Contest,
     pub area_id: Option<String>,
@@ -357,7 +357,7 @@ pub struct ReportDataComputed {
     pub candidate_result: Vec<CandidateResultForReport>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,

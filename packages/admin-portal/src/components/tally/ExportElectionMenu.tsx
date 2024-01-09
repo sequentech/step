@@ -1,16 +1,60 @@
-import {Box, Menu, MenuItem} from "@mui/material"
+import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
 import Button from "@mui/material/Button"
-import React, {useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {
+    FetchDocumentQuery,
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Contest,
     Sequent_Backend_Election,
+    Sequent_Backend_Results_Election,
     Sequent_Backend_Tally_Session,
 } from "@/gql/graphql"
 import styled from "@emotion/styled"
-import {theme} from "@sequentech/ui-essentials"
+import {downloadUrl, isNull, theme} from "@sequentech/ui-essentials"
+import {useGetList} from "react-admin"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {EExportFormat, IResultDocuments} from "@/types/results"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {useQuery} from "@apollo/client"
+import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+
+interface PerformDownloadProps {
+    onDownload: () => void
+    fileName: string
+    documentId: string
+    electionEventId: string
+}
+
+let downloading = false
+
+const PerformDownload: React.FC<PerformDownloadProps> = ({
+    onDownload,
+    fileName,
+    documentId,
+    electionEventId,
+}) => {
+    const [tenantId] = useTenantStore()
+
+    const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
+        variables: {
+            tenantId,
+            electionEventId,
+            documentId,
+        },
+    })
+
+    console.log(`FFFF is downloading ${downloading}`)
+    if (!loading && !error && data?.fetchDocument?.url && !downloading) {
+        downloading = true
+        console.log(`FFFF downloadUrl ${downloading}`)
+
+        downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
+    }
+
+    return <CircularProgress />
+}
 
 interface ExportElectionMenuProps {
     resource: string
@@ -19,6 +63,7 @@ interface ExportElectionMenuProps {
     contest?: Sequent_Backend_Contest
     area?: Sequent_Backend_Area_Contest | string | undefined
     areaName?: string | undefined
+    resultsEventId: string | null
 }
 
 const ExportButton = styled.div`
@@ -43,10 +88,43 @@ const ExportButton = styled.div`
     }
 `
 
+interface IDocumentData {
+    id: string
+    kind: EExportFormat
+    name: string
+}
+
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {resource, event, election, contest, area, areaName} = props
+    const {resource, event, election, contest, area, areaName, resultsEventId} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const {globalSettings} = useContext(SettingsContext)
+    const [documents, setDocuments] = useState<IResultDocuments | null>(null)
+    const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
+
+    const {data: results} = useGetList<Sequent_Backend_Results_Election>(
+        resource,
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                tenant_id: election?.tenant_id,
+                election_event_id: election?.election_event_id,
+                results_event_id: resultsEventId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    useEffect(() => {
+        if (results?.[0]?.documents && isNull(documents)) {
+            setDocuments(results?.[0]?.documents ?? null)
+        }
+    }, [results?.[0]?.documents])
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -58,16 +136,32 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(null)
     }
 
-    const handleExport = (type: string) => {
-        console.log("ExportElectionData :: ", resource)
-        console.log("======================")
+    const handleExport = (format: EExportFormat) => {
+        let documentId = documents?.[format]
+        if (!documentId) {
+            console.log("FFFFF handleExport ERROR missing document id")
+            return
+        }
 
-        console.log("ExportElectionData :: ", event)
-        console.log("ExportElectionData :: ", election)
-        console.log("ExportElectionData :: ", contest)
-        console.log("ExportElectionData :: ", area)
-        console.log("ExportElectionData :: ", type)
+        console.log("FFFFF handleExport setPerformDownload")
+        setPerformDownload({
+            id: documentId,
+            kind: format,
+            name: `report.${format}`,
+        })
     }
+
+    const exportFormatItem = election
+        ? election?.name?.slice(0, 12)
+        : contest
+        ? contest?.name?.slice(0, 12)
+        : area && area !== "all"
+        ? areaName?.slice(0, 12)
+        : area
+        ? t("common.label.globalAreaResults")
+        : t("common.label.allResults")
+
+    const isExportFormatDisabled = (format: EExportFormat): boolean => !documents?.[format]
 
     return (
         <div>
@@ -77,7 +171,18 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={"common.label.export"}>{t("common.label.export")}</span>
+                <span title={t("common.label.export")}>{t("common.label.export")}</span>
+                {performDownload && election?.election_event_id ? (
+                    <PerformDownload
+                        onDownload={() => {
+                            downloading = false
+                            setPerformDownload(null)
+                        }}
+                        fileName={performDownload.name}
+                        documentId={performDownload.id}
+                        electionEventId={election?.election_event_id}
+                    />
+                ) : null}
             </ExportButton>
 
             <Menu
@@ -96,7 +201,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {EXPORT_FORMATS.map((format: {label: string; value: string}) => (
+                {EXPORT_FORMATS.map((format) => (
                     <MenuItem
                         key={format.value}
                         onClick={(e: React.MouseEvent<HTMLElement>) => {
@@ -105,6 +210,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             handleClose()
                             handleExport(format.value)
                         }}
+                        disabled={isExportFormatDisabled(format.value)}
                     >
                         <Box
                             sx={{
@@ -115,15 +221,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                         >
                             <span title={format.label}>
                                 {t("common.label.exportFormat", {
-                                    item: election
-                                        ? election?.name?.slice(0, 12)
-                                        : contest
-                                        ? contest?.name?.slice(0, 12)
-                                        : area && area !== "all"
-                                        ? areaName?.slice(0, 12)
-                                        : area
-                                        ? t("common.label.globalAreaResults")
-                                        : t("common.label.allResults"),
+                                    item: exportFormatItem,
                                     format: format.label,
                                 })}
                             </span>
