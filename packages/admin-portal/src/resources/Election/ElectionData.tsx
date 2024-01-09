@@ -5,6 +5,8 @@ import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 
 export const EditElectionData: React.FC = () => {
     const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
+        console.log("TRANSFORM :: ", data)
+
         // save presentation object
         // language_conf
         const enabled_language_codes = []
