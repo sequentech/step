@@ -53,12 +53,10 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
         Ok(s3_config)
     } else {
         info!("using default aws sdk config credentials");
-        Ok(
-            aws_sdk_s3::config::Builder::from(&sdk_config)
-                .endpoint_url(endpoint_uri)
-                .force_path_style(true) // apply bucketname as path param instead of pre-domain
-                .build()
-        )
+        Ok(aws_sdk_s3::config::Builder::from(&sdk_config)
+            .endpoint_url(endpoint_uri)
+            .force_path_style(true) // apply bucketname as path param instead of pre-domain
+            .build())
     }
 }
 
