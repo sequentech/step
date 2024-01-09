@@ -30,12 +30,12 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
     } else {
         "AWS_S3_PUBLIC_URI"
     };
-    let endpoint_result = std::env::var(env_var_name);
-    info!("env_var_name={env_var_name}, endpoint_result = {endpoint_result:?}");
-    if let Ok(endpoint_uri) = endpoint_result {
-        info!("using the endpoint from env vars (probably minio)");
-        let access_key = std::env::var("AWS_S3_ACCESS_KEY")?;
-        let access_secret = std::env::var("AWS_S3_ACCESS_SECRET")?;
+    let acces_key_result = std::env::var("AWS_S3_ACCESS_KEY");
+    let access_secret_result = std::env::var("AWS_S3_ACCESS_SECRET");
+    let endpoint_uri = std::env::var(env_var_name)?;
+    info!("env_var_name={env_var_name}, endpoint_uri = {endpoint_uri:?}");
+    if let (Ok(access_key), Ok(access_secret)) = (acces_key_result, access_secret_result) {
+        info!("using aws credentials with access key and access secret");
 
         let credentials_provider = aws_sdk_s3::config::Credentials::new(
             access_key,
@@ -52,8 +52,13 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
             .build();
         Ok(s3_config)
     } else {
-        info!("using the default endpoint and config from sdk_config");
-        Ok(aws_sdk_s3::config::Builder::from(&sdk_config).build())
+        info!("using default aws sdk config credentials");
+        Ok(
+            aws_sdk_s3::config::Builder::from(&sdk_config)
+                .endpoint_url(endpoint_uri)
+                .force_path_style(true) // apply bucketname as path param instead of pre-domain
+                .build()
+        )
     }
 }
 
