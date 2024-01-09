@@ -4,7 +4,6 @@
 import React, {useEffect, useState} from "react"
 import {
     Link as RouterLink,
-    Form,
     useNavigate,
     useParams,
     useSubmit,
@@ -22,6 +21,7 @@ import {
     stringToHtml,
     BallotHash,
     Dialog,
+    EVotingStatus,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -35,9 +35,9 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {InsertCastVoteMutation} from "../gql/graphql"
+import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
@@ -45,6 +45,7 @@ import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {CustomError} from "./ErrorPage"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -95,6 +96,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const ballotId = hashBallot(auditableBallot)
     const submit = useSubmit()
 
+    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+    })
+
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
@@ -105,7 +113,23 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     }
 
     const castBallotAction = async () => {
+        const errorMsg = "Unable to cast the Ballot"
+
         try {
+            const {data} = await refetchElectionEvent()
+
+            if (!(data && data.sequent_backend_election_event.length > 0)) {
+                console.error("Cannot load election event")
+                return submit({error: errorMsg}, {method: "post"})
+            }
+
+            const record = data?.sequent_backend_election_event?.[0]
+
+            if (record?.status !== EVotingStatus.OPEN) {
+                console.warn("Election event is not open")
+                return submit({error: errorMsg}, {method: "post"})
+            }
+
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
@@ -123,10 +147,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                 dispatch(addCastVotes(newCastVote))
             }
 
-            submit(null, {method: "post"})
+            return submit(null, {method: "post"})
         } catch (error) {
             console.log(`error casting vote: ${error}`)
-            submit({error: "Unable to cast the Ballot"}, {method: "post"})
+            return submit({error: errorMsg}, {method: "post"})
         }
     }
 
@@ -278,7 +302,7 @@ export const ReviewScreen: React.FC = () => {
 
 export default ReviewScreen
 
-export async function action({params, request}: {request: Request; params: any}) {
+export async function action({request}: {request: Request; params: any}) {
     const data = await request.formData()
     const error = data.get("error")
 
