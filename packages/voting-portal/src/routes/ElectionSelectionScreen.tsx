@@ -107,7 +107,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
 
     return (
         <SelectElection
-            isActive={true}
+            isActive={canVote}
             isOpen={isVotingOpen}
             title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
