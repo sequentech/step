@@ -4,6 +4,7 @@ export enum VotingPortalErrorType {
     UnableToFetchData = "UnableToFetchData",
     UnableToEncryptBallot = "UnableToEncryptBallot",
     UnableToCastBallot = "UnableToCastBallot",
+    NoBallotStyle = "NoBallotStyle",
 }
 
 export class VotingPortalError extends Error {

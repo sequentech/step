@@ -210,6 +210,7 @@ export const ReviewScreen: React.FC = () => {
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const submit = useSubmit()
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -220,8 +221,7 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                // FIXME:
-                // throw new CustomError("Impossible to go to the ballot audit")
+                return submit({error: VotingPortalErrorType.NoBallotStyle}, {method: "post"})
             }
         }
     }
