@@ -6,7 +6,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
-interface Email {
+export interface Email {
     subject: string
     plaintext_body: string
     html_body: string

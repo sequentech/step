@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {
     SaveButton,
     SimpleForm,
@@ -11,6 +11,7 @@ import {
     Toolbar,
     DateTimeInput,
     Identifier,
+    useGetList,
 } from "react-admin"
 import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch} from "@mui/material"
 import {useMutation} from "@apollo/client"
@@ -19,14 +20,15 @@ import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import EmailEditor from "@/components/EmailEditor"
+import EmailEditor, {Email} from "@/components/EmailEditor"
 import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
-import {CreateScheduledEventMutation} from "@/gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Communication_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -207,6 +209,15 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         var newCommunication = {...communication}
         newCommunication.communication_method = value
         setCommunication(newCommunication)
+
+        // filter receipts by communication method
+        const selectedReceipts = receipts?.filter(
+            (receipt) => receipt.communication_method === value
+        )
+
+        if (selectedReceipts && selectedReceipts.length > 0) {
+            setSelectedReceipt(selectedReceipts[0]["template"][value.toLowerCase()] ?? null)
+        }
     }
 
     const setEmail = async (newEmail: any) => {
@@ -236,6 +247,36 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             return t("sendCommunication.chooseDate")
         }
     }
+
+    // communication templates
+    const [selectedReceipt, setSelectedReceipt] = useState<Email>({
+        subject: "",
+        plaintext_body: "",
+        html_body: "",
+    })
+
+    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
+        "sequent_backend_communication_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                communication_type: ICommunicationType.BALLOT_RECEIPT,
+            },
+        }
+    )
+
+    useEffect(() => {
+        // filter receipts by communication method and sert email by default
+        const selectedReceipts = receipts?.filter(
+            (receipt) => receipt.communication_method === ICommunicationMethod.EMAIL
+        )
+
+        if (selectedReceipts && selectedReceipts.length > 0) {
+            setSelectedReceipt(
+                selectedReceipts[0]["template"][ICommunicationMethod.EMAIL.toLowerCase()] ?? null
+            )
+        }
+    }, [receipts])
 
     //const possibleLanguages = ["en", "es"]
     //const renderLangs = () => {
@@ -389,7 +430,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         {communication.communication_method === CommunicationMethod.EMAIL &&
                             communication.i18n["en"].email && (
                                 <EmailEditor
-                                    record={communication.i18n["en"].email}
+                                    record={communication.i18n["en"].email || selectedReceipt}
                                     setRecord={setEmail}
                                 />
                             )}
@@ -397,7 +438,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
-                                value={communication.i18n["en"].sms?.message}
+                                value={communication.i18n["en"].sms?.message || selectedReceipt}
                                 onChange={handleSmsChange}
                                 multiline={true}
                                 minRows={4}
