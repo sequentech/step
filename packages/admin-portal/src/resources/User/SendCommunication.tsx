@@ -19,7 +19,6 @@ import {
     MenuItem,
     FormControlLabel,
     Switch,
-    Select,
     Typography,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
@@ -28,7 +27,7 @@ import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import EmailEditor, {Email} from "@/components/EmailEditor"
+import EmailEditor from "@/components/EmailEditor"
 import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -39,6 +38,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
     ICommunicationMethod,
     ICommunicationType,
+    IEmail,
     ISendCommunicationBody,
 } from "@/types/communications"
 
@@ -49,15 +49,6 @@ export enum AudienceSelection {
     SELECTED = "SELECTED",
 }
 
-// enum CommunicationType {
-//     CREDENTIALS = "CREDENTIALS",
-//     RECEIPT = "RECEIPT",
-// }
-
-// enum CommunicationMethod {
-//     EMAIL = "EMAIL",
-//     SMS = "SMS",
-// }
 
 interface ICommunicationPayload {
     audience_selection: AudienceSelection
@@ -315,7 +306,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const [selectedMethod, setSelectedMethod] = useState<string>(ICommunicationMethod.EMAIL)
     const [selectedType, setSelectedType] = useState<string>(ICommunicationType.BALLOT_RECEIPT)
     const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
-    const [selectedReceipt, setSelectedReceipt] = useState<Email>({
+    const [selectedReceipt, setSelectedReceipt] = useState<IEmail>({
         subject: "",
         plaintext_body: "",
         html_body: "",

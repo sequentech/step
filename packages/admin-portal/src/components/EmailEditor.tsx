@@ -1,25 +1,18 @@
-import React, {useContext, useRef, useState} from "react"
+import React, {useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
-
-export interface Email {
-    subject: string
-    plaintext_body: string
-    html_body: string
-}
+import { IEmail } from '@/types/communications'
 
 type EmailEditorProps = {
-    record: Email
-    setRecord: (newRecord: Email) => void
+    record: IEmail
+    setRecord: (newRecord: IEmail) => void
 }
 
 export default function EmailEditor({record, setRecord}: EmailEditorProps) {
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
 
     const [tab, setTab] = useState<number>(0)
 
