@@ -109,11 +109,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         <SelectElection
             isActive={true}
             isOpen={isVotingOpen}
-            canVote={canVote}
             title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
-            onClickToVote={onClickToVote}
+            onClickToVote={canVote ? onClickToVote : undefined}
             onClickElectionResults={() => undefined}
             onClickBallotLocator={handleClickBallotLocator}
         />

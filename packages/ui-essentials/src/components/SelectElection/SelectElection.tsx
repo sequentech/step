@@ -144,7 +144,6 @@ const StyledTitle = styled(Typography)`
 export interface SelectElectionProps {
     isActive: boolean // it could be active and closed in the demo/preview
     isOpen: boolean
-    canVote: boolean
     title: string
     electionHomeUrl?: string
     hasVoted: boolean
@@ -158,7 +157,6 @@ export interface SelectElectionProps {
 const SelectElection: React.FC<SelectElectionProps> = ({
     isActive,
     isOpen,
-    canVote,
     title,
     electionHomeUrl,
     hasVoted,
@@ -200,11 +198,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
 
     return (
         <BorderBox
-            onClick={(e) => {
-                if (canVote) {
-                    handleClickToVote(e)
-                }
-            }}
+            onClick={handleClickToVote}
             isopen={String(!!isOpen)}
             isactive={String(!!isActive)}
             role="button"
@@ -267,14 +261,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledButton>
                 )}
                 {isOpen ? (
-                    <StyledButton
-                        disabled={!canVote}
-                        onClick={(e) => {
-                            if (canVote) {
-                                handleClickToVote(e)
-                            }
-                        }}
-                    >
+                    <StyledButton disabled={!handleClickToVote} onClick={handleClickToVote}>
                         {t("selectElection.voteButton")}
                     </StyledButton>
                 ) : (
