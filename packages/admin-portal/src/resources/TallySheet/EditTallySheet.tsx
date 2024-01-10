@@ -44,7 +44,6 @@ interface ICandidateResultsExtended extends ICandidateResults {
     name: string
 }
 
-
 interface IArea {
     id: string
     name?: Maybe<string> | undefined
