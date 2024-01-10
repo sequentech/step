@@ -33,9 +33,8 @@ import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlic
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
-import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {CustomError} from "./ErrorPage"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -169,7 +168,7 @@ const VotingScreen: React.FC = () => {
 
             submit(null, {method: "post"})
         } catch (error) {
-            submit({error: "Unable to encrypt the Ballot"}, {method: "post"})
+            submit({error: VotingPortalErrorType.UnableToEncryptBallot}, {method: "post"})
         }
     }
 
@@ -241,7 +240,9 @@ export async function action({request}: {request: Request}) {
     const error = data.get("error")
 
     if (error) {
-        throw new CustomError(error as string)
+        throw new VotingPortalError(
+            VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
+        )
     }
 
     return redirect(`../review`)

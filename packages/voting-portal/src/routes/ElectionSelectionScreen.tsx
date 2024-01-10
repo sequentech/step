@@ -50,7 +50,7 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
-import {CustomError} from "./ErrorPage"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {
     selectElectionEventById,
     setElectionEvent,
@@ -90,7 +90,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     if (!election) {
-        throw new CustomError("Internal Error")
+        throw new VotingPortalError(VotingPortalErrorType.InternalError)
     }
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
@@ -143,9 +143,8 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 })
             )
         } catch (error) {
-            console.log(`Error loading fake EML: ${error}`)
-            console.log(election)
-            throw new CustomError("Error loading fake ballot style and election")
+            console.log(`Error loading fake EML: ${error}`, election)
+            throw new VotingPortalError(VotingPortalErrorType.InternalError)
         }
     }
 }
@@ -251,7 +250,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (errorBallotStyles || errorElections || errorElectionEvent) {
-            throw new CustomError("Unable to fetch data")
+            throw new VotingPortalError(VotingPortalErrorType.UnableToFetchData)
         }
     }, [errorElections, errorBallotStyles, errorElectionEvent])
 

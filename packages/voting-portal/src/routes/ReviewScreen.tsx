@@ -38,7 +38,7 @@ import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {CustomError} from "./ErrorPage"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 
 const StyledLink = styled(RouterLink)`
@@ -107,21 +107,21 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     }
 
     const castBallotAction = async () => {
-        const errorMsg = "Unable to cast the Ballot"
+        const errorType = VotingPortalErrorType.UnableToCastBallot
 
         try {
             const {data} = await refetchElectionEvent()
 
             if (!(data && data.sequent_backend_election_event.length > 0)) {
                 console.error("Cannot load election event")
-                return submit({error: errorMsg}, {method: "post"})
+                return submit({error: errorType}, {method: "post"})
             }
 
             const record = data?.sequent_backend_election_event?.[0]
 
             if (record?.status !== EVotingStatus.OPEN) {
                 console.warn("Election event is not open")
-                return submit({error: errorMsg}, {method: "post"})
+                return submit({error: errorType.toString()}, {method: "post"})
             }
 
             const hashableBallot = toHashableBallot(auditableBallot)
@@ -144,7 +144,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             return submit(null, {method: "post"})
         } catch (error) {
             console.log(`error casting vote: ${error}`)
-            return submit({error: errorMsg}, {method: "post"})
+            return submit({error: errorType}, {method: "post"})
         }
     }
 
@@ -220,7 +220,8 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                throw new CustomError("Impossible to go to the ballot audit")
+                // FIXME:
+                // throw new CustomError("Impossible to go to the ballot audit")
             }
         }
     }
@@ -301,7 +302,9 @@ export async function action({request}: {request: Request}) {
     const error = data.get("error")
 
     if (error) {
-        throw new CustomError(error as string)
+        throw new VotingPortalError(
+            VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
+        )
     }
 
     return redirect(`../confirmation`)

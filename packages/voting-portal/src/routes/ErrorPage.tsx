@@ -10,25 +10,19 @@ import {Button, Typography} from "@mui/material"
 import {Header} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {useRootBackLink} from "../hooks/root-back-link"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
     margin-top: 40px;
 `
 
-export class CustomError extends Error {
-    constructor(message: string) {
-        super(message)
-        this.name = "CustomError"
-    }
-}
-
 export function ErrorPage() {
     const error = useRouteError()
     const {t} = useTranslation()
     const backLink = useRootBackLink()
 
-    const isErrorType = error instanceof Error || error instanceof CustomError
+    const isErrorType = error instanceof Error || error instanceof VotingPortalError
 
     let content = (
         <>
@@ -89,7 +83,10 @@ export function ErrorPage() {
             >
                 {content}
 
-                {!(error instanceof CustomError && error.message === "No election event") && (
+                {!(
+                    error instanceof VotingPortalError &&
+                    error.type === VotingPortalErrorType.NoElectionEvent
+                ) && (
                     <StyledLink to={backLink}>
                         <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
                     </StyledLink>
