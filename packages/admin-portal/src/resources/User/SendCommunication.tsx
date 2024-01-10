@@ -13,7 +13,7 @@ import {
     Identifier,
     useGetList,
 } from "react-admin"
-import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch} from "@mui/material"
+import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch, Select, Typography} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
@@ -28,7 +28,11 @@ import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
 import {CreateScheduledEventMutation, Sequent_Backend_Communication_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
+import {
+    ICommunicationMethod,
+    ICommunicationType,
+    ISendCommunicationBody,
+} from "@/types/communications"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -37,21 +41,21 @@ export enum AudienceSelection {
     SELECTED = "SELECTED",
 }
 
-enum CommunicationType {
-    CREDENTIALS = "CREDENTIALS",
-    RECEIPT = "RECEIPT",
-}
+// enum CommunicationType {
+//     CREDENTIALS = "CREDENTIALS",
+//     RECEIPT = "RECEIPT",
+// }
 
-enum CommunicationMethod {
-    EMAIL = "EMAIL",
-    SMS = "SMS",
-}
+// enum CommunicationMethod {
+//     EMAIL = "EMAIL",
+//     SMS = "SMS",
+// }
 
 interface ICommunicationPayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
-    communication_type: CommunicationType
-    communication_method: CommunicationMethod
+    communication_type: ICommunicationType
+    communication_method: ICommunicationMethod
     schedule_now: boolean
     schedule_date?: Date
     email?: {
@@ -69,8 +73,9 @@ interface ICommunication {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    communication_type: CommunicationType
-    communication_method: CommunicationMethod
+    communication_type: ICommunicationType
+    communication_method: ICommunicationMethod
+    alias?: string
     schedule: {
         now: boolean
         date?: Date
@@ -119,8 +124,8 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        communication_type: CommunicationType.CREDENTIALS,
-        communication_method: CommunicationMethod.EMAIL,
+        communication_type: ICommunicationType.BALLOT_RECEIPT,
+        communication_method: ICommunicationMethod.EMAIL,
         schedule: {
             now: true,
             date: undefined,
@@ -204,19 +209,68 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         newCommunication.audience.selection = value
         setCommunication(newCommunication)
     }
+
     const handleSelectMethodChange = async (e: any) => {
         const {value} = e.target
         var newCommunication = {...communication}
         newCommunication.communication_method = value
         setCommunication(newCommunication)
 
+        setSelectedMethod(value)
+
         // filter receipts by communication method
-        const selectedReceipts = receipts?.filter(
-            (receipt) => receipt.communication_method === value
+        const selectedReceipts = receipts
+            ?.filter(
+                (receipt) =>
+                    receipt.communication_method === value &&
+                    receipt.communication_type === selectedType
+            )
+            .map((receipt) => receipt.template)
+
+        setSelectedList(selectedReceipts ?? null)
+    }
+
+    const handleSelectTypeChange = async (e: any) => {
+        const {value} = e.target
+        var newCommunication = {...communication}
+        newCommunication.communication_type = value
+        setCommunication(newCommunication)
+
+        setSelectedType(value)
+
+        // filter receipts by communication method
+        const selectedReceipts = receipts
+            ?.filter(
+                (receipt) =>
+                    receipt.communication_type === value &&
+                    receipt.communication_method === selectedMethod
+            )
+            .map((receipt) => receipt.template)
+
+        setSelectedList(selectedReceipts ?? null)
+    }
+
+    const handleSelectAliasChange = async (e: any) => {
+        const {value} = e.target
+        var newCommunication = {...communication}
+        newCommunication.alias = value
+        setCommunication(newCommunication)
+
+        const selectedReceipt = receipts?.filter(
+            (receipt) =>
+                receipt.communication_type === selectedType &&
+                receipt.communication_method === selectedMethod &&
+                receipt.template.alias === value
         )
 
-        if (selectedReceipts && selectedReceipts.length > 0) {
-            setSelectedReceipt(selectedReceipts[0]["template"][value.toLowerCase()] ?? null)
+        console.log("selectedReceipt", selectedReceipt)
+        console.log(
+            "selectedReceipt YES",
+            selectedReceipt?.[0]["template"][selectedMethod.toLowerCase()]
+        )
+
+        if (selectedReceipt && selectedReceipt.length > 0) {
+            setSelectedReceipt(selectedReceipt[0]["template"][selectedMethod.toLowerCase()] ?? null)
         }
     }
 
@@ -249,6 +303,10 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     }
 
     // communication templates
+
+    const [selectedMethod, setSelectedMethod] = useState<string>(ICommunicationMethod.EMAIL)
+    const [selectedType, setSelectedType] = useState<string>(ICommunicationType.BALLOT_RECEIPT)
+    const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
     const [selectedReceipt, setSelectedReceipt] = useState<Email>({
         subject: "",
         plaintext_body: "",
@@ -260,23 +318,22 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         {
             filter: {
                 tenant_id: tenantId,
-                communication_type: ICommunicationType.BALLOT_RECEIPT,
             },
         }
     )
 
     useEffect(() => {
         // filter receipts by communication method and sert email by default
-        const selectedReceipts = receipts?.filter(
-            (receipt) => receipt.communication_method === ICommunicationMethod.EMAIL
-        )
-
-        if (selectedReceipts && selectedReceipts.length > 0) {
-            setSelectedReceipt(
-                selectedReceipts[0]["template"][ICommunicationMethod.EMAIL.toLowerCase()] ?? null
+        const selectedReceipts = receipts
+            ?.filter(
+                (receipt) =>
+                    receipt.communication_type === selectedType &&
+                    receipt.communication_method === selectedMethod
             )
-        }
-    }, [receipts])
+            .map((receipt) => receipt.template)
+
+        setSelectedList(selectedReceipts ?? null)
+    }, [selectedMethod, selectedType, receipts])
 
     //const possibleLanguages = ["en", "es"]
     //const renderLangs = () => {
@@ -414,12 +471,16 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
+
+                        <Typography variant="body2" sx={{margin: "0"}}>
+                            {t("sendCommunication.method")}
+                        </Typography>{" "}
                         <FormStyles.Select
                             name="voters.selection"
                             value={communication.communication_method}
                             onChange={handleSelectMethodChange}
                         >
-                            {(Object.keys(CommunicationMethod) as Array<CommunicationMethod>).map(
+                            {(Object.keys(ICommunicationMethod) as Array<ICommunicationMethod>).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.communicationMethod.${key}`)}
@@ -427,18 +488,50 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                 )
                             )}
                         </FormStyles.Select>
-                        {communication.communication_method === CommunicationMethod.EMAIL &&
-                            communication.i18n["en"].email && (
-                                <EmailEditor
-                                    record={communication.i18n["en"].email || selectedReceipt}
-                                    setRecord={setEmail}
-                                />
+
+                        <Typography variant="body2" sx={{margin: "0"}}>
+                            {t("sendCommunication.type")}
+                        </Typography>{" "}
+                        <FormStyles.Select
+                            name="voters.selection"
+                            value={communication.communication_type}
+                            onChange={handleSelectTypeChange}
+                        >
+                            {(Object.keys(ICommunicationType) as Array<ICommunicationType>).map(
+                                (key) => (
+                                    <MenuItem key={key} value={key}>
+                                        {t(`sendCommunication.communicationType.${key}`)}
+                                    </MenuItem>
+                                )
                             )}
-                        {communication.communication_method === CommunicationMethod.SMS && (
+                        </FormStyles.Select>
+                        <Typography variant="body2" sx={{margin: "0"}}>
+                            {t("sendCommunication.alias")}
+                        </Typography>
+                        <FormStyles.Select
+                            name="alias"
+                            value={communication.alias || ""}
+                            onChange={handleSelectAliasChange}
+                        >
+                            {selectedList
+                                ? selectedList?.map(
+                                      (key: ISendCommunicationBody, index: number) => (
+                                          <MenuItem key={index} value={key.alias}>
+                                              {key.alias}
+                                          </MenuItem>
+                                      )
+                                  )
+                                : null}
+                        </FormStyles.Select>
+                        {communication.communication_method === ICommunicationMethod.EMAIL &&
+                            communication.i18n["en"].email && (
+                                <EmailEditor record={selectedReceipt} setRecord={setEmail} />
+                            )}
+                        {communication.communication_method === ICommunicationMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
-                                value={communication.i18n["en"].sms?.message || selectedReceipt}
+                                value={selectedReceipt}
                                 onChange={handleSmsChange}
                                 multiline={true}
                                 minRows={4}

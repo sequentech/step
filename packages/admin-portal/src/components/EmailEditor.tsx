@@ -65,7 +65,7 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
             <CustomTabPanel key="richtext" value={tab} index={1}>
                 <Editor
                     editorRef={editorRef}
-                    initialValue={globalSettings.DEFAULT_EMAIL_HTML_BODY.en}
+                    initialValue={record.html_body || ""}
                     onEditorChange={handleHtmlChange}
                 ></Editor>
             </CustomTabPanel>

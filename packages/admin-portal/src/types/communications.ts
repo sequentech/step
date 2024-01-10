@@ -11,6 +11,12 @@ export enum ICommunicationMethod {
     SMS = "SMS",
 }
 
+export interface IEmail {
+    subject: string
+    plaintext_body: string
+    html_body: string
+}
+
 export interface ISendCommunicationBody {
     audience_selection: any
     audience_voter_ids?: Array<string>
@@ -18,8 +24,10 @@ export interface ISendCommunicationBody {
     communication_method: ICommunicationMethod
     schedule_now: boolean
     schedule_date?: string
-    email?: any
-    sms?: any
+    email?: IEmail
+    sms?: string
+    name: string
+    alias: string
 }
 
 export interface IRECEIPTS {

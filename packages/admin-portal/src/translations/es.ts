@@ -884,6 +884,9 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
+            method: "Método de Comunicación",
+            type: "Tipo de Comunicación",
+            alias: "Alias de la Plantilla",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
@@ -894,6 +897,13 @@ const spanishTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+            },
+            communicationType: {
+                CREDENTIALS: "Credenciales",
+                BALLOT_RECEIPT: "Comprobante de Votación",
+                PARTICIPATION_REPORT: "Informe de Participación",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                OTP: "OTP",
             },
             email: {
                 subject: "Subject",
