@@ -49,7 +49,6 @@ export enum AudienceSelection {
     SELECTED = "SELECTED",
 }
 
-
 interface ICommunicationPayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
