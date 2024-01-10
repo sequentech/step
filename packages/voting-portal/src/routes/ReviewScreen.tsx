@@ -296,7 +296,7 @@ export const ReviewScreen: React.FC = () => {
 
 export default ReviewScreen
 
-export async function action({request}: {request: Request; params: any}) {
+export async function action({request}: {request: Request}) {
     const data = await request.formData()
     const error = data.get("error")
 
