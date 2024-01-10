@@ -6,75 +6,79 @@ insert_permissions:
   permission:
     check: {}
     columns:
+    - elegible_census
+    - total_voters
     - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
     - created_at
+    - last_updated_at
     - election_event_id
     - election_id
-    - elegible_census
     - id
-    - labels
-    - last_updated_at
-    - name
     - results_event_id
     - tenant_id
-    - total_voters
-    - total_voters_percent
   role: admin-user
 - comment: ""
   permission:
     check: {}
     columns:
+    - elegible_census
+    - total_voters
     - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
     - created_at
+    - last_updated_at
     - election_event_id
     - election_id
-    - elegible_census
     - id
-    - labels
-    - last_updated_at
-    - name
     - results_event_id
     - tenant_id
-    - total_voters
-    - total_voters_percent
   role: service-account
 select_permissions:
 - comment: ""
   permission:
     allow_aggregations: true
     columns:
+    - elegible_census
+    - total_voters
     - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
     - created_at
+    - last_updated_at
     - election_event_id
     - election_id
-    - elegible_census
     - id
-    - labels
-    - last_updated_at
-    - name
     - results_event_id
     - tenant_id
-    - total_voters
-    - total_voters_percent
     filter: {}
   role: admin-user
 - comment: ""
   permission:
     allow_aggregations: true
     columns:
+    - elegible_census
+    - total_voters
     - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
     - created_at
+    - last_updated_at
     - election_event_id
     - election_id
-    - elegible_census
     - id
-    - labels
-    - last_updated_at
-    - name
     - results_event_id
     - tenant_id
-    - total_voters
-    - total_voters_percent
     filter: {}
   role: service-account
 update_permissions:
@@ -82,37 +86,39 @@ update_permissions:
   permission:
     check: {}
     columns:
+    - elegible_census
+    - total_voters
     - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
     - created_at
+    - last_updated_at
     - election_event_id
     - election_id
-    - elegible_census
     - id
-    - labels
-    - last_updated_at
-    - name
     - results_event_id
     - tenant_id
-    - total_voters
-    - total_voters_percent
     filter: {}
   role: admin-user
 - comment: ""
   permission:
     check: {}
     columns:
+    - elegible_census
+    - total_voters
     - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
     - created_at
+    - last_updated_at
     - election_event_id
     - election_id
-    - elegible_census
     - id
-    - labels
-    - last_updated_at
-    - name
     - results_event_id
     - tenant_id
-    - total_voters
-    - total_voters_percent
     filter: {}
   role: service-account

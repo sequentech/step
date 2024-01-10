@@ -14,6 +14,7 @@ insert_permissions:
     - total_valid_votes
     - total_votes
     - annotations
+    - documents
     - labels
     - blank_votes_percent
     - explicit_invalid_votes_percent
@@ -45,6 +46,7 @@ insert_permissions:
     - total_valid_votes
     - total_votes
     - annotations
+    - documents
     - labels
     - blank_votes_percent
     - explicit_invalid_votes_percent
@@ -77,6 +79,7 @@ select_permissions:
     - total_valid_votes
     - total_votes
     - annotations
+    - documents
     - labels
     - blank_votes_percent
     - explicit_invalid_votes_percent
@@ -109,6 +112,7 @@ select_permissions:
     - total_valid_votes
     - total_votes
     - annotations
+    - documents
     - labels
     - blank_votes_percent
     - explicit_invalid_votes_percent
@@ -142,6 +146,7 @@ update_permissions:
     - total_valid_votes
     - total_votes
     - annotations
+    - documents
     - labels
     - blank_votes_percent
     - explicit_invalid_votes_percent
@@ -174,6 +179,7 @@ update_permissions:
     - total_valid_votes
     - total_votes
     - annotations
+    - documents
     - labels
     - blank_votes_percent
     - explicit_invalid_votes_percent

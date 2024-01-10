@@ -1,0 +1,13 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+export enum EExportFormat {
+    PDF = "pdf",
+    JSON = "json",
+    HTML = "html",
+}
+
+export type IResultDocuments = {
+    [F in EExportFormat]?: string
+}
