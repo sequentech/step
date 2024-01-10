@@ -273,8 +273,9 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [dataElections, dispatch])
 
     useEffect(() => {
-        if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+        const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+
+        if (record) {
             dispatch(setElectionEvent(record))
             setIsMaterialsActivated(record?.presentation?.materials?.activated || false)
         }
