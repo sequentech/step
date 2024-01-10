@@ -13,7 +13,15 @@ import {
     Identifier,
     useGetList,
 } from "react-admin"
-import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch, Select, Typography} from "@mui/material"
+import {
+    AccordionDetails,
+    AccordionSummary,
+    MenuItem,
+    FormControlLabel,
+    Switch,
+    Select,
+    Typography,
+} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
@@ -471,7 +479,6 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.method")}
                         </Typography>{" "}
@@ -488,7 +495,6 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                 )
                             )}
                         </FormStyles.Select>
-
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.type")}
                         </Typography>{" "}
