@@ -7,7 +7,7 @@ import {CustomAppBar} from "./CustomAppBar"
 import {CustomMenu} from "./CustomMenu"
 import {adminTheme} from "@sequentech/ui-essentials"
 import {Drawer} from "@mui/material"
-import {CustomSidebar} from "./menu/CustomSidebar"
+import { CustomSidebar } from './menu/CustomSidebar'
 
 const SequentSidebar = (props: any) => {
     return (
@@ -34,7 +34,6 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             },
         }}
         appBar={CustomAppBar}
-        // menu={CustomMenu}
         sidebar={SequentSidebar}
     />
 )
