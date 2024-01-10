@@ -7,7 +7,7 @@ import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {
-    Sequent_Backend_Area,
+    Maybe,
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
@@ -21,9 +21,9 @@ import {
     MenuItem,
     Select,
     SelectChangeEvent,
-    TextField,
     Typography,
 } from "@mui/material"
+import TextField from "@mui/material/TextField"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 
 const votingChannels = [
@@ -44,12 +44,20 @@ interface ICandidateResultsExtended extends ICandidateResults {
     name: string
 }
 
+
+interface IArea {
+    id: string
+    name?: Maybe<string> | undefined
+}
+
+const numbers = /^[0-9]+$/
+
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const {tallySheet, contest, doCreatedTalySheet, submitRef} = props
 
     const {t} = useTranslation()
 
-    const [areasList, setAreasList] = useState<Sequent_Backend_Area[]>([])
+    const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: "",
@@ -82,7 +90,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
             if (tallySheetTemp.content) {
-                const contentTemp = {...tallySheetTemp.content}
+                const contentTemp: IAreaContestResults = {...tallySheetTemp.content}
                 if (contentTemp.invalid_votes) {
                     const invalidsTemp = {...contentTemp.invalid_votes}
                     setInvalids(invalidsTemp)
@@ -121,8 +129,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     useEffect(() => {
         if (areas) {
-            const areatListTemp = areas.sequent_backend_area_contest.map(
-                (item: {area: {id: string; name: string}}) => {
+            const areatListTemp: IArea[] = areas?.sequent_backend_area_contest?.map(
+                (item: {area: IArea}) => {
                     return {
                         id: item.area.id,
                         name: item.area.name,
@@ -148,9 +156,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 candidatesTemp.push(candidateTemp)
             }
             candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
-            if (!tallySheet) {
-                setCandidatesResults(candidatesTemp)
-            }
         }
     }, [candidates])
 
@@ -170,51 +175,63 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 
     const handleNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.value !== "-" && +event.target.value > -1) {
-            console.log("handleNumberChange solo positivos", event.target.value)
-
+        if (event.target.value === "") {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
-                [event.target.name as string]: event.target.value as string,
+                [event.target.name as string]: "",
             }))
-        }
-    }
-
-    const handleInvalidChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.value !== "-" && +event.target.value >= 0) {
-            setInvalids((prev: IInvalidVotes) => ({
-                ...prev,
-                [event.target.name as string]: event.target.value as string,
-            }))
-        }
-    }
-
-    const handleCandidateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.value !== "-" && +event.target.value >= 0) {
-            const candidateTemp = candidatesResults.find(
-                (item) => item.candidate_id === event.target.id
-            )
-            const candidateRest = candidatesResults.filter(
-                (item) => item.candidate_id !== event.target.id
-            )
-            if (candidateTemp) {
-                if (!event.target.value) {
-                    delete candidateTemp.total_votes
-                } else {
-                    candidateTemp.total_votes =
-                        event.target.value !== "" ? parseInt(event.target.value) : 0
-                }
-
-                const finalCandidates = [...candidateRest, candidateTemp]
-                finalCandidates.sort((a, b) => a.name.localeCompare(b.name))
-                setCandidatesResults(finalCandidates)
+        } else if (event.target.value === "0") {
+            setResults((prev: IAreaContestResults) => ({...prev, [event.target.name as string]: 0}))
+        } else {
+            if (event.target.value.match(numbers)) {
+                setResults((prev: IAreaContestResults) => ({
+                    ...prev,
+                    [event.target.name as string]: +event.target.value,
+                }))
             }
         }
     }
 
-    const onSubmit: SubmitHandler<FieldValues> = async (result) => {
-        console.log("CTallySheet enter onSubmit :: ")
+    const handleInvalidChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.value === "") {
+            setInvalids((prev: IInvalidVotes) => ({...prev, [event.target.name as string]: ""}))
+        } else if (event.target.value === "0") {
+            setInvalids((prev: IInvalidVotes) => ({...prev, [event.target.name as string]: 0}))
+        } else {
+            if (event.target.value.match(numbers)) {
+                setInvalids((prev: IInvalidVotes) => ({
+                    ...prev,
+                    [event.target.name as string]: +event.target.value,
+                }))
+            }
+        }
+    }
 
+    const handleCandidateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const candidateTemp = candidatesResults.find(
+            (item) => item.candidate_id === event.target.id
+        )
+        const candidateRest = candidatesResults.filter(
+            (item) => item.candidate_id !== event.target.id
+        )
+        if (candidateTemp) {
+            if (!event.target.value) {
+                delete candidateTemp.total_votes
+            } else {
+                if (event.target.value.match(numbers)) {
+                    candidateTemp.total_votes = +event.target.value
+                } else {
+                    candidateTemp.total_votes = +(candidateTemp?.total_votes || 0)
+                }
+            }
+
+            const finalCandidates = [...candidateRest, candidateTemp]
+            finalCandidates.sort((a, b) => a.name.localeCompare(b.name))
+            setCandidatesResults(finalCandidates)
+        }
+    }
+
+    const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
         const candidatesResultsTemp: {[id: string]: ICandidateResults} = {}
@@ -263,12 +280,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <InputLabel>{t("tallysheet.label.area")}</InputLabel>
                     <Select
                         name="area_id"
-                        value={results.area_id || ""}
+                        value={results.area_id}
                         label={t("tallysheet.label.area")}
                         onChange={handleChange}
                         required
                     >
-                        {areasList.map((item) => (
+                        {areasList?.map((item) => (
                             <MenuItem key={item.id} value={item.id}>
                                 {item.name}
                             </MenuItem>
@@ -310,19 +327,21 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <TextField
                     label={t("tallysheet.label.total_votes")}
                     name="total_votes"
-                    value={results.total_votes || ""}
+                    value={typeof results.total_votes === "number" ? results.total_votes : ""}
                     onChange={handleNumberChange}
                     size="small"
-                    type="number"
                     required
                 />
                 <TextField
                     label={t("tallysheet.label.total_valid_votes")}
                     name="total_valid_votes"
-                    value={results.total_valid_votes || ""}
+                    value={
+                        typeof results.total_valid_votes === "number"
+                            ? results.total_valid_votes
+                            : ""
+                    }
                     onChange={handleNumberChange}
                     size="small"
-                    type="number"
                     required
                 />
 
@@ -339,28 +358,35 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <TextField
                         label={t("tallysheet.label.total_invalid")}
                         name="total_invalid"
-                        value={invalids.total_invalid || ""}
+                        value={
+                            typeof invalids.total_invalid === "number" ? invalids.total_invalid : ""
+                        }
                         onChange={handleInvalidChange}
                         size="small"
-                        type="number"
                         required
                     />
                     <TextField
                         label={t("tallysheet.label.implicit_invalid")}
                         name="implicit_invalid"
-                        value={invalids.implicit_invalid || ""}
+                        value={
+                            typeof invalids.implicit_invalid === "number"
+                                ? invalids.implicit_invalid
+                                : ""
+                        }
                         onChange={handleInvalidChange}
                         size="small"
-                        type="number"
                         required
                     />
                     <TextField
                         label={t("tallysheet.label.explicit_invalid")}
                         name="explicit_invalid"
-                        value={invalids.explicit_invalid || ""}
+                        value={
+                            typeof invalids.explicit_invalid === "number"
+                                ? invalids.explicit_invalid
+                                : ""
+                        }
                         onChange={handleInvalidChange}
                         size="small"
-                        type="number"
                         required
                     />
                 </Box>
@@ -368,19 +394,21 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <TextField
                     label={t("tallysheet.label.total_blank_votes")}
                     name="total_blank_votes"
-                    value={results.total_blank_votes || ""}
+                    value={
+                        typeof results.total_blank_votes === "number"
+                            ? results.total_blank_votes
+                            : ""
+                    }
                     onChange={handleNumberChange}
                     size="small"
-                    type="number"
                     required
                 />
                 <TextField
                     label={t("tallysheet.label.census")}
                     name="census"
-                    value={results.census || ""}
+                    value={typeof results.census === "number" ? results.census : ""}
                     onChange={handleNumberChange}
                     size="small"
-                    type="number"
                     required
                 />
 
@@ -390,7 +418,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     </PageHeaderStyles.Title>
                 </PageHeaderStyles.Wrapper>
 
-                {candidatesResults.map((candidate) => (
+                {candidatesResults.map((candidate: ICandidateResultsExtended) => (
                     <Box
                         sx={{
                             width: "100%",
@@ -409,10 +437,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                             id={candidate.candidate_id}
                             label={t("tallysheet.label.total_votes")}
                             name="total_votes"
-                            value={candidate.total_votes || ""}
+                            value={candidate.total_votes}
                             onChange={handleCandidateChange}
                             size="small"
-                            type="number"
                             required
                         />
                     </Box>

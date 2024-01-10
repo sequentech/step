@@ -53,16 +53,6 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Published" source="published_at" key={3} />,
 ]
 
-// const ActionPublish: React.FC<{publish: boolean, setPublish: (val: boolean) => void, llamarGraphql: () => void}> = ({publish, setPublish}) => {
-//     useEffect(() => {
-//         if (publish) {
-//             // llamarGraphql
-//             setPublish(false)
-//         }
-//     }, [publish, setPublish])
-//     return null
-// }
-
 type TTallySheetList = {
     contest: Sequent_Backend_Contest
     doAction: (action: number, id?: Identifier) => void
@@ -92,6 +82,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canPublish = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_PUBLISH)
     const canDelete = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_DELETE)
+
+    useEffect(() => {
+        localStorage.removeItem("tallySheetData")
+    }, [])
 
     useEffect(() => {
         if (reload) {

@@ -2,20 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {
-    Identifier,
-    SimpleForm,
-    useCreate,
-    useGetList,
-    useNotify,
-    useRefresh,
-    useUpdate,
-} from "react-admin"
+import {Identifier, SimpleForm, useCreate, useGetList, useNotify, useUpdate} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {
-    Sequent_Backend_Area,
+    Maybe,
+    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
@@ -50,17 +43,25 @@ interface ShowTallySheetProps {
 }
 
 interface ICandidateResultsExtended extends ICandidateResults {
-    name: string
+    name?: Maybe<string> | undefined
+}
+
+interface IArea {
+    id: string
+    name?: Maybe<string> | undefined
+}
+
+interface ICandidateResultsExtended extends ICandidateResults {
+    name?: Maybe<string> | undefined
 }
 
 export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
-    const {id, contest, doCreatedTalySheet, submitRef, tallySheet} = props
+    const {contest, submitRef, tallySheet} = props
 
-    const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
 
-    const [areasList, setAreasList] = useState<Sequent_Backend_Area[]>([])
+    const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: "",
@@ -79,7 +80,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         },
     })
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         filter: {
             contest_id: contest.id,
             tenant_id: contest.tenant_id,
@@ -93,13 +94,13 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
             if (tallySheetTemp.content) {
-                const contentTemp = {...tallySheetTemp.content}
+                const contentTemp: IAreaContestResults = {...tallySheetTemp.content}
                 if (contentTemp.invalid_votes) {
                     const invalidsTemp = {...contentTemp.invalid_votes}
                     setInvalids(invalidsTemp)
                 }
                 if (contentTemp.candidate_results) {
-                    const candidatesResultsTemp: ICandidateResultsExtended[] = []
+                    let candidatesResultsTemp: ICandidateResultsExtended[] = []
                     for (const candidate of candidates) {
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
@@ -112,11 +113,14 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
 
                         candidatesResultsTemp.push(candidateTemp)
                     }
-                    candidatesResultsTemp.sort((a, b) => a.name.localeCompare(b.name))
+                    candidatesResultsTemp.sort((a, b) =>
+                        (a.name as string).localeCompare(b.name as string)
+                    )
                     setCandidatesResults(candidatesResultsTemp)
                 }
                 setResults(contentTemp)
             }
+
             setChannel(tallySheetTemp.channel)
         }
     }, [tallySheet, candidates])
@@ -132,7 +136,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
 
     useEffect(() => {
         if (candidates) {
-            const candidatesTemp = []
+            const candidatesTemp: ICandidateResultsExtended[] = []
             for (const candidate of candidates) {
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
@@ -140,15 +144,15 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 }
                 candidatesTemp.push(candidateTemp)
             }
-            candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
+            candidatesTemp.sort((a, b) => (a.name as string).localeCompare(b.name as string))
             // setCandidatesResults(candidatesTemp)
         }
     }, [candidates])
 
     useEffect(() => {
         if (areas) {
-            const areatListTemp = areas.sequent_backend_area_contest.map(
-                (item: {area: {id: string; name: string}}) => {
+            const areatListTemp: IArea[] = areas?.sequent_backend_area_contest?.map(
+                (item: {area: IArea}) => {
                     return {
                         id: item.area.id,
                         name: item.area.name,
@@ -201,7 +205,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             }
 
             const finalCandidates = [...candidateRest, candidateTemp]
-            finalCandidates.sort((a, b) => a.name.localeCompare(b.name))
+            finalCandidates.sort((a, b) => (a.name as string).localeCompare(b.name as string))
             setCandidatesResults(finalCandidates)
         }
     }
@@ -213,12 +217,12 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
         const candidatesResultsTemp: {[id: string]: ICandidateResults} = {}
-        for (const candiate of candidatesResults) {
+        for (const candidate of candidatesResults) {
             const candiateTemp: ICandidateResults = {
-                candidate_id: candiate.candidate_id,
-                total_votes: candiate.total_votes,
+                candidate_id: candidate.candidate_id,
+                total_votes: candidate.total_votes as number,
             }
-            candidatesResultsTemp[candiate.candidate_id] = candiateTemp
+            candidatesResultsTemp[candidate.candidate_id] = candiateTemp
         }
         resultsTemp.invalid_votes = invalidsTemp
         resultsTemp.candidate_results = candidatesResultsTemp
@@ -239,13 +243,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 {
                     id: tallySheet.id,
                     data: tallySheetData,
-                    meta: {
-                        headers: {
-                            "x-hasura-role": "can-write-here",
-                            "x-hasura-test": "test test test",
-                        },
-                    },
-                } as any,
+                },
                 {
                     onSuccess: () => {
                         notify(t("tallysheet.createTallySuccess"), {type: "success"})
