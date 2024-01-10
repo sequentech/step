@@ -1,16 +1,12 @@
-import * as React from "react"
+import React from "react"
 import {styled} from "@mui/material/styles"
 import {ReactElement} from "react"
-import PropTypes from "prop-types"
-import {Drawer, DrawerProps, useMediaQuery, Theme, useScrollTrigger} from "@mui/material"
+import {Drawer, DrawerProps, useScrollTrigger} from "@mui/material"
 import lodashGet from "lodash/get"
 import {useSidebarState} from "react-admin"
 
 export const CustomSidebar = (props: SidebarProps) => {
     const {appBarAlwaysOn, children, closedSize, size, ...rest} = props
-    // const isXSmall = useMediaQuery<Theme>(theme =>
-    //     theme.breakpoints.down('sm')
-    // );
     const [open, setOpen] = useSidebarState()
     const trigger = useScrollTrigger()
 
@@ -25,7 +21,6 @@ export const CustomSidebar = (props: SidebarProps) => {
             className={trigger && !appBarAlwaysOn ? SidebarClasses.appBarCollapsed : ""}
             {...rest}
         >
-            {/* <div className={SidebarClasses.fixed}>{children}</div> */}
             {children}
         </StyledDrawer>
     )
@@ -95,7 +90,6 @@ const StyledDrawer = styled(Drawer, {
 
     [`& .${SidebarClasses.fixed}`]: {
         "position": "fixed",
-        // height: 'calc(100vh - 3em)',
         "overflowX": "hidden",
         // hide scrollbar
         "scrollbarWidth": "none",
@@ -118,7 +112,6 @@ const StyledDrawer = styled(Drawer, {
         borderRight: "none",
         [theme.breakpoints.only("xs")]: {
             marginTop: 0,
-            // height: '100vh',
             position: "inherit",
             backgroundColor: theme.palette.background.default,
         },
