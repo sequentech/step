@@ -196,7 +196,6 @@ actions:
         action: transform
         template: |-
           {
-              "tenant_id": {{$body.input.tenant_id}},
               "election_event_id": {{$body.input.election_event_id}},
               "document_id": {{$body.input.document_id}}
           }
