@@ -26,6 +26,7 @@ import {
     Typography,
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
+import { sortFunction } from './utils'
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -113,9 +114,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
 
                         candidatesResultsTemp.push(candidateTemp)
                     }
-                    candidatesResultsTemp.sort((a, b) =>
-                        (a.name as string).localeCompare(b.name as string)
-                    )
+                    candidatesResultsTemp.sort(sortFunction)
                     setCandidatesResults(candidatesResultsTemp)
                 }
                 setResults(contentTemp)
@@ -144,8 +143,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 }
                 candidatesTemp.push(candidateTemp)
             }
-            candidatesTemp.sort((a, b) => (a.name as string).localeCompare(b.name as string))
-            // setCandidatesResults(candidatesTemp)
         }
     }, [candidates])
 
@@ -205,7 +202,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             }
 
             const finalCandidates = [...candidateRest, candidateTemp]
-            finalCandidates.sort((a, b) => (a.name as string).localeCompare(b.name as string))
+            finalCandidates.sort(sortFunction)
             setCandidatesResults(finalCandidates)
         }
     }
@@ -220,7 +217,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         for (const candidate of candidatesResults) {
             const candiateTemp: ICandidateResults = {
                 candidate_id: candidate.candidate_id,
-                total_votes: candidate.total_votes as number,
+                total_votes: candidate.total_votes,
             }
             candidatesResultsTemp[candidate.candidate_id] = candiateTemp
         }
@@ -258,13 +255,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 "sequent_backend_tally_sheet",
                 {
                     data: tallySheetData,
-                    meta: {
-                        headers: {
-                            "x-hasura-role": "can-write-here",
-                            "x-hasura-test": "test test test",
-                        },
-                    },
-                } as any,
+                },
                 {
                     onSuccess: () => {
                         notify(t("tallysheet.createTallySuccess"), {type: "success"})

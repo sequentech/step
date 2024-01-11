@@ -27,6 +27,7 @@ import {
 } from "@mui/material"
 import TextField from "@mui/material/TextField"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
+import { sortFunction } from './utils'
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -104,18 +105,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                             name: candidate.name as string,
                         }
                         if (contentTemp.candidate_results[candidate.id]) {
-                            console.log(
-                                "candidate.id",
-                                contentTemp.candidate_results[candidate.id].total_votes
-                            )
-
                             candidateTemp.total_votes =
                                 contentTemp.candidate_results[candidate.id].total_votes
                         }
 
                         candidatesResultsTemp.push(candidateTemp)
                     }
-                    candidatesResultsTemp.sort((a, b) => a.name.localeCompare(b.name))
+                    candidatesResultsTemp.sort(sortFunction)
                     setCandidatesResults(candidatesResultsTemp)
                 }
                 setResults(contentTemp)
@@ -163,7 +159,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }
                 candidatesTemp.push(candidateTemp)
             }
-            candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
+            candidatesTemp.sort(sortFunction)
             setCandidatesResults(candidatesTemp)
         }
     }, [candidates, tallySheet])
