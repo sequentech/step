@@ -1,6 +1,8 @@
-export const sortFunction = (a: any, b: any) => {
-    if (a && a.name && b && b.name) {
-        return (a.name as string).localeCompare(b.name as string)
+import {isString} from "@sequentech/ui-essentials"
+
+export const sortFunction = (a: {name?: string}, b: {name?: string}) => {
+    if (isString(a?.name) && isString(b?.name)) {
+        return a.name.localeCompare(b.name)
     }
     return 0
 }
