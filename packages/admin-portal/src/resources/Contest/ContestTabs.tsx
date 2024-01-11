@@ -31,7 +31,12 @@ export const ContestTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Tally Sheets">
+                <TabbedShowLayout.Tab
+                    label="Tally Sheets"
+                    onClick={() => {
+                        setAction(WizardSteps.List)
+                    }}
+                >
                     {action === WizardSteps.List ? (
                         <ListTallySheet contest={record} doAction={handleAction} reload={refresh} />
                     ) : action === WizardSteps.Start ? (
