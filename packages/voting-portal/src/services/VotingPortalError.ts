@@ -1,0 +1,18 @@
+export enum VotingPortalErrorType {
+    NO_ELECTION_EVENT = "NO_ELECTION_EVENT",
+    INTERNAL_ERROR = "INTERNAL_ERROR",
+    UNABLE_TO_FETCH_DATA = "UNABLE_TO_FETCH_DATA",
+    UNABLE_TO_ENCRYPT_BALLOT = "UNABLE_TO_ENCRYPT_BALLOT",
+    UNABLE_TO_CAST_BALLOT = "UNABLE_TO_CAST_BALLOT",
+    NO_BALLOT_STYLE = "NO_BALLOT_STYLE",
+}
+
+export class VotingPortalError extends Error {
+    type: VotingPortalErrorType
+
+    constructor(type: VotingPortalErrorType) {
+        super(type)
+        this.name = "VotingPortalError"
+        this.type = type
+    }
+}

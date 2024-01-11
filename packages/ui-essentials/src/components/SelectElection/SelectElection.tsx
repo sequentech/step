@@ -167,20 +167,24 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickBallotLocator,
 }) => {
     const {t} = useTranslation()
+
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
     ) => {
         event.stopPropagation()
+
         if (!isUndefined(onClickToVote)) {
             onClickToVote()
         }
     }
+
     const handleClickElectionResults: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         event.stopPropagation()
         if (!isUndefined(onClickElectionResults)) {
             onClickElectionResults()
         }
     }
+
     const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
     ) => {
@@ -257,13 +261,14 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledButton>
                 )}
                 {isOpen ? (
-                    <StyledButton onClick={handleClickToVote}>
+                    <StyledButton disabled={!handleClickToVote} onClick={handleClickToVote}>
                         {t("selectElection.voteButton")}
                     </StyledButton>
                 ) : (
-                    <StyledButton variant="secondary" onClick={handleClickElectionResults}>
-                        {t("selectElection.resultsButton")}
-                    </StyledButton>
+                    <></>
+                    // <StyledButton variant="secondary" onClick={handleClickElectionResults}>
+                    //     {t("selectElection.resultsButton")}
+                    // </StyledButton>
                 )}
             </Box>
         </BorderBox>

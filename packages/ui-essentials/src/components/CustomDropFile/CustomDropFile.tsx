@@ -7,7 +7,7 @@ import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
 import {useForwardedRef} from "../../utils/ref"
 import {Typography} from "@mui/material"
-import theme from "@root/services/theme"
+import theme from "../../services/theme"
 
 const StyledForm = styledEmotion.form`
     height: 16rem;
