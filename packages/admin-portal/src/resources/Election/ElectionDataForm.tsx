@@ -543,51 +543,6 @@ export const ElectionDataForm: React.FC = () => {
                                             />
                                         </ElectionStyles.AccordionWrapper>
                                     ))}
-                                    {/* <ElectionStyles.AccordionWrapper alignment="center">
-                                        <BooleanInput
-                                            source="allowed.sms"
-                                            label={"SMS"}
-                                            defaultValue={true}
-                                        />
-                                        <SelectInput
-                                            source="template.sms"
-                                            choices={[
-                                                {id: "tech", name: "Tech"},
-                                                {id: "lifestyle", name: "Lifestyle"},
-                                                {id: "people", name: "People"},
-                                            ]}
-                                        />
-                                    </ElectionStyles.AccordionWrapper>
-                                    <ElectionStyles.AccordionWrapper alignment="center">
-                                        <BooleanInput
-                                            source="allowed.email"
-                                            label={"EMAIL"}
-                                            defaultValue={true}
-                                        />
-                                        <SelectInput
-                                            source="template.email"
-                                            choices={[
-                                                {id: "tech", name: "Tech"},
-                                                {id: "lifestyle", name: "Lifestyle"},
-                                                {id: "people", name: "People"},
-                                            ]}
-                                        />
-                                    </ElectionStyles.AccordionWrapper>
-                                    <ElectionStyles.AccordionWrapper alignment="center">
-                                        <BooleanInput
-                                            source="allowed.print"
-                                            label={"PRINT"}
-                                            defaultValue={true}
-                                        />
-                                        <SelectInput
-                                            source="template.print"
-                                            choices={[
-                                                {id: "tech", name: "Tech"},
-                                                {id: "lifestyle", name: "Lifestyle"},
-                                                {id: "people", name: "People"},
-                                            ]}
-                                        />
-                                    </ElectionStyles.AccordionWrapper> */}
                                 </ElectionStyles.AccordionContainer>
                             </AccordionDetails>
                         </Accordion>
