@@ -80,4 +80,5 @@ postgres-openssl = { version = "0.5.0", optional = true }
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
 openssl = { version = "0.10.57", optional = true }
+aws-sdk-secretsmanager = "1.11.0"
 
