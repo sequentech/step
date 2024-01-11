@@ -471,13 +471,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.communication_method}
                             onChange={handleSelectMethodChange}
                         >
-                            {(Object.values(ICommunicationMethod)).map(
-                                (key) => (
-                                    <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.communicationMethod.${key}`)}
-                                    </MenuItem>
-                                )
-                            )}
+                            {Object.values(ICommunicationMethod).map((key) => (
+                                <MenuItem key={key} value={key}>
+                                    {t(`sendCommunication.communicationMethod.${key}`)}
+                                </MenuItem>
+                            ))}
                         </FormStyles.Select>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.type")}
@@ -487,13 +485,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.communication_type}
                             onChange={handleSelectTypeChange}
                         >
-                            {(Object.values(ICommunicationType)).map(
-                                (key) => (
-                                    <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.communicationType.${key}`)}
-                                    </MenuItem>
-                                )
-                            )}
+                            {Object.values(ICommunicationType).map((key) => (
+                                <MenuItem key={key} value={key}>
+                                    {t(`sendCommunication.communicationType.${key}`)}
+                                </MenuItem>
+                            ))}
                         </FormStyles.Select>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.alias")}
