@@ -19,8 +19,6 @@ import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvi
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {LoginScreen} from "./routes/LoginScreen"
 import {StartScreen} from "./routes/StartScreen"
-import VotingScreen, {action as votingAction} from "./routes/VotingScreen"
-import {ReviewScreen} from "./routes/ReviewScreen"
 import {ConfirmationScreen} from "./routes/ConfirmationScreen"
 import {AuditScreen} from "./routes/AuditScreen"
 import {ElectionSelectionScreen} from "./routes/ElectionSelectionScreen"
@@ -28,6 +26,8 @@ import {BallotLocator} from "./routes/BallotLocator"
 import {ErrorPage} from "./routes/ErrorPage"
 import {SupportMaterialsScreen} from "./routes/SupportMaterialsScreen"
 import TenantEvent from "./routes/TenantEvent"
+import VotingScreen, {action as votingAction} from "./routes/VotingScreen"
+import ReviewScreen, {action as castBallotAction} from "./routes/ReviewScreen"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -92,6 +92,7 @@ const router = createBrowserRouter(
                                 {
                                     path: "review",
                                     element: <ReviewScreen />,
+                                    action: castBallotAction,
                                 },
                                 {
                                     path: "confirmation",

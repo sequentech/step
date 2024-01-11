@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useContext, useEffect} from "react"
+import React, {useState, useEffect} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -109,6 +109,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
+
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
