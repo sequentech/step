@@ -1,9 +1,6 @@
 use super::{aws_secret_manager, hashicorp_vault};
-use anyhow::{anyhow, Context, Result};
-use reqwest;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::{env, str::FromStr};
+use anyhow::Result;
+use std::str::FromStr;
 use strum_macros::EnumString;
 use tracing::{info, instrument};
 
@@ -26,7 +23,7 @@ async fn get_config() -> Result<VaultManager> {
 
 #[instrument(skip(value), err)]
 pub async fn save_secret(key: String, value: String) -> Result<()> {
-    let vault = get_config();
+    let vault = get_config().await?;
 
     match vault {
         VaultManager::HashiCorpVault => hashicorp_vault::save_secret(key, value).await,
@@ -36,7 +33,7 @@ pub async fn save_secret(key: String, value: String) -> Result<()> {
 
 #[instrument(err)]
 pub async fn read_secret(key: String) -> Result<Option<String>> {
-    let vault = get_config();
+    let vault = get_config().await?;
 
     match vault {
         VaultManager::HashiCorpVault => hashicorp_vault::read_secret(key).await,
