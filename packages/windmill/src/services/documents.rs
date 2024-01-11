@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::anyhow;
 use sequent_core::services::connection;
+use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura_types::Document;
 use tracing::instrument;
 
@@ -120,4 +121,34 @@ pub async fn get_upload_url(
         is_public: document.is_public.clone(),
     };
     Ok((ret_document, url))
+}
+
+#[instrument(err)]
+pub async fn fetch_document(
+    tenant_id: String,
+    election_event_id: String,
+    document_id: String,
+) -> Result<String> {
+    let auth_headers = get_client_credentials().await?;
+    let document_result = hasura::document::find_document(
+        auth_headers,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        document_id.clone(),
+    )
+    .await?;
+
+    let document = &document_result
+        .data
+        .ok_or(anyhow!("expected data"))?
+        .sequent_backend_document[0];
+
+    let document_s3_key = s3::get_document_key(tenant_id.clone(), election_event_id, document_id);
+    let bucket = if document.is_public.unwrap_or(false) {
+        s3::get_public_bucket()?
+    } else {
+        s3::get_private_bucket()?
+    };
+    let url = s3::get_document_url(document_s3_key, bucket).await?;
+    Ok(url)
 }
