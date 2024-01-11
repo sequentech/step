@@ -143,10 +143,15 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
+                deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
+            empty: {
+                header: "No hay Áreas aún.",
+                action: "Crear un Área",
+            },
         },
         electionTypeScreen: {
             common: {

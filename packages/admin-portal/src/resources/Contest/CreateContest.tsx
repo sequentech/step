@@ -19,6 +19,7 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
+import { VOTING_TYPES } from './constants'
 
 const Hidden = styled(Box)`
     display: none;
@@ -61,8 +62,8 @@ export const CreateContest: React.FC = () => {
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
                         source="voting_type"
-                        defaultValue="first-past-the-post"
-                        choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
+                        defaultValue="no-preferential"
+                        choices={VOTING_TYPES(t)}
                     />
                     <SelectInput
                         source="counting_algorithm"
