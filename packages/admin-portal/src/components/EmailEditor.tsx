@@ -6,7 +6,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {IEmail} from "@/types/communications"
 
-type EmailEditorProps = {
+interface EmailEditorProps {
     record: IEmail
     setRecord: (newRecord: IEmail) => void
 }
