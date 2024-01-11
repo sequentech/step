@@ -25,10 +25,6 @@ export const WizardSteps = {
     View: 4,
 }
 
-interface IExpanded {
-    [key: string]: boolean
-}
-
 interface TallySheetWizardProps {
     tallySheetId?: Identifier | undefined
     contest: Sequent_Backend_Contest
@@ -64,6 +60,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
+            // needs to wait for the click handler to submit the data
             setTimeout(() => {
                 const tallySheet = localStorage.getItem("tallySheetData")
                 if (tallySheet) {
@@ -79,12 +76,14 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     }
 
     const handleBack = () => {
+        const tallySheet = localStorage.getItem("tallySheetData")
+        const tallySheetTemp = JSON.parse(tallySheet || "{}")
         if (page === WizardSteps.Start) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Edit) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Confirm) {
-            if (tallySheetId) {
+            if (tallySheetId && tallySheetTemp && tallySheetTemp.id) {
                 doAction(WizardSteps.List)
             } else {
                 doAction(WizardSteps.Edit)
@@ -119,7 +118,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
                             ) => {
-                                console.log("CTallySheet Create PREV", tallySheet)
                                 setCreatedTallySheet(tallySheet)
                             }}
                             submitRef={submitRef}
@@ -135,7 +133,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
                             ) => {
-                                console.log("CTallySheet Edit PREV", tallySheet)
                                 setCreatedTallySheet(tallySheet)
                             }}
                             submitRef={submitRef}
@@ -191,38 +188,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     )}
                 </TallyStyles.StyledFooter>
             </WizardStyles.WizardWrapper>
-
-            {/* <Dialog
-                variant="info"
-                open={openModal}
-                ok={t("tally.common.dialog.ok")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.title")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmStartAction()
-                    }
-                    setOpenModal(false)
-                }}
-            >
-                {t("tally.common.dialog.message")}
-            </Dialog> */}
-
-            {/* <Dialog
-                variant="info"
-                open={openCeremonyModal}
-                ok={t("tally.common.dialog.okTally")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.tallyTitle")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmCeremonyAction()
-                    }
-                    setOpenCeremonyModal(false)
-                }}
-            >
-                {t("tally.common.dialog.ceremony")}
-            </Dialog> */}
         </>
     )
 }
