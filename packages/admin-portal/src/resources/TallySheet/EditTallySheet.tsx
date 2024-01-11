@@ -8,6 +8,8 @@ import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {
     Maybe,
+    Sequent_Backend_Area,
+    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
@@ -75,7 +77,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         },
     })
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         filter: {
             contest_id: contest.id,
             tenant_id: contest.tenant_id,
@@ -87,7 +89,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
 
         if ((tallySheet || tallySaved) && candidates) {
-            const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
+            const tallySheetTemp = tallySaved ? JSON.parse(tallySaved || "") : tallySheet
             if (tallySheetTemp.content) {
                 const contentTemp: IAreaContestResults = {...tallySheetTemp.content}
                 if (contentTemp.invalid_votes) {
@@ -99,9 +101,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     for (const candidate of candidates) {
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
-                            name: candidate.name,
+                            name: candidate.name as string,
                         }
                         if (contentTemp.candidate_results[candidate.id]) {
+                            console.log(
+                                "candidate.id",
+                                contentTemp.candidate_results[candidate.id].total_votes
+                            )
+
                             candidateTemp.total_votes =
                                 contentTemp.candidate_results[candidate.id].total_votes
                         }
@@ -145,18 +152,21 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [])
 
     useEffect(() => {
-        if (candidates && !tallySheet) {
+        const tallySaved: string | null = localStorage.getItem("tallySheetData")
+
+        if (!(tallySheet || tallySaved) && candidates) {
             const candidatesTemp = []
             for (const candidate of candidates) {
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
-                    name: candidate.name,
+                    name: candidate.name as string,
                 }
                 candidatesTemp.push(candidateTemp)
             }
             candidatesTemp.sort((a, b) => a.name.localeCompare(b.name))
+            setCandidatesResults(candidatesTemp)
         }
-    }, [candidates])
+    }, [candidates, tallySheet])
 
     const handleChange = (event: SelectChangeEvent) => {
         // setArea(event.target.value as string)
