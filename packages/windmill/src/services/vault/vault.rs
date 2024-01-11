@@ -11,7 +11,7 @@ enum VaultManager {
 }
 
 async fn get_config() -> Result<VaultManager> {
-    let vault_name = std::env::var("VAULT_NAME").unwrap_or("HashiCorpVault".to_string());
+    let vault_name = std::env::var("VAULT_MANAGER").unwrap_or("HashiCorpVault".to_string());
 
     info!("Vault: vault_name={vault_name}");
 
