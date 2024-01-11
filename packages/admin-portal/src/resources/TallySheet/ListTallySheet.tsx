@@ -21,14 +21,13 @@ import {
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
 } from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {IconButton} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
@@ -53,16 +52,6 @@ const Filters: Array<ReactElement> = [
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Published" source="published_at" key={3} />,
 ]
-
-// const ActionPublish: React.FC<{publish: boolean, setPublish: (val: boolean) => void, llamarGraphql: () => void}> = ({publish, setPublish}) => {
-//     useEffect(() => {
-//         if (publish) {
-//             // llamarGraphql
-//             setPublish(false)
-//         }
-//     }, [publish, setPublish])
-//     return null
-// }
 
 interface TTallySheetList {
     contest: Sequent_Backend_Contest
@@ -95,12 +84,17 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const canDelete = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_DELETE)
 
     useEffect(() => {
+        localStorage.removeItem("tallySheetData")
+    }, [])
+
+    useEffect(() => {
         if (reload) {
             refresh()
         }
     }, [reload, refresh])
 
     const createAction = () => {
+        localStorage.removeItem("tallySheetData")
         doAction(WizardSteps.Start)
     }
 
