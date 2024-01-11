@@ -11,7 +11,6 @@ import {FetchDocumentQuery, Sequent_Backend_Document} from "../../gql/graphql"
 import {FETCH_DOCUMENT} from "../../queries/FetchDocument"
 import {CircularProgress} from "@mui/material"
 import {downloadUrl} from "@sequentech/ui-essentials"
-import {useTenantStore} from "../../providers/TenantContextProvider"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -20,12 +19,10 @@ interface PerformDownloadProps {
 let downloading = false
 
 const PerformDownload: React.FC<PerformDownloadProps> = ({onDownload}) => {
-    const [tenantId] = useTenantStore()
     const record = useRecordContext<Sequent_Backend_Document>()
 
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
-            tenantId: tenantId,
             electionEventId: record.election_event_id,
             documentId: record.id,
         },

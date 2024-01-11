@@ -10,6 +10,7 @@ export const GET_ELECTION_EVENT = gql`
         ) {
             id
             presentation
+            status
         }
     }
 `

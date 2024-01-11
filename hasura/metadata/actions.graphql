@@ -95,7 +95,6 @@ type Mutation {
 
 type Query {
   fetchDocument (
-    tenant_id: String!
     election_event_id: String!
     document_id: String!
   ): FetchDocumentOutput
