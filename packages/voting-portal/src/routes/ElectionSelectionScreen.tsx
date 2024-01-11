@@ -15,6 +15,8 @@ import {
     stringToHtml,
     theme,
     translateElection,
+    EVotingStatus,
+    IElectionEventStatus,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
@@ -48,7 +50,12 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
-import {CustomError} from "./ErrorPage"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {
+    selectElectionEventById,
+    setElectionEvent,
+} from "../store/electionEvents/electionEventsSlice"
+import {TenantEventType} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -74,17 +81,24 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
-    const election = useAppSelector(selectElectionById(electionId))
-    const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
-    const onClickToVote = () => {
-        navigate(`../election/${electionId}/start`)
-    }
+    const {eventId} = useParams<TenantEventType>()
+    const election = useAppSelector(selectElectionById(electionId))
+    const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     if (!election) {
-        return null
+        throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
+    }
+
+    const eventStatus = electionEvent?.status as IElectionEventStatus | null
+    const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
+    const canVote = castVotes.length < (election?.num_allowed_revotes ?? 1) && isVotingOpen
+
+    const onClickToVote = () => {
+        navigate(`../election/${electionId}/start`)
     }
 
     const handleClickBallotLocator = () => {
@@ -93,12 +107,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
 
     return (
         <SelectElection
-            isActive={true}
-            isOpen={true}
+            isActive={canVote}
+            isOpen={isVotingOpen}
             title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
-            onClickToVote={onClickToVote}
+            onClickToVote={canVote ? onClickToVote : undefined}
             onClickElectionResults={() => undefined}
             onClickBallotLocator={handleClickBallotLocator}
         />
@@ -129,9 +143,8 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 })
             )
         } catch (error) {
-            console.log(`Error loading fake EML: ${error}`)
-            console.log(election)
-            throw new CustomError("Error loading fake ballot style and election")
+            console.log(`Error loading fake EML: ${error}`, election)
+            throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
         }
     }
 }
@@ -237,7 +250,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (errorBallotStyles || errorElections || errorElectionEvent) {
-            throw new CustomError("Unable to fetch data")
+            throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
         }
     }, [errorElections, errorBallotStyles, errorElectionEvent])
 
@@ -258,13 +271,13 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [dataElections, dispatch])
 
     useEffect(() => {
-        if (dataElectionEvent && dataElectionEvent.sequent_backend_election_event.length > 0) {
-            setIsMaterialsActivated(
-                dataElectionEvent?.sequent_backend_election_event?.[0]?.presentation?.materials
-                    ?.activated || false
-            )
+        const record = dataElectionEvent?.sequent_backend_election_event?.[0]
+
+        if (record) {
+            dispatch(setElectionEvent(record))
+            setIsMaterialsActivated(record?.presentation?.materials?.activated || false)
         }
-    }, [dataElectionEvent])
+    }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
         if (!castVotes?.sequent_backend_cast_vote) {

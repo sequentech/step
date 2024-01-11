@@ -16734,7 +16734,7 @@ export type GetElectionEventQueryVariables = Exact<{
 }>;
 
 
-export type GetElectionEventQuery = { __typename?: 'query_root', sequent_backend_election_event: Array<{ __typename?: 'sequent_backend_election_event', id: any, presentation?: any | null }> };
+export type GetElectionEventQuery = { __typename?: 'query_root', sequent_backend_election_event: Array<{ __typename?: 'sequent_backend_election_event', id: any, presentation?: any | null, status?: any | null }> };
 
 export type GetElectionsQueryVariables = Exact<{
   electionIds: Array<Scalars['uuid']['input']> | Scalars['uuid']['input'];
