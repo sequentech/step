@@ -27,7 +27,7 @@ import {
 } from "@mui/material"
 import TextField from "@mui/material/TextField"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
-import { sortFunction } from './utils'
+import {sortFunction} from "./utils"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},

@@ -26,7 +26,7 @@ import {
     Typography,
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
-import { sortFunction } from './utils'
+import {sortFunction} from "./utils"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
