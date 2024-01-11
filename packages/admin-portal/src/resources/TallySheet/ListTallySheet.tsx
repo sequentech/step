@@ -53,7 +53,7 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Published" source="published_at" key={3} />,
 ]
 
-type TTallySheetList = {
+interface TTallySheetList {
     contest: Sequent_Backend_Contest
     doAction: (action: number, id?: Identifier) => void
     reload: string | null
