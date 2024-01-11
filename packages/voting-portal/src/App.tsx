@@ -51,7 +51,7 @@ const App = () => {
             )
         } else {
             if (location.pathname === "/") {
-                throw new VotingPortalError(VotingPortalErrorType.NoElectionEvent)
+                throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
             }
         }
     }, [

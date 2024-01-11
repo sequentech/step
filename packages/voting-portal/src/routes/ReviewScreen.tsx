@@ -107,7 +107,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     }
 
     const castBallotAction = async () => {
-        const errorType = VotingPortalErrorType.UnableToCastBallot
+        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
 
         try {
             const {data} = await refetchElectionEvent()
@@ -221,7 +221,7 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                return submit({error: VotingPortalErrorType.NoBallotStyle}, {method: "post"})
+                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
             }
         }
     }

@@ -85,7 +85,7 @@ export function ErrorPage() {
 
                 {!(
                     error instanceof VotingPortalError &&
-                    error.type === VotingPortalErrorType.NoElectionEvent
+                    error.type === VotingPortalErrorType.NO_ELECTION_EVENT
                 ) && (
                     <StyledLink to={backLink}>
                         <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>

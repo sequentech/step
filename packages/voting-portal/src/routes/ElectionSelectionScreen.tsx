@@ -90,7 +90,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     if (!election) {
-        throw new VotingPortalError(VotingPortalErrorType.InternalError)
+        throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
@@ -144,7 +144,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
             )
         } catch (error) {
             console.log(`Error loading fake EML: ${error}`, election)
-            throw new VotingPortalError(VotingPortalErrorType.InternalError)
+            throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
         }
     }
 }
@@ -250,7 +250,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (errorBallotStyles || errorElections || errorElectionEvent) {
-            throw new VotingPortalError(VotingPortalErrorType.UnableToFetchData)
+            throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
         }
     }, [errorElections, errorBallotStyles, errorElectionEvent])
 

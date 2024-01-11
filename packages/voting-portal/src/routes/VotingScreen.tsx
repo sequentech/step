@@ -168,7 +168,7 @@ const VotingScreen: React.FC = () => {
 
             submit(null, {method: "post"})
         } catch (error) {
-            submit({error: VotingPortalErrorType.UnableToEncryptBallot}, {method: "post"})
+            submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
         }
     }
 
