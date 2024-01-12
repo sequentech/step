@@ -384,13 +384,23 @@ pub async fn import_users_f(
     } else {
         Permissions::USER_CREATE
     };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
     let celery_app = get_celery_app().await;
-    // always set an id;
     let task = celery_app
         .send_task(import_users::import_users::new(input))
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    info!("Sent INSERT_ELECTION_EVENT task {}", task.task_id);
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error sending import_users task: {:?}", e),
+            )
+        })?;
+    info!("Sent IMPORT_USERS task {}", task.task_id);
 
     Ok(Json(Default::default()))
 }

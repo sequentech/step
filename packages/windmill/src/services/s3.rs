@@ -4,17 +4,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::util::aws::{
-    get_fetch_expiration_secs, get_from_env_aws_config, get_max_upload_size, get_s3_aws_config,
-    get_upload_expiration_secs,
+    get_fetch_expiration_secs, get_max_upload_size, get_s3_aws_config, get_upload_expiration_secs,
 };
 
 use anyhow::{anyhow, Result};
-use aws_config::SdkConfig;
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
 use std::env;
+use std::fs::File;
+use std::io::Write;
+use tempfile::tempfile;
+use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
 pub fn get_private_bucket() -> Result<String> {
@@ -149,4 +151,32 @@ pub async fn get_upload_url(key: String) -> Result<String> {
         .presigned(presigning_config)
         .await?;
     Ok(presigned_request.uri().to_string())
+}
+
+#[instrument(err, ret)]
+pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow::Result<File> {
+    let config = get_s3_aws_config(/* private = */ true).await?;
+    let client = get_s3_client(config.clone()).await?;
+
+    let response = client
+        .get_object()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .send()
+        .await?;
+
+    // Stream the data into a temporary file
+    let mut temp_file = tempfile()?;
+    let mut stream = response.body.into_async_read();
+    let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
+
+    while let Ok(size) = stream.read(&mut buffer).await {
+        if size == 0 {
+            break; // End of file
+        }
+        temp_file.write_all(&buffer[..size])?;
+    }
+
+    // The file is now downloaded to a temporary file
+    Ok(temp_file)
 }

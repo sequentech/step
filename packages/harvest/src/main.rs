@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -47,7 +48,7 @@ async fn rocket() -> _ {
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
-                //routes::users::import_users,
+                routes::users::import_users_f,
                 routes::users::delete_user,
                 routes::users::get_users,
                 routes::users::get_user,
