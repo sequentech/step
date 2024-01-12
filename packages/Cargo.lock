@@ -7011,6 +7011,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.4.11",
+ "criterion 0.5.1",
  "num-bigint",
  "rand 0.8.5",
  "rayon",

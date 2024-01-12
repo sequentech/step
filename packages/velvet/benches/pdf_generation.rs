@@ -1,15 +1,13 @@
-#![feature(test)]
+use std::time::Duration;
 
-extern crate test;
-use test::Bencher;
+use criterion::{criterion_group, criterion_main, Criterion};
 use velvet::{
     cli::{state::State, test_all::generate_ballots, CliRun},
     fixtures::TestFixture,
     pipes::PipeManager,
 };
 
-#[bench]
-fn bench_pdf_generation(b: &mut Bencher) {
+pub fn criterion_benchmark(c: &mut Criterion) {
     let fixture = TestFixture::new().expect("Failed to create test fixture");
 
     generate_ballots(&fixture, 1, 2, 1, 50).expect("Failed to generate ballots");
@@ -45,8 +43,23 @@ fn bench_pdf_generation(b: &mut Bencher) {
         .expect("Failed to get pipe")
         .expect("Failed to unwrap pipe");
 
-    b.iter(|| {
-        // Generate reports
-        pm.exec().expect("Failed to execute pipe");
+    // Benchmarking
+
+    let mut group = c.benchmark_group("generate_reports_group");
+
+    group.warm_up_time(Duration::from_secs(5));
+    group.measurement_time(Duration::from_secs(75));
+    group.sample_size(10);
+
+    group.bench_function("generate reports", |b| {
+        b.iter(|| {
+            // Generate reports
+            pm.exec().expect("Failed to execute pipe");
+        })
     });
+
+    group.finish();
 }
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);
