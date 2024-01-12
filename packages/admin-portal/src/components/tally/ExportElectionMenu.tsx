@@ -16,7 +16,6 @@ import {downloadUrl, isNull, theme} from "@sequentech/ui-essentials"
 import {useGetList} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {EExportFormat, IResultDocuments} from "@/types/results"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 
@@ -35,11 +34,8 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     documentId,
     electionEventId,
 }) => {
-    const [tenantId] = useTenantStore()
-
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
-            tenantId,
             electionEventId,
             documentId,
         },
