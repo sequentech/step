@@ -2,8 +2,160 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::fixtures::ballot_styles::generate_ballot_style;
+use crate::fixtures::TestFixture;
+use anyhow::{Error, Result};
+use sequent_core::ballot_codec::BigUIntCodec;
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use std::fs;
+use std::io::Write;
+use std::str::FromStr;
+use tracing::instrument;
+use uuid::Uuid;
+
+#[instrument(skip_all)]
+pub fn generate_ballots(
+    fixture: &TestFixture,
+    election_num: u32,
+    contest_num: u32,
+    area_num: u32,
+    ballots_num: u32,
+) -> Result<()> {
+    if ballots_num > 0 && ballots_num < 20 {
+        panic!("ballots_num should be at least 20");
+    }
+
+    let election_event_id = Uuid::new_v4();
+
+    (0..election_num).try_for_each(|_| {
+        let mut election = fixture.create_election_config(&election_event_id)?;
+        election.ballot_styles.clear();
+
+        (0..contest_num).try_for_each(|_| {
+            let contest = fixture.create_contest_config(
+                &election.tenant_id,
+                &election_event_id,
+                &election.id,
+            )?;
+            (0..area_num).try_for_each(|index| {
+                let area_config = fixture.create_area_config(
+                    &election.tenant_id,
+                    &election_event_id,
+                    &election.id,
+                    &Uuid::from_str(&contest.id).unwrap(),
+                    100,
+                )?;
+
+                election.ballot_styles.push(generate_ballot_style(
+                    &election.tenant_id,
+                    &election.election_event_id,
+                    &election.id,
+                    &area_config.id,
+                    vec![contest.clone()],
+                ));
+
+                let file = fixture
+                    .input_dir_ballots
+                    .join(format!("election__{}", &election.id))
+                    .join(format!("contest__{}", &contest.id))
+                    .join(format!("area__{}", area_config.id));
+
+                if index == 1 {
+                    // skip 1 ballot file
+                    return Ok(());
+                }
+
+                let mut file = fs::OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .create(true)
+                    .open(file.join("ballots.csv"))?;
+
+                (0..ballots_num).try_for_each(|i| {
+                    let mut choices = vec![
+                        DecodedVoteChoice {
+                            id: "0".to_owned(),
+                            selected: -1,
+                            write_in_text: None,
+                        },
+                        DecodedVoteChoice {
+                            id: "1".to_owned(),
+                            selected: -1,
+                            write_in_text: None,
+                        },
+                        DecodedVoteChoice {
+                            id: "2".to_owned(),
+                            selected: -1,
+                            write_in_text: None,
+                        },
+                        DecodedVoteChoice {
+                            id: "3".to_owned(),
+                            selected: -1,
+                            write_in_text: None,
+                        },
+                        DecodedVoteChoice {
+                            id: "4".to_owned(),
+                            selected: -1,
+                            write_in_text: None,
+                        },
+                    ];
+
+                    let mut plaintext_prepare = DecodedVoteContest {
+                        contest_id: contest.id.clone(),
+                        is_explicit_invalid: false,
+                        invalid_errors: vec![],
+                        choices: vec![],
+                    };
+
+                    match i {
+                        1 => choices[0].selected = 0,
+                        2 => choices[1].selected = 0,
+                        3 => choices[2].selected = 0,
+                        4 => choices[3].selected = 0,
+                        5 => choices[4].selected = 0,
+                        6 => choices[0].selected = 0,
+                        7 => choices[0].selected = 0,
+                        8 => choices[3].selected = 0,
+                        9 => choices[3].selected = 0,
+                        10 => (),
+                        11 => (),
+                        12 => (),
+                        14 => {
+                            choices[2].selected = 0;
+                            choices[3].selected = 42;
+                        }
+                        15 => {
+                            choices[3].selected = 42;
+                        }
+                        _ => choices[1].selected = 0,
+                    }
+
+                    plaintext_prepare.choices = choices;
+
+                    let plaintext = contest
+                        .encode_plaintext_contest_bigint(&plaintext_prepare)
+                        .unwrap();
+
+                    writeln!(file, "{}", plaintext)?;
+
+                    Ok::<(), Error>(())
+                })?;
+
+                Ok::<(), Error>(())
+            })?;
+
+            Ok::<(), Error>(())
+        })?;
+
+        Ok::<(), Error>(())
+    })?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::cli::state::State;
     use crate::cli::CliRun;
     use crate::fixtures::ballot_styles::generate_ballot_style;
@@ -20,149 +172,8 @@ mod tests {
     use std::fs;
     use std::io::Write;
     use std::str::FromStr;
-    use tracing::instrument;
     use uuid::Uuid;
     use walkdir::WalkDir;
-
-    #[instrument(skip_all)]
-    fn generate_ballots(
-        fixture: &TestFixture,
-        election_num: u32,
-        contest_num: u32,
-        area_num: u32,
-        ballots_num: u32,
-    ) -> Result<()> {
-        if ballots_num > 0 && ballots_num < 20 {
-            panic!("ballots_num should be at least 20");
-        }
-
-        let election_event_id = Uuid::new_v4();
-
-        (0..election_num).try_for_each(|_| {
-            let mut election = fixture.create_election_config(&election_event_id)?;
-            election.ballot_styles.clear();
-
-            (0..contest_num).try_for_each(|_| {
-                let contest = fixture.create_contest_config(
-                    &election.tenant_id,
-                    &election_event_id,
-                    &election.id,
-                )?;
-                (0..area_num).try_for_each(|index| {
-                    let area_config = fixture.create_area_config(
-                        &election.tenant_id,
-                        &election_event_id,
-                        &election.id,
-                        &Uuid::from_str(&contest.id).unwrap(),
-                        100,
-                    )?;
-
-                    election.ballot_styles.push(generate_ballot_style(
-                        &election.tenant_id,
-                        &election.election_event_id,
-                        &election.id,
-                        &area_config.id,
-                        vec![contest.clone()],
-                    ));
-
-                    let file = fixture
-                        .input_dir_ballots
-                        .join(format!("election__{}", &election.id))
-                        .join(format!("contest__{}", &contest.id))
-                        .join(format!("area__{}", area_config.id));
-
-                    if index == 1 {
-                        // skip 1 ballot file
-                        return Ok(());
-                    }
-
-                    let mut file = fs::OpenOptions::new()
-                        .write(true)
-                        .append(true)
-                        .create(true)
-                        .open(file.join("ballots.csv"))?;
-
-                    (0..ballots_num).try_for_each(|i| {
-                        let mut choices = vec![
-                            DecodedVoteChoice {
-                                id: "0".to_owned(),
-                                selected: -1,
-                                write_in_text: None,
-                            },
-                            DecodedVoteChoice {
-                                id: "1".to_owned(),
-                                selected: -1,
-                                write_in_text: None,
-                            },
-                            DecodedVoteChoice {
-                                id: "2".to_owned(),
-                                selected: -1,
-                                write_in_text: None,
-                            },
-                            DecodedVoteChoice {
-                                id: "3".to_owned(),
-                                selected: -1,
-                                write_in_text: None,
-                            },
-                            DecodedVoteChoice {
-                                id: "4".to_owned(),
-                                selected: -1,
-                                write_in_text: None,
-                            },
-                        ];
-
-                        let mut plaintext_prepare = DecodedVoteContest {
-                            contest_id: contest.id.clone(),
-                            is_explicit_invalid: false,
-                            invalid_errors: vec![],
-                            choices: vec![],
-                        };
-
-                        match i {
-                            1 => choices[0].selected = 0,
-                            2 => choices[1].selected = 0,
-                            3 => choices[2].selected = 0,
-                            4 => choices[3].selected = 0,
-                            5 => choices[4].selected = 0,
-                            6 => choices[0].selected = 0,
-                            7 => choices[0].selected = 0,
-                            8 => choices[3].selected = 0,
-                            9 => choices[3].selected = 0,
-                            10 => (),
-                            11 => (),
-                            12 => (),
-                            14 => {
-                                choices[2].selected = 0;
-                                choices[3].selected = 42;
-                            }
-                            15 => {
-                                choices[3].selected = 42;
-                            }
-                            _ => choices[1].selected = 0,
-                        }
-
-                        plaintext_prepare.choices = choices;
-
-                        let plaintext = contest
-                            .encode_plaintext_contest_bigint(&plaintext_prepare)
-                            .unwrap();
-
-                        writeln!(file, "{}", plaintext)?;
-
-                        Ok::<(), Error>(())
-                    })?;
-
-                    Ok::<(), Error>(())
-                })?;
-
-                Ok::<(), Error>(())
-            })?;
-
-            Ok::<(), Error>(())
-        })?;
-
-        Ok(())
-    }
 
     #[test]
     fn test_create_configs() -> Result<()> {
@@ -391,7 +402,7 @@ mod tests {
             &Uuid::from_str(&contest.id).unwrap(),
             100,
         )?;
-        let first_area_id = area_config.id.clone();
+        let first_area_id = area_config.id;
 
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,

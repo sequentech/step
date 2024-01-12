@@ -15,7 +15,7 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::pipes::error::{Error, Result};
