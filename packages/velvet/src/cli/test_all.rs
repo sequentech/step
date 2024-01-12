@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_reports() -> Result<()> {
+    fn test_generate_reports_normal() -> Result<()> {
         let fixture = TestFixture::new()?;
 
         generate_ballots(&fixture, 1, 2, 1, 50)?;

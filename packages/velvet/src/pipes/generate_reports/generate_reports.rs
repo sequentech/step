@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use rayon::prelude::*;
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
@@ -18,13 +19,16 @@ use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
+};
+use crate::pipes::{
+    error::{Error, Result},
+    pipes,
 };
 
 pub const OUTPUT_PDF: &str = "report.pdf";
@@ -299,36 +303,43 @@ impl GenerateReports {
         Ok(())
     }
 }
+
 impl Pipe for GenerateReports {
     #[instrument(skip_all, name = "GenerateReports::exec")]
     fn exec(&self) -> Result<()> {
-        for election_input in &self.pipe_inputs.election_list {
-            let mut reports = vec![];
+        self.pipe_inputs
+            .election_list
+            .par_iter()
+            .try_for_each(|election_input| {
+                let contest_reports: Result<Vec<_>> = election_input
+                    .contest_list
+                    .par_iter()
+                    .map(|contest_input| {
+                        contest_input.area_list.par_iter().for_each(|area_input| {
+                            let _ = self.make_report(
+                                &election_input.id,
+                                Some(&contest_input.id),
+                                Some(&area_input.id),
+                                contest_input.contest.clone(),
+                            );
+                        });
 
-            for contest_input in &election_input.contest_list {
-                for area_input in &contest_input.area_list {
-                    let _report = self.make_report(
-                        &election_input.id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                        contest_input.contest.clone(),
-                    )?;
-                }
+                        let contest_report = self.make_report(
+                            &election_input.id,
+                            Some(&contest_input.id),
+                            None,
+                            contest_input.contest.clone(),
+                        )?;
 
-                let report = self.make_report(
-                    &election_input.id,
-                    Some(&contest_input.id),
-                    None,
-                    contest_input.contest.clone(),
-                )?;
+                        Ok(contest_report)
+                    })
+                    .collect();
 
-                reports.push(report)
-            }
+                // write report for the current election
+                self.write_report(&election_input.id, None, None, contest_reports?)?;
 
-            self.write_report(&election_input.id, None, None, reports)?;
-        }
-
-        Ok(())
+                Ok(())
+            })
     }
 }
 
