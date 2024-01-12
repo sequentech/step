@@ -26,6 +26,7 @@ anyhow = "1" # FIXME: To be removed
 
 # logging
 tracing = "0.1"
+rayon = "1.8.0"
 
 [dev-dependencies]
 anyhow = "1"

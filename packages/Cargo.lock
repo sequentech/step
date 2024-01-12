@@ -7013,6 +7013,7 @@ dependencies = [
  "clap 4.4.11",
  "num-bigint",
  "rand 0.8.5",
+ "rayon",
  "sequent-core",
  "serde",
  "serde_json",
