@@ -3,24 +3,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::get_election_event;
-use crate::services::celery_app::get_celery_app;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::services::database::get_keycloak_pool;
 use crate::services::s3;
+use futures::pin_mut;
 use crate::types::error::{Error, Result};
-use crate::util::aws::get_from_env_aws_config;
+use rand::prelude::*;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use deadpool_postgres::{Client as DbClient, Transaction as _};
+use rocket::futures::SinkExt as _;
 use sequent_core::services::{keycloak, reports};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use serde_json::{Map, Value};
-use std::collections::HashMap;
-use std::default::Default;
 use std::fs::File;
-use tokio_postgres::types::ToSql;
-use tracing::{event, info, instrument, Level};
+use regex::Regex;
+use csv::StringRecord;
+use tracing::{info, instrument};
+use tokio_postgres::types::{ToSql, Type};
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
+
+lazy_static! {
+    static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+}
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
@@ -50,9 +53,11 @@ impl ImportUsersBody {
      *
      * The result is a tuple with:
      *  1. The name of the voters_table
-     *  2. The SQL Query with COPY FROM
-     *  3. The Vector with the name of the columns loaded. The columns being
+     *  2. The SQL Query with the CREATE TEMP TABLE statement
+     *  3. The SQL Query with COPY FROM statement
+     *  4. The Vector with the name of the columns loaded. The columns being
      *     loaded come from the CSV file's first row.
+     *  5. The vector with the types of the columns.
      *
      *  Possible Table columns:
      *  - email: string. example: "somebody@example.com"
@@ -60,57 +65,105 @@ impl ImportUsersBody {
      *  - first_name: string. Example: "John"
      *  - last_name: string. Example: "Doe"
      *  - username: string. Example: "johndoe"
-     *  - attr/sequent.read-only.mobile-number: string. Example: "+34666777888"
-     *  - attr/area: string. Example "Madrid"
+     *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
+     *  - area-id: string. Example "7c16620c-42aa-4129-c834-1d43b5ee012a"
      *  
      */
-    fn get_copy_from_query(
+     fn get_copy_from_query(
         &self,
-        voters_file: &File,
-    ) -> anyhow::Result<(String, String, Vec<String>)> {
-        todo!()
+        headers: &StringRecord,
+    ) -> anyhow::Result<(String, String, String, Vec<String>, Vec<Type>)> {
+        let random_number: u64 = rand::random();
+
+        let temp_table_name = format!(
+            "temp_voters_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id.as_ref().unwrap_or(&String::new()),
+            random_number
+        );
+
+        // Create the table creation query
+        let create_table_query = format!(
+            "CREATE TEMP TABLE {} ({});",
+            temp_table_name,
+            headers.iter().map(|name| format!("{} text", name)).collect::<Vec<String>>().join(", ")
+        );
+
+        // Create the COPY FROM STDIN query
+        let copy_from_query = format!(
+            "COPY {} FROM STDIN WITH CSV HEADER;",
+            temp_table_name
+        );
+
+        let column_names = headers.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        let column_types = headers
+            .iter()
+            .map(|column_name| match column_name {
+                "is_enabled" => Type::BOOL,
+                _ => Type::VARCHAR,
+            })
+            .collect::<Vec<Type>>();
+
+        Ok((
+            temp_table_name,
+            create_table_query, 
+            copy_from_query, 
+            column_names,
+            column_types
+        ))
     }
 
     /**
      * Insert the voters from the temporal voters table into the user_element
      * and user_attribute tables. For each user, we enter in a single query
      * (using WITH statements or similar if need be) the user in the
-     * "user_entity" table and multiple attributes (any column starting with
-     * "attr/" as name) in "user_attribute" table.
-     *
-     * Table user_entity:
-     * - id - character varying, primary key, unique
-     * - email - character varying, nullable
-     * - email_constraint - character varying, nullable
-     * - email_verified - boolean, default: false
-     * - enabled - boolean, default: false
-     * - federation_link - character varying, nullable
-     * - first_name - character varying, nullable
-     * - last_name - character varying, nullable
-     * - realm_id - character varying, nullable
-     * - username - character varying, nullable
-     * - created_timestamp - bigint, nullable
-     *
-     * Table user_attribute:
-     * - name - character varying
-     * - value - character varying, nullable
-     * - user_id - character varying
-     * - id - character varying, primary key, unique
+     * "user_entity" table and multiple user attributesin "user_attribute" 
+     * table.
      */
     fn get_insert_user_query(
         &self,
         voters_table: String,
-        voters_table_columns: Vec<String>,
+        voters_table_columns: Vec<String>
     ) -> anyhow::Result<String> {
-        todo!()
-    }
-
-    async fn as_query(&self) -> anyhow::Result<(String, &[&(dyn ToSql + Sync)])> {
-        let voters_file = self.get_s3_document_as_temp_file().await?;
-        let (voters_table, copy_from_query, voters_table_columns) =
-            self.get_copy_from_query(&voters_file)?;
-        let sql_query = self.get_insert_user_query(voters_table, voters_table_columns);
-        todo!()
+        // Build the INSERT query for user_entity
+        let user_entity_columns = vec![
+            "email",
+            "enabled",
+            "first_name",
+            "last_name",
+            "username"
+        ];
+        let user_entity_query = format!(
+            "INSERT INTO user_entity ({}) SELECT {} FROM {};",
+            user_entity_columns.join(", "),
+            user_entity_columns.join(", "),
+            voters_table
+        );
+    
+        // Assuming all other columns are user attributes
+        let user_attributes = voters_table_columns
+            .into_iter()
+            .filter(|col| !user_entity_columns.contains(&col.as_str()))
+            .collect::<Vec<String>>();
+    
+        // Build a single INSERT query for user_attribute
+        let user_attribute_query = if !user_attributes.is_empty() {
+            let values_subquery = user_attributes.iter().map(|attr| {
+                format!(
+                    "(SELECT id, '{attr}', {attr} FROM {})",
+                    voters_table
+                )
+            }).collect::<Vec<String>>().join(", ");
+    
+            format!(
+                "INSERT INTO user_attribute (user_id, name, value) VALUES {};",
+                values_subquery
+            )
+        } else {
+            String::new()
+        };
+    
+        Ok(format!("{user_entity_query}\n{user_attribute_query}"))
     }
 }
 
@@ -159,12 +212,82 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .await
         .with_context(|| "can't set transaction isolation level")?;
     info!("after isolation");
+    
+    let voters_file = body.get_s3_document_as_temp_file().await?;
+    // Read the first line of the file to get the columns
+    let mut rdr = csv::Reader::from_reader(voters_file);
+    let headers = rdr.headers()?.clone();
 
+
+    // Validate headers
+    for header in headers.iter() {
+        if !HEADER_RE.is_match(header) {
+            return Err(Error::from("CSV Header contains characters not allowed"));
+        }
+    }
+    
+    // Obtain statements
+    let (
+        voters_table,
+        create_table_query, 
+        copy_from_query,
+        voters_table_columns_names,
+        voters_table_columns_types
+    ) = body.get_copy_from_query(&headers)
+        .with_context(|| "Error obtaining copy_from query")?;
+    let insert_user_query = body.get_insert_user_query(voters_table, voters_table_columns_names)
+        .with_context(|| "Error obtaining insert_user_query query")?;
+
+    // Execute the create table query
+    keycloak_transaction
+        .execute(create_table_query.as_str(), &[])
+        .await
+        .with_context(|| "Error executing create_table_query statement")?;
+
+    // Prepare for COPY FROM STDIN
+    let sink = keycloak_transaction
+        .copy_in(copy_from_query.as_str())
+        .await?;
+    let writer = BinaryCopyInWriter::new(sink, &voters_table_columns_types);
+    pin_mut!(writer);
+
+    // Stream data from CSV to sink
+    let mut row: Vec<&(dyn ToSql + Sync)> = Vec::new();
+    for result in rdr.records() {
+        let record = result?;
+        row.clear();
+        for (value, column_type) in record.iter().zip(voters_table_columns_types.iter()) {
+            match *column_type {
+                Type::BOOL => {
+                    // Convert "true"/"false" to boolean
+                    let bool_value = match value.to_lowercase().trim() {
+                        "true" => true,
+                        "false" => false,
+                        _ => return Err(Error::from(format!("Invalid boolean value: {}", value))),
+                    };
+                    row.push(Box::new(bool_value));
+                },
+                // Everything else is treated as a string
+                _ => {
+                    row.push(&Box::new(value.trim()));
+                }
+            }
+        }
+        writer.as_mut().write(&row).await?;
+    }
+    writer.finish().await?;
+
+    // Complete the copy process
+
+    // Execute the insert users query
+    keycloak_transaction
+        .execute(insert_user_query.as_str(), &[]).await?;
+
+    // Commit the transaction
     keycloak_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
 
-    // TODO: generate and execute the import users sql in keycloak
     Ok(())
 }

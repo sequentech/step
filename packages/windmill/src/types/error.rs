@@ -8,16 +8,21 @@ use handlebars;
 use keycloak;
 use serde_json;
 use strand::util::StrandError;
-
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
         Anyhow(err: anyhow::Error) {
             from()
         }
+        Csv(err: csv::Error) {
+            from()
+        }
         String(err: String) {
             from()
             from(err: &str) -> (err.into())
+        }
+        Postgres(err: tokio_postgres::Error) {
+            from()
         }
         FileAccess(path: std::path::PathBuf, err: std::io::Error) {
             display("An error occurred while accessing the file at '{}': {}", path.display(), err)
