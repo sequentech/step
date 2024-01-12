@@ -149,7 +149,7 @@ const englishTranslation = {
             empty: {
                 header: "No Areas yet.",
                 action: "Create Area",
-            }
+            },
         },
         electionTypeScreen: {
             common: {

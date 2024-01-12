@@ -19,7 +19,7 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import { VOTING_TYPES } from './constants'
+import {VOTING_TYPES} from "./constants"
 
 const Hidden = styled(Box)`
     display: none;

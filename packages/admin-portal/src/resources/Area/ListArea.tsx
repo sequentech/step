@@ -143,7 +143,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 onError() {
                     notify(t("areas.common.deleteError"), {type: "error"})
                     refresh()
-                }
+                },
             }
         )
         setDeleteId(undefined)

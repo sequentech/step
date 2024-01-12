@@ -25,6 +25,8 @@ export const ElectionEventTabs: React.FC = () => {
     const location = useLocation()
     const navigate = useNavigate()
 
+    const refreshRef = React.useRef<HTMLButtonElement>()
+
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -63,8 +65,16 @@ export const ElectionEventTabs: React.FC = () => {
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
             <TabbedShowLayout>
                 {showDashboard ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.dashboard")}>
-                        <DashboardElectionEvent />
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.dashboard")}
+                        onClick={() => {
+                            // need timeout to allow the tab change in the ui
+                            setTimeout(() => {
+                                refreshRef.current?.click()
+                            }, 400)
+                        }}
+                    >
+                        <DashboardElectionEvent refreshRef={refreshRef} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showData ? (

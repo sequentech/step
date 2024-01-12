@@ -23,8 +23,8 @@ import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import { VOTING_TYPES } from './constants'
-import { useTranslation } from 'react-i18next'
+import {VOTING_TYPES} from "./constants"
+import {useTranslation} from "react-i18next"
 
 const ContestForm: React.FC = () => {
     const {t} = useTranslation()
@@ -43,10 +43,7 @@ const ContestForm: React.FC = () => {
                 <BooleanInput source="is_active" />
                 <NumberInput source="min_votes" />
                 <NumberInput source="max_votes" />
-                <SelectInput
-                    source="voting_type"
-                    choices={VOTING_TYPES(t)}
-                />
+                <SelectInput source="voting_type" choices={VOTING_TYPES(t)} />
                 <SelectInput
                     source="counting_algorithm"
                     choices={[{id: "plurality-at-large", name: "Plurality At Large"}]}
