@@ -250,7 +250,13 @@ pub async fn create_user(
             Some(vec![voter_group_name]),
         )
     } else {
-        (None, None)
+        (
+            Some(HashMap::from([(
+                TENANT_ID_ATTR_NAME.to_string(),
+                serde_json::to_value(input.tenant_id.clone()).unwrap(),
+            )])),
+            None
+        )
     };
     let user = client
         .create_user(&realm, &input.user, attributes, groups)
