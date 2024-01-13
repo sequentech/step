@@ -255,7 +255,7 @@ pub async fn create_user(
                 TENANT_ID_ATTR_NAME.to_string(),
                 serde_json::to_value(input.tenant_id.clone()).unwrap(),
             )])),
-            None
+            None,
         )
     };
     let user = client

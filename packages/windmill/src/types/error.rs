@@ -35,6 +35,8 @@ impl From<Error> for TaskError {
         match err {
             Error::Anyhow(err) => TaskError::UnexpectedError(format!("{:?}", err)),
             Error::String(err) => TaskError::UnexpectedError(err),
+            Error::Csv(err) => TaskError::UnexpectedError(format!("{:?}", err)),
+            Error::Postgres(err) => TaskError::UnexpectedError(format!("{:?}", err)),
             Error::FileAccess(path, err) => TaskError::UnexpectedError(format!(
                 "An error occurred while accessing the file at '{}': {}",
                 path.display(),
