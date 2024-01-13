@@ -1,14 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList} from "react-admin"
 
-import {Sequent_Backend_Contest} from "../../gql/graphql"
+import {Sequent_Backend_Contest, Sequent_Backend_Results_Contest} from "../../gql/graphql"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
+import { IResultDocuments } from "@/types/results"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -23,6 +25,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
+    const {globalSettings} = useContext(SettingsContext)
 
     const {t} = reactI18next.useTranslation()
     const [electionData, setElectionData] = useState<string | null>(null)
@@ -31,6 +34,26 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
 
     // console.log("TallyResultsContest :: contestsData", contestsData)
+
+    const {data: resultsContests} = useGetList<Sequent_Backend_Results_Contest>(
+        "sequent_backend_results_contest",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                results_event_id: resultsEventId,
+                election_id: electionId,
+                contest_id: contestId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     const {data: contests} = useGetList<Sequent_Backend_Contest>(
         "sequent_backend_contest",
@@ -99,6 +122,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         setValue(index)
         setContestId(id)
     }
+    let documents = !!contestId && !!resultsContests && resultsContests[0]?.contest_id === contestId && ( resultsContests[0]?.documents as IResultDocuments | null)
 
     return (
         <>
@@ -124,11 +148,15 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         />
                     ))}
                 </Tabs>
-                <ExportElectionMenu
-                    resource="sequent_backend_results_contest"
-                    contest={contestsData?.[value ?? 0]}
-                    resultsEventId={resultsEventId}
-                />
+                {
+                    documents && electionEventId
+                    ? <ExportElectionMenu
+                        documents={documents}
+                        electionEventId={electionEventId}
+                        item={""}
+                    />
+                    : null
+                }
             </Box>
 
             {contestsData?.map((contest, index) => (

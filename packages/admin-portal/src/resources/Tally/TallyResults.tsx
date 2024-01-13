@@ -1,14 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, memo} from "react"
+import React, {useEffect, useState, memo, useContext} from "react"
 import {useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
 
-import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Results_Election, Sequent_Backend_Results_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -20,6 +21,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const {tally, resultsEventId} = props
 
         const {t} = useTranslation()
+        const {globalSettings} = useContext(SettingsContext)
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
@@ -35,6 +37,23 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 },
             },
             {
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+            }
+        )
+        const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Event>(
+            "sequent_backend_results_event",
+            {
+                pagination: {page: 1, perPage: 1},
+                filter: {
+                    tenant_id: data?.tenant_id,
+                    election_event_id: data?.election_event_id,
+                    id: resultsEventId,
+                },
+            },
+            {
+                refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false,
                 refetchOnMount: false,
@@ -109,11 +128,16 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
-                    <ExportElectionMenu
-                        resource="sequent_backend_results_election"
-                        election={electionsData?.[value ?? 0]}
-                        resultsEventId={resultsEventId}
-                    />
+                    {
+                        data?.election_event_id
+                        ? <ExportElectionMenu
+                            documents={{}}
+                            electionEventId={data?.election_event_id}
+                            item={""}
+                        />
+                        : null
+                    }
+                    
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>

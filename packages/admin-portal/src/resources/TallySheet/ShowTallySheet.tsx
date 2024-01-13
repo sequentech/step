@@ -51,7 +51,7 @@ interface ShowTallySheetProps {
 
 interface ICandidateResultsExtended extends ICandidateResults {
     name: string
-} 
+}
 
 export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     const {id, contest, doCreatedTalySheet, submitRef, tallySheet} = props
