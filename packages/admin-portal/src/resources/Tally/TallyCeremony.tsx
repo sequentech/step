@@ -34,6 +34,7 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Results_Election,
+    Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
@@ -139,14 +140,14 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
-    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Election>(
+    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
             pagination: {page: 1, perPage: 1},
             filter: {
                 tenant_id: tenantId,
                 election_event_id: record?.id,
-                results_event_id: resultsEventId,
+                id: resultsEventId,
             },
         },
         {
@@ -478,16 +479,13 @@ export const TallyCeremony: React.FC = () => {
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
-                                    {
-                                        (resultsEventId && resultsEvent?.[0].documents)
-                                        ? <ExportElectionMenu
-                                            documents={resultsEvent?.[0].documents}
+                                    {resultsEventId ? (
+                                        <ExportElectionMenu
+                                            documents={{}}
                                             electionEventId={resultsEvent?.[0].election_event_id}
-                                            item={t("common.label.allResults")}
+                                            itemName={resultsEvent?.[0]?.name ?? "event"}
                                         />
-                                        : null
-                                    }
-                                    
+                                    ) : null}
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>

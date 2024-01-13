@@ -4,14 +4,18 @@
 import React, {useContext, useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
-import {Sequent_Backend_Area_Contest, Sequent_Backend_Contest, Sequent_Backend_Results_Area_Contest} from "../../gql/graphql"
+import {
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Results_Area_Contest,
+} from "../../gql/graphql"
 import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
-import { IResultDocuments } from "@/types/results"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IResultDocuments} from "@/types/results"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -122,7 +126,13 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         console.log("TallyResultsContestAreas :: ", value)
     }, [value])
 
-    let documents = !!contestId  && !!selectedArea && !!resultsContests && resultsContests[0]?.contest_id === contestId && resultsContests[0]?.area_id === selectedArea && ( resultsContests[0]?.documents as IResultDocuments | null)
+    let documents =
+        !!contestId &&
+        !!selectedArea &&
+        !!resultsContests &&
+        resultsContests[0]?.contest_id === contestId &&
+        resultsContests[0]?.area_id === selectedArea &&
+        (resultsContests[0]?.documents as IResultDocuments | null)
 
     return (
         <>
@@ -155,7 +165,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     <ExportElectionMenu
                         documents={documents}
                         electionEventId={electionEventId}
-                        item={""}
+                        itemName={contest?.name ?? "contest"}
                     />
                 ) : null}
             </Box>

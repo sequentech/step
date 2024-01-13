@@ -9,8 +9,8 @@ import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
-import { IResultDocuments } from "@/types/results"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IResultDocuments} from "@/types/results"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -122,7 +122,14 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         setValue(index)
         setContestId(id)
     }
-    let documents = !!contestId && !!resultsContests && resultsContests[0]?.contest_id === contestId && ( resultsContests[0]?.documents as IResultDocuments | null)
+    let documents =
+        !!contestId &&
+        !!resultsContests &&
+        resultsContests[0]?.contest_id === contestId &&
+        (resultsContests[0]?.documents as IResultDocuments | null)
+
+    let contestName =
+        (contestId && contests?.find((contest) => contest.id === contestId)?.name) || undefined
 
     return (
         <>
@@ -148,15 +155,13 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         />
                     ))}
                 </Tabs>
-                {
-                    documents && electionEventId
-                    ? <ExportElectionMenu
+                {documents && electionEventId ? (
+                    <ExportElectionMenu
                         documents={documents}
                         electionEventId={electionEventId}
-                        item={""}
+                        itemName={contestName ?? "contest"}
                     />
-                    : null
-                }
+                ) : null}
             </Box>
 
             {contestsData?.map((contest, index) => (

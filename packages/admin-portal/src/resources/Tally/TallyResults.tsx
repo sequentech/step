@@ -4,12 +4,18 @@
 import React, {useEffect, useState, memo, useContext} from "react"
 import {useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
 
-import {Sequent_Backend_Election, Sequent_Backend_Results_Election, Sequent_Backend_Results_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Results_Election,
+    Sequent_Backend_Results_Event,
+    Sequent_Backend_Tally_Session,
+} from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IResultDocuments} from "@/types/results"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -42,8 +48,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 refetchOnMount: false,
             }
         )
-        const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Event>(
-            "sequent_backend_results_event",
+        const {data: resultsElection} = useGetList<Sequent_Backend_Results_Election>(
+            "sequent_backend_results_election",
             {
                 pagination: {page: 1, perPage: 1},
                 filter: {
@@ -104,6 +110,12 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
+        let documents =
+            !!resultsEventId &&
+            !!resultsElection &&
+            resultsElection?.[0]?.id === resultsEventId &&
+            (resultsElection[0]?.documents as IResultDocuments | null)
+
         return (
             <>
                 <Box
@@ -128,16 +140,13 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
-                    {
-                        data?.election_event_id
-                        ? <ExportElectionMenu
-                            documents={{}}
+                    {documents ? (
+                        <ExportElectionMenu
+                            documents={documents}
                             electionEventId={data?.election_event_id}
-                            item={""}
+                            itemName={resultsElection?.[0]?.name ?? "election"}
                         />
-                        : null
-                    }
-                    
+                    ) : null}
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>

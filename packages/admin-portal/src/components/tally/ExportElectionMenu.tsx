@@ -87,16 +87,16 @@ interface IDocumentData {
 interface ExportElectionMenuProps {
     documents: IResultDocuments | null
     electionEventId: string
-    item: string
+    itemName: string
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {item, documents, electionEventId} = props
+    const {itemName, documents, electionEventId} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
-/*
+    /*
     const {data: results} = useGetList<Sequent_Backend_Results_Election>(
         resource,
         {
@@ -146,7 +146,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         })
     }
 
-    const exportFormatItem = item/*election
+    const exportFormatItem = itemName /*election
         ? election?.name?.slice(0, 12)
         : contest
         ? contest?.name?.slice(0, 12)
