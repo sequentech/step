@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Identifier, RaRecord, useGetList} from "react-admin"
 
 import {Sequent_Backend_Contest, Sequent_Backend_Results_Contest} from "../../gql/graphql"
@@ -48,7 +48,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -122,14 +121,21 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         setValue(index)
         setContestId(id)
     }
-    let documents =
-        !!contestId &&
-        !!resultsContests &&
-        resultsContests[0]?.contest_id === contestId &&
-        (resultsContests[0]?.documents as IResultDocuments | null)
+    let documents: IResultDocuments | null = useMemo(
+        () =>
+            (!!contestId &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                (resultsContests[0]?.documents as IResultDocuments | null)) ||
+            null,
+        [contestId, resultsContests, resultsContests?.[0]?.contest_id]
+    )
 
-    let contestName =
-        (contestId && contests?.find((contest) => contest.id === contestId)?.name) || undefined
+    let contestName: string | undefined = useMemo(
+        () =>
+            (contestId && contests?.find((contest) => contest.id === contestId)?.name) || undefined,
+        [contestId, contests]
+    )
 
     return (
         <>

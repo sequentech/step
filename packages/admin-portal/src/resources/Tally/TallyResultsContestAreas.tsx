@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
 import {
@@ -50,7 +50,6 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -126,13 +125,23 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         console.log("TallyResultsContestAreas :: ", value)
     }, [value])
 
-    let documents =
-        !!contestId &&
-        !!selectedArea &&
-        !!resultsContests &&
-        resultsContests[0]?.contest_id === contestId &&
-        resultsContests[0]?.area_id === selectedArea &&
-        (resultsContests[0]?.documents as IResultDocuments | null)
+    let documents: IResultDocuments | null = useMemo(
+        () =>
+            (!!contestId &&
+                !!selectedArea &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                resultsContests[0]?.area_id === selectedArea &&
+                (resultsContests[0]?.documents as IResultDocuments | null)) ||
+            null,
+        [
+            contestId,
+            selectedArea,
+            resultsContests,
+            resultsContests?.[0]?.contest_id,
+            resultsContests?.[0]?.area_id,
+        ]
+    )
 
     return (
         <>

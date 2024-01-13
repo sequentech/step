@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, memo, useContext} from "react"
+import React, {useEffect, useState, memo, useContext, useMemo} from "react"
 import {useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
 
 import {
@@ -59,16 +59,23 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 },
             },
             {
-                refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false,
                 refetchOnMount: false,
             }
         )
 
-        const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
-            ids: data?.election_ids || [],
-        })
+        const {data: elections} = useGetMany<Sequent_Backend_Election>(
+            "sequent_backend_election",
+            {
+                ids: data?.election_ids || [],
+            },
+            {
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+            }
+        )
 
         useEffect(() => {
             if (tally) {
@@ -110,11 +117,15 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
-        let documents =
-            !!resultsEventId &&
-            !!resultsElection &&
-            resultsElection?.[0]?.id === resultsEventId &&
-            (resultsElection[0]?.documents as IResultDocuments | null)
+        let documents: IResultDocuments | null = useMemo(
+            () =>
+                (!!resultsEventId &&
+                    !!resultsElection &&
+                    resultsElection?.[0]?.id === resultsEventId &&
+                    (resultsElection[0]?.documents as IResultDocuments | null)) ||
+                null,
+            [resultsEventId, resultsElection, resultsElection?.[0]?.id]
+        )
 
         return (
             <>
