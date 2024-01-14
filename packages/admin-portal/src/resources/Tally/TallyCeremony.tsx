@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -44,6 +44,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IResultDocuments} from "@/types/results"
 
 const WizardSteps = {
     Start: 0,
@@ -254,10 +255,15 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const handleExportResults = async (e: any) => {
-        e.preventDefault()
-        console.log("EXPORT RESULTS", e)
-    }
+    let documents: IResultDocuments | null = useMemo(
+        () =>
+            (!!resultsEventId &&
+                !!resultsEvent &&
+                resultsEvent?.[0]?.id === resultsEventId &&
+                (resultsEvent[0]?.documents as IResultDocuments | null)) ||
+            null,
+        [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
+    )
 
     return (
         <>
@@ -478,9 +484,9 @@ export const TallyCeremony: React.FC = () => {
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
-                                    {resultsEventId ? (
+                                    {resultsEvent?.[0] && documents ? (
                                         <ExportElectionMenu
-                                            documents={{}}
+                                            documents={documents}
                                             electionEventId={resultsEvent?.[0].election_event_id}
                                             itemName={resultsEvent?.[0]?.name ?? "event"}
                                         />
