@@ -102,7 +102,7 @@ impl ImportUsersBody {
             .collect::<Vec<String>>();
         let column_types = headers
             .iter()
-            .map(|column_name| Type::VARCHAR)
+            .map(|_column_name| Type::VARCHAR)
             .collect::<Vec<Type>>();
 
         Ok((
@@ -127,14 +127,25 @@ impl ImportUsersBody {
         voters_table_columns: Vec<String>,
     ) -> anyhow::Result<String> {
         // Build the INSERT query for user_entity
-        let user_entity_columns = vec!["email", "is_enabled", "first_name", "last_name", "username"];
-        let select_columns: Vec<String> = user_entity_columns.iter().map(|&column| {
-            if column == "is_enabled" {
-                format!("{}::boolean", column)  // Cast is_enabled to boolean
-            } else {
-                column.to_string()
-            }
-        }).collect();
+        let user_entity_columns = vec![
+            "id",
+            "email",
+            "is_enabled",
+            "first_name",
+            "last_name",
+            "username",
+        ];
+        let select_columns: Vec<String> = user_entity_columns
+            .iter()
+            .map(|&column| {
+                match column {
+                    // Cast is_enabled to boolean
+                    "is_enabled" => format!("{}::boolean", column),
+                    "id" => "gen_random_uuid()".to_string(),
+                    _ => column.to_string(),
+                }
+            })
+            .collect();
         let user_entity_query = format!(
             "INSERT INTO user_entity ({}) SELECT {} FROM {};",
             user_entity_columns.join(", "),
@@ -148,16 +159,21 @@ impl ImportUsersBody {
             .filter(|col| !user_entity_columns.contains(&col.as_str()))
             .collect::<Vec<String>>();
 
-        // Build a single INSERT query for user_attribute
+        // Build a single INSERT query for all user_attribute elements
         let user_attribute_query = if !user_attributes.is_empty() {
             let values_subquery = user_attributes
                 .iter()
-                .map(|attr| format!("(SELECT id, '{attr}', {attr} FROM {})", voters_table))
+                .map(|attr| {
+                    format!(
+                        "(SELECT gen_random_uuid(), id, '{attr}', {attr} FROM {})",
+                        voters_table
+                    )
+                })
                 .collect::<Vec<String>>()
                 .join(", ");
 
             format!(
-                "INSERT INTO user_attribute (user_id, name, value) VALUES {};",
+                "INSERT INTO user_attribute (id, user_id, name, value) VALUES {};",
                 values_subquery
             )
         } else {
@@ -264,7 +280,8 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
             owned_data.push(data.to_string()); // Store owned data
         }
 
-        let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data.iter()
+        let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data
+            .iter()
             .map(|data| data as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
 
@@ -288,4 +305,3 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
 
     Ok(())
 }
-
