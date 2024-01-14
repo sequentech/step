@@ -306,6 +306,16 @@ pub async fn save_result_documents(
     results_event_id: &str,
     base_tally_path: &PathBuf,
 ) -> Result<()> {
+    let event_document_paths = results.get_document_paths(None, base_tally_path);
+    results
+        .save_documents(
+            auth_headers,
+            hasura_transaction,
+            &event_document_paths,
+            results_event_id,
+        )
+        .await?;
+
     for election_report in results {
         let document_paths =
             election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);
