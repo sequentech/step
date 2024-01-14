@@ -88749,6 +88749,31 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "args": [
+              {
+                "name": "path",
+                "description": "JSON select path",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -89001,6 +89026,18 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -89093,6 +89130,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "timestamptz_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "jsonb_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -89220,6 +89269,26 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -89263,6 +89332,18 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -89287,6 +89368,18 @@
         "inputFields": [
           {
             "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "documents",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -89338,6 +89431,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null,
@@ -89732,6 +89837,18 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -89886,6 +90003,18 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -89918,6 +90047,12 @@
           },
           {
             "name": "created_at",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "documents",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -89985,6 +90120,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null,
@@ -90138,6 +90285,18 @@
             "deprecationReason": null
           },
           {
+            "name": "documents",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -90230,6 +90389,12 @@
           },
           {
             "name": "created_at",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "documents",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

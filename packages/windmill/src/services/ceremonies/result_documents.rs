@@ -6,8 +6,12 @@ use crate::{
         results_area_contest::update_results_area_contest_documents,
         results_contest::update_results_contest_documents,
         results_election::update_results_election_documents,
+        results_event::update_results_event_documents,
     },
-    services::{compress::{read_file_to_bytes, compress_folder}, documents::upload_and_return_document},
+    services::{
+        compress::{compress_folder, read_file_to_bytes},
+        documents::upload_and_return_document,
+    },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -144,22 +148,19 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 json: None,
                 pdf: None,
                 html: None,
-                tar_gz: Ok(document.id),
+                tar_gz: Some(document.id),
             };
 
             update_results_event_documents(
                 hasura_transaction,
-                &self.contest.tenant_id,
+                &contest.tenant_id,
                 results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
-                &self.contest.id,
-                &area_id,
+                &contest.election_event_id,
                 &documents,
             )
             .await?;
 
-            Ok()
+            Ok(documents)
         } else {
             Ok(ResultDocuments {
                 json: None,
