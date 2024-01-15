@@ -97,7 +97,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     useEffect(() => {
         if (electionData) {
             setContestsData(contests || [])
-            tabClicked(contests?.[0]?.id, 0)
+            if (contests?.[0]?.id) {
+                tabClicked(contests?.[0]?.id, 0)
+            }
         }
     }, [electionData, contests])
 
@@ -119,7 +121,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     const tabClicked = (id: string, index: number) => {
         setValue(index)
-        setContestId(id)
+        if (id) {
+            setContestId(id)
+        }
     }
     let documents: IResultDocuments | null = useMemo(
         () =>
@@ -128,7 +132,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                 resultsContests[0]?.contest_id === contestId &&
                 (resultsContests[0]?.documents as IResultDocuments | null)) ||
             null,
-        [contestId, resultsContests, resultsContests?.[0]?.contest_id]
+        [contestId, resultsContests, resultsContests?.[0]?.documents]
     )
 
     let contestName: string | undefined = useMemo(

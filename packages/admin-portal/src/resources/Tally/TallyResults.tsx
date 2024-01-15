@@ -96,11 +96,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 tabClicked(elections?.[0]?.id, 0)
             }
         }, [elections])
-        useEffect(() => {
-            console.log(
-                `FFFFFFF resultsEventId ${resultsEventId} electionId ${electionId} resultsElection ${resultsElection}`
-            )
-        }, [resultsEventId, electionId, resultsElection, resultsElection?.[0]?.id])
 
         interface TabPanelProps {
             children?: ReactI18NextChild | Iterable<ReactI18NextChild>
