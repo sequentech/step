@@ -41,10 +41,8 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
         },
     })
 
-    console.log(`FFFF is downloading ${downloading}`)
     if (!loading && !error && data?.fetchDocument?.url && !downloading) {
         downloading = true
-        console.log(`FFFF downloadUrl ${downloading}`)
 
         downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
     }
@@ -92,31 +90,6 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
-    /*
-    const {data: results} = useGetList<Sequent_Backend_Results_Election>(
-        resource,
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                tenant_id: election?.tenant_id,
-                election_event_id: election?.election_event_id,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    useEffect(() => {
-        if (results?.[0]?.documents && isNull(documents)) {
-            setDocuments(results?.[0]?.documents ?? null)
-        }
-    }, [results?.[0]?.documents])
-*/
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
         event.stopPropagation()

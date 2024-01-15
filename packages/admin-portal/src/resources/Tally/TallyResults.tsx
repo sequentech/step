@@ -53,9 +53,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             {
                 pagination: {page: 1, perPage: 1},
                 filter: {
-                    tenant_id: data?.tenant_id,
-                    election_event_id: data?.election_event_id,
-                    id: resultsEventId,
+                    tenant_id: data?.tenant_id || null,
+                    election_event_id: data?.election_event_id || null,
+                    results_event_id: resultsEventId || null,
+                    election_id: electionId,
                 },
             },
             {
@@ -95,6 +96,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 tabClicked(elections?.[0]?.id, 0)
             }
         }, [elections])
+        useEffect(() => {
+            console.log(
+                `FFFFFFF resultsEventId ${resultsEventId} electionId ${electionId} resultsElection ${resultsElection}`
+            )
+        }, [resultsEventId, electionId, resultsElection, resultsElection?.[0]?.id])
 
         interface TabPanelProps {
             children?: ReactI18NextChild | Iterable<ReactI18NextChild>
@@ -120,8 +126,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         let documents: IResultDocuments | null = useMemo(
             () =>
                 (!!resultsEventId &&
+                    !!electionId &&
                     !!resultsElection &&
-                    resultsElection?.[0]?.id === resultsEventId &&
+                    resultsElection?.[0]?.results_event_id === resultsEventId &&
+                    resultsElection?.[0]?.election_id === electionId &&
                     (resultsElection[0]?.documents as IResultDocuments | null)) ||
                 null,
             [resultsEventId, resultsElection, resultsElection?.[0]?.id]
