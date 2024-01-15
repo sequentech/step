@@ -288,6 +288,10 @@ const spanishTranslation: TranslationType = {
                 sha: "Verificación de Integridad (SHA 256)",
                 cancel: "Cancelar",
                 import: "Importar",
+                fileUploadSuccess: "Fichero subido al servidor - pero no importado aún",
+                fileUploadError: "Error subiendo el fichero",
+                importVotersSuccess: "Importación de Votantes lanzada en segundo plano con éxito.",
+                importVotersError: "Error Importando Votantes.",
                 shaDialog: {
                     ok: "Sí, Importar Sin Verificación de Integridad",
                     cancel: "Volver",

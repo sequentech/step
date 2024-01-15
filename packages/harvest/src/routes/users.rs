@@ -408,5 +408,7 @@ pub async fn import_users_f(
         })?;
     info!("Sent IMPORT_USERS task {}", task.task_id);
 
-    Ok(Json(Default::default()))
+    Ok(Json(OptionalId {
+        id: Some(task.task_id),
+    }))
 }

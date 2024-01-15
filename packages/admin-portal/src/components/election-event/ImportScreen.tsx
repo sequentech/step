@@ -3,9 +3,13 @@ import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, memo, useRef} from "react"
 import {useTranslation} from "react-i18next"
+import {GetUploadUrlMutation} from "@/gql/graphql"
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {useMutation} from "@apollo/client"
+import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
-    doImport: (file: FileList | null, sha: string) => void
+    doImport: (documentId: string, sha256: string) => void
     doCancel: () => void
     isLoading: boolean
     errors: String | null
@@ -29,18 +33,37 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const {doCancel, doImport, isLoading, refresh, errors} = props
 
         const {t} = useTranslation()
-
+        const notify = useNotify()
         const [shaField, setShaField] = React.useState<string>("")
         const [showShaDialog, setShowShaDialog] = React.useState<boolean>(false)
-        const [fileImport, setFileImport] = React.useState<FileList | null>(null)
+        const [documentId, setDocumentId] = React.useState<string | null>(null)
+        const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
 
-        const handleFiles = (files: FileList | null) => {
-            setFileImport(files)
+        const handleFiles = async (files: FileList | null) => {
+            // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+
+            const theFile = files?.[0]
+
+            if (theFile) {
+                let {data, errors} = await getUploadUrl({
+                    variables: {
+                        name: theFile.name,
+                        media_type: theFile.type,
+                        size: theFile.size,
+                    },
+                })
+                if (data?.get_upload_url?.document_id) {
+                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+                    setDocumentId(data.get_upload_url.document_id)
+                } else {
+                    notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                }
+            }
         }
 
         useEffect(() => {
             setShaField("")
-            setFileImport(null)
+            setDocumentId(null)
         }, [refresh])
 
         const onImportButtonClick = () => {
@@ -49,7 +72,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 return
             }
 
-            doImport(fileImport, shaField)
+            doImport(documentId as string, shaField)
         }
 
         return (
@@ -63,7 +86,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }
                 />
 
-                <DropFile handleFiles={handleFiles} />
+                <DropFile handleFiles={async (files) => handleFiles(files)} />
 
                 <FormStyles.StatusBox>
                     {isLoading ? <FormStyles.ShowProgress /> : null}
@@ -85,7 +108,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!fileImport || isLoading}
+                        disabled={!documentId || isLoading}
                         onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}
@@ -99,7 +122,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     title={t("electionEventScreen.import.shaDialog.title")}
                     handleClose={(result: boolean) => {
                         if (result) {
-                            doImport(fileImport, shaField)
+                            doImport(documentId as string, shaField)
                         }
                         setShowShaDialog(false)
                     }}

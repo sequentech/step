@@ -286,6 +286,10 @@ const englishTranslation = {
                 sha: "Integrity Check (SHA-256)",
                 cancel: "Cancel",
                 import: "Import",
+                fileUploadSuccess: "File uploaded to server - but not imported yet",
+                fileUploadError: "Error uploading file",
+                importVotersSuccess: "Voters Import Scheduled Successfully",
+                importVotersError: "Error importing Voters",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",

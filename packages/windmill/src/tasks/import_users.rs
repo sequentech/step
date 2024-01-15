@@ -32,6 +32,11 @@ pub struct ImportUsersBody {
     pub document_id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ImportUsersOutput {
+    pub id: String,
+}
+
 impl ImportUsersBody {
     async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<File> {
         let s3_bucket = s3::get_private_bucket()?;

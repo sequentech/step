@@ -56,23 +56,16 @@ export const ImportElectionEvent: React.FC<ImportVotersTabsProps> = (props) => {
         setOpenImport(false)
     }
 
-    const handleImport = (file: FileList | null, sha: string) => {
+    const handleImport = async (documentId: string, sha256: string) => {
+        console.log(`handleImport(documentId: ${documentId}, sha256: ${sha256})`)
         // TODO: call importVoters mutation
-        console.log("handleImportVoters()", file, sha)
-        setLoading(true)
-        setTimeout(() => {
-            setLoading(false)
-            setOpenImport(false)
-            doRefresh()
-        }, 5000)
-    }
-
-    const handleImportElections = (file: FileList | null, sha: string) => {
-        console.log("handleImportElections()", file, sha)
-    }
-
-    const handleImportAreas = (file: FileList | null, sha: string) => {
-        console.log("handleImportAreas()", file, sha)
+        // console.log("handleImportVoters()", file, sha)
+        // setLoading(true)
+        // setTimeout(() => {
+        //     setLoading(false)
+        //     setOpenImport(false)
+        //     doRefresh()
+        // }, 5000)
     }
 
     return (
