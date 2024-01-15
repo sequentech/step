@@ -268,9 +268,12 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         )
 
         console.log("selectedReceipt", selectedReceipt)
-        
+
         if (selectedReceipt && selectedReceipt.length > 0) {
-            console.log("selectedReceipt", selectedReceipt[0]["template"][selectedMethod.toLowerCase()])
+            console.log(
+                "selectedReceipt",
+                selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
+            )
             setSelectedReceipt(selectedReceipt[0]["template"][selectedMethod.toLowerCase()] ?? null)
         }
     }
@@ -527,7 +530,10 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </FormStyles.Select>
                         {communication.communication_method === ICommunicationMethod.EMAIL &&
                             communication.i18n["en"].email && (
-                                <EmailEditor record={selectedReceipt as IEmail} setRecord={setEmail} />
+                                <EmailEditor
+                                    record={selectedReceipt as IEmail}
+                                    setRecord={setEmail}
+                                />
                             )}
                         {communication.communication_method === ICommunicationMethod.SMS && (
                             <FormStyles.TextField
