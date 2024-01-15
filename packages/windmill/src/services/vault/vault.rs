@@ -1,41 +1,46 @@
-use super::{aws_secret_manager, hashicorp_vault};
+use crate::services::vault::{
+    aws_secret_manager::AwsSecretManager, hashicorp_vault::HashiCorpVault,
+};
+
 use anyhow::Result;
 use std::str::FromStr;
 use strum_macros::EnumString;
 use tracing::{info, instrument};
 
 #[derive(EnumString)]
-enum VaultManager {
+enum VaultManagerType {
     HashiCorpVault,
-    AWSSecretManager,
+    AwsSecretManager,
 }
 
-async fn get_config() -> Result<VaultManager> {
+pub trait Vault {
+    async fn save_secret(key: String, value: String) -> Result<()>;
+    async fn read_secret(key: String) -> Result<Option<String>>;
+}
+
+fn get_vault() -> Box<dyn Vault> {
     let vault_name = std::env::var("VAULT_MANAGER").unwrap_or("HashiCorpVault".to_string());
 
     info!("Vault: vault_name={vault_name}");
 
-    let vault = VaultManager::from_str(&vault_name)?;
+    let vault = VaultManagerType::from_str(&vault_name)?;
 
-    Ok(vault)
+    match vault {
+        VaultManagerType::HashiCorpVault => HashiCorpVault::new(),
+        VaultManagerType::AwsSecretManager => AwsSecretManager::new(),
+    }
 }
 
 #[instrument(skip(value), err)]
 pub async fn save_secret(key: String, value: String) -> Result<()> {
-    let vault = get_config().await?;
+    let vault = get_vault();
 
-    match vault {
-        VaultManager::HashiCorpVault => hashicorp_vault::save_secret(key, value).await,
-        VaultManager::AWSSecretManager => aws_secret_manager::save_secret(key, value).await,
-    }
+    vault.save_secret(key, value).await
 }
 
 #[instrument(err)]
 pub async fn read_secret(key: String) -> Result<Option<String>> {
-    let vault = get_config().await?;
+    let vault = get_vault();
 
-    match vault {
-        VaultManager::HashiCorpVault => hashicorp_vault::read_secret(key).await,
-        VaultManager::AWSSecretManager => aws_secret_manager::read_secret(key).await,
-    }
+    vault.read_secret(key).await
 }

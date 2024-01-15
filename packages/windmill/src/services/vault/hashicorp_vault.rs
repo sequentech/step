@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::Vault;
 use anyhow::Result;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -23,36 +24,48 @@ struct VaultRead {
     renewable: bool,
 }
 
-#[instrument(skip(value), err)]
-pub async fn save_secret(key: String, value: String) -> Result<()> {
-    let server_url = env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
-    let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
-    let client = reqwest::Client::new();
-    let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
-    let json_value = json!({"data": value});
-    client
-        .post(pm_endpoint)
-        .bearer_auth(token)
-        .json(&json_value)
-        .send()
-        .await?
-        .error_for_status()?;
-    Ok(())
+pub struct HashiCorpVault;
+
+impl HashiCorpVault {
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
-#[instrument(err)]
-pub async fn read_secret(key: String) -> Result<Option<String>> {
-    let server_url = env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
-    let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
-    let client = reqwest::Client::new();
-    let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
-    let response = client.get(pm_endpoint).bearer_auth(token).send().await?;
-    let unwrapped = if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Ok(None);
-    } else {
-        response
+impl Vault for HashiCorpVault {
+    #[instrument(skip(value), err)]
+    async fn save_secret(key: String, value: String) -> Result<()> {
+        let server_url =
+            env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
+        let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
+        let client = reqwest::Client::new();
+        let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
+        let json_value = json!({"data": value});
+        client
+            .post(pm_endpoint)
+            .bearer_auth(token)
+            .json(&json_value)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
     }
-    .error_for_status()?;
-    let read: VaultRead = unwrapped.json().await?;
-    Ok(Some(read.data.data))
+
+    #[instrument(err)]
+    async fn read_secret(key: String) -> Result<Option<String>> {
+        let server_url =
+            env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
+        let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
+        let client = reqwest::Client::new();
+        let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
+        let response = client.get(pm_endpoint).bearer_auth(token).send().await?;
+        let unwrapped = if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        } else {
+            response
+        }
+        .error_for_status()?;
+        let read: VaultRead = unwrapped.json().await?;
+        Ok(Some(read.data.data))
+    }
 }
