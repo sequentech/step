@@ -889,7 +889,11 @@ const englishTranslation = {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
-                SELECTED: "To {{total}} Selected Voters",
+                SELECTED: "To {{total}} Selected {{voters}}",
+            },
+            path: {
+                users: "users",
+                voters: "voters",
             },
             methodTitle: "Communication Template",
             communicationMethod: {

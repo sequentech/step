@@ -893,6 +893,10 @@ const spanishTranslation: TranslationType = {
                 VOTED: "Los que ya votaron",
                 SELECTED: "A {{total}} Votantes seleccionados",
             },
+            path: {
+                users: "usuarios",
+                voters: "votantes",
+            },
             methodTitle: "Método de Comunicación",
             communicationMethod: {
                 EMAIL: "Email",

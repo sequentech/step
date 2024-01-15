@@ -41,6 +41,7 @@ import {
     IEmail,
     ISendCommunicationBody,
 } from "@/types/communications"
+import { useLocation } from 'react-router'
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -113,10 +114,16 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
+    const location = useLocation()
     const notify = useNotify()
     const [errors, setErrors] = useState<String | null>(null)
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
+    
+    console.log("SendCommunication", ids, audienceSelection, electionEventId)
+    console.log("SendCommunication location", location.pathname)
+
+    
     const [communication, setCommunication] = useState<ICommunication>({
         audience: {
             selection: audienceSelection ?? AudienceSelection.SELECTED,
@@ -296,8 +303,12 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 
     // communication templates
 
-    const [selectedMethod, setSelectedMethod] = useState<string>(ICommunicationMethod.EMAIL)
-    const [selectedType, setSelectedType] = useState<string>(ICommunicationType.BALLOT_RECEIPT)
+    const [selectedMethod, setSelectedMethod] = useState<ICommunicationMethod>(
+        ICommunicationMethod.EMAIL
+    )
+    const [selectedType, setSelectedType] = useState<ICommunicationType>(
+        ICommunicationType.BALLOT_RECEIPT
+    )
     const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
     const [selectedReceipt, setSelectedReceipt] = useState<IEmail>({
         subject: "",
@@ -391,6 +402,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.votersSelection.${key}`, {
                                             total: communication.audience.voter_ids?.length ?? 0,
+                                            voters: location.pathname.includes("user") ? t("sendCommunication.path.users") : t("sendCommunication.path.voters"),
                                         })}
                                     </MenuItem>
                                 )

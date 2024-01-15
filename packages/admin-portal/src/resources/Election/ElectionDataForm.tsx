@@ -102,17 +102,7 @@ export const ElectionDataForm: React.FC = () => {
     )
 
     useEffect(() => {
-        console.log("receipts", receipts)
         setReceiptsList(receipts || [])
-        console.log(
-            "receipts filter",
-            receipts
-                ?.filter((item) => item.communication_method === "EMAIL")
-                .map((type) => ({
-                    id: type.id,
-                    name: type.template.alias,
-                }))
-        )
     }, [receipts])
 
     const [updateImage] = useUpdate()
