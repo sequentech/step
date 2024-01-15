@@ -49,7 +49,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 return
             }
 
-            doImport(fileImport, shaField)            
+            doImport(fileImport, shaField)
         }
 
         return (
@@ -81,10 +81,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         marginTop: "16px",
                     }}
                 >
-                    <ImportStyles.CancelButton
-                        disabled={isLoading}
-                        onClick={() => doCancel()}
-                    >
+                    <ImportStyles.CancelButton disabled={isLoading} onClick={() => doCancel()}>
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton

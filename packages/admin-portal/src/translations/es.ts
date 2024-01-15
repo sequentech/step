@@ -292,8 +292,9 @@ const spanishTranslation: TranslationType = {
                     ok: "Sí, Importar Sin Verificación de Integridad",
                     cancel: "Volver",
                     title: "Importar Sin Verificación de Integridad?",
-                    description: "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
-                }
+                    description:
+                        "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
+                },
             },
         },
         electionScreen: {
