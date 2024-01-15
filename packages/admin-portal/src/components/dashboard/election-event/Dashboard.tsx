@@ -22,6 +22,7 @@ import {useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@/types/CoreTypes"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
+import Candidates from "@/components/contest/custom-order-candidates/Candidates"
 
 const Container = styled(Box)`
     display: flex;
@@ -111,6 +112,7 @@ export default function DashboardElectionEvent() {
                 <Box>
                     <Stats metrics={metrics} />
 
+                    <Candidates list={[]}></Candidates>
                     <Container>
                         <VotesPerDay
                             data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}

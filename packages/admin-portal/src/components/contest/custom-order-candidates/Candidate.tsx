@@ -1,10 +1,10 @@
+import React, {useRef} from "react"
 import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
-import React, {useRef} from "react"
 import {TextField} from "react-admin"
-import {ItemTypes} from "./types"
 import {useDrag, useDrop} from "react-dnd"
 import type {Identifier, XYCoord} from "dnd-core"
+import {ItemTypes} from "@/components/types"
 
 export interface CandidateRowItemProps {
     id: any
@@ -19,36 +19,40 @@ interface DragItem {
     type: string
 }
 
-export const CandidateRowItem: React.FC<CandidateRowItemProps> = (props) => {
+const CandidateRow = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: move;
+    margin-bottom: 0.1rem;
+    padding: 0.3rem 1rem;
+    border-radius: 1rem;
+    border: 2px dashed ${theme.palette.grey[500]};
+    &:hover {
+        background-color: ${theme.palette.lightBackground};
+      }
+    }
+`
+
+export default function Candidate(props: CandidateRowItemProps) {
     const {id, candidate, index, moveCard} = props
 
-    const CandidateRow = styled.div`
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        cursor: pointer;
-        margin-bottom: 0.1rem;
-        padding: 0.3rem 1rem;
-        border-radius: 1rem;
-        border: 2px dashed ${theme.palette.grey[500]};
-        &:hover {
-            background-color: ${theme.palette.lightBackground};
-        }
-        }
-    `
-
     const ref = useRef<HTMLDivElement>(null)
+
     const [{handlerId}, drop] = useDrop<DragItem, void, {handlerId: Identifier | null}>({
         accept: ItemTypes.CARD,
+
         collect(monitor) {
             return {
                 handlerId: monitor.getHandlerId(),
             }
         },
+
         hover(item: DragItem, monitor) {
             if (!ref.current) {
                 return
             }
+
             const dragIndex = item.index
             const hoverIndex = index
 
@@ -96,15 +100,18 @@ export const CandidateRowItem: React.FC<CandidateRowItemProps> = (props) => {
 
     const [{isDragging}, drag] = useDrag({
         type: ItemTypes.CARD,
+
         item: () => {
             return {id, index}
         },
+
         collect: (monitor: any) => ({
             isDragging: monitor.isDragging(),
         }),
     })
 
     const opacity = isDragging ? 0 : 1
+
     drag(drop(ref))
 
     return (

@@ -47,12 +47,10 @@ import {DropFile} from "@sequentech/ui-essentials"
 import {COUNTING_ALGORITHMS, ORDER_ANSWERS, VOTING_TYPES} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
-import {DndProvider} from "react-dnd"
-import {HTML5Backend} from "react-dnd-html5-backend"
-import {CandidateRowItem} from "../../components/CandidateRowItem"
 import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
+import Candidates from "@/components/contest/custom-order-candidates/Candidates"
 
 export type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -285,18 +283,6 @@ export const ContestDataForm: React.FC = () => {
         padding: 1rem;
     `
 
-    const moveCard = useCallback((dragIndex: number, hoverIndex: number) => {
-        console.log("dragIndex :>> ", dragIndex)
-        console.log("hoverIndex :>> ", hoverIndex)
-
-        setCandidatesList((prevState) => {
-            const newState = [...(prevState || [])]
-            newState.splice(dragIndex, 1)
-            newState.splice(hoverIndex, 0, newState[dragIndex] as any)
-            return newState
-        })
-    }, [])
-
     useEffect(() => {
         if (candidate) {
             console.log("candidate UPDATE :: >> ", candidate)
@@ -435,6 +421,7 @@ export const ContestDataForm: React.FC = () => {
                                     choices={ORDER_ANSWERS(t)}
                                     validate={required()}
                                 />
+
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
                                         return formData?.order_answers === "custom" ? (
@@ -451,21 +438,10 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <DndProvider backend={HTML5Backend}>
-                                                    {candidatesList?.map(
-                                                        (candidate: any, index: number) => {
-                                                            return (
-                                                                <CandidateRowItem
-                                                                    key={candidate.id}
-                                                                    index={index}
-                                                                    id={candidate.id}
-                                                                    candidate={candidate}
-                                                                    moveCard={moveCard}
-                                                                />
-                                                            )
-                                                        }
-                                                    )}
-                                                </DndProvider>
+
+                                                <Candidates
+                                                    list={candidatesList ?? []}
+                                                ></Candidates>
                                             </CandidateRows>
                                         ) : null
                                     }}
