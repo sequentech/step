@@ -60,6 +60,19 @@ export const ElectionEventTabs: React.FC = () => {
         navigate(locArr)
     }, [])
 
+    // code to refresh the dashboard when the user navigates to it
+    // the ui has to wait for the children to be mounted before refreshing via ref click
+    const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
+    const handleChildMount = () => {
+        setLoadedChildren((prev) => prev < 2 ? prev + 1 : prev)
+    }
+    useEffect(() => {
+        if (loadedChildren === 1 || loadedChildren === 2) {
+            refreshRef.current?.click()
+        }
+    }, [loadedChildren])
+    // end of code to refresh the dashboard when the user navigates to it
+
     return (
         <>
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
@@ -68,13 +81,13 @@ export const ElectionEventTabs: React.FC = () => {
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.dashboard")}
                         onClick={() => {
-                            // need timeout to allow the tab change in the ui
-                            setTimeout(() => {
-                                refreshRef.current?.click()
-                            }, 400)
+                            setLoadedChildren(0)
                         }}
                     >
-                        <DashboardElectionEvent refreshRef={refreshRef} />
+                        <DashboardElectionEvent
+                            refreshRef={refreshRef}
+                            onMount={handleChildMount}
+                        />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showData ? (

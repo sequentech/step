@@ -31,10 +31,11 @@ const Container = styled(Box)`
 
 interface DashboardElectionEventProps {
     refreshRef: any
+    onMount: () => void
 }
 
 const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) => {
-    const {refreshRef} = props
+    const {refreshRef, onMount} = props
 
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -69,6 +70,10 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
     }
+
+    useEffect(() => {
+        onMount()
+    }, [onMount])
 
     useEffect(() => {
         if (!record?.status) {
@@ -118,7 +123,9 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                 <Box>
                     <button
                         ref={refreshRef}
-                        onClick={() => doRefetch()}
+                        onClick={() => {
+                            doRefetch()
+                        }}
                         style={{display: "none"}}
                     />
 
