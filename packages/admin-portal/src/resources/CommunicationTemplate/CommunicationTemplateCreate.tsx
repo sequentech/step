@@ -1,4 +1,4 @@
-import React from "react"
+import React, {useContext} from "react"
 
 import styled from "@emotion/styled"
 
@@ -30,6 +30,7 @@ import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTempla
 import {useWatch} from "react-hook-form"
 import {Sequent_Backend_Communication_Template} from "@/gql/graphql"
 import EmailEditEditor from "@/components/EmailEditEditor"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -79,6 +80,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     const [tenantId] = useTenantStore()
     const notify = useNotify()
     const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE)
+    const {globalSettings} = useContext(SettingsContext)
 
     const EmailSmsComponents: React.FC<{
         parsedValue: Sequent_Backend_Communication_Template
@@ -151,8 +153,12 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                 audience_voter_ids: [],
                 schedule_date: null,
                 schedule_now: null,
-                email: null,
-                sms: null,
+                email: {
+                    subject: globalSettings.DEFAULT_EMAIL_SUBJECT["en"] ?? "",
+                    plaintext_body: globalSettings.DEFAULT_EMAIL_PLAINTEXT_BODY["en"] ?? "",
+                    html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY["en"] ?? "",
+                },
+                sms: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
             }
         }
         return temp

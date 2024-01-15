@@ -882,16 +882,30 @@ const englishTranslation = {
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
             successSending: "Notification programmed/sent successfully",
+            method: "Communication Method",
+            type: "Communication Type",
+            alias: "Template Alias",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
-                SELECTED: "To {{total}} Selected Voters",
+                SELECTED: "To {{total}} Selected {{voters}}",
             },
-            methodTitle: "Communication Method",
+            path: {
+                users: "users",
+                voters: "voters",
+            },
+            methodTitle: "Communication Template",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+            },
+            communicationType: {
+                CREDENTIALS: "Credentials",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                PARTICIPATION_REPORT: "Participation Report",
+                ELECTORAL_RESULTS: "Electoral Results",
+                OTP: "OTP",
             },
             email: {
                 subject: "Subject",
