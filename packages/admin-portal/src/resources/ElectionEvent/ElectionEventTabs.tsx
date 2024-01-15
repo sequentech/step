@@ -64,7 +64,7 @@ export const ElectionEventTabs: React.FC = () => {
     // the ui has to wait for the children to be mounted before refreshing via ref click
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
     const handleChildMount = () => {
-        setLoadedChildren((prev) => prev < 2 ? prev + 1 : prev)
+        setLoadedChildren((prev) => (prev < 2 ? prev + 1 : prev))
     }
     useEffect(() => {
         if (loadedChildren === 1 || loadedChildren === 2) {

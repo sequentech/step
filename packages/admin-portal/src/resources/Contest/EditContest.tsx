@@ -30,12 +30,12 @@ const ContestForm: React.FC = () => {
     const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Contest>()
 
-        const votingTypesChoices = () => {
-            return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
-                id: value,
-                name: t(`contestScreen.options.${value.toLowerCase()}`),
-            }))
-        }
+    const votingTypesChoices = () => {
+        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
