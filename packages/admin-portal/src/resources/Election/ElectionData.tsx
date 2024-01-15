@@ -6,7 +6,6 @@ import {ICommunicationMethod, IRECEIPTS} from "@/types/communications"
 
 export const EditElectionData: React.FC = () => {
     const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
-
         // save receipts object
         const receipts: IRECEIPTS = {}
         for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
