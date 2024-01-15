@@ -4,8 +4,18 @@
 import {gql} from "@apollo/client"
 
 export const GET_UPLOAD_URL = gql`
-    mutation GetUploadUrl($name: String!, $media_type: String!, $size: Int!) {
-        get_upload_url(name: $name, media_type: $media_type, size: $size) {
+    mutation GetUploadUrl(
+        $name: String!,
+        $media_type: String!,
+        $size: Int!,
+        $is_public: Boolean! = true
+    ) {
+        get_upload_url(
+            name: $name,
+            media_type: $media_type,
+            size: $size,
+            is_public: $is_public
+        ) {
             url
             document_id
         }

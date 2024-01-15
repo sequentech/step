@@ -157,6 +157,7 @@ type Mutation {
     name: String!
     media_type: String!
     size: Int!
+    is_public: Boolean!
   ): GetUploadUrlOutput
 }
 

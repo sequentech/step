@@ -16,6 +16,7 @@ pub struct UploadDocumentInput {
     name: String,
     media_type: String,
     size: usize,
+    is_public: bool,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadDocumentOutput {
@@ -45,6 +46,7 @@ pub async fn upload_document(
         &inner.media_type,
         inner.size,
         &claims.hasura_claims.tenant_id,
+        &inner.is_public,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

@@ -7851,6 +7851,20 @@
             "description": null,
             "args": [
               {
+                "name": "is_public",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Boolean",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "media_type",
                 "description": null,
                 "type": {
@@ -17652,60 +17666,6 @@
             "type": {
               "kind": "OBJECT",
               "name": "FetchDocumentOutput",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "getElectionEventStats",
-            "description": "get election event stats",
-            "args": [
-              {
-                "name": "object",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ElectionEventStatsInput",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "ElectionEventStatsOutput",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "getElectionStats",
-            "description": "get election event stats",
-            "args": [
-              {
-                "name": "object",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ElectionStatsInput",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "ElectionStatsOutput",
               "ofType": null
             },
             "isDeprecated": false,

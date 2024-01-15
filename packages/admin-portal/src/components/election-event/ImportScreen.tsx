@@ -50,6 +50,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         name: theFile.name,
                         media_type: theFile.type,
                         size: theFile.size,
+                        is_public: false,
                     },
                 })
                 if (data?.get_upload_url?.document_id) {
