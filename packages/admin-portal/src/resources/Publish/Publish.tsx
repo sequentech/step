@@ -24,7 +24,7 @@ import {
 
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
-import {IElectionEventStatus} from "@/types/CoreTypes"
+import {IElectionEventStatus} from "@sequentech/ui-essentials"
 import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
 import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatus"
 import {IPermissions} from "@/types/keycloak"

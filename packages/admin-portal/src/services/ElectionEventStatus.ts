@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {IElectionEventStatus} from "@/types/CoreTypes"
+import {IElectionEventStatus} from "@sequentech/ui-essentials"
 
 export const getStatus = (data: IElectionEventStatus): IElectionEventStatus => {
     return data

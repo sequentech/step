@@ -16,6 +16,7 @@ import {
     BallotHash,
     Dialog,
     EVotingStatus,
+    IElectionEventStatus,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -119,7 +120,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
 
             const record = data?.sequent_backend_election_event?.[0]
 
-            if (record?.status !== EVotingStatus.OPEN) {
+            const eventStatus = record?.status as IElectionEventStatus | undefined
+
+            if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 console.warn("Election event is not open")
                 return submit({error: errorType.toString()}, {method: "post"})
             }
