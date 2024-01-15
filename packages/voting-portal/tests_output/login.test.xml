@@ -5,7 +5,7 @@
 
   <testsuite name="login.test"
     errors="1" failures="0" hostname="" id="" package="login.test" skipped="1"
-    tests="0" time="0.000" timestamp="">
+    tests="0" time="0.001000" timestamp="">
   
 
   
