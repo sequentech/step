@@ -27,23 +27,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
     const [loadingVoters, setLoadingVoters] = React.useState<boolean>(false)
     const [loadingElections, setLoadingElections] = React.useState<boolean>(false)
     const [loadingAreas, setLoadingAreas] = React.useState<boolean>(false)
-
-    // const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
-    // const showDashboard = authContext.isAuthorized(
-    //     true,
-    //     authContext.tenantId,
-    //     IPermissions.ADMIN_DASHBOARD_VIEW
-    // )
-    // const showData = authContext.isAuthorized(
-    //     true,
-    //     authContext.tenantId,
-    //     IPermissions.ELECTION_EVENT_WRITE
-    // )
-
-    // useEffect(() => {
-    //     const locArr = location.pathname.split("/").slice(0, 3).join("/")
-    //     navigate(locArr)
-    // }, [])
+    const [errors, setErrors] = React.useState<String | null>(null)
 
     const handleCancel = () => {
         console.log("handleCancel()")
@@ -97,6 +81,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                                 doCancel={handleCancel}
                                 doImport={handleImportVoters}
                                 isLoading={loadingVoters}
+                                errors={errors}
                             />
                         ),
                     },
@@ -108,6 +93,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                                 doCancel={handleCancel}
                                 doImport={handleImportElections}
                                 isLoading={loadingElections}
+                                errors={errors}
                             />
                         ),
                     },
@@ -119,6 +105,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                                 doCancel={handleCancel}
                                 doImport={handleImportAreas}
                                 isLoading={loadingAreas}
+                                errors={errors}
                             />
                         ),
                     },

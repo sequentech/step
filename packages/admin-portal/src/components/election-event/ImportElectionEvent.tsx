@@ -28,23 +28,7 @@ export const ImportElectionEvent: React.FC<ImportVotersTabsProps> = (props) => {
 
     const [value, setValue] = React.useState<number | null>(0)
     const [loading, setLoading] = React.useState<boolean>(false)
-
-    // const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
-    // const showDashboard = authContext.isAuthorized(
-    //     true,
-    //     authContext.tenantId,
-    //     IPermissions.ADMIN_DASHBOARD_VIEW
-    // )
-    // const showData = authContext.isAuthorized(
-    //     true,
-    //     authContext.tenantId,
-    //     IPermissions.ELECTION_EVENT_WRITE
-    // )
-
-    // useEffect(() => {
-    //     const locArr = location.pathname.split("/").slice(0, 3).join("/")
-    //     navigate(locArr)
-    // }, [])
+    const [errors, setErrors] = React.useState<String | null>(null)
 
     interface TabPanelProps {
         children?: ReactI18NextChild | Iterable<ReactI18NextChild>
@@ -98,7 +82,12 @@ export const ImportElectionEvent: React.FC<ImportVotersTabsProps> = (props) => {
                 subtitle="electionEventScreen.import.eesubtitle"
             />
 
-            <ImportScreen doCancel={handleCancel} doImport={handleImport} isLoading={loading} />
+            <ImportScreen
+                doCancel={handleCancel}
+                doImport={handleImport}
+                isLoading={loading}
+                errors={errors}
+            />
         </>
     )
 }

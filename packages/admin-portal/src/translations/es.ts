@@ -285,9 +285,15 @@ const spanishTranslation: TranslationType = {
                 voters: "Voters",
                 elections: "Elections",
                 areas: "Areas",
-                sha: "Integridad (SHA 256)",
+                sha: "Verificación de Integridad (SHA 256)",
                 cancel: "Cancelar",
                 import: "Importar",
+                shaDialog: {
+                    ok: "Sí, Importar Sin Verificación de Integridad",
+                    cancel: "Volver",
+                    title: "Importar Sin Verificación de Integridad?",
+                    description: "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
+                }
             },
         },
         electionScreen: {
