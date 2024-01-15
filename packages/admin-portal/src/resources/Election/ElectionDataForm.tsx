@@ -19,6 +19,7 @@ import {
     Identifier,
     RecordContext,
     NumberInput,
+    useGetList,
 } from "react-admin"
 import {
     Accordion,
@@ -32,6 +33,7 @@ import {
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
+    Sequent_Backend_Communication_Template,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -49,6 +51,7 @@ import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
 
 const Hidden = styled(Box)`
     display: none;
@@ -70,6 +73,7 @@ export const ElectionDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
+    const [recepitsList, setReceiptsList] = useState<Sequent_Backend_Communication_Template[]>([])
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -86,6 +90,20 @@ export const ElectionDataForm: React.FC = () => {
             meta: {tenant_id: record.tenant_id},
         }
     )
+
+    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
+        "sequent_backend_communication_template",
+        {
+            filter: {
+                tenant_id: record.tenant_id || tenantId,
+                communication_type: ICommunicationType.BALLOT_RECEIPT,
+            },
+        }
+    )
+
+    useEffect(() => {
+        setReceiptsList(receipts || [])
+    }, [receipts])
 
     const [updateImage] = useUpdate()
 
@@ -189,6 +207,20 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
             temp.presentation.i18n.en.description = temp.description
+
+            // receipts
+            const template: {[key: string]: string | null} = {}
+            const allowed: {[key: string]: boolean} = {}
+
+            if (temp.receipts) {
+                for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
+                    const key = Object.keys(ICommunicationMethod)[value]
+                    allowed[key] = temp.receipts[key].allowed
+                    template[key] = temp.receipts[key].template
+                }
+                temp.allowed = allowed
+                temp.template = template
+            }
 
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
@@ -336,6 +368,13 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
+    const communicationMethodChoices = () => {
+        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+            id: value,
+            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+        }))
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -469,51 +508,31 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <ElectionStyles.AccordionContainer>
-                                    <ElectionStyles.AccordionWrapper alignment="center">
-                                        <BooleanInput
-                                            source="allowed.sms"
-                                            label={"SMS"}
-                                            defaultValue={true}
-                                        />
-                                        <SelectInput
-                                            source="template.sms"
-                                            choices={[
-                                                {id: "tech", name: "Tech"},
-                                                {id: "lifestyle", name: "Lifestyle"},
-                                                {id: "people", name: "People"},
-                                            ]}
-                                        />
-                                    </ElectionStyles.AccordionWrapper>
-                                    <ElectionStyles.AccordionWrapper alignment="center">
-                                        <BooleanInput
-                                            source="allowed.email"
-                                            label={"EMAIL"}
-                                            defaultValue={true}
-                                        />
-                                        <SelectInput
-                                            source="template.email"
-                                            choices={[
-                                                {id: "tech", name: "Tech"},
-                                                {id: "lifestyle", name: "Lifestyle"},
-                                                {id: "people", name: "People"},
-                                            ]}
-                                        />
-                                    </ElectionStyles.AccordionWrapper>
-                                    <ElectionStyles.AccordionWrapper alignment="center">
-                                        <BooleanInput
-                                            source="allowed.print"
-                                            label={"PRINT"}
-                                            defaultValue={true}
-                                        />
-                                        <SelectInput
-                                            source="template.print"
-                                            choices={[
-                                                {id: "tech", name: "Tech"},
-                                                {id: "lifestyle", name: "Lifestyle"},
-                                                {id: "people", name: "People"},
-                                            ]}
-                                        />
-                                    </ElectionStyles.AccordionWrapper>
+                                    {communicationMethodChoices().map((choice) => (
+                                        <ElectionStyles.AccordionWrapper
+                                            alignment="center"
+                                            key={choice.id}
+                                        >
+                                            <BooleanInput
+                                                source={`allowed.${choice.id}`}
+                                                label={choice.name}
+                                                defaultValue={true}
+                                            />
+                                            <SelectInput
+                                                source={`template.${choice.id}`}
+                                                label={choice.name}
+                                                choices={recepitsList
+                                                    .filter(
+                                                        (item) =>
+                                                            item.communication_method === choice.id
+                                                    )
+                                                    .map((type) => ({
+                                                        id: type.id,
+                                                        name: type.template.alias,
+                                                    }))}
+                                            />
+                                        </ElectionStyles.AccordionWrapper>
+                                    ))}
                                 </ElectionStyles.AccordionContainer>
                             </AccordionDetails>
                         </Accordion>

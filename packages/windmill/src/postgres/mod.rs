@@ -5,3 +5,4 @@
 pub mod results_area_contest;
 pub mod results_contest;
 pub mod results_election;
+pub mod results_event;

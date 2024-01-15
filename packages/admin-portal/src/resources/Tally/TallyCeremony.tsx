@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -33,6 +33,8 @@ import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
+    Sequent_Backend_Results_Election,
+    Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
@@ -42,6 +44,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IResultDocuments} from "@/types/results"
 
 const WizardSteps = {
     Start: 0,
@@ -108,7 +111,7 @@ export const TallyCeremony: React.FC = () => {
         "sequent_backend_keys_ceremony",
         {
             pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
+            filter: {election_event_id: record?.id, tenant_id: tenantId},
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -130,6 +133,25 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+
+    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Event>(
+        "sequent_backend_results_event",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: record?.id,
+                id: resultsEventId,
+            },
+        },
+        {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -233,11 +255,15 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const handleExportResults = async (e: any) => {
-        e.preventDefault()
-        console.log("EXPORT RESULTS", e)
-    }
-    let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+    let documents: IResultDocuments | null = useMemo(
+        () =>
+            (!!resultsEventId &&
+                !!resultsEvent &&
+                resultsEvent?.[0]?.id === resultsEventId &&
+                (resultsEvent[0]?.documents as IResultDocuments | null)) ||
+            null,
+        [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
+    )
 
     return (
         <>
@@ -458,11 +484,13 @@ export const TallyCeremony: React.FC = () => {
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
-                                    <ExportElectionMenu
-                                        resource="sequent_backend_results_event"
-                                        event={data}
-                                        resultsEventId={resultsEventId}
-                                    />
+                                    {resultsEvent?.[0] && documents ? (
+                                        <ExportElectionMenu
+                                            documents={documents}
+                                            electionEventId={resultsEvent?.[0].election_event_id}
+                                            itemName={resultsEvent?.[0]?.name ?? "event"}
+                                        />
+                                    ) : null}
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>

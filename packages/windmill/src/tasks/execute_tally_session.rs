@@ -608,20 +608,6 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
-    // compressed file with the tally
-    let data = compress_folder(base_tempdir.path())?;
-
-    // upload binary data into a document (s3 and hasura)
-    let document = upload_and_return_document(
-        data,
-        "application/gzip".to_string(),
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        "tally.tar.gz".into(),
-    )
-    .await?;
-
     // insert tally_session_execution
     insert_tally_session_execution(
         auth_headers.clone(),
@@ -629,7 +615,6 @@ pub async fn execute_tally_session_wrapped(
         election_event_id.clone(),
         newest_message_id,
         tally_session_id.clone(),
-        Some(document.id.clone()),
         Some(new_status),
         results_event_id,
         session_ids,
