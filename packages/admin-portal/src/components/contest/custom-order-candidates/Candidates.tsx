@@ -1,7 +1,5 @@
-import React, {useCallback, useState} from "react"
+import React, {useState} from "react"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import {DndProvider} from "react-dnd"
-import {HTML5Backend} from "react-dnd-html5-backend"
 import Candidate from "./Candidate"
 
 const titi = [
@@ -94,47 +92,47 @@ const titi = [
 
 export default function Candidates({list}: {list: Array<Sequent_Backend_Candidate>}) {
     const [candidates, setCandidates] = useState<Array<Sequent_Backend_Candidate>>(titi)
+    const [dragIndex, setDragIndex] = useState<number>(-1)
 
-    const moveCard = (dragIndex: number, hoverIndex: number) => {
-        console.log("toto dragIndex :>> ", dragIndex)
-        console.log("toto hoverIndex :>> ", hoverIndex)
-
-        // setCards((prevCards: Item[]) =>
-        //     update(prevCards, {
-        //         $splice: [
-        //             [dragIndex, 1],
-        //             [hoverIndex, 0, prevCards[dragIndex] as Item],
-        //         ],
-        //     })
-        // )
-
-        setCandidates((prevState) => {
-            const newState = [...(prevState ?? [])]
-
-            newState.splice(dragIndex, 1)
-            newState.splice(hoverIndex, 0, newState[dragIndex] as Sequent_Backend_Candidate)
-
-            return newState
-        })
+    const onDragStart = (_event: React.DragEvent<HTMLDivElement>, index: number) => {
+        setDragIndex(index)
     }
 
+    const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault()
+    }
+
+    const onDrop = (event: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+        event.preventDefault()
+
+        if (dragIndex === -1 || dragIndex === dropIndex) {
+            return
+        }
+
+        const reorderedItems = [...candidates]
+        const [reorderedItem] = reorderedItems.splice(dragIndex, 1)
+        reorderedItems.splice(dropIndex, 0, reorderedItem)
+
+        setCandidates(reorderedItems)
+        setDragIndex(-1)
+    }
     return (
         <>
-            <DndProvider backend={HTML5Backend}>
-                <div>
-                    {candidates?.map((candidate: any, index: number) => {
-                        return (
-                            <Candidate
-                                key={candidate.id}
-                                index={index}
-                                id={candidate.id}
-                                candidate={candidate}
-                                moveCard={moveCard}
-                            />
-                        )
-                    })}
-                </div>
-            </DndProvider>
+            <div>
+                {candidates?.map((candidate: any, index: number) => {
+                    return (
+                        <Candidate
+                            key={candidate.id}
+                            index={index}
+                            id={candidate.id}
+                            candidate={candidate}
+                            onDragStart={onDragStart}
+                            onDragOver={onDragOver}
+                            onDrop={onDrop}
+                        />
+                    )
+                })}
+            </div>
         </>
     )
 }
