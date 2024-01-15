@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useNavigate, useParams} from "react-router-dom"
+import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -15,6 +15,7 @@ import {
     stringToHtml,
     BallotHash,
     Dialog,
+    EVotingStatus,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -26,19 +27,19 @@ import {
 } from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink} from "react-router-dom"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {InsertCastVoteMutation} from "../gql/graphql"
+import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {CustomError} from "./ErrorPage"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -87,6 +88,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const ballotId = hashBallot(auditableBallot)
+    const submit = useSubmit()
+
+    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+    })
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -98,7 +107,23 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     }
 
     const castBallotAction = async () => {
+        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+
         try {
+            const {data} = await refetchElectionEvent()
+
+            if (!(data && data.sequent_backend_election_event.length > 0)) {
+                console.error("Cannot load election event")
+                return submit({error: errorType}, {method: "post"})
+            }
+
+            const record = data?.sequent_backend_election_event?.[0]
+
+            if (record?.status !== EVotingStatus.OPEN) {
+                console.warn("Election event is not open")
+                return submit({error: errorType.toString()}, {method: "post"})
+            }
+
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
@@ -115,11 +140,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             if (newCastVote) {
                 dispatch(addCastVotes(newCastVote))
             }
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/confirmation`
-            )
+
+            return submit(null, {method: "post"})
         } catch (error) {
             console.log(`error casting vote: ${error}`)
+            return submit({error: errorType}, {method: "post"})
         }
     }
 
@@ -185,6 +210,7 @@ export const ReviewScreen: React.FC = () => {
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const submit = useSubmit()
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -195,7 +221,7 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
-                throw new CustomError("Impossible to go to the ballot audit")
+                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
             }
         }
     }
@@ -267,4 +293,19 @@ export const ReviewScreen: React.FC = () => {
             <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
         </PageLimit>
     )
+}
+
+export default ReviewScreen
+
+export async function action({request}: {request: Request}) {
+    const data = await request.formData()
+    const error = data.get("error")
+
+    if (error) {
+        throw new VotingPortalError(
+            VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
+        )
+    }
+
+    return redirect(`../confirmation`)
 }
