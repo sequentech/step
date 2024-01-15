@@ -57,9 +57,10 @@ pub struct JwtClaims {
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
-    let bytes = general_purpose::STANDARD_NO_PAD.decode(parts[1]).unwrap();
-    let json = String::from_utf8(bytes).unwrap();
-    let claims: JwtClaims = serde_json::from_str(&json).unwrap();
+    let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
+    let bytes = general_purpose::STANDARD_NO_PAD.decode(part)?;
+    let json = String::from_utf8(bytes)?;
+    let claims: JwtClaims = serde_json::from_str(&json)?;
     Ok(claims)
 }
 

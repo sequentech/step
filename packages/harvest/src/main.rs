@@ -12,6 +12,7 @@ use std::net::SocketAddr;
 use tracing::warn;
 
 mod pdf;
+mod postgres;
 mod routes;
 mod services;
 mod types;
@@ -38,6 +39,7 @@ async fn rocket() -> _ {
                 routes::ballot_publication::get_ballot_publication_changes,
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
+                routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
                 routes::election_event_stats::get_election_event_stats,
                 routes::election_stats::get_election_stats,
