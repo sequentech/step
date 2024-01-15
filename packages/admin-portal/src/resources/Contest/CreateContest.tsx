@@ -19,7 +19,7 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {VOTING_TYPES} from "./constants"
+import {IVotingType} from "./constants"
 
 const Hidden = styled(Box)`
     display: none;
@@ -37,6 +37,13 @@ export const CreateContest: React.FC = () => {
 
     const {refetch} = useTreeMenuData(false)
     const {setLastCreatedResource} = useContext(NewResourceContext)
+
+    const votingTypesChoices = () => {
+        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     return (
         <Create
@@ -63,7 +70,7 @@ export const CreateContest: React.FC = () => {
                     <SelectInput
                         source="voting_type"
                         defaultValue="no-preferential"
-                        choices={VOTING_TYPES(t)}
+                        choices={votingTypesChoices()}
                     />
                     <SelectInput
                         source="counting_algorithm"

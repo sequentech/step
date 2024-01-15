@@ -44,7 +44,7 @@ import styled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {DropFile} from "@sequentech/ui-essentials"
-import {COUNTING_ALGORITHMS, ORDER_ANSWERS, VOTING_TYPES} from "./constants"
+import {ICountingAlgorithm, IOrderAnswer, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {DndProvider} from "react-dnd"
@@ -103,6 +103,26 @@ export const ContestDataForm: React.FC = () => {
         }
     }, [candidates])
 
+    const votingTypesChoices = () => {
+        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const countingAlgorithmChoices = () => {
+        return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const orderAnswerChoices = () => {
+        return (Object.values(IOrderAnswer) as IOrderAnswer[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
         const temp = []
@@ -400,12 +420,12 @@ export const ContestDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <SelectInput
                                     source="voting_type"
-                                    choices={VOTING_TYPES(t)}
+                                    choices={votingTypesChoices()}
                                     validate={required()}
                                 />
                                 <SelectInput
                                     source="counting_algorithm"
-                                    choices={COUNTING_ALGORITHMS(t)}
+                                    choices={countingAlgorithmChoices()}
                                     validate={required()}
                                 />
                             </AccordionDetails>
@@ -432,7 +452,7 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="order_answers"
-                                    choices={ORDER_ANSWERS(t)}
+                                    choices={orderAnswerChoices()}
                                     validate={required()}
                                 />
                                 <FormDataConsumer>
