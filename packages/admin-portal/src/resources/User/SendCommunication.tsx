@@ -267,7 +267,10 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 receipt.template.alias === value
         )
 
+        console.log("selectedReceipt", selectedReceipt)
+        
         if (selectedReceipt && selectedReceipt.length > 0) {
+            console.log("selectedReceipt", selectedReceipt[0]["template"][selectedMethod.toLowerCase()])
             setSelectedReceipt(selectedReceipt[0]["template"][selectedMethod.toLowerCase()] ?? null)
         }
     }
@@ -309,7 +312,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         ICommunicationType.BALLOT_RECEIPT
     )
     const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
-    const [selectedReceipt, setSelectedReceipt] = useState<IEmail>({
+    const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
         plaintext_body: "",
         html_body: "",
@@ -524,13 +527,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </FormStyles.Select>
                         {communication.communication_method === ICommunicationMethod.EMAIL &&
                             communication.i18n["en"].email && (
-                                <EmailEditor record={selectedReceipt} setRecord={setEmail} />
+                                <EmailEditor record={selectedReceipt as IEmail} setRecord={setEmail} />
                             )}
                         {communication.communication_method === ICommunicationMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
-                                value={selectedReceipt}
+                                value={typeof selectedReceipt === "object" ? "" : selectedReceipt}
                                 onChange={handleSmsChange}
                                 multiline={true}
                                 minRows={4}
