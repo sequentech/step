@@ -93,6 +93,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         return (
             <Box sx={{padding: "16px"}}>
                 <TextField
+                    disabled={isLoading}
                     label={t("electionEventScreen.import.sha")}
                     size="small"
                     value={shaField}

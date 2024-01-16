@@ -87,8 +87,7 @@ impl ImportUsersBody {
         let random_number: u64 = rand::random();
 
         let temp_table_name = format!(
-            "temp_voters_{}_{}",
-            sanitize_db_key(&self.tenant_id),
+            "temp_voters_{}",
             random_number
         );
 
@@ -98,13 +97,13 @@ impl ImportUsersBody {
             temp_table_name,
             headers
                 .iter()
-                .map(|name| format!("{} text", sanitize_db_key(&name.to_string())))
+                .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
                 .collect::<Vec<String>>()
                 .join(", ")
         );
 
         // Create the COPY FROM STDIN query
-        let copy_from_query = format!("COPY {} FROM STDIN WITH CSV HEADER;", temp_table_name);
+        let copy_from_query = format!("COPY {} FROM STDIN BINARY;", temp_table_name);
 
         let column_names = headers
             .iter()
@@ -176,12 +175,12 @@ impl ImportUsersBody {
                 .map(|attr| {
                     let sanitized_attr = sanitize_db_key(attr);
                     format!(
-                        "(SELECT gen_random_uuid(), id, '{attr}', {sanitized_attr} FROM {})",
+                        "SELECT gen_random_uuid(), id, '{attr}', {sanitized_attr} FROM {}",
                         voters_table
                     )
                 })
                 .collect::<Vec<String>>()
-                .join(", ");
+                .join(" UNION ALL ");
 
             format!(
                 "INSERT INTO user_attribute (id, user_id, name, value) VALUES {};",
@@ -238,7 +237,11 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     info!("before isolation");
 
     keycloak_transaction
-        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ; SET client_encoding='UTF8';")
+        .simple_query(
+            r#"
+            SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+            "#,
+        )
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
     info!("after isolation");
@@ -261,9 +264,9 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     info!("headers: {headers:?}");
     for header in headers.iter() {
         if !HEADER_RE.is_match(header) {
-            return Err(Error::from(
-                format!("CSV Header contains characters not allowed: {header}")
-            ));
+            return Err(Error::from(format!(
+                "CSV Header contains characters not allowed: {header}"
+            )));
         }
     }
 
