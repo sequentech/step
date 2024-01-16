@@ -26,24 +26,19 @@ COPY ./wrap-map-err ./wrap-map-err
 WORKDIR /app/immu-board
 RUN cargo build --release
 
-WORKDIR /app/braid
-RUN cargo build --release
-
-
-
 FROM debian:bullseye
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/bb_helper /usr/bin
-COPY --from=builder /app/target/release/main /usr/bin/trustee
-COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
-COPY --from=builder /app/target/release/main /usr/bin/trustee
-COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
-RUN mkdir -p /opt/braid/
-COPY --from=builder /app/braid/scripts/*.toml /opt/braid/
 
-# init index db
-RUN mkdir /tmp/cache
+# Define environment variables
+ENV IMMUDB_SERVER_URL=""
+ENV IMMUDB_USER=""
+ENV IMMUDB_PASSWORD=""
+ENV IMMUDB_INDEX_DB=""
+ENV IMMUDB_BOARD_DB_NAME=""
+ENV CACHE_DIR="/tmp/immu-board"
 
-CMD ["/usr/bin/trustee.sh"]
+# Set the entrypoint for running the immudb-init service
+ENTRYPOINT ["/bin/sh", "-c", "/usr/bin/bb_helper --server-url ${IMMUDB_SERVER_URL} --username ${IMMUDB_USER} --password ${IMMUDB_PASSWORD} --index-dbname ${IMMUDB_INDEX_DB} --board-dbname ${IMMUDB_BOARD_DB_NAME} --cache-dir ${CACHE_DIR} upsert-init-db"]

@@ -22,14 +22,20 @@ RUN yarn build:${SPA_NAME}
 
 
 FROM nginx:alpine
+# Install dependencies
+RUN apk add --no-cache jq
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
+# Copy custom NGINX config
+COPY default.conf /etc/nginx/conf.d/
 ARG SPA_NAME
 # Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
 COPY --from=builder /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
-
+COPY nginx-entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
 # Expose port 80 for the Nginx server
 EXPOSE 80
-
-# Start Nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# NOTE: The entrypoint script will replace the global-settings.json values with the environment variables
+#       ALL THE global-settings.json KEYS ARE AVAILABLE AS ENVIRONMENT VARIABLES
+# Replace global-setting.json values & Start Nginx in the foreground
+ENTRYPOINT [ "/entrypoint.sh" ]
