@@ -89,6 +89,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                 </StyledButton>
             </StyledLink>
             <StyledButton
+                id="next-button"
                 sx={{width: {xs: "100%", sm: "200px"}}}
                 onClick={() => handleNext()}
                 disabled={disableNext}

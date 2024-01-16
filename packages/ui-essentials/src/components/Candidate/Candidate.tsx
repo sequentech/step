@@ -89,6 +89,7 @@ export interface CandidateProps extends PropsWithChildren {
     writeInValue?: string
     setWriteInText?: (value: string) => void
     isInvalidWriteIn?: boolean
+    index?: number
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -105,6 +106,7 @@ const Candidate: React.FC<CandidateProps> = ({
     setWriteInText,
     isInvalidWriteIn,
     children,
+    index,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
@@ -179,7 +181,13 @@ const Candidate: React.FC<CandidateProps> = ({
                     </Typography>
                 </StyledLink>
             ) : null}
-            {isActive ? <Checkbox checked={checked} onChange={handleChange} /> : null}
+            {isActive ? (
+                <Checkbox
+                    id={`candidate-${index}-input`}
+                    checked={checked}
+                    onChange={handleChange}
+                />
+            ) : null}
         </BorderBox>
     )
 }

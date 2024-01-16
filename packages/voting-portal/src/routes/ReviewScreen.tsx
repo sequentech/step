@@ -187,6 +187,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     <Box>{t("reviewScreen.auditButton")}</Box>
                 </StyledButton>
                 <StyledButton
+                    id="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={castBallotAction}
                 >

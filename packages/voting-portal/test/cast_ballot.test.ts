@@ -37,19 +37,23 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
         browser.assert.visible(electionListLabel)
         const isOpenLabel = browser.element.findByText("OPEN")
         browser.assert.visible(isOpenLabel)
-        browser
-            .useXpath()
-            .assert.visible("//button[normalize-space()='Click to Vote']")
-            .click("//button[normalize-space()='Click to Vote']")
-            .useCss()
+        browser.assert.visible("#click-to-vote-button").click("#click-to-vote-button")
+        browser.pause(500)
         // navigate to ballot instructions
         const ballotInstructionsLabel = browser.element.findByText("Instructions")
         browser.assert.visible(ballotInstructionsLabel)
-        browser
-            .useXpath()
-            .assert.visible("//button[normalize-space()='Start Voting']")
-            .click("//button[normalize-space()='Start Voting']")
-            .useCss()
+        browser.assert.visible("#start-voting-button").click("#start-voting-button")
+        browser.pause(500)
+        // navigate to ballot casting
+        browser.assert.visible("#candidate-0-input").click("#candidate-0-input")
+        browser.assert.visible("#next-button").click("#next-button")
+        browser.pause(500)
+        // navigate to ballot review
+        const reviewLabel = browser.element.findByText("Review your ballot")
+        browser.assert.visible(reviewLabel)
+        browser.assert.visible("#cast-ballot-button").click("#cast-ballot-button")
+        browser.pause(500)
+        // navigate to end of ballot casting
     })
 
     // this.it('should be able to logout', (browser) => {

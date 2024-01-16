@@ -5,7 +5,7 @@
 
   <testsuite name="login.test"
     errors="1" failures="0" hostname="" id="" package="login.test" skipped="1"
-    tests="0" time="0.000" timestamp="">
+    tests="0" time="0.001000" timestamp="">
   
 
   
@@ -15,7 +15,7 @@
   {
      start_process: true,
      server_path: &#39;&#39;,
-     port: undefined,
+     port: 9515,
      host: &#39;localhost&#39;,
      ssl: false,
      default_path_prefix: &#39;&#39;,
@@ -24,28 +24,15 @@
   }
 
  
-  Set webdriver.log_path in your Nightwatch config to retrieve more logs from ChromeDriver.
- An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127
-  Verify if ChromeDriver is configured correctly; using:
-  {
-     start_process: true,
-     server_path: &#39;&#39;,
-     port: undefined,
-     host: &#39;localhost&#39;,
-     ssl: false,
-     default_path_prefix: &#39;&#39;,
-     proxy: undefined,
-     cli_args: {}
-  }
-
- 
-  Set webdriver.log_path in your Nightwatch config to retrieve more logs from ChromeDriver.
+  More info might be available in the log file: /workspaces/backend-services/packages/voting-portal/logs/login.test_chromedriver.log
     </system-err>
   
 
     
-    <error message=""><![CDATA[
-      
+    <error message="An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127"><![CDATA[
+      Error: An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127
+    at /workspaces/backend-services/packages/node_modules/selenium-webdriver/remote/index.js:259:24
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
       ]]></error>  
 
   

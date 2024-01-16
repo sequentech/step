@@ -1,1 +1,1 @@
-{"modules":{"login.test":{"modulePath":"/workspaces/backend-services/packages/voting-portal/test/login.test.ts","status":"fail"},"cast_ballot.test":{"modulePath":"/workspaces/backend-services/packages/voting-portal/test/cast_ballot.test.ts","status":"fail"}}}
+{"modules":{"login.test":{"modulePath":"/workspaces/backend-services/packages/voting-portal/test/login.test.ts","status":"fail"}}}
