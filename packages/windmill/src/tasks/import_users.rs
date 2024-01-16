@@ -72,7 +72,7 @@ impl ImportUsersBody {
      *
      *  Possible Table columns:
      *  - email: string. example: "somebody@example.com"
-     *  - is_enabled: (TRUE or FALSE, ignore-case). Example: "TRUE"
+     *  - enabled: (TRUE or FALSE, ignore-case). Example: "TRUE"
      *  - first_name: string. Example: "John"
      *  - last_name: string. Example: "Doe"
      *  - username: string. Example: "johndoe"
@@ -139,7 +139,7 @@ impl ImportUsersBody {
         let user_entity_columns = vec![
             "id",
             "email",
-            "is_enabled",
+            "enabled",
             "first_name",
             "last_name",
             "username",
@@ -148,18 +148,18 @@ impl ImportUsersBody {
             .iter()
             .map(|&column| {
                 match column {
-                    // Cast is_enabled to boolean
-                    "is_enabled" => format!("{}::boolean", column),
+                    // Cast enabled to boolean
+                    "enabled" => "enabled::boolean".to_string(),
                     "id" => "gen_random_uuid()".to_string(),
                     _ => column.to_string(),
                 }
             })
             .collect();
         let user_entity_query = format!(
-            "INSERT INTO user_entity ({}) SELECT {} FROM {};",
+            "INSERT INTO user_entity ({}) SELECT {} FROM {} RETURNING *",
             user_entity_columns.join(", "),
             select_columns.join(", "),
-            voters_table
+            voters_table,
         );
 
         // Assuming all other columns are user attributes
@@ -175,22 +175,32 @@ impl ImportUsersBody {
                 .map(|attr| {
                     let sanitized_attr = sanitize_db_key(attr);
                     format!(
-                        "SELECT gen_random_uuid(), id, '{attr}', {sanitized_attr} FROM {}",
-                        voters_table
+                        r#"
+                        SELECT
+                            gen_random_uuid(),
+                            nu.id,
+                            '{attr}',
+                            v.{sanitized_attr}
+                        FROM
+                            {voters_table} v
+                        JOIN
+                            new_user nu ON
+                                nu.username = v.username
+                        "#
                     )
                 })
                 .collect::<Vec<String>>()
                 .join(" UNION ALL ");
 
             format!(
-                "INSERT INTO user_attribute (id, user_id, name, value) VALUES {};",
+                "INSERT INTO user_attribute (id, user_id, name, value) {}",
                 values_subquery
             )
         } else {
             String::new()
         };
 
-        Ok(format!("{user_entity_query}\n{user_attribute_query}"))
+        Ok(format!("WITH new_user AS ({user_entity_query}) {user_attribute_query};"))
     }
 }
 

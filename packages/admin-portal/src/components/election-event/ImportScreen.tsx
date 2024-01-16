@@ -36,12 +36,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const notify = useNotify()
         const [shaField, setShaField] = React.useState<string>("")
         const [showShaDialog, setShowShaDialog] = React.useState<boolean>(false)
+        const [isUploading, setIsUploading] = React.useState<boolean>(false)
         const [documentId, setDocumentId] = React.useState<string | null>(null)
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
 
         const handleFiles = async (files: FileList | null) => {
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
-
+            setIsUploading(true)
             const theFile = files?.[0]
 
             if (theFile) {
@@ -68,11 +69,16 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         },
                         body: theFile,
                     })
+                    setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                     setDocumentId(data.get_upload_url.document_id)
                 } catch (_error) {
+                    setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                 }
+            } else {
+                setIsUploading(false)
+                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
             }
         }
 
@@ -90,10 +96,12 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             doImport(documentId as string, shaField)
         }
 
+        const isWorking = () => isLoading || isUploading
+
         return (
             <Box sx={{padding: "16px"}}>
                 <TextField
-                    disabled={isLoading}
+                    disabled={isWorking()}
                     label={t("electionEventScreen.import.sha")}
                     size="small"
                     value={shaField}
@@ -105,7 +113,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 <DropFile handleFiles={async (files) => handleFiles(files)} />
 
                 <FormStyles.StatusBox>
-                    {isLoading ? <FormStyles.ShowProgress /> : null}
+                    {isWorking() ? <FormStyles.ShowProgress /> : null}
                     {errors ? (
                         <FormStyles.ErrorMessage variant="body2">{errors}</FormStyles.ErrorMessage>
                     ) : null}
@@ -120,11 +128,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         marginTop: "16px",
                     }}
                 >
-                    <ImportStyles.CancelButton disabled={isLoading} onClick={() => doCancel()}>
+                    <ImportStyles.CancelButton disabled={isWorking()} onClick={() => doCancel()}>
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!documentId || isLoading}
+                        disabled={!documentId || isWorking()}
                         onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}
