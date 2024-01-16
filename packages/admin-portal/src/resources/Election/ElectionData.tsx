@@ -2,9 +2,23 @@ import React from "react"
 import {EditBase, Identifier, RaRecord} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
+import {ICommunicationMethod, IRECEIPTS} from "@/types/communications"
 
 export const EditElectionData: React.FC = () => {
     const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
+        // save receipts object
+        const receipts: IRECEIPTS = {}
+        for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
+            const key = Object.keys(ICommunicationMethod)[value]
+            receipts[key] = {}
+            receipts[key]["allowed"] = data.allowed[key]
+            receipts[key]["template"] = data.template[key] || null
+        }
+
+        data.receipts = {...receipts}
+        delete data.allowed
+        delete data.template
+
         // save presentation object
         // language_conf
         const enabled_language_codes = []

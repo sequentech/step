@@ -40,6 +40,10 @@ jobs:
           - service: windmill
             context: packages
             file: packages/windmill/Dockerfile.prod
+
+          - service: immudb-init
+            context: packages
+            file: packages/Dockerfile.immudb-init.prod
             
       fail-fast: false
 
