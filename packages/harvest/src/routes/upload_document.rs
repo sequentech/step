@@ -26,7 +26,7 @@ pub struct UploadDocumentOutput {
 
 #[instrument(skip(claims))]
 #[post("/get-upload-url", format = "json", data = "<body>")]
-pub async fn upload_document(
+pub async fn get_upload_url(
     claims: JwtClaims,
     body: Json<UploadDocumentInput>,
 ) -> Result<Json<UploadDocumentOutput>, (Status, String)> {

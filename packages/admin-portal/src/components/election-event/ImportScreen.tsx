@@ -45,6 +45,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             const theFile = files?.[0]
 
             if (theFile) {
+                // Get the Upload URL
                 let {data, errors} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
@@ -53,10 +54,23 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         is_public: false,
                     },
                 })
-                if (data?.get_upload_url?.document_id) {
+
+                try {
+                    if (!data?.get_upload_url?.url) {
+                        notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                        return
+                    }
+                    // Actually upload the CSV file
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "text/csv",
+                        },
+                        body: theFile,
+                    })
                     notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                     setDocumentId(data.get_upload_url.document_id)
-                } else {
+                } catch (_error) {
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                 }
             }

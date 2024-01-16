@@ -38,11 +38,12 @@ pub struct ImportUsersOutput {
 }
 
 impl ImportUsersBody {
+    #[instrument(err)]
     async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<File> {
         let s3_bucket = s3::get_private_bucket()?;
         let document_s3_key = s3::get_document_key(
             self.tenant_id.clone(),
-            self.election_event_id.clone().unwrap(),
+            Default::default(),
             self.document_id.clone(),
         );
         s3::get_object_into_temp_file(s3_bucket, document_s3_key).await
@@ -191,9 +192,11 @@ impl ImportUsersBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(max_retries=0)]
 pub async fn import_users(body: ImportUsersBody) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .with_context(|| "Error obtaining keycloak client credentials")?;
     let _election_event = match body.election_event_id.clone() {
         None => None,
         Some(election_event_id) => {
@@ -218,7 +221,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .await
         .get()
         .await
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("Error getting keycloak db pool: {err}"))?;
 
     // we'll perform insert in a single transaction. It either works or it
     // doesn't
@@ -226,7 +229,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
-        .map_err(|err| anyhow!("{err}"))?;
+        .map_err(|err| anyhow!("Error starting keycloak transaction: {err}"))?;
     info!("before isolation");
 
     keycloak_transaction
@@ -235,10 +238,15 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .with_context(|| "can't set transaction isolation level")?;
     info!("after isolation");
 
-    let voters_file = body.get_s3_document_as_temp_file().await?;
+    let voters_file = body.get_s3_document_as_temp_file()
+        .await
+        .with_context(|| "Error obtaining voters file from S3 as temp file")?;
     // Read the first line of the file to get the columns
     let mut rdr = csv::Reader::from_reader(voters_file);
-    let headers = rdr.headers()?.clone();
+    let headers = rdr
+        .headers()
+        .with_context(|| "Error reading CSV headers from voters file")?
+        .clone();
 
     // Validate headers
     for header in headers.iter() {
@@ -270,7 +278,8 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     // Prepare for COPY FROM STDIN
     let sink = keycloak_transaction
         .copy_in(copy_from_query.as_str())
-        .await?;
+        .await
+        .with_context(|| "Error preparing COPY IN transaction")?;
     let writer = BinaryCopyInWriter::new(sink, &voters_table_columns_types);
     pin_mut!(writer);
 
@@ -278,7 +287,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     let mut owned_data: Vec<String> = Vec::new(); // To store owned string data
 
     for result in rdr.records() {
-        let record = result?;
+        let record = result.with_context(|| "Error reading CSV record")?;
         owned_data.clear(); // Clear previously stored data
 
         for data in record.iter() {
@@ -290,17 +299,22 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
             .map(|data| data as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
 
-        writer.as_mut().write(row.as_slice()).await?;
+        writer
+            .as_mut()
+            .write(row.as_slice())
+            .await
+            .with_context(|| "Error writing to COPY IN stdin transaction")?;
     }
 
-    writer.finish().await?;
+    writer.finish().await.with_context(|| "Error finishing COPY IN transaction")?;
 
     // Complete the copy process
 
     // Execute the insert users query
     keycloak_transaction
         .execute(insert_user_query.as_str(), &[])
-        .await?;
+        .await
+        .with_context(|| "Error executing INSERT USER transaction")?;
 
     // Commit the transaction
     keycloak_transaction
