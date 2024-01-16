@@ -63,28 +63,28 @@ module.exports = {
             },
         },
 
-        firefox: {
-            desiredCapabilities: {
-                browserName: "firefox",
-                alwaysMatch: {
-                    "acceptInsecureCerts": true,
-                    "moz:firefoxOptions": {
-                        args: [
-                            // '-headless',
-                            // '-verbose'
-                        ],
-                    },
-                },
-            },
-            webdriver: {
-                start_process: true,
-                server_path: "",
-                cli_args: [
-                    // very verbose geckodriver logs
-                    // '-vv'
-                ],
-            },
-        },
+        // firefox: {
+        //     desiredCapabilities: {
+        //         browserName: "firefox",
+        //         alwaysMatch: {
+        //             "acceptInsecureCerts": true,
+        //             "moz:firefoxOptions": {
+        //                 args: [
+        //                     // '-headless',
+        //                     // '-verbose'
+        //                 ],
+        //             },
+        //         },
+        //     },
+        //     webdriver: {
+        //         start_process: true,
+        //         server_path: "",
+        //         cli_args: [
+        //             // very verbose geckodriver logs
+        //             // '-vv'
+        //         ],
+        //     },
+        // },
 
         chrome: {
             desiredCapabilities: {
@@ -123,27 +123,27 @@ module.exports = {
             },
         },
 
-        edge: {
-            desiredCapabilities: {
-                "browserName": "MicrosoftEdge",
-                "ms:edgeOptions": {
-                    w3c: true,
-                    // More info on EdgeDriver: https://docs.microsoft.com/en-us/microsoft-edge/webdriver-chromium/capabilities-edge-options
-                    args: [
-                        //'--headless'
-                    ],
-                },
-            },
+        // edge: {
+        //     desiredCapabilities: {
+        //         "browserName": "MicrosoftEdge",
+        //         "ms:edgeOptions": {
+        //             w3c: true,
+        //             // More info on EdgeDriver: https://docs.microsoft.com/en-us/microsoft-edge/webdriver-chromium/capabilities-edge-options
+        //             args: [
+        //                 //'--headless'
+        //             ],
+        //         },
+        //     },
 
-            webdriver: {
-                start_process: true,
-                // Follow https://docs.microsoft.com/en-us/microsoft-edge/webdriver-chromium/?tabs=c-sharp#download-microsoft-edge-webdriver
-                // to download the Edge WebDriver and set the location of extracted `msedgedriver` below:
-                server_path: "",
-                cli_args: [
-                    // --verbose
-                ],
-            },
-        },
+        //     webdriver: {
+        //         start_process: true,
+        //         // Follow https://docs.microsoft.com/en-us/microsoft-edge/webdriver-chromium/?tabs=c-sharp#download-microsoft-edge-webdriver
+        //         // to download the Edge WebDriver and set the location of extracted `msedgedriver` below:
+        //         server_path: "",
+        //         cli_args: [
+        //             // --verbose
+        //         ],
+        //     },
+        // },
     },
 }
