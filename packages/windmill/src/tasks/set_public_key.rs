@@ -38,6 +38,11 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
 
     let election_event = &election_event_response.sequent_backend_election_event[0];
 
+    if election_event.public_key.is_some() {
+        event!(Level::INFO, "Public key already set");
+        return Ok(());
+    }
+
     let bulletin_board_reference = election_event.bulletin_board_reference.clone();
     let board_name = match get_election_event_board(bulletin_board_reference) {
         Some(board_name) => board_name,
@@ -47,20 +52,17 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         }
     };
 
-    if election_event.public_key.is_some() {
-        event!(Level::INFO, "Public key already set");
-        return Ok(());
-    }
-
     // set public key in the election event
-    let public_key = public_keys::get_public_key(board_name.clone()).await?;
-    hasura::election_event::update_election_event_public_key(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        public_key.clone(),
-    )
-    .await?;
+    let public_key_opt = public_keys::get_public_key(board_name.clone()).await.ok();
+    if let Some(public_key) = public_key_opt.clone() {
+        hasura::election_event::update_election_event_public_key(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            public_key.clone(),
+        )
+        .await?;
+    }
 
     // find the keys ceremony, and then update it
     let keys_ceremonies = hasura::keys_ceremony::get_keys_ceremonies(
@@ -127,7 +129,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     let new_execution_status: String = ExecutionStatus::IN_PROCESS.to_string();
     let new_status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: Some(get_now_utc_unix_ms().to_string()),
-        public_key: Some(public_key.clone()),
+        public_key: public_key_opt.clone(),
         logs: sort_logs(&logs),
         trustees: current_status
             .trustees
