@@ -3,9 +3,9 @@
             failures="0"
             tests="0">
 
-  <testsuite name="login.test"
-    errors="1" failures="0" hostname="" id="" package="login.test" skipped="1"
-    tests="0" time="0.000" timestamp="">
+  <testsuite name="cast_ballot.test"
+    errors="1" failures="0" hostname="" id="" package="cast_ballot.test" skipped="1"
+    tests="0" time="0.001000" timestamp="">
   
 
   
@@ -51,7 +51,7 @@
   
     
     <testcase
-      name="should be able to login" classname="login.test">
+      name="should cast a ballot" classname="cast_ballot.test">
       <skipped />
     </testcase>
     

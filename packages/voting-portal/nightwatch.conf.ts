@@ -36,7 +36,19 @@ module.exports = {
         port: 5173,
     },
 
-    webdriver: {},
+    webdriver: {
+        start_process: true,
+        port: 4444,
+        host: "localhost",
+        ssl: false,
+        default_path_prefix: "",
+        proxy: undefined,
+        cli_args: {},
+        log_path: "./reports",
+        server_path: "",
+        // server_path:
+        //     "/home/vscode/.cache/selenium/chromedriver/linux64/120.0.6099.109/chromedriver",
+    },
 
     test_workers: {
         enabled: true,
@@ -95,10 +107,10 @@ module.exports = {
                     // w3c:false tells Chromedriver to run using the legacy JSONWire protocol (not required in Chrome 78)
                     w3c: true,
                     args: [
-                        '--no-sandbox',
-                        '--ignore-certificate-errors',
-                        '--allow-insecure-localhost',
-                        '--headless'
+                        "--no-sandbox",
+                        "--ignore-certificate-errors",
+                        "--allow-insecure-localhost",
+                        "--headless",
                     ],
                 },
             },

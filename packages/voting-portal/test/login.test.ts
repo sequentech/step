@@ -29,8 +29,11 @@ describe('login', function(this: ExtendDescribeThis<LoginThis>) {
             .assert.visible(this.submitButton!)
             .click(this.submitButton!)
             .pause(1000)
-            // .assert.visible()
-            // .end()
+            .assert.visible("#code")
+            .sendKeys("#code", "123456")
+            .assert.visible(this.submitButton!)
+            .click(this.submitButton!)
+            .pause(1000)
     });
 
     // this.it('should be able to logout', (browser) => {
