@@ -157,13 +157,6 @@ const VotingScreen: React.FC = () => {
                         ballotSelection: decodedSelectionState,
                     })
                 )
-
-                dispatch(
-                    resetBallotSelection({
-                        ballotStyle,
-                        force: true,
-                    })
-                )
             }
 
             submit(null, {method: "post"})
