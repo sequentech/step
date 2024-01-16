@@ -39,7 +39,7 @@ pub fn generate_logs(
         .iter()
         .map(|message| message_to_log(message))
         .collect();
-    Ok(logs)
+    Ok(sort_logs(&logs))
 }
 
 #[instrument]
@@ -51,6 +51,19 @@ pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
             election_ids,
         ),
     }]
+}
+
+#[instrument]
+pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
+    let mut sorted = logs.clone();
+
+    sorted.sort_by(|a, b| {
+        let a_date = ISO8601::to_date(&a.created_date).unwrap_or(ISO8601::now());
+        let b_date = ISO8601::to_date(&b.created_date).unwrap_or(ISO8601::now());
+        a_date.cmp(&b_date)
+    });
+
+    sorted
 }
 
 #[instrument]
@@ -68,7 +81,7 @@ pub fn append_tally_trustee_log(current_logs: &Vec<Log>, trustee_name: &str) -> 
         created_date: ISO8601::to_string(&ISO8601::now()),
         log_text: format!("Restored private key for trustee {}", trustee_name,),
     });
-    logs
+    sort_logs(&logs)
 }
 
 #[instrument(skip(current_logs))]
@@ -78,7 +91,7 @@ pub fn append_keys_trustee_download_log(current_logs: &Vec<Log>, trustee_name: &
         created_date: ISO8601::to_string(&ISO8601::now()),
         log_text: format!("Downloaded private key for trustee {}", trustee_name,),
     });
-    logs
+    sort_logs(&logs)
 }
 
 #[instrument(skip(current_logs))]
@@ -88,5 +101,5 @@ pub fn append_keys_trustee_check_log(current_logs: &Vec<Log>, trustee_name: &str
         created_date: ISO8601::to_string(&ISO8601::now()),
         log_text: format!("Checked private key for trustee {}", trustee_name,),
     });
-    logs
+    sort_logs(&logs)
 }

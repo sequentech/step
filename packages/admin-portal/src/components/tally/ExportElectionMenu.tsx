@@ -41,25 +41,13 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
         },
     })
 
-    console.log(`FFFF is downloading ${downloading}`)
     if (!loading && !error && data?.fetchDocument?.url && !downloading) {
         downloading = true
-        console.log(`FFFF downloadUrl ${downloading}`)
 
         downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
     }
 
     return <CircularProgress />
-}
-
-interface ExportElectionMenuProps {
-    resource: string
-    event?: Sequent_Backend_Tally_Session
-    election?: Sequent_Backend_Election
-    contest?: Sequent_Backend_Contest
-    area?: Sequent_Backend_Area_Contest | string | undefined
-    areaName?: string | undefined
-    resultsEventId: string | null
 }
 
 const ExportButton = styled.div`
@@ -90,38 +78,18 @@ interface IDocumentData {
     name: string
 }
 
+interface ExportElectionMenuProps {
+    documents: IResultDocuments | null
+    electionEventId: string
+    itemName: string
+}
+
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {resource, event, election, contest, area, areaName, resultsEventId} = props
+    const {itemName, documents, electionEventId} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {globalSettings} = useContext(SettingsContext)
-    const [documents, setDocuments] = useState<IResultDocuments | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
-
-    const {data: results} = useGetList<Sequent_Backend_Results_Election>(
-        resource,
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                tenant_id: election?.tenant_id,
-                election_event_id: election?.election_event_id,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    useEffect(() => {
-        if (results?.[0]?.documents && isNull(documents)) {
-            setDocuments(results?.[0]?.documents ?? null)
-        }
-    }, [results?.[0]?.documents])
-
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
         event.stopPropagation()
@@ -147,7 +115,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         })
     }
 
-    const exportFormatItem = election
+    const exportFormatItem = itemName /*election
         ? election?.name?.slice(0, 12)
         : contest
         ? contest?.name?.slice(0, 12)
@@ -155,7 +123,25 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         ? areaName?.slice(0, 12)
         : area
         ? t("common.label.globalAreaResults")
-        : t("common.label.allResults")
+        : t("common.label.allResults")*/
+    /*
+    if (election) {
+	    election?.name?.slice(0, 12)
+    } else {
+        if (contest?.name?.slice(0, 12)) {
+        } else {
+            if (area && area !== "all") {
+                areaName?.slice(0, 12)
+            } else {
+                if (area) {
+                    t("common.label.globalAreaResults")
+                } else {
+                    t("common.label.allResults")
+                }
+            }
+        }
+    } 
+    */
 
     const isExportFormatDisabled = (format: EExportFormat): boolean => !documents?.[format]
 
@@ -168,7 +154,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 onClick={handleMenu}
             >
                 <span title={t("common.label.export")}>{t("common.label.export")}</span>
-                {performDownload && election?.election_event_id ? (
+                {performDownload ? (
                     <PerformDownload
                         onDownload={() => {
                             downloading = false
@@ -176,7 +162,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                         }}
                         fileName={performDownload.name}
                         documentId={performDownload.id}
-                        electionEventId={election?.election_event_id}
+                        electionEventId={electionEventId}
                     />
                 ) : null}
             </ExportButton>

@@ -6,14 +6,18 @@ use crate::{
         results_area_contest::update_results_area_contest_documents,
         results_contest::update_results_contest_documents,
         results_election::update_results_election_documents,
+        results_event::update_results_event_documents,
     },
-    services::{compress::read_file_to_bytes, documents::upload_and_return_document},
+    services::{
+        compress::{compress_folder, read_file_to_bytes},
+        documents::upload_and_return_document,
+    },
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
@@ -102,6 +106,72 @@ pub trait GenerateResultDocuments {
     ) -> Result<ResultDocuments>;
 }
 
+impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
+    fn get_document_paths(
+        &self,
+        area_id: Option<String>,
+        base_path: &PathBuf,
+    ) -> ResultDocumentPaths {
+        ResultDocumentPaths {
+            json: None,
+            pdf: None,
+            html: None,
+            tar_gz: Some(base_path.display().to_string()),
+        }
+    }
+    async fn save_documents(
+        &self,
+        auth_headers: &AuthHeaders,
+        hasura_transaction: &Transaction<'_>,
+        document_paths: &ResultDocumentPaths,
+        results_event_id: &str,
+    ) -> Result<ResultDocuments> {
+        if let Some(tar_gz_path) = document_paths.clone().tar_gz {
+            let path = Path::new(&tar_gz_path);
+            // compressed file with the tally
+            let data = compress_folder(path)?;
+
+            let contest = &self[0].reports[0].contest;
+
+            // upload binary data into a document (s3 and hasura)
+            let document = upload_and_return_document(
+                data,
+                "application/gzip".to_string(),
+                auth_headers.clone(),
+                contest.tenant_id.clone(),
+                contest.election_event_id.clone(),
+                "tally.tar.gz".into(),
+            )
+            .await?;
+
+            let documents = ResultDocuments {
+                json: None,
+                pdf: None,
+                html: None,
+                tar_gz: Some(document.id),
+            };
+
+            update_results_event_documents(
+                hasura_transaction,
+                &contest.tenant_id,
+                results_event_id,
+                &contest.election_event_id,
+                &documents,
+            )
+            .await?;
+
+            Ok(documents)
+        } else {
+            Ok(ResultDocuments {
+                json: None,
+                pdf: None,
+                html: None,
+                tar_gz: None,
+            })
+        }
+    }
+}
+
 impl GenerateResultDocuments for ElectionReportDataComputed {
     fn get_document_paths(
         &self,
@@ -116,6 +186,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
             pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
             html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
+            tar_gz: None,
         }
     }
 
@@ -176,6 +247,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
             pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
             html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
+            tar_gz: None,
         }
     }
 
@@ -234,6 +306,16 @@ pub async fn save_result_documents(
     results_event_id: &str,
     base_tally_path: &PathBuf,
 ) -> Result<()> {
+    let event_document_paths = results.get_document_paths(None, base_tally_path);
+    results
+        .save_documents(
+            auth_headers,
+            hasura_transaction,
+            &event_document_paths,
+            results_event_id,
+        )
+        .await?;
+
     for election_report in results {
         let document_paths =
             election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);

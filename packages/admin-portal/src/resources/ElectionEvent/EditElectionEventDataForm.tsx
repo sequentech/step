@@ -301,7 +301,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                     const parsedValue = parseValues(
                         incoming as Sequent_Backend_Support_Material_Extended
                     )
-                    console.log("parsedValue eevent form :>> ", parsedValue)
                     return (
                         <SimpleForm
                             validate={formValidator}

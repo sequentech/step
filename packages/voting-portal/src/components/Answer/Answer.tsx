@@ -128,7 +128,6 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     return (
         <Candidate
-            index={index}
             title={translate(answer, "name", i18n.language)}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isActive={isActive}
