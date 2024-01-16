@@ -14,6 +14,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use strand::hash::HashWrapper;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::hasura;
@@ -29,6 +30,7 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
+use board_messages::electoral_log::newtypes::*;
 
 /*
 type Mutation {
@@ -65,7 +67,7 @@ mutation insertCastVote {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InsertCastVoteInput {
-    ballot_id: Uuid,
+    ballot_id: String,
     election_id: Uuid,
     election_event_id: Uuid,
     tenant_id: Uuid,
@@ -107,6 +109,10 @@ async fn try_insert_cast_vote(
 
     // TODO
     let voter_id = "";
+    let pseudonym_h = [0u8; 64];
+    let vote_h = [0u8; 64];
+
+    
 
     let (auth_headers, election_event) = get_election_event(&input).await?;
     let electoral_log = get_electoral_log(&election_event).await?;
@@ -114,7 +120,7 @@ async fn try_insert_cast_vote(
     let check_status = check_status(&input, auth_headers, &election_event);
     let check_previous_votes =
         check_previous_votes(voter_id, &input, &hasura_transaction);
-    let insert = insert(&input, &hasura_transaction);
+    let insert = insert(&input, voter_id, &hasura_transaction);
 
     let result = check_status
         .and_then(|_| check_previous_votes)
@@ -127,28 +133,21 @@ async fn try_insert_cast_vote(
         .map_err(|e| anyhow!("Commit failed: {}", e));
     let result = commit.and(result);
 
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+
     match result {
         Ok(result) => {
-            /*electoral_log
-            .post_election_published(
-                election_event_id.clone(),
-                None,
-                ballot_publication_id.clone(),
-            )
+            electoral_log.post_cast_vote(input.election_event_id.to_string(), Some(input.election_id.to_string()), pseudonym_h, vote_h)
             .await
-            .with_context(|| "error posting to the electoral log")*/
-
+            .with_context(|| "Error posting to the electoral log")?;
             Ok(result)
         }
         Err(e) => {
-            /*electoral_log
-            .post_election_published(
-                election_event_id.clone(),
-                None,
-                ballot_publication_id.clone(),
-            )
+            // TODO error message may leak implementation details
+            electoral_log.post_cast_vote_error(input.election_event_id.to_string(), Some(input.election_id.to_string()), pseudonym_h, e.to_string())
             .await
-            .with_context(|| "error posting to the electoral log")*/
+            .with_context(|| "Error posting to the electoral log")?;
             Err(e)
         }
     }
@@ -276,6 +275,7 @@ async fn check_previous_votes(
 
 async fn insert(
     input: &InsertCastVoteInput,
+    voter_id: &str,
     hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<InsertCastVoteOutput> {
     // TODO
@@ -286,9 +286,9 @@ async fn insert(
         &input.election_event_id,
         &input.election_id,
         &input.area_id,
-        "content",
-        "voter_id",
-        "ballot_id",
+        &input.content,
+        voter_id,
+        &input.ballot_id,
         &signature,
     )
     .await?;
