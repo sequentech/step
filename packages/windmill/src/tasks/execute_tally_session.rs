@@ -449,7 +449,6 @@ async fn map_plaintext_data(
 
     if !has_next_plaintext {
         event!(Level::INFO, "Board has no new relevant plaintexs");
-        return Ok(None);
     }
 
     let initial_status = if tally_session_data
