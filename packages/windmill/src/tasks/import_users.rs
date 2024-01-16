@@ -17,6 +17,7 @@ use rocket::futures::SinkExt as _;
 use sequent_core::services::{keycloak, reports};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
+use std::io::Seek;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{info, instrument};
@@ -35,6 +36,10 @@ pub struct ImportUsersBody {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImportUsersOutput {
     pub id: String,
+}
+
+fn sanitize_db_key(key: &String) -> String {
+    key.replace(".", "_").replace("-", "_")
 }
 
 impl ImportUsersBody {
@@ -82,9 +87,8 @@ impl ImportUsersBody {
         let random_number: u64 = rand::random();
 
         let temp_table_name = format!(
-            "temp_voters_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id.as_ref().unwrap_or(&String::new()),
+            "temp_voters_{}_{}",
+            sanitize_db_key(&self.tenant_id),
             random_number
         );
 
@@ -94,7 +98,7 @@ impl ImportUsersBody {
             temp_table_name,
             headers
                 .iter()
-                .map(|name| format!("{} text", name))
+                .map(|name| format!("{} text", sanitize_db_key(&name.to_string())))
                 .collect::<Vec<String>>()
                 .join(", ")
         );
@@ -170,8 +174,9 @@ impl ImportUsersBody {
             let values_subquery = user_attributes
                 .iter()
                 .map(|attr| {
+                    let sanitized_attr = sanitize_db_key(attr);
                     format!(
-                        "(SELECT gen_random_uuid(), id, '{attr}', {attr} FROM {})",
+                        "(SELECT gen_random_uuid(), id, '{attr}', {sanitized_attr} FROM {})",
                         voters_table
                     )
                 })
@@ -233,26 +238,32 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     info!("before isolation");
 
     keycloak_transaction
-        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
+        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ; SET client_encoding='UTF8';")
         .await
-        .with_context(|| "can't set transaction isolation level")?;
+        .with_context(|| "can't set transaction isolation level or encoding")?;
     info!("after isolation");
 
-    let voters_file = body
+    let mut voters_file = body
         .get_s3_document_as_temp_file()
         .await
         .with_context(|| "Error obtaining voters file from S3 as temp file")?;
+    voters_file.rewind()?;
     // Read the first line of the file to get the columns
-    let mut rdr = csv::Reader::from_reader(voters_file);
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b'\t')
+        .from_reader(voters_file);
     let headers = rdr
         .headers()
         .with_context(|| "Error reading CSV headers from voters file")?
         .clone();
 
     // Validate headers
+    info!("headers: {headers:?}");
     for header in headers.iter() {
         if !HEADER_RE.is_match(header) {
-            return Err(Error::from("CSV Header contains characters not allowed"));
+            return Err(Error::from(
+                format!("CSV Header contains characters not allowed: {header}")
+            ));
         }
     }
 
@@ -294,6 +305,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         for data in record.iter() {
             owned_data.push(data.to_string()); // Store owned data
         }
+        info!("owned_data: {owned_data:?}");
 
         let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data
             .iter()
