@@ -5,6 +5,7 @@
 use crate::hasura::election_event::get_election_event;
 use crate::services::database::get_keycloak_pool;
 use crate::services::s3;
+use crate::postgres::keycloak_realm;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -15,6 +16,7 @@ use rand::prelude::*;
 use regex::Regex;
 use rocket::futures::SinkExt as _;
 use sequent_core::services::{keycloak, reports};
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -130,6 +132,7 @@ impl ImportUsersBody {
      */
     fn get_insert_user_query(
         &self,
+        realm_id: String,
         voters_table: String,
         voters_table_columns: Vec<String>,
     ) -> anyhow::Result<String> {
@@ -154,7 +157,16 @@ impl ImportUsersBody {
             })
             .collect();
         let user_entity_query = format!(
-            "INSERT INTO user_entity ({}) SELECT {} FROM {} RETURNING *",
+            r#"INSERT INTO user_entity (
+                    realm_id,
+                    {}
+                )
+                SELECT
+                    '{realm_id}',
+                    {}
+                FROM
+                    {}
+                RETURNING *"#,
             user_entity_columns.join(", "),
             select_columns.join(", "),
             voters_table,
@@ -211,7 +223,12 @@ impl ImportUsersBody {
         };
 
         Ok(format!(
-            "WITH new_user AS ({user_entity_query}) {user_attribute_query};"
+            r#"
+            WITH new_user AS (
+                {user_entity_query}
+            )
+            {user_attribute_query};
+            "#
         ))
     }
 }
@@ -302,8 +319,27 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     ) = body
         .get_copy_from_query(&headers)
         .with_context(|| "Error obtaining copy_from query")?;
+
+    let realm_name = match body.election_event_id {
+        Some(ref event_id) => get_event_realm(
+            body.tenant_id.as_str(), event_id.as_str()
+        ),
+        None => get_tenant_realm(body.tenant_id.as_str()),
+    };
+    let realm_id =
+        keycloak_realm::get_realm_id(
+            &keycloak_transaction,
+            realm_name,
+        )
+        .await
+        .with_context(|| "Error obtaining realm id")?;
+
     let insert_user_query = body
-        .get_insert_user_query(voters_table, voters_table_columns_names)
+        .get_insert_user_query(
+            realm_id,
+            voters_table,
+            voters_table_columns_names
+        )
         .with_context(|| "Error obtaining insert_user_query query")?;
 
     // Execute the create table query
@@ -351,17 +387,19 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
 
     // Complete the copy process
 
-    // Execute the insert users query
-    keycloak_transaction
+    // Execute the insert users query from the temporal table
+    let num_rows = keycloak_transaction
         .execute(insert_user_query.as_str(), &[])
         .await
         .with_context(|| "Error executing INSERT USER transaction")?;
+
+    info!("num_rows = {num_rows}");
 
     // Commit the transaction
     keycloak_transaction
         .commit()
         .await
-        .with_context(|| "error comitting transaction")?;
+        .with_context(|| "error committing transaction")?;
 
     Ok(())
 }

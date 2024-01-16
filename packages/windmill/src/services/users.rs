@@ -9,7 +9,6 @@ use sequent_core::types::keycloak::*;
 use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-
 use crate::services::database::PgConfig;
 use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
