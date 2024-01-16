@@ -4,15 +4,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::area::get_areas_by_ids;
+use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::*;
 use std::convert::From;
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
-use crate::services::database::PgConfig;
-use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
