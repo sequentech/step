@@ -66,14 +66,13 @@ export const fullAdminTheme = {
                     "paddingRight": "4px",
                     "paddingLeft": "4px",
                     "height": "calc(100vh - 79px)",
+
                     "& .RaMenu-open": {
-                        overflow: "clip",
                         flexGrow: 2,
                         paddingBotton: 0,
                         marginBottom: "4px",
                     },
                     "& .RaMenu-closed": {
-                        overflow: "clip",
                         flexGrow: 2,
                         paddingBotton: 0,
                         marginBottom: "4px",

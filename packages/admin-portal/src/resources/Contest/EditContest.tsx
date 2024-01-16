@@ -23,9 +23,19 @@ import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {IVotingType} from "./constants"
+import {useTranslation} from "react-i18next"
 
 const ContestForm: React.FC = () => {
+    const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Contest>()
+
+    const votingTypesChoices = () => {
+        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -40,10 +50,7 @@ const ContestForm: React.FC = () => {
                 <BooleanInput source="is_active" />
                 <NumberInput source="min_votes" />
                 <NumberInput source="max_votes" />
-                <SelectInput
-                    source="voting_type"
-                    choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
-                />
+                <SelectInput source="voting_type" choices={votingTypesChoices()} />
                 <SelectInput
                     source="counting_algorithm"
                     choices={[{id: "plurality-at-large", name: "Plurality At Large"}]}

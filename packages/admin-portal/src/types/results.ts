@@ -6,6 +6,7 @@ export enum EExportFormat {
     PDF = "pdf",
     JSON = "json",
     HTML = "html",
+    TAR_GZ = "tar_gz",
 }
 
 export type IResultDocuments = {

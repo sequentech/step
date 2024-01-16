@@ -107,6 +107,18 @@ type Mutation {
   ): PublishBallotOutput
 }
 
+type Query {
+  getElectionEventStats (
+    object: ElectionEventStatsInput!
+  ): ElectionEventStatsOutput
+}
+
+type Query {
+  getElectionStats (
+    object: ElectionStatsInput!
+  ): ElectionStatsOutput
+}
+
 type Mutation {
   get_ballot_publication_changes (
     election_event_id: uuid!
@@ -130,18 +142,6 @@ type Query {
   get_roles (
     body: GetRolesInput!
   ): GetRolesOutput!
-}
-
-type Query {
-  getElectionEventStats (
-    object: ElectionEventStatsInput!
-  ): ElectionEventStatsOutput
-}
-
-type Query {
-  getElectionStats (
-    object: ElectionStatsInput!
-  ): ElectionStatsOutput
 }
 
 type Mutation {
@@ -364,15 +364,15 @@ input CreateKeysCeremonyInput {
 
 input ElectionEventStatsInput {
   election_event_id : uuid!
-  start_date: String!
-  end_date: String!
+  start_date : String!
+  end_date : String!
 }
 
 input ElectionStatsInput {
   election_event_id : uuid!
   election_id : uuid!
-  start_date: String!
-  end_date: String!
+  start_date : String!
+  end_date : String!
 }
 
 input GetPrivateKeyInput {
@@ -475,15 +475,15 @@ type GetPrivateKeyOutput {
 }
 
 type CastVotesPerDay {
-  day: date!
-  day_count: Int!
+  day : date!
+  day_count : Int!
 }
 
 type ElectionEventStatsOutput {
   total_distinct_voters : Int!
-  total_areas: Int!
-  total_eligible_voters: Int!
-  total_elections: Int!
+  total_areas : Int!
+  total_eligible_voters : Int!
+  total_elections : Int!
   votes_per_day : [CastVotesPerDay]!
 }
 
