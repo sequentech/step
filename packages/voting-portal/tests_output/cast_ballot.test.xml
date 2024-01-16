@@ -10,7 +10,8 @@
 
   
     <system-err>
-       An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127
+       An error occurred while creating a new ChromeDriver session: [SessionNotCreatedError] session not created: This version of ChromeDriver only supports Chrome version 114
+Current browser version is 119.0.6045.105 with binary path /usr/bin/google-chrome
   Verify if ChromeDriver is configured correctly; using:
   {
      start_process: true,
@@ -25,7 +26,8 @@
 
  
   Set webdriver.log_path in your Nightwatch config to retrieve more logs from ChromeDriver.
- An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127
+ An error occurred while creating a new ChromeDriver session: [SessionNotCreatedError] session not created: This version of ChromeDriver only supports Chrome version 114
+Current browser version is 119.0.6045.105 with binary path /usr/bin/google-chrome
   Verify if ChromeDriver is configured correctly; using:
   {
      start_process: true,

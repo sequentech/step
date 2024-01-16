@@ -1,24 +1,25 @@
-import { ExtendDescribeThis } from 'nightwatch';
+import {ExtendDescribeThis} from "nightwatch"
 
 interface LoginThis {
-    testUrl: string;
-    username: string;
-    password: string;
-    submitButton: string;
+    testUrl: string
+    username: string
+    password: string
+    submitButton: string
 }
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe('login', function(this: ExtendDescribeThis<LoginThis>) {
-    this.testUrl = "http://localhost:3000";
-    this.username = 'input[name=username]';
-    this.password = 'input[name=password]';
-    this.submitButton = '*[type=submit]';
+describe("login", function (this: ExtendDescribeThis<LoginThis>) {
+    this.testUrl =
+        "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/5960217c-ac34-40b2-99ae-40ecc54f03f9"
+    this.username = "input[name=username]"
+    this.password = "input[name=password]"
+    this.submitButton = "*[type=submit]"
 
-    beforeEach(function(this: ExtendDescribeThis<LoginThis>, browser) {
-        browser.navigateTo(this.testUrl!);
-    });
+    beforeEach(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser.navigateTo(this.testUrl!)
+    })
 
-    it('should be able to login', (browser) => {
+    it("should be able to login", (browser) => {
         browser
             .waitForElementVisible(this.username!)
             .waitForElementVisible(this.password!)
@@ -28,13 +29,13 @@ describe('login', function(this: ExtendDescribeThis<LoginThis>) {
             .sendKeys(this.password!, "felix")
             .assert.visible(this.submitButton!)
             .click(this.submitButton!)
-            .pause(1000)
-            .assert.visible("#code")
+            .pause(2000)
+            .assert.visible("input[name=code]")
             .sendKeys("#code", "123456")
             .assert.visible(this.submitButton!)
             .click(this.submitButton!)
             .pause(1000)
-    });
+    })
 
     // this.it('should be able to logout', (browser) => {
     //     browser
@@ -56,3 +57,4 @@ describe('login', function(this: ExtendDescribeThis<LoginThis>) {
     //         .end();
     // });
 })
+

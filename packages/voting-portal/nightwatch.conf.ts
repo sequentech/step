@@ -118,8 +118,7 @@ module.exports = {
                 cli_args: {},
                 log_path: "./reports",
                 // server_path: "",
-                server_path:
-                    "/home/vscode/.cache/selenium/chromedriver/linux64/120.0.6099.109/chromedriver",
+                server_path: "/home/enric/Developer/chromedriver_linux64/chromedriver",
             },
         },
 
