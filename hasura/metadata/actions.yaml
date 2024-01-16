@@ -1,4 +1,18 @@
 actions:
+- name: InsertCastVote
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/insert-cast-vote
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  comment: insertCastVote
 - name: check_private_key
   definition:
     kind: synchronous
@@ -641,4 +655,5 @@ custom_types:
   - name: GetBallotPublicationChangesOutput
   - name: RestorePrivateKeyOutput
   - name: PublishTallyOutput
+  - name: InsertCastVoteOutput
   scalars: []
