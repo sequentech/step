@@ -102,7 +102,7 @@ pub async fn get_upload_url(
         true => s3::get_public_document_key(
             tenant_id.to_string(),
             document.id.clone(),
-            name.to_string()
+            name.to_string(),
         ),
         false => s3::get_document_key(
             tenant_id.to_string(),

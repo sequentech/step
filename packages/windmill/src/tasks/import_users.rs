@@ -192,7 +192,7 @@ impl ImportUsersBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries=0)]
+#[celery::task(max_retries = 0)]
 pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials()
         .await
@@ -238,7 +238,8 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .with_context(|| "can't set transaction isolation level")?;
     info!("after isolation");
 
-    let voters_file = body.get_s3_document_as_temp_file()
+    let voters_file = body
+        .get_s3_document_as_temp_file()
         .await
         .with_context(|| "Error obtaining voters file from S3 as temp file")?;
     // Read the first line of the file to get the columns
@@ -306,7 +307,10 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
             .with_context(|| "Error writing to COPY IN stdin transaction")?;
     }
 
-    writer.finish().await.with_context(|| "Error finishing COPY IN transaction")?;
+    writer
+        .finish()
+        .await
+        .with_context(|| "Error finishing COPY IN transaction")?;
 
     // Complete the copy process
 

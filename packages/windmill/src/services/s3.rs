@@ -7,14 +7,14 @@ use crate::util::aws::{
     get_fetch_expiration_secs, get_max_upload_size, get_s3_aws_config, get_upload_expiration_secs,
 };
 
-use anyhow::{anyhow, Result, Context};
+use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
-use std::{env, error::Error};
 use std::fs::File;
 use std::io::Write;
+use std::{env, error::Error};
 use tempfile::tempfile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
@@ -175,8 +175,7 @@ pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow
         .map_err(|err| anyhow!("Error getting the object from S3: {:?}", err.source()))?;
 
     // Stream the data into a temporary file
-    let mut temp_file = tempfile()
-        .with_context(|| "Error creating temp file")?;
+    let mut temp_file = tempfile().with_context(|| "Error creating temp file")?;
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 
@@ -184,7 +183,8 @@ pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow
         if size == 0 {
             break; // End of file
         }
-        temp_file.write_all(&buffer[..size])
+        temp_file
+            .write_all(&buffer[..size])
             .with_context(|| "Error writting to the text file")?;
     }
 
