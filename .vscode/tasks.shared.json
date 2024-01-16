@@ -102,7 +102,7 @@
                 "-f",
                 "--tail",
                 "200",
-                "hasura",
+                "graphql-engine",
             ],
             "options": {
                 "env": {
@@ -157,7 +157,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop hasura; docker compose up -d --no-deps hasura && docker compose logs -f --tail 100 hasura",
+                "docker compose stop graphql-engine; docker compose up -d --no-deps graphql-engine && docker compose logs -f --tail 100 graphql-engine",
             ],
             "options": {
                 "env": {
