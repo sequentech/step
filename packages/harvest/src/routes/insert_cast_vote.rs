@@ -4,9 +4,12 @@
 
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
+use rocket::futures::TryFutureExt;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::permissions::Permissions;
@@ -14,6 +17,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::hasura;
+use windmill::services::election_event_board::get_election_event_board;
+use windmill::services::electoral_log::ElectoralLog;
 use windmill::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::get_hasura_pool,
@@ -51,12 +56,9 @@ type InsertCastVoteOutput {
 /*
 mutation insertCastVote {
   InsertCastVote(ballot_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21", content: "content", tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5", election_event_id: "33f18502-a67c-4853-8333-a58630663559", election_id: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55", area_id:"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21") {
-  ballot_id,
   cast_ballot_signature,
   created_at,
   id,
-  last_updated_at,
-  voter_id_string,
   }
 }
 */
@@ -86,22 +88,13 @@ pub async fn insert_cast_vote(
     // TODO
     // authorize(&claims, true, None, vec![Permissions::XXX])?;
 
-    let result = try_insert_cast_vote(body).await;
-    let ret = match result {
-        Ok(result) => {
-            // TODO electoral log
-            Ok(Json(result))
-        },
-        Err(e) => {
-            // TODO electoral log
-            Err((
-                Status::InternalServerError,
-                format!("Error inserting vote: {:?}", e)
-            ))
-        }
-    };
-
-    ret
+    let result = try_insert_cast_vote(body).await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error inserting vote: {:?}", e),
+        )
+    })?;
+    Ok(Json(result))
 }
 
 async fn try_insert_cast_vote(
@@ -109,34 +102,74 @@ async fn try_insert_cast_vote(
 ) -> anyhow::Result<InsertCastVoteOutput> {
     let input = body.into_inner();
 
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+
     // TODO
-    let voter_id = "voter_id";
+    let voter_id = "";
 
-    check_status(&input).await?;
-    check_previous_votes(voter_id, &input).await?;
-    let result = insert(&input).await?;
+    let (auth_headers, election_event) = get_election_event(&input).await?;
+    let electoral_log = get_electoral_log(&election_event).await?;
 
-    Ok(result)
-}
+    let check_status = check_status(&input, auth_headers, &election_event);
+    let check_previous_votes =
+        check_previous_votes(voter_id, &input, &hasura_transaction);
+    let insert = insert(&input, &hasura_transaction);
 
-async fn get_election_event() {
-    /*
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")?;
+    let result = check_status
+        .and_then(|_| check_previous_votes)
+        .and_then(|_| insert)
+        .await;
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    electoral_log
-        .post_election_published(
-            election_event_id.clone(),
-            None,
-            ballot_publication_id.clone(),
-        )
+    let commit = hasura_transaction
+        .commit()
         .await
-        .with_context(|| "error posting to the electoral log")?; 
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())*/
+        .map_err(|e| anyhow!("Commit failed: {}", e));
+    let result = commit.and(result);
+
+    match result {
+        Ok(result) => {
+            /*electoral_log
+            .post_election_published(
+                election_event_id.clone(),
+                None,
+                ballot_publication_id.clone(),
+            )
+            .await
+            .with_context(|| "error posting to the electoral log")*/
+
+            Ok(result)
+        }
+        Err(e) => {
+            /*electoral_log
+            .post_election_published(
+                election_event_id.clone(),
+                None,
+                ballot_publication_id.clone(),
+            )
+            .await
+            .with_context(|| "error posting to the electoral log")*/
+            Err(e)
+        }
+    }
 }
 
-async fn check_status(input: &InsertCastVoteInput) -> anyhow::Result<()> {
+async fn get_electoral_log(
+    election_event: &GetElectionEventSequentBackendElectionEvent,
+) -> anyhow::Result<ElectoralLog> {
+    let board_name = get_election_event_board(
+        election_event.bulletin_board_reference.clone(),
+    )
+    .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await;
+
+    electoral_log
+}
+
+async fn get_election_event(
+    input: &InsertCastVoteInput,
+) -> Result<(AuthHeaders, GetElectionEventSequentBackendElectionEvent)> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let hasura_response = hasura::election_event::get_election_event(
@@ -153,6 +186,14 @@ async fn check_status(input: &InsertCastVoteInput) -> anyhow::Result<()> {
         .expect("expected data".into())
         .sequent_backend_election_event[0];
 
+    Ok((auth_headers, election_event.clone()))
+}
+
+async fn check_status(
+    input: &InsertCastVoteInput,
+    auth_headers: AuthHeaders,
+    election_event: &GetElectionEventSequentBackendElectionEvent,
+) -> anyhow::Result<()> {
     if election_event.is_archived {
         return Err(anyhow!("Election event is archived"));
     }
@@ -198,12 +239,10 @@ async fn check_status(input: &InsertCastVoteInput) -> anyhow::Result<()> {
 async fn check_previous_votes(
     voter_id_string: &str,
     input: &InsertCastVoteInput,
+    hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<()> {
     // TODO
     let max_revotes = 1;
-
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
 
     let result = postgres::cast_vote::get_cast_votes(
         &hasura_transaction,
@@ -237,10 +276,9 @@ async fn check_previous_votes(
 
 async fn insert(
     input: &InsertCastVoteInput,
+    hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<InsertCastVoteOutput> {
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
-
+    // TODO
     let signature = vec![];
     let (id, created_at) = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
@@ -254,7 +292,6 @@ async fn insert(
         &signature,
     )
     .await?;
-    hasura_transaction.commit().await?;
 
     let ret = InsertCastVoteOutput {
         id: id.to_string(),
