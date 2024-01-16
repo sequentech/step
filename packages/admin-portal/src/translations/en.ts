@@ -141,10 +141,15 @@ const englishTranslation = {
             common: {
                 title: "Areas",
                 subTitle: "Area configuration.",
+                deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
+            empty: {
+                header: "No Areas yet.",
+                action: "Create Area",
+            },
         },
         electionTypeScreen: {
             common: {
@@ -640,9 +645,9 @@ const englishTranslation = {
                 description: "Description",
             },
             options: {
-                "no-preferential": "No Preferential",
+                "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-asnwers": "Random Answers",
+                "random-answers": "Random Answers",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
@@ -882,64 +887,39 @@ const englishTranslation = {
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
             successSending: "Notification programmed/sent successfully",
+            method: "Communication Method",
+            type: "Communication Type",
+            alias: "Template Alias",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
-                SELECTED: "To {{total}} Selected Voters",
+                SELECTED: "To {{total}} Selected {{voters}}",
             },
-            methodTitle: "Communication Method",
+            path: {
+                users: "users",
+                voters: "voters",
+            },
+            methodTitle: "Communication Template",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+            },
+            communicationType: {
+                CREDENTIALS: "Credentials",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                PARTICIPATION_REPORT: "Participation Report",
+                ELECTORAL_RESULTS: "Electoral Results",
+                OTP: "OTP",
             },
             email: {
                 subject: "Subject",
             },
         },
-        communicationTemplate: {
-            title: "Communication Templates",
-            subtitle: "List of communication templates",
-            empty: {
-                title: "No Communication Template Yet",
-                subtitle: "Do you want to create one?",
-            },
-            action: {
-                createOne: "Create Communication Template",
-            },
-            create: {
-                title: "Create a Communication Template",
-                success: "Communication Template created",
-                error: "Error creating Communication Template",
-            },
-            update: {
-                success: "Communication Template updated",
-                error: "Error updating Communication Template",
-            },
-            edit: {
-                title: "Edit a Communication Template",
-            },
-            form: {
-                smsMessage: "SMS Message",
-                name: "Template Name",
-                alias: "Template Alias",
-                communicationType: "Communication Type",
-                communicationMethod: "Communication Method",
-            },
-            type: {
-                credentials: "Credentials",
-                ballot_receipt: "Ballot Receipt",
-                participation_report: "Participation Report",
-                electoral_results: "Electoral Results",
-                otp: "OTP",
-            },
-            method: {
-                email: "Email",
-                sms: "SMS",
-            },
-        },
         tallysheet: {
             createTallySuccess: "Tally Sheet saved",
+            createTallyError: "Error saving Tally Sheet",
+            allFieldsRequired: "All fields are required",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
@@ -999,6 +979,47 @@ const englishTranslation = {
             message: {
                 publishError: "Error publishing tally sheet",
                 publishSuccess: "Tally sheet published",
+            },
+        },
+        communicationTemplate: {
+            title: "Communication Templates",
+            subtitle: "List of communication templates",
+            empty: {
+                title: "No Communication Template Yet",
+                subtitle: "Do you want to create one?",
+            },
+            action: {
+                createOne: "Create Communication Template",
+            },
+            create: {
+                title: "Create a Communication Template",
+                success: "Communication Template created",
+                error: "Error creating Communication Template",
+            },
+            update: {
+                success: "Communication Template updated",
+                error: "Error updating Communication Template",
+            },
+            edit: {
+                title: "Edit a Communication Template",
+            },
+            form: {
+                smsMessage: "SMS Message",
+                name: "Template Name",
+                alias: "Template Alias",
+                communicationType: "Communication Type",
+                communicationMethod: "Communication Method",
+            },
+            type: {
+                credentials: "Credentials",
+                ballot_receipt: "Ballot Receipt",
+                participation_report: "Participation Report",
+                electoral_results: "Electoral Results",
+                otp: "OTP",
+            },
+            method: {
+                email: "Email",
+                sms: "SMS",
             },
         },
         materials: {

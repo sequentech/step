@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect} from "react"
-import {Menu, Sidebar, useSidebarState} from "react-admin"
+import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box} from "@mui/material"
@@ -18,12 +18,14 @@ import ChecklistIcon from "@mui/icons-material/Checklist"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
-    height: "unset";
-    min-height: "unset";
 
     &.RaMenuItemLink-active,
     .MuiIconButton-root {
         color: ${adminTheme.palette.brandColor};
+    }
+
+    &.RaMenuItemLink-active {
+        background-color: ${adminTheme.palette.green.light};
     }
 `
 
@@ -35,6 +37,7 @@ const StyledMenu = styled(Menu)`
     box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
     border-radius: 4px;
+    overflow-y: auto;
 `
 
 const DrawerContainer = styled(Box)`
@@ -57,15 +60,7 @@ export const CustomMenu = () => {
     const {t} = useTranslation()
 
     return (
-        <StyledMenu
-            sx={{
-                "flex": "display",
-                "flexDirection": "column",
-                ".RaMenuItemLink-active": {
-                    backgroundColor: adminTheme.palette.green.light,
-                },
-            }}
-        >
+        <StyledMenu>
             <MenuWrapper>
                 <SelectTenants />
 

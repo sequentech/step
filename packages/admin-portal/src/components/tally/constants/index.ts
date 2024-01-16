@@ -16,4 +16,8 @@ export const EXPORT_FORMATS: Array<{
         label: "JSON",
         value: EExportFormat.JSON,
     },
+    {
+        label: "TAR_GZ",
+        value: EExportFormat.TAR_GZ,
+    },
 ]

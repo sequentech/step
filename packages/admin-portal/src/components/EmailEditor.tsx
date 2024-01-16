@@ -1,25 +1,18 @@
-import React, {useContext, useRef, useState} from "react"
+import React, {useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IEmail} from "@/types/communications"
 
-interface Email {
-    subject: string
-    plaintext_body: string
-    html_body: string
-}
-
-type EmailEditorProps = {
-    record: Email
-    setRecord: (newRecord: Email) => void
+interface EmailEditorProps {
+    record: IEmail
+    setRecord: (newRecord: IEmail) => void
 }
 
 export default function EmailEditor({record, setRecord}: EmailEditorProps) {
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
 
     const [tab, setTab] = useState<number>(0)
 
@@ -65,7 +58,7 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
             <CustomTabPanel key="richtext" value={tab} index={1}>
                 <Editor
                     editorRef={editorRef}
-                    initialValue={globalSettings.DEFAULT_EMAIL_HTML_BODY.en}
+                    initialValue={record.html_body || ""}
                     onEditorChange={handleHtmlChange}
                 ></Editor>
             </CustomTabPanel>

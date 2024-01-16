@@ -143,10 +143,15 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
+                deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
+            empty: {
+                header: "No hay Áreas aún.",
+                action: "Crear un Área",
+            },
         },
         electionTypeScreen: {
             common: {
@@ -642,9 +647,9 @@ const spanishTranslation: TranslationType = {
                 description: "Descripción",
             },
             options: {
-                "no-preferential": "Sin Preferencia",
+                "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
-                "random-asnwers": "Respuestas Aleatorias",
+                "random-answers": "Respuestas Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
@@ -884,64 +889,39 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
+            method: "Método de Comunicación",
+            type: "Tipo de Comunicación",
+            alias: "Alias de la Plantilla",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
                 SELECTED: "A {{total}} Votantes seleccionados",
             },
+            path: {
+                users: "usuarios",
+                voters: "votantes",
+            },
             methodTitle: "Método de Comunicación",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
             },
+            communicationType: {
+                CREDENTIALS: "Credenciales",
+                BALLOT_RECEIPT: "Comprobante de Votación",
+                PARTICIPATION_REPORT: "Informe de Participación",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                OTP: "OTP",
+            },
             email: {
                 subject: "Subject",
             },
         },
-        communicationTemplate: {
-            title: "Plantillas de Comunicación",
-            subtitle: "Listado de plantillas de comunicación",
-            empty: {
-                title: "No hay plantillas de comunicación",
-                subtitle: "¿Quieres crear una nueva?",
-            },
-            action: {
-                createOne: "Crear Plantilla de Comunicación",
-            },
-            create: {
-                title: "Crear una Plantilla de Comunicación",
-                success: "Plantilla de Comunicación creada",
-                error: "Error creando plantilla de comunicación",
-            },
-            update: {
-                success: "Plantilla de Comunicación actualizada",
-                error: "Error actualizando plantilla de comunicación",
-            },
-            edit: {
-                title: "Editar una Plantilla de Comunición",
-            },
-            form: {
-                smsMessage: "Mensaje SMS",
-                name: "Nombre de la Plantilla",
-                alias: "Alias de la Plantilla",
-                communicationType: "Tipo de Comunicación",
-                communicationMethod: "Método de Comunicación",
-            },
-            type: {
-                credentials: "Credenciales",
-                ballot_receipt: "Recibo de Votación",
-                participation_report: "Informe de Participación",
-                electoral_results: "Resultados Electorales",
-                otp: "OTP",
-            },
-            method: {
-                email: "Email",
-                sms: "SMS",
-            },
-        },
         tallysheet: {
             createTallySuccess: "Hoja de Recuento creada",
+            createTallyError: "Error creando Hoja de Recuento",
+            allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
@@ -1001,6 +981,48 @@ const spanishTranslation: TranslationType = {
             message: {
                 publishError: "Error publicando la Hoja de Recuento",
                 publishSuccess: "Hoja de Recuento publicada",
+            },
+        },
+
+        communicationTemplate: {
+            title: "Plantillas de Comunicación",
+            subtitle: "Listado de plantillas de comunicación",
+            empty: {
+                title: "No hay plantillas de comunicación",
+                subtitle: "¿Quieres crear una nueva?",
+            },
+            action: {
+                createOne: "Crear Plantilla de Comunicación",
+            },
+            create: {
+                title: "Crear una Plantilla de Comunicación",
+                success: "Plantilla de Comunicación creada",
+                error: "Error creando plantilla de comunicación",
+            },
+            update: {
+                success: "Plantilla de Comunicación actualizada",
+                error: "Error actualizando plantilla de comunicación",
+            },
+            edit: {
+                title: "Editar una Plantilla de Comunición",
+            },
+            form: {
+                smsMessage: "Mensaje SMS",
+                name: "Nombre de la Plantilla",
+                alias: "Alias de la Plantilla",
+                communicationType: "Tipo de Comunicación",
+                communicationMethod: "Método de Comunicación",
+            },
+            type: {
+                credentials: "Credenciales",
+                ballot_receipt: "Recibo de Votación",
+                participation_report: "Informe de Participación",
+                electoral_results: "Resultados Electorales",
+                otp: "OTP",
+            },
+            method: {
+                email: "Email",
+                sms: "SMS",
             },
         },
         materials: {

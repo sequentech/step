@@ -1,15 +1,21 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
-import {Sequent_Backend_Area_Contest, Sequent_Backend_Contest} from "../../gql/graphql"
+import {
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Results_Area_Contest,
+} from "../../gql/graphql"
 import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IResultDocuments} from "@/types/results"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -21,13 +27,34 @@ interface TallyResultsContestAreasProps {
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {areas, contestId, electionEventId, tenantId, resultsEventId} = props
+    const {areas, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = reactI18next.useTranslation()
 
     const [value, setValue] = React.useState<number | null>(null)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
     const [areaContestId, setAreaContestId] = useState<string | null>()
     const [selectedArea, setSelectedArea] = useState<string | null>()
+    const {globalSettings} = useContext(SettingsContext)
+
+    const {data: resultsContests} = useGetList<Sequent_Backend_Results_Area_Contest>(
+        "sequent_backend_results_area_contest",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                results_event_id: resultsEventId,
+                election_id: electionId,
+                contest_id: contestId,
+                area_id: selectedArea,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     const {data: contestAreas} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
@@ -98,6 +125,24 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         console.log("TallyResultsContestAreas :: ", value)
     }, [value])
 
+    let documents: IResultDocuments | null = useMemo(
+        () =>
+            (!!contestId &&
+                !!selectedArea &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                resultsContests[0]?.area_id === selectedArea &&
+                (resultsContests[0]?.documents as IResultDocuments | null)) ||
+            null,
+        [
+            contestId,
+            selectedArea,
+            resultsContests,
+            resultsContests?.[0]?.contest_id,
+            resultsContests?.[0]?.area_id,
+        ]
+    )
+
     return (
         <>
             <Box
@@ -125,12 +170,11 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         )
                     })}
                 </Tabs>
-                {value !== null ? (
+                {documents && electionEventId ? (
                     <ExportElectionMenu
-                        resource={"sequent_backend_results_area_contest"}
-                        area={value < 1 ? "all" : areasData?.[value - 1]}
-                        areaName={areas?.find((item) => item.id === selectedArea)?.name}
-                        resultsEventId={resultsEventId}
+                        documents={documents}
+                        electionEventId={electionEventId}
+                        itemName={contest?.name ?? "contest"}
                     />
                 ) : null}
             </Box>
