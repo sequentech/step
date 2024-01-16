@@ -26,8 +26,8 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                 'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 1,
             min_votes: 1,
-            voting_type: IVotingType.NoPreferential,
-            counting_algorithm: ICountingAlgorithm.PluralityAtLarge,
+            voting_type: IVotingType.NON_PREFERENTIAL,
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {
@@ -180,8 +180,8 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                 'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 1,
             min_votes: 1,
-            voting_type: IVotingType.NoPreferential,
-            counting_algorithm: ICountingAlgorithm.PluralityAtLarge,
+            voting_type: IVotingType.NON_PREFERENTIAL,
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {
@@ -285,8 +285,8 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                 'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 2,
             min_votes: 1,
-            voting_type: IVotingType.NoPreferential,
-            counting_algorithm: ICountingAlgorithm.PluralityAtLarge,
+            voting_type: IVotingType.NON_PREFERENTIAL,
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {
@@ -394,8 +394,8 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                 'This is the description of the election. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 1,
             min_votes: 1,
-            voting_type: IVotingType.NoPreferential,
-            counting_algorithm: ICountingAlgorithm.PluralityAtLarge,
+            voting_type: IVotingType.NON_PREFERENTIAL,
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {

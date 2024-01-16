@@ -647,9 +647,9 @@ const spanishTranslation: TranslationType = {
                 description: "Descripción",
             },
             options: {
-                "no-preferential": "Sin Preferencia",
+                "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
-                "random-asnwers": "Respuestas Aleatorias",
+                "random-answers": "Respuestas Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },

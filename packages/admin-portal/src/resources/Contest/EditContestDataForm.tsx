@@ -220,12 +220,13 @@ export const ContestDataForm: React.FC = () => {
             temp.presentation.i18n.en.description = temp.description
 
             // defaults
-            temp.voting_type = temp.voting_type || "no-preferential"
-            temp.counting_algorithm = temp.counting_algorithm || "plurality-at-large"
+            temp.voting_type = temp.voting_type || IVotingType.NON_PREFERENTIAL
+            temp.counting_algorithm =
+                temp.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
             temp.min_votes = temp.min_votes || 0
             temp.max_votes = temp.max_votes // || 1
             temp.winning_candidates_num = temp.winning_candidates_num // || 1
-            temp.order_answers = temp.order_answers || "alphabetical"
+            temp.order_answers = temp.order_answers || IOrderAnswer.ALPHABETICAL
 
             return temp
         },

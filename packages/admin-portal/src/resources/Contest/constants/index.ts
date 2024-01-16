@@ -1,13 +1,13 @@
 export enum IVotingType {
-    NoPreferential = "no-preferential",
+    NON_PREFERENTIAL = "non-preferential",
 }
 
 export enum ICountingAlgorithm {
-    PluralityAtLarge = "plurality-at-large",
+    PLURALITY_AT_LARGE = "plurality-at-large",
 }
 
 export enum IOrderAnswer {
-    RandomAnswers = "random-asnwers",
-    Custom = "custom",
-    Alphabetical = "alphabetical",
+    RANDOM_ANSWERS = "random-answers",
+    CUSTOM = "custom",
+    ALPHABETICAL = "alphabetical",
 }
