@@ -54,5 +54,4 @@ COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
-COPY ./keycloak/import /opt/keycloak/data/import
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]

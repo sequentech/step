@@ -33,7 +33,7 @@ RUN update-ca-certificates
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
 COPY --from=builder /app/windmill/target/release/beat /usr/local/bin/beat
-COPY ./keycloak/import /import
+VOLUME /import
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
 CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat", "communication_queue"]
