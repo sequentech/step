@@ -86,14 +86,22 @@ pub async fn insert_cast_vote(
     // TODO
     // authorize(&claims, true, None, vec![Permissions::XXX])?;
 
-    let result = try_insert_cast_vote(body).await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error inserting vote: {:?}", err),
-        )
-    })?;
+    let result = try_insert_cast_vote(body).await;
+    let ret = match result {
+        Ok(result) => {
+            // TODO electoral log
+            Ok(Json(result))
+        },
+        Err(e) => {
+            // TODO electoral log
+            Err((
+                Status::InternalServerError,
+                format!("Error inserting vote: {:?}", e)
+            ))
+        }
+    };
 
-    Ok(Json(result))
+    ret
 }
 
 async fn try_insert_cast_vote(
@@ -109,6 +117,23 @@ async fn try_insert_cast_vote(
     let result = insert(&input).await?;
 
     Ok(result)
+}
+
+async fn get_election_event() {
+    /*
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    electoral_log
+        .post_election_published(
+            election_event_id.clone(),
+            None,
+            ballot_publication_id.clone(),
+        )
+        .await
+        .with_context(|| "error posting to the electoral log")?; 
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())*/
 }
 
 async fn check_status(input: &InsertCastVoteInput) -> anyhow::Result<()> {
