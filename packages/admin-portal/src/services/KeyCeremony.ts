@@ -11,8 +11,8 @@ export enum IKeysCeremonyExecutionStatus {
 }
 
 export interface IKeysCeremonyLog {
-    created_date: String
-    log_text: String
+    created_date: string
+    log_text: string
 }
 
 export enum IKeysCeremonyTrusteeStatus {
@@ -23,13 +23,13 @@ export enum IKeysCeremonyTrusteeStatus {
 }
 
 export interface IKeysCeremonyTrustee {
-    name: String
+    name: string
     status: IKeysCeremonyTrusteeStatus
 }
 
 export interface IExecutionStatus {
-    stop_date?: String
-    public_key?: String
+    stop_date?: string
+    public_key?: string
     logs: Array<IKeysCeremonyLog>
     trustees: Array<IKeysCeremonyTrustee>
 }

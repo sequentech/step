@@ -95,7 +95,8 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                             }}
                                         >
                                             <TableCell component="th" scope="row">
-                                                {log?.created_date}
+                                                {log?.created_date &&
+                                                    new Date(log.created_date).toLocaleString()}
                                             </TableCell>
                                             <TableCell align="left">{log?.log_text}</TableCell>
                                         </TableRow>
