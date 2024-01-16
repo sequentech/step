@@ -20,7 +20,10 @@ import {
     RaRecord,
     Identifier,
     RecordContext,
+    useInput,
+    useDataProvider,
 } from "react-admin"
+import {useForm, FormProvider, useFormContext} from "react-hook-form"
 import {
     Accordion,
     AccordionDetails,
@@ -32,12 +35,11 @@ import {
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
-    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
 
@@ -67,8 +69,6 @@ export const ContestDataForm: React.FC = () => {
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
-    const [candidate, setCandidate] = useState<any>(null)
-    const [candidatesList, setCandidatesList] = useState<Sequent_Backend_Candidate[] | undefined>()
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -84,22 +84,9 @@ export const ContestDataForm: React.FC = () => {
 
     const [updateImage] = useUpdate()
 
-    const {data: candidates, refetch} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList("sequent_backend_candidate", {
         filter: {contest_id: record.id},
     })
-
-    const [update] = useUpdate(
-        "sequent_backend_candidate",
-        {id: candidate?.id, data: candidate},
-        {onSuccess: () => refetch()}
-    )
-
-    useEffect(() => {
-        if (candidates) {
-            console.log("candidates :>> ", candidates)
-            setCandidatesList(candidates)
-        }
-    }, [candidates])
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
@@ -210,27 +197,23 @@ export const ContestDataForm: React.FC = () => {
         [data]
     )
 
-    // const parseValues = useCallback(
-    //     (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended) => {
-
-    // },
-    //     [data]
-    // )
-
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
+
         if (values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         }
+
         return errors
     }
 
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
+
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
                 tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
@@ -283,13 +266,6 @@ export const ContestDataForm: React.FC = () => {
         padding: 1rem;
     `
 
-    useEffect(() => {
-        if (candidate) {
-            console.log("candidate UPDATE :: >> ", candidate)
-            // update()
-        }
-    }, [candidate])
-
     const handleFiles = async (files: FileList | null) => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
@@ -331,6 +307,39 @@ export const ContestDataForm: React.FC = () => {
             }
         }
     }
+
+    const BoundedTextField = (props: any) => {
+        const {...rest} = props
+
+        const {
+            field,
+            fieldState: {isTouched, invalid, error},
+            formState: {isSubmitted},
+            isRequired,
+        } = useInput({
+            source: "candidateOrder",
+            onChange() {
+                console.log("change")
+            },
+            ...rest,
+        })
+        console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:324 -> invalid: ", invalid)
+        console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:326 -> field: ", field)
+
+        return (
+            <>
+                tata
+                <Candidates list={candidates ?? []}></Candidates>
+                titi
+            </>
+        )
+    }
+
+    const form = useForm()
+    console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:338 -> form: ", form)
+
+    const titit = form.getValues("candidateOrder")
+    console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:341 -> titit: ", titit)
 
     return data ? (
         <RecordContext.Consumer>
@@ -438,10 +447,8 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-
-                                                <Candidates
-                                                    list={candidatesList ?? []}
-                                                ></Candidates>
+                                                <BoundedTextField />
+                                                <Candidates list={candidates ?? []}></Candidates>
                                             </CandidateRows>
                                         ) : null
                                     }}
