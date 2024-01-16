@@ -11,4 +11,5 @@ pub struct ResultDocuments {
     pub json: Option<String>,
     pub pdf: Option<String>,
     pub html: Option<String>,
+    pub tar_gz: Option<String>,
 }

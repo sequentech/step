@@ -7,6 +7,7 @@ insert_permissions:
     check: {}
     columns:
     - annotations
+    - documents
     - labels
     - name
     - created_at
@@ -20,6 +21,7 @@ insert_permissions:
     check: {}
     columns:
     - annotations
+    - documents
     - labels
     - name
     - created_at
@@ -34,6 +36,7 @@ select_permissions:
     allow_aggregations: true
     columns:
     - annotations
+    - documents
     - labels
     - name
     - created_at
@@ -48,6 +51,7 @@ select_permissions:
     allow_aggregations: true
     columns:
     - annotations
+    - documents
     - labels
     - name
     - created_at
@@ -63,6 +67,7 @@ update_permissions:
     check: {}
     columns:
     - annotations
+    - documents
     - labels
     - name
     - created_at
@@ -77,6 +82,7 @@ update_permissions:
     check: {}
     columns:
     - annotations
+    - documents
     - labels
     - name
     - created_at
