@@ -15,6 +15,7 @@ use rand::prelude::*;
 use regex::Regex;
 use rocket::futures::SinkExt as _;
 use sequent_core::services::{keycloak, reports};
+use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Seek;
@@ -86,10 +87,7 @@ impl ImportUsersBody {
     ) -> anyhow::Result<(String, String, String, Vec<String>, Vec<Type>)> {
         let random_number: u64 = rand::random();
 
-        let temp_table_name = format!(
-            "temp_voters_{}",
-            random_number
-        );
+        let temp_table_name = format!("temp_voters_{}", random_number);
 
         // Create the table creation query
         let create_table_query = format!(
@@ -193,14 +191,28 @@ impl ImportUsersBody {
                 .join(" UNION ALL ");
 
             format!(
-                "INSERT INTO user_attribute (id, user_id, name, value) {}",
-                values_subquery
+                r#"
+                INSERT 
+                INTO user_attribute (id, user_id, name, value)
+                {values_subquery}
+                UNION ALL
+                SELECT
+                    gen_random_uuid(),
+                    nu.id,
+                    '{TENANT_ID_ATTR_NAME}',
+                    '{}'
+                FROM
+                    new_user nu
+                "#,
+                self.tenant_id,
             )
         } else {
             String::new()
         };
 
-        Ok(format!("WITH new_user AS ({user_entity_query}) {user_attribute_query};"))
+        Ok(format!(
+            "WITH new_user AS ({user_entity_query}) {user_attribute_query};"
+        ))
     }
 }
 
