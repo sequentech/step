@@ -2,17 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Layout, LayoutProps} from "react-admin"
+import {Layout, LayoutProps, SidebarClasses} from "react-admin"
 import {CustomAppBar} from "./CustomAppBar"
 import {CustomMenu} from "./CustomMenu"
-import {adminTheme} from "@sequentech/ui-essentials"
+import {CustomSidebar} from "./menu/CustomSidebar"
+
+const SequentSidebar = (props: any) => {
+    return (
+        <CustomSidebar {...props}>
+            <CustomMenu {...props} classes={SidebarClasses} />
+        </CustomSidebar>
+    )
+}
 
 export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
         {...props}
         sx={{
             "& .MuiPaper-root": {
-                top: "0px",
+                top: "0",
                 position: "sticky",
                 zIndex: 100,
             },
@@ -24,6 +32,6 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             },
         }}
         appBar={CustomAppBar}
-        menu={CustomMenu}
+        sidebar={SequentSidebar}
     />
 )

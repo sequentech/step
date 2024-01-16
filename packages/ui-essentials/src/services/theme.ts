@@ -144,7 +144,7 @@ let MuiButton: Components["MuiButton"] = {
             "backgroundColor": palette.brandColor,
             "border": `1px solid ${palette.brandColor}`,
             "color": palette.white,
-            "minWidth": "200px",
+            "minWidth": "100px",
             "minHeight": "44px",
             "&:hover": {
                 backgroundColor: palette.brandColor,

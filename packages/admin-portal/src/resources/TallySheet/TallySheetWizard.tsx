@@ -6,7 +6,7 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, useGetOne} from "react-admin"
+import {Identifier, Notification, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
@@ -25,10 +25,6 @@ export const WizardSteps = {
     View: 4,
 }
 
-interface IExpanded {
-    [key: string]: boolean
-}
-
 interface TallySheetWizardProps {
     tallySheetId?: Identifier | undefined
     contest: Sequent_Backend_Contest
@@ -40,6 +36,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {action, contest, tallySheetId, doAction} = props
 
     const submitRef = React.useRef<HTMLButtonElement>(null)
+    const notify = useNotify()
 
     const {t} = useTranslation()
     const [page, setPage] = useState<number>(WizardSteps.Edit)
@@ -63,7 +60,15 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
-            doAction(WizardSteps.Confirm)
+            // needs to wait for the click handler to submit the data
+            setTimeout(() => {
+                const tallySheet = localStorage.getItem("tallySheetData")
+                if (tallySheet) {
+                    doAction(WizardSteps.Confirm)
+                } else {
+                    notify(t("tallysheet.allFieldsRequired"), {type: "error"})
+                }
+            }, 400)
         } else if (page === WizardSteps.Confirm) {
             submitRef.current?.click()
             doAction(WizardSteps.List)
@@ -71,12 +76,14 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     }
 
     const handleBack = () => {
+        const tallySheet = localStorage.getItem("tallySheetData")
+        const tallySheetTemp = JSON.parse(tallySheet || "{}")
         if (page === WizardSteps.Start) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Edit) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Confirm) {
-            if (tallySheetId) {
+            if (tallySheetId && tallySheetTemp && tallySheetTemp.id) {
                 doAction(WizardSteps.List)
             } else {
                 doAction(WizardSteps.Edit)
@@ -108,9 +115,11 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         <EditTallySheet
                             contest={contest}
                             doSelectArea={(id: Identifier) => setAreaId(id)}
-                            doCreatedTallySheet={(
+                            doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
-                            ) => setCreatedTallySheet(tallySheet)}
+                            ) => {
+                                setCreatedTallySheet(tallySheet)
+                            }}
                             submitRef={submitRef}
                         />
                     </>
@@ -121,9 +130,11 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         <EditTallySheet
                             tallySheet={tallySheet}
                             contest={contest}
-                            doCreatedTallySheet={(
+                            doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
-                            ) => setCreatedTallySheet(tallySheet)}
+                            ) => {
+                                setCreatedTallySheet(tallySheet)
+                            }}
                             submitRef={submitRef}
                         />
                     </>
@@ -177,38 +188,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     )}
                 </TallyStyles.StyledFooter>
             </WizardStyles.WizardWrapper>
-
-            {/* <Dialog
-                variant="info"
-                open={openModal}
-                ok={t("tally.common.dialog.ok")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.title")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmStartAction()
-                    }
-                    setOpenModal(false)
-                }}
-            >
-                {t("tally.common.dialog.message")}
-            </Dialog> */}
-
-            {/* <Dialog
-                variant="info"
-                open={openCeremonyModal}
-                ok={t("tally.common.dialog.okTally")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.tallyTitle")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmCeremonyAction()
-                    }
-                    setOpenCeremonyModal(false)
-                }}
-            >
-                {t("tally.common.dialog.ceremony")}
-            </Dialog> */}
         </>
     )
 }

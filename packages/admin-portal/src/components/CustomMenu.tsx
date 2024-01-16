@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useEffect} from "react"
 import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
@@ -23,16 +23,21 @@ const StyledItem = styled(Menu.Item)`
     .MuiIconButton-root {
         color: ${adminTheme.palette.brandColor};
     }
+
+    &.RaMenuItemLink-active {
+        background-color: ${adminTheme.palette.green.light};
+    }
 `
 
 const StyledMenu = styled(Menu)`
     background-color: ${adminTheme.palette.white};
     color: ${adminTheme.palette.brandColor};
-    margin-top: 0;
+    margin-top: 0px;
     margin-right: 4px;
     box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
     border-radius: 4px;
+    overflow-y: auto;
 `
 
 const DrawerContainer = styled(Box)`
@@ -55,15 +60,7 @@ export const CustomMenu = () => {
     const {t} = useTranslation()
 
     return (
-        <StyledMenu
-            sx={{
-                "flex": "display",
-                "flexDirection": "column",
-                ".RaMenuItemLink-active": {
-                    backgroundColor: adminTheme.palette.green.light,
-                },
-            }}
-        >
+        <StyledMenu>
             <MenuWrapper>
                 <SelectTenants />
 

@@ -48,7 +48,6 @@ export const ReportDialog: React.FC = () => {
 
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
-            tenantId: tenantId,
             electionEventId: record.id,
             documentId: documentId,
         },
