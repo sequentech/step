@@ -501,15 +501,17 @@ export const TallyCeremony: React.FC = () => {
                 )}
 
                 <TallyStyles.StyledFooter>
-                    <CancelButton
-                        className="list-actions"
-                        onClick={() => {
-                            setTallyId(null)
-                            setCreatingFlag(false)
-                        }}
-                    >
-                        {t("tally.common.cancel")}
-                    </CancelButton>
+                    {page < WizardSteps.Results && (
+                        <CancelButton
+                            className="list-actions"
+                            onClick={() => {
+                                setTallyId(null)
+                                setCreatingFlag(false)
+                            }}
+                        >
+                            {t("tally.common.cancel")}
+                        </CancelButton>
+                    )}
                     {page < WizardSteps.Results && (
                         <NextButton
                             color="primary"
