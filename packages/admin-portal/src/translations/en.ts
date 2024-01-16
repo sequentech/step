@@ -141,10 +141,15 @@ const englishTranslation = {
             common: {
                 title: "Areas",
                 subTitle: "Area configuration.",
+                deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
+            empty: {
+                header: "No Areas yet.",
+                action: "Create Area",
+            },
         },
         electionTypeScreen: {
             common: {
@@ -640,9 +645,9 @@ const englishTranslation = {
                 description: "Description",
             },
             options: {
-                "no-preferential": "No Preferential",
+                "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-asnwers": "Random Answers",
+                "random-answers": "Random Answers",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },

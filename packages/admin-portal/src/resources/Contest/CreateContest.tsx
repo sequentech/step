@@ -19,6 +19,7 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {ICountingAlgorithm, IOrderAnswer, IVotingType} from "./constants"
 
 const Hidden = styled(Box)`
     display: none;
@@ -36,6 +37,13 @@ export const CreateContest: React.FC = () => {
 
     const {refetch} = useTreeMenuData(false)
     const {setLastCreatedResource} = useContext(NewResourceContext)
+
+    const votingTypesChoices = () => {
+        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     return (
         <Create
@@ -61,16 +69,21 @@ export const CreateContest: React.FC = () => {
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
                         source="voting_type"
-                        defaultValue="first-past-the-post"
-                        choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
+                        defaultValue={IVotingType.NON_PREFERENTIAL}
+                        choices={votingTypesChoices()}
                     />
                     <SelectInput
                         source="counting_algorithm"
-                        defaultValue="plurality-at-large"
-                        choices={[{id: "plurality-at-large", name: "Plurality At Large"}]}
+                        defaultValue={ICountingAlgorithm.PLURALITY_AT_LARGE}
+                        choices={[
+                            {
+                                id: ICountingAlgorithm.PLURALITY_AT_LARGE,
+                                name: t("contestScreen.options.plurality-at-large"),
+                            },
+                        ]}
                     />
                     <BooleanInput source="is_encrypted" defaultValue={true} />
-                    <TextInput source="order_answers" defaultValue="alphabetical" />
+                    <TextInput source="order_answers" defaultValue={IOrderAnswer.ALPHABETICAL} />
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                         <SelectInput optionText="slug" defaultValue={tenantId} />
                     </ReferenceInput>

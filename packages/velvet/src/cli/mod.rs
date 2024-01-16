@@ -4,8 +4,7 @@
 
 pub mod error;
 pub mod state;
+pub mod test_all;
 
 mod cli;
-mod test_all;
-
 pub use cli::*;

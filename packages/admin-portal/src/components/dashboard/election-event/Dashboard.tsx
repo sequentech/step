@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {MutableRefObject, useContext, useEffect, useState} from "react"
 import {Box, Button, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
@@ -33,7 +33,14 @@ const Container = styled(Box)`
     justify-content: space-between;
 `
 
-export default function DashboardElectionEvent() {
+interface DashboardElectionEventProps {
+    refreshRef: any
+    onMount: () => void
+}
+
+const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) => {
+    const {refreshRef, onMount} = props
+
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -43,18 +50,19 @@ export default function DashboardElectionEvent() {
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
 
-    const {loading, data: dataStats} = useQuery<GetElectionEventStatsQuery>(
-        GET_ELECTION_EVENT_STATS,
-        {
-            variables: {
-                tenantId,
-                electionEventId: record?.id,
-                startDate: formatDate(startDate),
-                endDate: formatDate(endDate),
-            },
-            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
+    const {
+        loading,
+        data: dataStats,
+        refetch: doRefetch,
+    } = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
+        variables: {
+            tenantId,
+            electionEventId: record?.id,
+            startDate: formatDate(startDate),
+            endDate: formatDate(endDate),
+        },
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    })
 
     const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
 
@@ -66,6 +74,10 @@ export default function DashboardElectionEvent() {
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
     }
+
+    useEffect(() => {
+        onMount()
+    }, [onMount])
 
     useEffect(() => {
         if (!record?.status) {
@@ -113,6 +125,14 @@ export default function DashboardElectionEvent() {
                 />
 
                 <Box>
+                    <button
+                        ref={refreshRef}
+                        onClick={() => {
+                            doRefetch()
+                        }}
+                        style={{display: "none"}}
+                    />
+
                     <Stats metrics={metrics} />
 
                     <Container>
@@ -150,3 +170,5 @@ export default function DashboardElectionEvent() {
         </>
     )
 }
+
+export default DashboardElectionEvent
