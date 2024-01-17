@@ -3,17 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::area::get_areas_by_ids;
+use crate::postgres::area::get_areas;
+use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::*;
 use std::convert::From;
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
-
-use crate::services::database::PgConfig;
-use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
@@ -212,11 +211,11 @@ pub async fn list_users(
 
     if let Some(ref some_election_event_id) = filter.election_event_id {
         let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
-        let areas_by_ids = get_areas_by_ids(
+        let areas_by_ids = get_areas(
             hasura_transaction,
             filter.tenant_id.as_str(),
             some_election_event_id.as_str(),
-            area_ids,
+            &area_ids,
         )
         .await
         .with_context(|| "can't find areas by ids")?;
