@@ -39,6 +39,6 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .click(this.submitButton!)
             .pause(2000)
         const electionListLabel = await browser.element.findByText("Election List")
-        browser.expect.element(electionListLabel).to.be.visible
+        browser.assert.visible(electionListLabel)
     })
 })
