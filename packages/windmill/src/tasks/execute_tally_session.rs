@@ -48,6 +48,7 @@ use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
+use tokio::time::{interval, Duration as ChronoDuration};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -653,6 +654,53 @@ pub async fn execute_tally_session_wrapped(
     Ok(())
 }
 
+#[instrument(err, skip(auth_headers))]
+pub async fn transactions_wrapper(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+    auth_headers: AuthHeaders,
+) -> Result<()> {
+    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring keycloak connection pool")?;
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring keycloak transaction")?;
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
+    let res = execute_tally_session_wrapped(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+        auth_headers.clone(),
+        &hasura_transaction,
+        &keycloak_transaction,
+    )
+    .await;
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
+    res
+}
+
+async fn callback() -> Result<()> {
+    println!("30 seconds have passed!");
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 1200000, max_retries = 0)]
@@ -672,39 +720,24 @@ pub async fn execute_tally_session(
         Some(ISO8601::now() + Duration::seconds(120)),
     )
     .await?;
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring keycloak db client")?;
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring keycloak transaction")?;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring hasura db client")?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring hasura transaction")?;
-
-    let res = execute_tally_session_wrapped(
+    let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
+    let mut current_task = tokio::spawn(transactions_wrapper(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
         auth_headers.clone(),
-        &hasura_transaction,
-        &keycloak_transaction,
-    )
-    .await;
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;
-    lock.release(auth_headers.clone()).await?;
+    ));
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                // Execute the callback function here
+                callback().await?;
+            }
+            res = &mut current_task => {
+                lock.release(auth_headers.clone()).await?;
 
-    res
+                break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+            }
+        }
+    }
 }
