@@ -100,7 +100,7 @@ export const Question: React.FC<IQuestionProps> = ({
 
     return (
         <Box>
-            <StyledTitle variant="h5">
+            <StyledTitle className="contest-title" variant="h5">
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
             {question.description ? (
