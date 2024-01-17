@@ -654,13 +654,13 @@ pub async fn execute_tally_session_wrapped(
     Ok(())
 }
 
-#[instrument(err, skip(auth_headers))]
+#[instrument(err)]
 pub async fn transactions_wrapper(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-    auth_headers: AuthHeaders,
 ) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -696,11 +696,6 @@ pub async fn transactions_wrapper(
     res
 }
 
-async fn callback() -> Result<()> {
-    println!("30 seconds have passed!");
-    Ok(())
-}
-
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 1200000, max_retries = 0)]
@@ -709,15 +704,13 @@ pub async fn execute_tally_session(
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let lock = PgLock::acquire(
-        auth_headers.clone(),
         format!(
             "execute_tally_session-{}-{}-{}",
             tenant_id, election_event_id, tally_session_id
         ),
         Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(120)),
+        ISO8601::now() + Duration::seconds(120),
     )
     .await?;
     let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
@@ -725,19 +718,19 @@ pub async fn execute_tally_session(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-        auth_headers.clone(),
     ));
-    loop {
+    let res = loop {
         tokio::select! {
             _ = interval.tick() => {
                 // Execute the callback function here
-                callback().await?;
+                lock.update_expiry().await?;
             }
             res = &mut current_task => {
-                lock.release(auth_headers.clone()).await?;
 
                 break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
             }
         }
-    }
+    };
+    lock.release().await?;
+    res
 }

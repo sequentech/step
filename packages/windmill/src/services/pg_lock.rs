@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::database::get_hasura_pool;
 use crate::hasura::lock::*;
+use crate::postgres::lock;
 use crate::services::date::ISO8601;
-use anyhow::{anyhow, Result};
-use chrono::{DateTime, Local};
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Duration, Local};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::services::connection;
+use tokio_postgres::row::Row;
 use tracing::instrument;
 
 #[derive(Debug)]
@@ -16,46 +20,77 @@ pub struct PgLock {
 }
 
 impl PgLock {
-    #[instrument(skip(auth_headers), err)]
-    pub async fn acquire(
-        auth_headers: connection::AuthHeaders,
-        key: String,
-        value: String,
-        expiry_date: Option<DateTime<Local>>,
-    ) -> Result<PgLock> {
-        let expiry_str = expiry_date.clone().map(|naive| ISO8601::to_string(&naive));
-        let lock_data = upsert_lock(auth_headers, key.clone(), value.clone(), expiry_str)
-            .await?
-            .data
-            .expect("expected data")
-            .insert_sequent_backend_lock_one;
-
-        match lock_data {
-            None => Err(anyhow!("Unable to acquire lock '{}'", key)),
-            Some(lock) => Ok(PgLock {
-                key: lock.key,
-                value: lock.value,
-                expiry_date: lock
-                    .expiry_date
-                    .map(|d| ISO8601::to_date(d.as_str()).unwrap()),
-            }),
-        }
+    #[instrument(skip(self), err)]
+    pub async fn update_expiry(&self) -> Result<()> {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error acquiring hasura connection pool")?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error acquiring hasura transaction")?;
+        let new_expiry_date: DateTime<Local> = ISO8601::now() + Duration::seconds(120);
+        lock::upsert_lock(
+            &hasura_transaction,
+            self.key.as_str(),
+            self.value.as_str(),
+            new_expiry_date,
+        )
+        .await?;
+        hasura_transaction
+            .commit()
+            .await
+            .with_context(|| "error comitting transaction")?;
+        Ok(())
     }
 
-    #[instrument(skip(auth_headers), err)]
-    pub async fn release(self, auth_headers: connection::AuthHeaders) -> Result<()> {
-        let affected_rows = delete_lock(auth_headers, self.key.clone(), self.value.clone())
-            .await?
-            .data
-            .expect("expected data")
-            .delete_sequent_backend_lock
-            .expect("expected delete_sequent_backend_lock")
-            .affected_rows;
+    #[instrument(err)]
+    pub async fn acquire(
+        key: String,
+        value: String,
+        expiry_date: DateTime<Local>,
+    ) -> Result<PgLock> {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error acquiring hasura connection pool")?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error acquiring hasura transaction")?;
+        let lock = lock::upsert_lock(
+            &hasura_transaction,
+            key.as_str(),
+            value.as_str(),
+            expiry_date,
+        )
+        .await?;
+        hasura_transaction
+            .commit()
+            .await
+            .with_context(|| "error comitting transaction")?;
 
-        if 0 == affected_rows {
-            Err(anyhow!("Unable to unlock '{}'", self.key.clone()))
-        } else {
-            Ok(())
-        }
+        Ok(lock)
+    }
+
+    #[instrument(err)]
+    pub async fn release(self) -> Result<()> {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error acquiring hasura connection pool")?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error acquiring hasura transaction")?;
+        lock::delete_lock(&hasura_transaction, self.key.as_str(), self.value.as_str()).await?;
+        hasura_transaction
+            .commit()
+            .await
+            .with_context(|| "error comitting transaction")
     }
 }
