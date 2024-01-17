@@ -1,4 +1,5 @@
 import React, {useState} from "react"
+import {useForm, FormProvider, useFormContext} from "react-hook-form"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import Candidate from "./Candidate"
 
@@ -6,6 +7,7 @@ export default function Candidates({list}: {list: Array<Sequent_Backend_Candidat
     const [candidates, setCandidates] = useState<Array<Sequent_Backend_Candidate>>(list)
     const [dragIndex, setDragIndex] = useState<number>(-1)
     const [overIndex, setOverIndex] = useState<number | null>(null)
+    const methods = useFormContext()
 
     const onDragStart = (_event: React.DragEvent<HTMLDivElement>, index: number) => {
         setDragIndex(index)
@@ -34,6 +36,8 @@ export default function Candidates({list}: {list: Array<Sequent_Backend_Candidat
         reorderedItems.splice(dropIndex, 0, reorderedItem)
 
         setCandidates(reorderedItems)
+        methods.setValue("candidatesOrder", candidates, {shouldValidate: true})
+
         onDragEnd()
     }
 

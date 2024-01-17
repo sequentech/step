@@ -88,19 +88,6 @@ export const ContestDataForm: React.FC = () => {
         filter: {contest_id: record.id},
     })
 
-    const [update] = useUpdate(
-        "sequent_backend_candidate",
-        {id: candidate?.id, data: candidate},
-        {onSuccess: () => refetch()}
-    )
-
-    useEffect(() => {
-        if (candidates) {
-            console.log("candidates :>> ", candidates)
-            setCandidatesList(candidates)
-        }
-    }, [candidates])
-
     const votingTypesChoices = () => {
         return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
             id: value,
@@ -370,12 +357,6 @@ export const ContestDataForm: React.FC = () => {
         )
     }
 
-    const form = useForm()
-    console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:338 -> form: ", form)
-
-    const titit = form.getValues("candidateOrder")
-    console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:341 -> titit: ", titit)
-
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -482,7 +463,9 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <BoundedTextField />
+                                                {
+                                                    // <BoundedTextField />
+                                                }
                                                 <Candidates list={candidates ?? []}></Candidates>
                                             </CandidateRows>
                                         ) : null
