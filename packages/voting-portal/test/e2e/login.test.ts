@@ -27,7 +27,7 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .end()
     })
 
-    it("should be able to login", (browser: NightwatchAPI) => {
+    it("should be able to login", async (browser: NightwatchAPI) => {
         browser
             .waitForElementVisible(this.username!)
             .waitForElementVisible(this.password!)
@@ -38,7 +38,7 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .assert.visible(this.submitButton!)
             .click(this.submitButton!)
             .pause(2000)
-        const electionListLabel = browser.element.findByText("Election List")
+        const electionListLabel = await browser.element.findByText("Election List")
         browser.expect.element(electionListLabel).to.be.visible
     })
 })
