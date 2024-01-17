@@ -84,6 +84,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
+    console.log("el idioma elegido es ... ", i18n.language)
+    
+
     const {eventId} = useParams<TenantEventType>()
     const election = useAppSelector(selectElectionById(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
