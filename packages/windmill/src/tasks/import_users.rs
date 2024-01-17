@@ -59,6 +59,74 @@ impl ImportUsersBody {
         s3::get_object_into_temp_file(s3_bucket, document_s3_key).await
     }
 
+    fn create_temp_password_function_statement(&self) -> String {
+        let password_func_statement = r#"
+            CREATE FUNCTION pg_temp.pbkdf2
+                (salt bytea, pw text, count integer, desired_length integer, algorithm text)
+                returns bytea
+                immutable
+                language plpgsql
+            as $$
+            declare
+                hash_length integer;
+                block_count integer;
+                output bytea;
+                the_last bytea;
+                xorsum bytea;
+                i_as_int32 bytea;
+                i integer;
+                j integer;
+                k integer;
+            begin
+                algorithm := lower(algorithm);
+                case algorithm
+                when 'md5' then
+                hash_length := 16;
+                when 'sha1' then
+                hash_length = 20;
+                when 'sha256' then
+                hash_length = 32;
+                when 'sha512' then
+                hash_length = 64;
+                else
+                raise exception 'Unknown algorithm "%"', algorithm;
+                end case;
+
+                block_count := ceil(desired_length::real / hash_length::real);
+
+                for i in 1 .. block_count loop
+                i_as_int32 := E'\\\\000\\\\000\\\\000'::bytea || chr(i)::bytea;
+                i_as_int32 := substring(i_as_int32, length(i_as_int32) - 3);
+
+                the_last := salt::bytea || i_as_int32;
+
+                xorsum := HMAC(the_last, pw::bytea, algorithm);
+                the_last := xorsum;
+
+                for j in 2 .. count loop
+                    the_last := HMAC(the_last, pw::bytea, algorithm);
+
+                    --
+                    -- xor the two
+                    --
+                    for k in 1 .. length(xorsum) loop
+                    xorsum := set_byte(xorsum, k - 1, get_byte(xorsum, k - 1) # get_byte(the_last, k - 1));
+                    end loop;
+                end loop;
+
+                if output is null then
+                    output := xorsum;
+                else
+                    output := output || xorsum;
+                end if;
+                end loop;
+
+                return substring(output from 1 for desired_length);
+            end $$;
+        "#;
+        String::from(password_func_statement)
+    }
+
     /**
      * Creates a temp table and load voters from the voters_file with COPY FROM
      *
@@ -301,7 +369,15 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         )
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
-    info!("after isolation");
+
+    let temp_password_function_statement =
+        body.create_temp_password_function_statement();
+
+    keycloak_transaction
+        .simple_query(temp_password_function_statement.as_str())
+        .await
+        .with_context(|| "error executing create temp_password function statement")?;
+
 
     let areas_map = match body.election_event_id {
         Some(ref election_event_id) => Some(
