@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event;
-use crate::services::area::get_elections_by_area;
+use crate::postgres::area::get_elections_by_area;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;

@@ -288,11 +288,24 @@ const spanishTranslation: TranslationType = {
                 title: "Importar votantes",
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
+                votersSubtitle:
+                    "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
                 elections: "Elections",
                 areas: "Areas",
-                sha: "Integridad (SHA 256)",
+                sha: "Verificación de Integridad (SHA 256)",
                 cancel: "Cancelar",
                 import: "Importar",
+                fileUploadSuccess: "Fichero subido al servidor - pero no importado aún",
+                fileUploadError: "Error subiendo el fichero",
+                importVotersSuccess: "Importación de Votantes lanzada en segundo plano con éxito.",
+                importVotersError: "Error Importando Votantes.",
+                shaDialog: {
+                    ok: "Sí, Importar Sin Verificación de Integridad",
+                    cancel: "Volver",
+                    title: "Importar Sin Verificación de Integridad?",
+                    description:
+                        "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
+                },
             },
         },
         electionScreen: {
