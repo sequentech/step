@@ -149,7 +149,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                     </StyledButton>
                 </ActionLink>
             ) : (
-                <StyledButton onClick={onClickToScreen} sx={{width: {xs: "100%", sm: "200px"}}}>
+                <StyledButton
+                    className="finish-button"
+                    onClick={onClickToScreen}
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                >
                     <Box>{t("confirmationScreen.finishButton")}</Box>
                 </StyledButton>
             )}

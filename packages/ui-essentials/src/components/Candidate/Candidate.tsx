@@ -141,6 +141,7 @@ const Candidate: React.FC<CandidateProps> = ({
             <ImageBox>{children}</ImageBox>
             <Box flexGrow={2}>
                 <Typography
+                    className="candidate-title"
                     fontWeight="bold"
                     fontSize="16px"
                     lineHeight="22px"
@@ -151,6 +152,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     {title}
                 </Typography>
                 <Typography
+                    className="candidate-description"
                     color={theme.palette.customGrey.dark}
                     fontSize="16px"
                     marginTop="4px"
