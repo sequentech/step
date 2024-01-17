@@ -1,0 +1,16 @@
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import {gql} from "@apollo/client"
+
+export const IMPORT_USERS = gql`
+    mutation ImportUsers($tenantId: String!, $electionEventId: String, $documentId: String!) {
+        import_users(
+            tenant_id: $tenantId
+            election_event_id: $electionEventId
+            document_id: $documentId
+        ) {
+            id
+        }
+    }
+`

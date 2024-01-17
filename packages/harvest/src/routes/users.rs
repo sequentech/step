@@ -16,9 +16,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
+use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::list_users;
 use windmill::services::users::ListUsersFilter;
+use windmill::tasks::import_users;
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
@@ -248,7 +250,13 @@ pub async fn create_user(
             Some(vec![voter_group_name]),
         )
     } else {
-        (None, None)
+        (
+            Some(HashMap::from([(
+                TENANT_ID_ATTR_NAME.to_string(),
+                serde_json::to_value(input.tenant_id.clone()).unwrap(),
+            )])),
+            None,
+        )
     };
     let user = client
         .create_user(&realm, &input.user, attributes, groups)
@@ -368,4 +376,39 @@ pub async fn get_user(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(user))
+}
+
+#[instrument(skip(claims))]
+#[post("/import-users", format = "json", data = "<body>")]
+pub async fn import_users_f(
+    claims: jwt::JwtClaims,
+    body: Json<import_users::ImportUsersBody>,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_CREATE
+    } else {
+        Permissions::USER_CREATE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(import_users::import_users::new(input))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error sending import_users task: {:?}", e),
+            )
+        })?;
+    info!("Sent IMPORT_USERS task {}", task.task_id);
+
+    Ok(Json(OptionalId {
+        id: Some(task.task_id),
+    }))
 }

@@ -37,6 +37,7 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {useAtom} from "jotai"
@@ -59,6 +60,7 @@ export interface ListUsersProps {
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [open, setOpen] = React.useState(false)
     const [openImport, setOpenImport] = useAtom(importDrawerState)
@@ -300,6 +302,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         <>
             <List
                 resource="user"
+                queryOptions={{
+                    refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+                }}
                 empty={<Empty />}
                 actions={
                     <ListActions
