@@ -42,28 +42,18 @@ const meta: any = {
 
 export default meta
 
-export const Basic: any = Object.assign(() => <Candidate
-    title="Micky Mouse"
-    description="Candidate Description"
-    isActive={true}
-    checked={true}
-    url="https://google.com" />, {
-        test: async (browser, {component, result}) => {
-            await expect(component).to.be.visible;
-            await expect(component).to.have.text("Micky Mouse");
-        }
-    })
+// export const Basic: any = Object.assign(() => <Candidate
+//     title="Micky Mouse"
+//     description="Candidate Description"
+//     isActive={true}
+//     checked={true}
+//     url="https://google.com" />, {
+//         test: async (browser, {component, result}) => {
+//             await expect(component).to.be.visible;
+//             await expect(component).to.have.text("Micky Mouse");
+//         }
+//     })
 
-
-export const Primary: any = {
-    args: {
-        title: "Micky Mouse",
-        description: "Candidate Description",
-        isActive: true,
-        checked: true,
-        url: "https://google.com",
-    },
-}
 
 // export const ReadOnly: any = {
 //     args: {

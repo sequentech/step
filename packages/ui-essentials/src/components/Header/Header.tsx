@@ -156,6 +156,7 @@ export default function Header({
                                         </MenuItem>
                                         {logoutFn && (
                                             <MenuItem
+                                                className="logout-button"
                                                 onClick={() => {
                                                     setOpenModal(true)
                                                     handleClose()
