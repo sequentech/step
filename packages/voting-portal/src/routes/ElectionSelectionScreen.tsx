@@ -105,6 +105,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         navigate(`../election/${electionId}/ballot-locator`)
     }
 
+    console.log(`Election ${electionId} selected`, canVote, election)
+
     return (
         <SelectElection
             isActive={canVote}
@@ -335,7 +337,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
-            <ElectionContainer className='elections-list'>
+            <ElectionContainer className="elections-list">
                 {!hasNoResults ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper electionId={electionId} key={electionId} />
