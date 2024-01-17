@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::get_hasura_pool;
-use crate::hasura::lock::*;
 use crate::postgres::lock;
 use crate::services::date::ISO8601;
 use anyhow::{anyhow, Context, Result};
