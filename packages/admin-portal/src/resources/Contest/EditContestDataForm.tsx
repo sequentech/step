@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    BooleanInput,
     SelectInput,
     TextInput,
     useRecordContext,
     SimpleForm,
     useGetOne,
-    NumberInput,
     Toolbar,
     SaveButton,
     FormDataConsumer,
@@ -20,10 +18,7 @@ import {
     RaRecord,
     Identifier,
     RecordContext,
-    useInput,
-    useDataProvider,
 } from "react-admin"
-import {useForm, FormProvider, useFormContext} from "react-hook-form"
 import {
     Accordion,
     AccordionDetails,
