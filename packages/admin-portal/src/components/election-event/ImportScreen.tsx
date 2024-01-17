@@ -99,7 +99,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const isWorking = () => isLoading || isUploading
 
         return (
-            <Box sx={{padding: "16px"}}>
+            <Box sx={{padding: "0"}}>
                 <TextField
                     disabled={isWorking()}
                     label={t("electionEventScreen.import.sha")}

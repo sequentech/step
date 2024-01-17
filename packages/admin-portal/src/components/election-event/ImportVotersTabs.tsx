@@ -1,16 +1,17 @@
 import React, {useContext} from "react"
 import {useRecordContext} from "react-admin"
 import {ImportUsersMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {DrawerStyles} from "@/components/styles/DrawerStyles"
 import ElectionHeader from "@/components/ElectionHeader"
+import {Tabs} from "@/components/Tabs"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {useLocation, useNavigate} from "react-router"
-import {Box, Tab} from "@mui/material"
+import {Box, Tab, Typography} from "@mui/material"
 import {ImportScreen} from "./ImportScreen"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {useAtom} from "jotai"
-import {Tabs} from "@/components/Tabs"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useNotify} from "react-admin"
@@ -65,79 +66,53 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                 title={t("electionEventScreen.import.title")}
                 subtitle="electionEventScreen.import.subtitle"
             />
-            <Tabs
-                elements={[
-                    {
-                        label: t("electionEventScreen.import.voters"),
-                        component: () => (
-                            <ImportScreen
-                                refresh="electionEventScreen.import.voters"
-                                doCancel={handleCancel}
-                                doImport={handleImportVoters}
-                                isLoading={loadingVoters}
-                                errors={errors}
-                            />
-                        ),
-                    },
-                    /*{
-                        label: t("electionEventScreen.import.elections"),
-                        component: () => (
-                            <ImportScreen
-                                refresh="electionEventScreen.import.elections"
-                                doCancel={handleCancel}
-                                doImport={handleImportElections}
-                                isLoading={loadingElections}
-                                errors={errors}
-                            />
-                        ),
-                    },
-                    {
-                        label: t("electionEventScreen.import.areas"),
-                        component: () => (
-                            <ImportScreen
-                                refresh="electionEventScreen.import.areas"
-                                doCancel={handleCancel}
-                                doImport={handleImportAreas}
-                                isLoading={loadingAreas}
-                                errors={errors}
-                            />
-                        ),
-                    },*/
-                ]}
-            />
-
-            {/* <Tabs value={value}>
-                <Tab label={t("electionEventScreen.import.voters")} onClick={() => tabClicked(0)} />
-                <Tab
-                    label={t("electionEventScreen.import.elections")}
-                    onClick={() => tabClicked(1)}
+            <DrawerStyles.Wrapper>
+                <Tabs
+                    elements={[
+                        {
+                            label: t("electionEventScreen.import.voters"),
+                            component: () => (
+                                <>
+                                    <DrawerStyles.SubTitle>
+                                        {t("electionEventScreen.import.votersSubtitle")}
+                                    </DrawerStyles.SubTitle>
+                                    <ImportScreen
+                                        refresh="electionEventScreen.import.voters"
+                                        doCancel={handleCancel}
+                                        doImport={handleImportVoters}
+                                        isLoading={loadingVoters}
+                                        errors={errors}
+                                    />
+                                </>
+                            ),
+                        },
+                        /*{
+                            label: t("electionEventScreen.import.elections"),
+                            component: () => (
+                                <ImportScreen
+                                    refresh="electionEventScreen.import.elections"
+                                    doCancel={handleCancel}
+                                    doImport={handleImportElections}
+                                    isLoading={loadingElections}
+                                    errors={errors}
+                                />
+                            ),
+                        },
+                        {
+                            label: t("electionEventScreen.import.areas"),
+                            component: () => (
+                                <ImportScreen
+                                    refresh="electionEventScreen.import.areas"
+                                    doCancel={handleCancel}
+                                    doImport={handleImportAreas}
+                                    isLoading={loadingAreas}
+                                    errors={errors}
+                                />
+                            ),
+                        },*/
+                    ]}
                 />
-                <Tab label={t("electionEventScreen.import.areas")} onClick={() => tabClicked(2)} />
-            </Tabs>
-
-            <CustomTabPanel index={0} value={value}>
-                <ImportScreen
-                    doCancel={handleCancel}
-                    doImport={handleImportVoters}
-                    isLoading={loading}
-                />
-            </CustomTabPanel>
-
-            <CustomTabPanel index={1} value={value}>
-                <ImportScreen
-                    doCancel={handleCancel}
-                    doImport={handleImportElections}
-                    isLoading={true}
-                />
-            </CustomTabPanel>
-
-            <CustomTabPanel index={2} value={value}>
-                <ImportScreen
-                    doCancel={handleCancel}
-                    doImport={handleImportAreas}
-                    isLoading={true}
-                />
-            </CustomTabPanel> */}
+            </DrawerStyles.Wrapper>
         </>
     )
 }

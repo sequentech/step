@@ -281,6 +281,8 @@ const englishTranslation = {
                 title: "Import Voters",
                 subtitle: "Import voters data",
                 voters: "Voters",
+                votersSubtitle:
+                    "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
                 elections: "Elections",
                 areas: "Areas",
                 sha: "Integrity Check (SHA-256)",

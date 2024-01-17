@@ -283,6 +283,8 @@ const spanishTranslation: TranslationType = {
                 title: "Importar votantes",
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
+                votersSubtitle:
+                    "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
                 elections: "Elections",
                 areas: "Areas",
                 sha: "Verificación de Integridad (SHA 256)",
