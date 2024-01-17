@@ -1,4 +1,4 @@
-import {ExtendDescribeThis} from "nightwatch"
+import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
 
 interface LoginThis {
     testUrl: string
@@ -15,11 +15,19 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
 
-    beforeEach(function (this: ExtendDescribeThis<LoginThis>, browser) {
+    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser.navigateTo(this.testUrl!)
     })
 
-    it("should be able to login", (browser) => {
+    after(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser
+            .click("button.profile-menu-button")
+            .click("li.logout-button")
+            .click("button.ok-button")
+            .end()
+    })
+
+    it("should be able to login", (browser: NightwatchAPI) => {
         browser
             .waitForElementVisible(this.username!)
             .waitForElementVisible(this.password!)
@@ -30,31 +38,7 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .assert.visible(this.submitButton!)
             .click(this.submitButton!)
             .pause(2000)
-            .assert.visible("input[name=code]")
-            .sendKeys("#code", "123456")
-            .assert.visible(this.submitButton!)
-            .click(this.submitButton!)
-            .pause(1000)
+        const electionListLabel = browser.element.findByText("Election List")
+        browser.expect.element(electionListLabel).to.be.visible
     })
-
-    // this.it('should be able to logout', (browser) => {
-    //     browser
-    //         .url(this.testUrl)
-    //         .waitForElementVisible('body', 1000)
-    //         .assert.title('Voting Portal')
-    //         .assert.visible('input[name=username]')
-    //         .setValue('input[name=username]', this.username)
-    //         .assert.visible('input[name=password]')
-    //         .setValue('input[name=password]', this.password)
-    //         .assert.visible(this.submitButton)
-    //         .click(this.submitButton)
-    //         .pause(1000)
-    //         .assert.urlEquals(browser.globals.devServerURL + '/dashboard')
-    //         .assert.visible('#logout-button')
-    //         .click('#logout-button')
-    //         .pause(1000)
-    //         .assert.urlEquals(browser.globals.devServerURL + '/login')
-    //         .end();
-    // });
 })
-

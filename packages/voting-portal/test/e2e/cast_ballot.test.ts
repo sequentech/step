@@ -1,5 +1,5 @@
 /* eslint-disable testing-library/await-async-query */
-import {ExtendDescribeThis} from "nightwatch"
+import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
 
 interface LoginThis {
     testUrl: string
@@ -8,15 +8,21 @@ interface LoginThis {
     submitButton: string
 }
 
+const getRandomIntInclusive = (min: number, max: number) => {
+    min = Math.ceil(min)
+    max = Math.floor(max)
+    return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
 // eslint-disable-next-line jest/valid-describe-callback
-describe("login", function (this: ExtendDescribeThis<LoginThis>) {
+describe("cast ballot", function (this: ExtendDescribeThis<LoginThis>) {
     this.testUrl =
         "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/5960217c-ac34-40b2-99ae-40ecc54f03f9/election-chooser"
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
 
-    beforeEach(function (this: ExtendDescribeThis<LoginThis>, browser) {
+    beforeEach(function (this: ExtendDescribeThis<LoginThis>, browser: NightwatchAPI) {
         // navigate to the login page
         browser.navigateTo(this.testUrl!)
         // perform login
@@ -27,53 +33,84 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .sendKeys(this.password!, "felix")
             .click(this.submitButton!)
             .pause(1000)
-            .sendKeys("input[name=code]", "123456")
-            .click(this.submitButton!)
-            .pause(2000)
     })
 
-    it("should cast a ballot", (browser) => {
+    afterEach(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser
+            .click("button.profile-menu-button")
+            .click("li.logout-button")
+            .click("button.ok-button")
+            .end()
+    })
+
+    it("should cast a ballot", async (browser: NightwatchAPI) => {
+        let selectedElectionText = ""
+        let selectedCandidateText = ""
+
         // navigate to the election list
         const electionListLabel = browser.element.findByText("Election List")
         browser.assert.visible(electionListLabel)
-        const isOpenLabel = browser.element.findByText("OPEN")
-        browser.assert.visible(isOpenLabel)
-        browser.assert.visible("#click-to-vote-button").click("#click-to-vote-button")
+
+        browser.assert.visible("div.election-item")
+        const electionCount = await browser.element.findAll("div.election-item").count()
+        const selectedElection = getRandomIntInclusive(1, electionCount)
+
+        await browser.getText(
+            `div.elections-list div.election-item:nth-child(${selectedElection}) p.election-title`,
+            (result) => {
+                selectedElectionText = result.value
+            }
+        )
+
+        const electionSelector = `div.elections-list div.election-item:nth-child(${selectedElection}) button.click-to-vote-button`
+        browser.assert.visible(electionSelector).click(electionSelector)
         browser.pause(500)
+
         // navigate to ballot instructions
         const ballotInstructionsLabel = browser.element.findByText("Instructions")
         browser.assert.visible(ballotInstructionsLabel)
-        browser.assert.visible("#start-voting-button").click("#start-voting-button")
+        browser.assert.visible("button.start-voting-button").click("button.start-voting-button")
         browser.pause(500)
+
         // navigate to ballot casting
-        browser.assert.visible("#candidate-0-input").click("#candidate-0-input")
-        browser.assert.visible("#next-button").click("#next-button")
+        const electionLabel = browser.element.findByText(selectedElectionText)
+        browser.assert.visible(electionLabel)
+
+        const candidateCount = await browser.element.findAll("p.candidate-title").count()
+        const selectedCandidate = getRandomIntInclusive(1, candidateCount)
+
+        await browser.getText(
+            `div.candidates-list div.candidate-item:nth-child(${selectedCandidate}) p.candidate-title`,
+            (result) => {
+                selectedCandidateText = result.value
+            }
+        )
+
+        const candidateSelector = `div.candidates-list div.candidate-item:nth-child(${selectedCandidate}) input.candidate-input`
+        browser.click(candidateSelector)
+        browser.assert.visible("button.next-button").click("button.next-button")
         browser.pause(500)
+
         // navigate to ballot review
         const reviewLabel = browser.element.findByText("Review your ballot")
         browser.assert.visible(reviewLabel)
-        browser.assert.visible("#cast-ballot-button").click("#cast-ballot-button")
+        browser.assert.visible(
+            "div.candidates-list div.candidate-item:nth-child(1) p.candidate-title"
+        )
+        browser.assert.textEquals(
+            "div.candidates-list div.candidate-item:nth-child(1) p.candidate-title",
+            selectedCandidateText
+        )
+        browser.assert.visible("button.cast-ballot-button").click("button.cast-ballot-button")
         browser.pause(500)
-        // navigate to end of ballot casting
-    })
 
-    // this.it('should be able to logout', (browser) => {
-    //     browser
-    //         .url(this.testUrl)
-    //         .waitForElementVisible('body', 1000)
-    //         .assert.title('Voting Portal')
-    //         .assert.visible('input[name=username]')
-    //         .setValue('input[name=username]', this.username)
-    //         .assert.visible('input[name=password]')
-    //         .setValue('input[name=password]', this.password)
-    //         .assert.visible(this.submitButton)
-    //         .click(this.submitButton)
-    //         .pause(1000)
-    //         .assert.urlEquals(browser.globals.devServerURL + '/dashboard')
-    //         .assert.visible('#logout-button')
-    //         .click('#logout-button')
-    //         .pause(1000)
-    //         .assert.urlEquals(browser.globals.devServerURL + '/login')
-    //         .end();
-    // });
+        // navigate to end of ballot casting
+        const castLabel = browser.element.findByText("Your vote has been cast")
+        browser.assert.visible(castLabel)
+        // we do not puah the finish button bacause it will navigate out and cannot logout then
+        browser.assert.visible("button.finish-button")
+        // browser.assert.visible("button.finish-button").click("button.finish-button")
+        // browser.pause(500)
+        // browser.assert.urlContains("sequentech")
+    })
 })
