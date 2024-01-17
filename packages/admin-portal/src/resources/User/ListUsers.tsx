@@ -62,7 +62,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
 
-
     const [open, setOpen] = React.useState(false)
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
