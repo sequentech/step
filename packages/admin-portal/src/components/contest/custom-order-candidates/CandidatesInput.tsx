@@ -3,7 +3,7 @@ import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import Candidate from "./Candidate"
 import {useInput} from "react-admin"
 
-export default function Candidates({source}: {source: string}) {
+export default function CandidatesInput({source}: {source: string}) {
     const {
         field: {onChange, value},
     } = useInput({source})
@@ -39,7 +39,7 @@ export default function Candidates({source}: {source: string}) {
         reorderedItems.splice(dropIndex, 0, reorderedItem)
 
         setCandidates(reorderedItems)
-        onChange(reorderedItems) // update the form value
+        onChange(reorderedItems.map((c) => c?.id ?? null).filter((c) => !!c)) // update the form value
 
         onDragEnd()
     }
@@ -49,16 +49,18 @@ export default function Candidates({source}: {source: string}) {
             <div>
                 {candidates?.map((candidate: any, index: number) => {
                     return (
-                        <Candidate
-                            key={candidate.id}
-                            index={index}
-                            id={candidate.id}
-                            candidate={candidate}
-                            onDragStart={onDragStart}
-                            onDragOver={onDragOver}
-                            onDrop={onDrop}
-                            isOver={overIndex === index}
-                        />
+                        candidate && (
+                            <Candidate
+                                key={candidate.id}
+                                index={index}
+                                id={candidate.id}
+                                candidate={candidate}
+                                onDragStart={onDragStart}
+                                onDragOver={onDragOver}
+                                onDrop={onDrop}
+                                isOver={overIndex === index}
+                            />
+                        )
                     )
                 })}
             </div>

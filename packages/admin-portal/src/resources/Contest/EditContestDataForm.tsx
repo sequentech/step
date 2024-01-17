@@ -31,6 +31,7 @@ import {
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Contest,
+    Sequent_Backend_Candidate,
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
@@ -47,7 +48,7 @@ import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
-import Candidates from "@/components/contest/custom-order-candidates/Candidates"
+import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 
 export type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -209,6 +210,16 @@ export const ContestDataForm: React.FC = () => {
             temp.winning_candidates_num = temp.winning_candidates_num // || 1
             temp.order_answers = temp.order_answers || IOrderAnswer.ALPHABETICAL
 
+            // TODO: check data from hasura
+            if (temp.candidatesOrder === undefined) {
+                temp.candidatesOrder = candidates?.map((c) => c.id) ?? []
+            } else {
+                temp.candidatesOrder =
+                    temp.candidatesOrder
+                        ?.map((id: string) => candidates?.find((c) => c.id === id) ?? null)
+                        .filter((c: Sequent_Backend_Candidate) => !!c) ?? []
+            }
+
             return temp
         },
         [data]
@@ -329,7 +340,7 @@ export const ContestDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
-                console.log("parsedValue :>> ", parsedValue)
+
                 return (
                     <SimpleForm
                         defaultValues={{candidatesOrder: candidates ?? []}}
@@ -406,10 +417,12 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <BooleanInput source="is_acclaimed" />
-                                <NumberInput source="min_votes" min={0} />
-                                <NumberInput source="max_votes" min={0} />
-                                <NumberInput source="winning_candidates_num" min={0} />
+                                {
+                                    // <BooleanInput source="is_acclaimed" />
+                                    // <NumberInput source="min_votes" min={0} />
+                                    // <NumberInput source="max_votes" min={0} />
+                                    // <NumberInput source="winning_candidates_num" min={0} />
+                                }
                                 <SelectInput
                                     source="order_answers"
                                     choices={orderAnswerChoices()}
@@ -432,10 +445,7 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                {
-                                                    // <BoundedTextField />
-                                                }
-                                                <Candidates source="candidatesOrder"></Candidates>
+                                                <CandidatesInput source="candidatesOrder"></CandidatesInput>
                                             </CandidateRows>
                                         ) : null
                                     }}
