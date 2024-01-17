@@ -205,7 +205,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             tabIndex={0}
             className="election-card"
         >
-            <TextContainer>
+            <TextContainer className="election-info">
                 <StyledTitle className="election-title">{title}</StyledTitle>
                 <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                     <StyledLink href={electionHomeUrl} target="_blank">
@@ -251,7 +251,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledLink>
                 </Box>
             </DatesUrlWrap>
-            <Box sx={{display: "flex"}}>
+            <Box sx={{display: "flex"}} className="election-actions">
                 {displayBallotLocator && (
                     <StyledButton
                         sx={{marginRight: "16px"}}
