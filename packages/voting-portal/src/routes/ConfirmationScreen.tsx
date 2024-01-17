@@ -19,12 +19,14 @@ import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-ic
 import Button from "@mui/material/Button"
 import {useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
-import {useAppSelector} from "../store/hooks"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
+import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -109,10 +111,23 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const dispatch = useAppDispatch()
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
+
+    useEffect(() => {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+    }, [ballotStyle, dispatch])
 
     return (
         <ActionsContainer>
