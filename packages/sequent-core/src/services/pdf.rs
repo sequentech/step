@@ -9,31 +9,28 @@ use std::io::Write;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
-use tracing::instrument;
+use tracing::{debug, info, instrument};
 
 #[instrument(skip_all, err)]
-pub fn print_to_pdf(
+fn print_to_pdf(
     file_path: &str,
     pdf_options: PrintToPdfOptions,
     wait: Option<Duration>,
 ) -> Result<Vec<u8>> {
     let options = LaunchOptionsBuilder::default()
-        //.idle_browser_timeout(Duration::from_secs(99999999))
         .sandbox(false)
         .build()
         .expect("Default should not panic");
+
     let browser = Browser::new(options)?;
-    //browser.wait_for_initial_tab()?;
     let tab = browser.new_tab()?;
-    //tab.set_default_timeout(Duration::from_secs(99999999));
-    println!("path: {}", file_path);
+
     tab.navigate_to(file_path)?.wait_until_navigated()?;
 
     if let Some(wait) = wait {
         sleep(wait);
     }
 
-    //debug!("Using PDF options: {:?}", pdf_options);
     let bytes = tab.print_to_pdf(Some(pdf_options))?;
 
     Ok(bytes)
@@ -48,6 +45,8 @@ pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
     let file_path_str = file_path.to_str().unwrap();
     file.write_all(html.as_bytes())?;
     let url_path = format!("file://{}", file_path_str);
+
+    info!("html_to_pdf: {url_path}");
 
     print_to_pdf(
         url_path.as_str(),
@@ -69,6 +68,40 @@ pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
             prefer_css_page_size: None,
             transfer_mode: None,
         },
-        Some(Duration::new(10, 0)),
+        None,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs::{self, OpenOptions},
+        path::Path,
+    };
+
+    use super::*;
+    use anyhow::Result;
+
+    #[test]
+    fn test_pdf_generation() -> Result<()> {
+        let bytes =
+            html_to_pdf("<body><h1>Hello, world!</h1></body>".to_string())
+                .unwrap();
+
+        let file_path = Path::new("./res.pdf");
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&file_path)?;
+
+        file.write_all(&bytes)?;
+
+        assert!(bytes.len() > 0);
+        assert!(file_path.exists());
+
+        fs::remove_file(file_path)?;
+
+        Ok(())
+    }
 }

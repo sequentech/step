@@ -274,7 +274,20 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 "selectedReceipt",
                 selectedReceipt[0]["template"][selectedMethod.toLowerCase()]
             )
-            setSelectedReceipt(selectedReceipt[0]["template"][selectedMethod.toLowerCase()] ?? null)
+            if (selectedMethod === ICommunicationMethod.EMAIL) {
+                let newEmail = selectedReceipt[0]["template"][
+                    selectedMethod.toLowerCase()
+                ] as IEmail
+                setEmail(newEmail)
+            } else {
+                let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()] as string
+                var newCommunication = {...communication}
+                let a = newCommunication.i18n?.["en"]
+                if (a?.sms?.message) {
+                    a.sms.message = newSms
+                }
+                setCommunication(newCommunication)
+            }
         }
     }
 
@@ -315,11 +328,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         ICommunicationType.BALLOT_RECEIPT
     )
     const [selectedList, setSelectedList] = useState<ISendCommunicationBody[] | null>(null)
-    const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
+    /*const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
         plaintext_body: "",
         html_body: "",
-    })
+    })*/
 
     const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
         "sequent_backend_communication_template",
@@ -531,7 +544,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         {communication.communication_method === ICommunicationMethod.EMAIL &&
                             communication.i18n["en"].email && (
                                 <EmailEditor
-                                    record={selectedReceipt as IEmail}
+                                    record={communication.i18n["en"].email}
                                     setRecord={setEmail}
                                 />
                             )}
@@ -539,7 +552,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
-                                value={typeof selectedReceipt === "object" ? "" : selectedReceipt}
+                                value={communication.i18n["en"].sms?.message ?? ""}
                                 onChange={handleSmsChange}
                                 multiline={true}
                                 minRows={4}

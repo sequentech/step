@@ -15,6 +15,7 @@ use crate::hasura::tally_session_execution::{
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
+use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
@@ -448,7 +449,6 @@ async fn map_plaintext_data(
 
     if !has_next_plaintext {
         event!(Level::INFO, "Board has no new relevant plaintexs");
-        return Ok(None);
     }
 
     let initial_status = if tally_session_data
@@ -471,7 +471,7 @@ async fn map_plaintext_data(
 
     let mut logs = new_status.logs.clone();
     logs.append(&mut new_logs);
-    new_status.logs = logs;
+    new_status.logs = sort_logs(&logs);
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
