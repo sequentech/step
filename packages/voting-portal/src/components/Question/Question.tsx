@@ -108,7 +108,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
-            <CandidatesWrapper>
+            <CandidatesWrapper className="candidates-list">
                 <InvalidErrorsList
                     ballotStyle={ballotStyle}
                     question={question}

@@ -136,6 +136,7 @@ const Candidate: React.FC<CandidateProps> = ({
             hascategory={String(!!hasCategory)}
             isinvalidvote={String(!!isInvalidVote)}
             onClick={onClick}
+            className="candidate-item"
         >
             <ImageBox>{children}</ImageBox>
             <Box flexGrow={2}>
@@ -183,7 +184,9 @@ const Candidate: React.FC<CandidateProps> = ({
             ) : null}
             {isActive ? (
                 <Checkbox
-                    id={`candidate-${index}-input`}
+                    inputProps={{
+                        className: "candidate-input",
+                    }}
                     checked={checked}
                     onChange={handleChange}
                 />
