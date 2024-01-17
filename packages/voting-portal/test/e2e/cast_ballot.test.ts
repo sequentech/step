@@ -107,7 +107,8 @@ describe("cast ballot", function (this: ExtendDescribeThis<LoginThis>) {
         // navigate to end of ballot casting
         const castLabel = browser.element.findByText("Your vote has been cast")
         browser.assert.visible(castLabel)
-        // we do not puah the finish button bacause it will navigate out and cannot logout then
+
+        // we do not push the finish button bacause it will navigate out and cannot logout then
         browser.assert.visible("button.finish-button")
         // browser.assert.visible("button.finish-button").click("button.finish-button")
         // browser.pause(500)
