@@ -7,6 +7,7 @@ use board_messages::electoral_log::message::SigningData;
 use board_messages::electoral_log::newtypes::*;
 use immu_board::BoardMessage;
 use strand::backend::ristretto::RistrettoCtx;
+use strand::signature::StrandSignatureSk;
 use tracing::instrument;
 
 pub struct ElectoralLog {
@@ -25,6 +26,15 @@ impl ElectoralLog {
                 "",
                 protocol_manager.get_signing_key().clone(),
             ),
+            elog_database: elog_database.to_string(),
+        })
+    }
+
+    pub async fn new_from_sk(elog_database: &str, signing_key: &StrandSignatureSk) -> Result<Self> {
+        // let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
+
+        Ok(ElectoralLog {
+            sd: SigningData::new(signing_key.clone(), "", signing_key.clone()),
             elog_database: elog_database.to_string(),
         })
     }

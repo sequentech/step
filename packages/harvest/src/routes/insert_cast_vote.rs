@@ -4,6 +4,7 @@
 
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Context, Result};
+use board_messages::braid::message::Signer;
 use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
 use rocket::http::Status;
@@ -15,22 +16,25 @@ use sequent_core::services::keycloak;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use strand::hash::HashWrapper;
-use tracing::{event, instrument, Level};
+use tracing::{event, Level};
 use uuid::Uuid;
 use windmill::hasura;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::ElectoralLog;
+use windmill::services::protocol_manager::get_protocol_manager;
 use windmill::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::get_hasura_pool,
 };
 
 use crate::postgres;
+use board_messages::electoral_log::newtypes::*;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
-use board_messages::electoral_log::newtypes::*;
+use strand::backend::ristretto::RistrettoCtx;
+use strand::signature::StrandSignatureSk;
 
 /*
 type Mutation {
@@ -106,21 +110,33 @@ async fn try_insert_cast_vote(
 
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
+    // TODO
+    hasura_transaction
+        .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
+        .await
+        .with_context(|| "Cannot set transaction isolation level")?;
 
     // TODO
     let voter_id = "";
     let pseudonym_h = [0u8; 64];
     let vote_h = [0u8; 64];
 
-    
-
     let (auth_headers, election_event) = get_election_event(&input).await?;
-    let electoral_log = get_electoral_log(&election_event).await?;
+    let (electoral_log, signing_key) =
+        get_electoral_log(&election_event).await?;
 
     let check_status = check_status(&input, auth_headers, &election_event);
+
+    // Transaction isolation begins at this future (unless above methods are
+    // switched from hasura to direct sql)
     let check_previous_votes =
         check_previous_votes(voter_id, &input, &hasura_transaction);
-    let insert = insert(&input, voter_id, &hasura_transaction);
+
+    // TODO signature must include more information
+    let ballot_signature = signing_key.sign(input.content.as_bytes())?;
+    let ballot_signature = ballot_signature.to_bytes().to_vec();
+    let insert =
+        insert(&input, voter_id, ballot_signature, &hasura_transaction);
 
     let result = check_status
         .and_then(|_| check_previous_votes)
@@ -138,16 +154,28 @@ async fn try_insert_cast_vote(
 
     match result {
         Ok(result) => {
-            electoral_log.post_cast_vote(input.election_event_id.to_string(), Some(input.election_id.to_string()), pseudonym_h, vote_h)
-            .await
-            .with_context(|| "Error posting to the electoral log")?;
+            electoral_log
+                .post_cast_vote(
+                    input.election_event_id.to_string(),
+                    Some(input.election_id.to_string()),
+                    pseudonym_h,
+                    vote_h,
+                )
+                .await
+                .with_context(|| "Error posting to the electoral log")?;
             Ok(result)
         }
         Err(e) => {
             // TODO error message may leak implementation details
-            electoral_log.post_cast_vote_error(input.election_event_id.to_string(), Some(input.election_id.to_string()), pseudonym_h, e.to_string())
-            .await
-            .with_context(|| "Error posting to the electoral log")?;
+            electoral_log
+                .post_cast_vote_error(
+                    input.election_event_id.to_string(),
+                    Some(input.election_id.to_string()),
+                    pseudonym_h,
+                    e.to_string(),
+                )
+                .await
+                .with_context(|| "Error posting to the electoral log")?;
             Err(e)
         }
     }
@@ -155,15 +183,20 @@ async fn try_insert_cast_vote(
 
 async fn get_electoral_log(
     election_event: &GetElectionEventSequentBackendElectionEvent,
-) -> anyhow::Result<ElectoralLog> {
+) -> anyhow::Result<(ElectoralLog, StrandSignatureSk)> {
     let board_name = get_election_event_board(
         election_event.bulletin_board_reference.clone(),
     )
     .with_context(|| "missing bulletin board")?;
 
-    let electoral_log = ElectoralLog::new(board_name.as_str()).await;
+    let protocol_manager =
+        get_protocol_manager::<RistrettoCtx>(&board_name).await?;
+    let sk = protocol_manager.get_signing_key();
 
-    electoral_log
+    let electoral_log =
+        ElectoralLog::new_from_sk(board_name.as_str(), &sk).await;
+
+    Ok((electoral_log?, sk.clone()))
 }
 
 async fn get_election_event(
@@ -276,10 +309,9 @@ async fn check_previous_votes(
 async fn insert(
     input: &InsertCastVoteInput,
     voter_id: &str,
+    ballot_signature: Vec<u8>,
     hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<InsertCastVoteOutput> {
-    // TODO
-    let signature = vec![];
     let (id, created_at) = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
         &input.tenant_id,
@@ -289,14 +321,14 @@ async fn insert(
         &input.content,
         voter_id,
         &input.ballot_id,
-        &signature,
+        &ballot_signature,
     )
     .await?;
 
     let ret = InsertCastVoteOutput {
         id: id.to_string(),
         created_at: created_at,
-        cast_ballot_signature: signature,
+        cast_ballot_signature: ballot_signature,
     };
 
     Ok(ret)

@@ -50,13 +50,13 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => 
+                    Some(token) => {
                         if let Ok(jwt) = decode_jwt(token) {
                             Outcome::Success(jwt)
-                        }
-                        else {
+                        } else {
                             Outcome::Error((Status::Unauthorized, ()))
-                        },
+                        }
+                    }
                     None => Outcome::Error((Status::Unauthorized, ())),
                 }
             }

@@ -19,7 +19,7 @@ pub async fn insert_cast_vote(
     content: &str,
     voter_id_string: &str,
     ballot_id: &str,
-    cast_ballot_signature: &Vec<u8>,
+    cast_ballot_signature: &[u8],
 ) -> Result<(Uuid, DateTime<Utc>)> {
     let statement = hasura_transaction
         .prepare(
