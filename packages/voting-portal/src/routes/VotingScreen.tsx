@@ -190,7 +190,9 @@ const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box className="selected-election-title">{translateElection(election, "name", i18n.language) || ""}</Box>
+                <Box className="selected-election-title">
+                    {translateElection(election, "name", i18n.language) || ""}
+                </Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}

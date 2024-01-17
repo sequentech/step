@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { PropsWithChildren, ReactNode } from "react"
+import React, {PropsWithChildren, ReactNode} from "react"
 import {Box} from "@mui/material"
 // import Image from "mui-image"
 // import CandidateImg from "../../../../public/example_candidate.jpg"
-import {
-    Candidate
-} from "@sequentech/ui-essentials"
+import {Candidate} from "@sequentech/ui-essentials"
 import {fireEvent, within} from "@testing-library/react"
 
 export interface CandidateProps extends PropsWithChildren {
@@ -53,7 +51,6 @@ export default meta
 //             await expect(component).to.have.text("Micky Mouse");
 //         }
 //     })
-
 
 // export const ReadOnly: any = {
 //     args: {
