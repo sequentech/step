@@ -203,7 +203,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             isactive={String(!!isActive)}
             role="button"
             tabIndex={0}
-            className="election-card"
+            className="election-item"
         >
             <TextContainer className="election-info">
                 <StyledTitle className="election-title">{title}</StyledTitle>
