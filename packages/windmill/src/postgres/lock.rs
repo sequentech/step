@@ -55,7 +55,11 @@ pub async fn upsert_lock(
         .map_err(|err| anyhow!("Error running query: {}", err))?;
 
     if 1 == rows.len() {
-        rows[0].try_into()
+        let mut locks = rows
+            .into_iter()
+            .map(|row| -> Result<PgLock> { row.try_into() })
+            .collect::<Result<Vec<PgLock>>>()?;
+        Ok(locks.remove(0))
     } else {
         Err(anyhow!("Couldn't upsert lock"))
     }
