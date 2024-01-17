@@ -102,6 +102,7 @@ export default function Header({
                             {userProfile && (
                                 <div>
                                     <IconButton
+                                        className="profile-menu-button"
                                         size="large"
                                         aria-label="account of current user"
                                         aria-controls="menu-appbar"
