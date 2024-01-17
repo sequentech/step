@@ -144,7 +144,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                     href="https://sequentech.io"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton className="finish-button" sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
                 </ActionLink>
