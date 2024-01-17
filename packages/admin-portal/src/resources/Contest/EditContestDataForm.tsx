@@ -330,33 +330,6 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
-    const BoundedTextField = (props: any) => {
-        const {...rest} = props
-
-        const {
-            field,
-            fieldState: {isTouched, invalid, error},
-            formState: {isSubmitted},
-            isRequired,
-        } = useInput({
-            source: "candidateOrder",
-            onChange() {
-                console.log("change")
-            },
-            ...rest,
-        })
-        console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:324 -> invalid: ", invalid)
-        console.log("LS -> src/resources/Contest/EditContestDataForm.tsx:326 -> field: ", field)
-
-        return (
-            <>
-                tata
-                <Candidates list={candidates ?? []}></Candidates>
-                titi
-            </>
-        )
-    }
-
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -364,6 +337,7 @@ export const ContestDataForm: React.FC = () => {
                 console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm
+                        defaultValues={{candidatesOrder: candidates ?? []}}
                         validate={formValidator}
                         record={parsedValue}
                         toolbar={
@@ -466,7 +440,7 @@ export const ContestDataForm: React.FC = () => {
                                                 {
                                                     // <BoundedTextField />
                                                 }
-                                                <Candidates list={candidates ?? []}></Candidates>
+                                                <Candidates source="candidatesOrder"></Candidates>
                                             </CandidateRows>
                                         ) : null
                                     }}
