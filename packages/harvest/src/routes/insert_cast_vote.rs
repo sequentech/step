@@ -75,6 +75,7 @@ pub struct InsertCastVoteInput {
     election_id: Uuid,
     election_event_id: Uuid,
     tenant_id: Uuid,
+    // TODO the area_id must not come from here
     area_id: Uuid,
     content: String,
 }
@@ -110,13 +111,13 @@ async fn try_insert_cast_vote(
 
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
-    // TODO
+    // TODO performance of serializable
     hasura_transaction
         .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
         .await
         .with_context(|| "Cannot set transaction isolation level")?;
 
-    // TODO
+    // TODO get the voter id from somewhere
     let voter_id = "";
     let pseudonym_h = [0u8; 64];
     let vote_h = [0u8; 64];
@@ -275,12 +276,15 @@ async fn check_previous_votes(
 ) -> anyhow::Result<()> {
     // TODO
     let max_revotes = 1;
+    // TODO derive area_id from voter id
+    // let area_id = ..
 
     let result = postgres::cast_vote::get_cast_votes(
         &hasura_transaction,
         &input.tenant_id,
         &input.election_event_id,
         &input.election_id,
+        // TODO get the area_id derived from voter
         &input.area_id,
         voter_id_string,
     )
