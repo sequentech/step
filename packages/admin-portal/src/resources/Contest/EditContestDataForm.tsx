@@ -46,7 +46,7 @@ import styled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {DropFile} from "@sequentech/ui-essentials"
-import {COUNTING_ALGORITHMS, ORDER_ANSWERS, VOTING_TYPES} from "./constants"
+import {ICountingAlgorithm, IOrderAnswer, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
@@ -87,6 +87,40 @@ export const ContestDataForm: React.FC = () => {
     const {data: candidates} = useGetList("sequent_backend_candidate", {
         filter: {contest_id: record.id},
     })
+
+    const [update] = useUpdate(
+        "sequent_backend_candidate",
+        {id: candidate?.id, data: candidate},
+        {onSuccess: () => refetch()}
+    )
+
+    useEffect(() => {
+        if (candidates) {
+            console.log("candidates :>> ", candidates)
+            setCandidatesList(candidates)
+        }
+    }, [candidates])
+
+    const votingTypesChoices = () => {
+        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const countingAlgorithmChoices = () => {
+        return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const orderAnswerChoices = () => {
+        return (Object.values(IOrderAnswer) as IOrderAnswer[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
@@ -185,12 +219,13 @@ export const ContestDataForm: React.FC = () => {
             temp.presentation.i18n.en.description = temp.description
 
             // defaults
-            temp.voting_type = temp.voting_type || "no-preferential"
-            temp.counting_algorithm = temp.counting_algorithm || "plurality-at-large"
+            temp.voting_type = temp.voting_type || IVotingType.NON_PREFERENTIAL
+            temp.counting_algorithm =
+                temp.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
             temp.min_votes = temp.min_votes || 0
             temp.max_votes = temp.max_votes // || 1
             temp.winning_candidates_num = temp.winning_candidates_num // || 1
-            temp.order_answers = temp.order_answers || "alphabetical"
+            temp.order_answers = temp.order_answers || IOrderAnswer.ALPHABETICAL
 
             return temp
         },
@@ -395,12 +430,12 @@ export const ContestDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <SelectInput
                                     source="voting_type"
-                                    choices={VOTING_TYPES(t)}
+                                    choices={votingTypesChoices()}
                                     validate={required()}
                                 />
                                 <SelectInput
                                     source="counting_algorithm"
-                                    choices={COUNTING_ALGORITHMS(t)}
+                                    choices={countingAlgorithmChoices()}
                                     validate={required()}
                                 />
                             </AccordionDetails>
@@ -427,7 +462,7 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="order_answers"
-                                    choices={ORDER_ANSWERS(t)}
+                                    choices={orderAnswerChoices()}
                                     validate={required()}
                                 />
 

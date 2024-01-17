@@ -143,10 +143,15 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
+                deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
+            empty: {
+                header: "No hay Áreas aún.",
+                action: "Crear un Área",
+            },
         },
         electionTypeScreen: {
             common: {
@@ -642,9 +647,9 @@ const spanishTranslation: TranslationType = {
                 description: "Descripción",
             },
             options: {
-                "no-preferential": "Sin Preferencia",
+                "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
-                "random-asnwers": "Respuestas Aleatorias",
+                "random-answers": "Respuestas Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
@@ -884,16 +889,30 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
+            method: "Método de Comunicación",
+            type: "Tipo de Comunicación",
+            alias: "Alias de la Plantilla",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
                 SELECTED: "A {{total}} Votantes seleccionados",
             },
+            path: {
+                users: "usuarios",
+                voters: "votantes",
+            },
             methodTitle: "Método de Comunicación",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+            },
+            communicationType: {
+                CREDENTIALS: "Credenciales",
+                BALLOT_RECEIPT: "Comprobante de Votación",
+                PARTICIPATION_REPORT: "Informe de Participación",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                OTP: "OTP",
             },
             email: {
                 subject: "Subject",

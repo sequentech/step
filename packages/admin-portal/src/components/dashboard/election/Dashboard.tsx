@@ -16,7 +16,7 @@ import {CastVotesPerDay, GetElectionStatsQuery, Sequent_Backend_Election} from "
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
-import {IElectionStatistics} from "@/types/CoreTypes"
+import {IElectionStatistics} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const Container = styled(Box)`

@@ -113,7 +113,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote ? onClickToVote : undefined}
-            onClickElectionResults={() => undefined}
             onClickBallotLocator={handleClickBallotLocator}
         />
     )
