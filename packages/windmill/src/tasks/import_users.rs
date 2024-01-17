@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::get_election_event;
+use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
-use crate::services::database::get_keycloak_pool;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::s3;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -19,11 +20,12 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Seek;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
 
 lazy_static! {
     static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
@@ -80,7 +82,7 @@ impl ImportUsersBody {
      *  - last_name: string. Example: "Doe"
      *  - username: string. Example: "johndoe"
      *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
-     *  - area-id: string. Example "7c16620c-42aa-4129-c834-1d43b5ee012a"
+     *  - area-name: string. Example "Area 52"
      *  
      */
     fn get_copy_from_query(
@@ -91,11 +93,19 @@ impl ImportUsersBody {
 
         let temp_table_name = format!("temp_voters_{}", random_number);
 
+        let column_names = headers
+            .iter()
+            .map(|column_name| match column_name {
+                "area-name" => "area-id".to_string(),
+                _ => column_name.to_string(),
+            })
+            .collect::<Vec<String>>();
+
         // Create the table creation query
         let create_table_query = format!(
             "CREATE TEMP TABLE {} ({});",
             temp_table_name,
-            headers
+            column_names
                 .iter()
                 .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
                 .collect::<Vec<String>>()
@@ -105,10 +115,6 @@ impl ImportUsersBody {
         // Create the COPY FROM STDIN query
         let copy_from_query = format!("COPY {} FROM STDIN BINARY;", temp_table_name);
 
-        let column_names = headers
-            .iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>();
         let column_types = headers
             .iter()
             .map(|_column_name| Type::VARCHAR)
@@ -134,7 +140,7 @@ impl ImportUsersBody {
         &self,
         realm_id: String,
         voters_table: String,
-        voters_table_columns: Vec<String>,
+        voters_table_columns: &Vec<String>,
     ) -> anyhow::Result<String> {
         // Build the INSERT query for user_entity
         let user_entity_columns = vec![
@@ -159,10 +165,12 @@ impl ImportUsersBody {
         let user_entity_query = format!(
             r#"INSERT INTO user_entity (
                     realm_id,
+                    email_verified,
                     {}
                 )
                 SELECT
                     '{realm_id}',
+                    true,
                     {}
                 FROM
                     {}
@@ -174,6 +182,7 @@ impl ImportUsersBody {
 
         // Assuming all other columns are user attributes
         let user_attributes = voters_table_columns
+            .clone()
             .into_iter()
             .filter(|col| !user_entity_columns.contains(&col.as_str()))
             .collect::<Vec<String>>();
@@ -235,7 +244,7 @@ impl ImportUsersBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials()
         .await
@@ -260,20 +269,29 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         }
     };
 
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
         .map_err(|err| anyhow!("Error getting keycloak db pool: {err}"))?;
 
-    // we'll perform insert in a single transaction. It either works or it
-    // doesn't
-    info!("before transaction");
+    // we'll perform insert in a single keycloaktransaction. It either works or
+    // it doesn't
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting keycloak transaction: {err}"))?;
-    info!("before isolation");
 
     keycloak_transaction
         .simple_query(
@@ -284,6 +302,19 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
     info!("after isolation");
+
+    let areas_map = match body.election_event_id {
+        Some(ref election_event_id) => Some(
+            get_areas_by_name(
+                &hasura_transaction,
+                body.tenant_id.as_str(),
+                election_event_id.as_str(),
+            )
+            .await
+            .with_context(|| "error retrieving areas")?,
+        ),
+        None => None,
+    };
 
     let mut voters_file = body
         .get_s3_document_as_temp_file()
@@ -329,7 +360,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .with_context(|| "Error obtaining realm id")?;
 
     let insert_user_query = body
-        .get_insert_user_query(realm_id, voters_table, voters_table_columns_names)
+        .get_insert_user_query(realm_id, voters_table, &voters_table_columns_names)
         .with_context(|| "Error obtaining insert_user_query query")?;
 
     // Execute the create table query
@@ -342,7 +373,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     let sink = keycloak_transaction
         .copy_in(copy_from_query.as_str())
         .await
-        .with_context(|| "Error preparing COPY IN transaction")?;
+        .with_context(|| "Error preparing COPY transaction")?;
     let writer = BinaryCopyInWriter::new(sink, &voters_table_columns_types);
     pin_mut!(writer);
 
@@ -353,8 +384,18 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         let record = result.with_context(|| "Error reading CSV record")?;
         owned_data.clear(); // Clear previously stored data
 
-        for data in record.iter() {
-            owned_data.push(data.to_string()); // Store owned data
+        // Store owned data, and process it
+        for (data, column_name) in record.iter().zip(voters_table_columns_names.iter()) {
+            let processed_data = match column_name.as_str() {
+                "area-id" => areas_map
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("Using area-id without providing election-event-id"))?
+                    .get(data)
+                    .ok_or_else(|| anyhow!("Area not found by name=`{data}`"))?
+                    .to_string(),
+                _ => data.to_string(),
+            };
+            owned_data.push(processed_data);
         }
         info!("owned_data: {owned_data:?}");
 

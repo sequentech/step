@@ -10,21 +10,22 @@ use tracing::instrument;
 use uuid::Uuid;
 
 /**
- * Returns the count of areas per election event
+ * Returns a vector of areas per election event, with the posibility of
+ * filtering by area_id
  */
-#[instrument(skip(transaction), err)]
-pub async fn get_areas_by_ids(
-    transaction: &Transaction<'_>,
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_ids: Vec<String>,
+    area_ids: &Vec<String>,
 ) -> Result<Vec<UserArea>> {
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
         .map(|id| Uuid::parse_str(id))
         .collect::<Result<Vec<Uuid>, uuid::Error>>()
         .with_context(|| "Error parsing as uuids the area_ids")?;
-    let total_areas_statement = transaction
+    let total_areas_statement = hasura_transaction
         .prepare(
             r#"
             SELECT
@@ -34,12 +35,12 @@ pub async fn get_areas_by_ids(
             WHERE
                 a.tenant_id = $1 AND
                 a.election_event_id = $2 AND
-                id = any($3);
+                a.id = ANY($3);
             "#,
         )
         .await?;
 
-    let rows: Vec<Row> = transaction
+    let rows: Vec<Row> = hasura_transaction
         .query(
             &total_areas_statement,
             &[
@@ -72,16 +73,66 @@ pub async fn get_areas_by_ids(
 }
 
 /**
+ * Returns a map of areas per election event by name
+ */
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas_by_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, String>> {
+    let total_areas_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                id, name
+            FROM
+                sequent_backend.area a
+            WHERE
+                a.tenant_id = $1 AND
+                a.election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &total_areas_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let areas_map: HashMap<String, String> = rows
+        .iter()
+        .map(|row| {
+            let area_id: Uuid = row
+                .try_get("id")
+                .with_context(|| "Error getting id from row")?;
+
+            let area_name: String = row
+                .try_get("name")
+                .with_context(|| "Error getting name from row")?;
+
+            Ok((area_name, area_id.to_string()))
+        })
+        .collect::<Result<HashMap<String, String>>>()?;
+    Ok(areas_map)
+}
+
+/**
  * Returns a hash map with the list of elections (Vec<String> value) associated
  * with each area (String key).
  */
-#[instrument(skip(transaction), err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_by_area(
-    transaction: &Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, Vec<String>>> {
-    let total_areas_statement = transaction
+    let total_areas_statement = hasura_transaction
         .prepare(
             r#"
             SELECT
@@ -106,7 +157,7 @@ pub async fn get_elections_by_area(
         )
         .await?;
 
-    let rows: Vec<Row> = transaction
+    let rows: Vec<Row> = hasura_transaction
         .query(
             &total_areas_statement,
             &[
