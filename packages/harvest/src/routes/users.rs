@@ -59,11 +59,11 @@ pub async fn delete_user(
     };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("Error obtaining the client: {:?}", e)))?;
     client
         .delete_user(&realm, &input.user_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("Error deleting the user: {:?}", e)))?;
     Ok(Json(Default::default()))
 }
 

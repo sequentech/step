@@ -335,7 +335,7 @@ impl ImportUsersBody {
                         gen_random_uuid(),
                         'password',
                         pc.id,
-                        current_timestamp(),
+                        (extract(epoch from now()) * 1000)::bigint,
                         'My password',
                         json_build_object(
                             'value', encode(
@@ -349,12 +349,12 @@ impl ImportUsersBody {
                                 'base64'
                             ),
                             'salt', encode(pc.salt, 'base64')
-                        ),
+                        )::text,
                         json_build_object(
                             'hashIterations', 27500,
                             'algorithm', 'pbkdf2-sha256',
                             'additionalParameters', ''
-                        ),
+                        )::text,
                         10
                     FROM pre_credentials pc
                 )
