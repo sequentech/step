@@ -5,9 +5,17 @@
 
   <testsuite name="e2e.create_election_event.test"
     errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="7.314" timestamp="">
+    tests="1" time="25.09" timestamp="">
   
-    <testcase name="create an election event" classname="e2e.create_election_event.test" time="0.9900" assertions="2">
+    <testcase name="create an election event" classname="e2e.create_election_event.test" time="10.04" assertions="6">
+
+    
+
+    
+
+    
+
+    
 
     
 
