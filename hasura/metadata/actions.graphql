@@ -50,14 +50,6 @@ type Mutation {
 }
 
 type Mutation {
-  import_users (
-    tenant_id: String!
-    election_event_id: String
-    document_id: String!
-  ): OptionalId
-}
-
-type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -176,6 +168,14 @@ type Query {
 }
 
 type Mutation {
+  import_users (
+    tenant_id: String!
+    election_event_id: String
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
   insertElectionEvent (
     object: CreateElectionEventInput!
   ): CreateElectionEventOutput
@@ -185,6 +185,14 @@ type Mutation {
   insertTenant (
     slug: String!
   ): InsertTenantOutput
+}
+
+type Mutation {
+  insert_cast_vote (
+    election_id: uuid!
+    ballot_id: String!
+    content: String!
+  ): InsertCastVoteOutput
 }
 
 type Query {
@@ -703,5 +711,10 @@ type RestorePrivateKeyOutput {
 
 type PublishTallyOutput {
   tally_sheet_id : uuid
+}
+
+type InsertCastVoteOutput {
+  created_at : timestamptz!
+  cast_ballot_signature : bytea!
 }
 
