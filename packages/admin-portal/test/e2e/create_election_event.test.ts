@@ -68,13 +68,13 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .assert.visible("input[name=description]")
             .sendKeys("input[name=description]", "this is a test election description")
             .assert.enabled(`button.election-save-button`)
-            .click("button.election-event-save-button")
+            .click("button.election-save-button")
             .pause(5000)
             .assert.visible(`a[title='this is a test election name']`)
     })
 
     it("create a contest", async (browser: NightwatchAPI) => {
-        browser.assert.urlContains("sequent_backend_election_event")
+        browser.assert.urlContains("sequent_backend_election")
         browser.assert
             .visible(`a.${this.contestLink!}`)
             .click(`a.${this.contestLink!}`)
@@ -84,12 +84,12 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .sendKeys("input[name=description]", "this is a test contest description")
             .assert.enabled(`button.contest-save-button`)
             .click("button.contest-save-button")
-            .pause(5000)
+            .pause(1000)
             .assert.visible(`a[title='this is a test contest name']`)
     })
 
-    it("create an election event", async (browser: NightwatchAPI) => {
-        browser.assert.urlContains("sequent_backend_election_event")
+    it("create a candidate one", async (browser: NightwatchAPI) => {
+        browser.assert.urlContains("sequent_backend_contest")
         browser.assert
             .visible(`a.${this.candidateLink!}`)
             .click(`a.${this.candidateLink!}`)
@@ -99,12 +99,12 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .sendKeys("input[name=description]", "this is candidate one description")
             .assert.enabled(`button.candidate-save-button`)
             .click("button.candidate-save-button")
-            .pause(5000)
+            .pause(1000)
             .assert.visible(`a[title='this is candidate one name']`)
     })
 
-    it("create an election event", async (browser: NightwatchAPI) => {
-        browser.assert.urlContains("sequent_backend_election_event")
+    it("create a candidate two", async (browser: NightwatchAPI) => {
+        browser.assert.urlContains("sequent_backend_candidate")
         browser.assert
             .visible(`a.${this.candidateLink!}`)
             .click(`a.${this.candidateLink!}`)
@@ -114,7 +114,7 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .sendKeys("input[name=description]", "this is candidate two description")
             .assert.enabled(`button.candidate-save-button`)
             .click("button.candidate-save-button")
-            .pause(5000)
+            .pause(1000)
             .assert.visible(`a[title='this is candidate two name']`)
     })
 })
