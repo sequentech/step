@@ -12,6 +12,8 @@ import {
     ReferenceInput,
     Create,
     useRedirect,
+    Toolbar,
+    SaveButton,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
@@ -46,7 +48,13 @@ export const CreateCandidate: React.FC = () => {
                 },
             }}
         >
-            <SimpleForm>
+            <SimpleForm
+                toolbar={
+                    <Toolbar>
+                        <SaveButton className="candidate-save-button" />
+                    </Toolbar>
+                }
+            >
                 <Typography variant="h4">{t("common.resources.candidate")}</Typography>
                 <Typography variant="body2">{t("createResource.candidate")}</Typography>
                 <TextInput source="name" />
