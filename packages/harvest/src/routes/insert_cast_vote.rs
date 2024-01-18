@@ -4,7 +4,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::authorize_voter;
+use crate::postgres;
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Signer;
 use deadpool_postgres::Transaction;
@@ -15,7 +16,7 @@ use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
-use sequent_core::types::permissions::Permissions;
+use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
 use strand::hash::HashWrapper;
 use tracing::{event, Level};
@@ -28,8 +29,6 @@ use windmill::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::get_hasura_pool,
 };
-
-use crate::postgres;
 use board_messages::electoral_log::newtypes::*;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
@@ -37,48 +36,12 @@ use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
-
-/*
-type Mutation {
-  """
-  insertCastVote
-  """
-  InsertCastVote(
-    id: uuid
-    ballot_id: String!
-    election_id: uuid
-    election_event_id: uuid
-    tenant_id: uuid
-    area_id: uuid
-    content: String!
-  ): InsertCastVoteOutput
-}
-
-type InsertCastVoteOutput {
-  id: uuid!
-  created_at: timestamptz!
-  cast_ballot_signature: bytea!
-}
-*/
-
-/*
-mutation insertCastVote {
-  InsertCastVote(ballot_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21", content: "content", tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5", election_event_id: "33f18502-a67c-4853-8333-a58630663559", election_id: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55", area_id:"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21") {
-  cast_ballot_signature,
-  created_at,
-  id,
-  }
-}
-*/
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InsertCastVoteInput {
     ballot_id: String,
     election_id: Uuid,
-    election_event_id: Uuid,
-    tenant_id: Uuid,
-    // TODO the area_id must not come from here
-    area_id: Uuid,
     content: String,
 }
 
@@ -89,15 +52,15 @@ pub struct InsertCastVoteOutput {
     cast_ballot_signature: Vec<u8>,
 }
 
-// #[instrument(skip(claims))]
+#[instrument(skip(claims))]
 #[post("/insert-cast-vote", format = "json", data = "<body>")]
 pub async fn insert_cast_vote(
-    body: Json<InsertCastVoteInput>, // TODO claims: JwtClaims,
+    body: Json<InsertCastVoteInput>,
+    claims: JwtClaims,
 ) -> Result<Json<InsertCastVoteOutput>, (Status, String)> {
-    // TODO
-    // authorize(&claims, true, None, vec![Permissions::XXX])?;
+    authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
 
-    let result = try_insert_cast_vote(body).await.map_err(|e| {
+    let result = try_insert_cast_vote(body, &claims.hasura_claims.tenant_id, &claims.hasura_claims.user_id).await.map_err(|e| {
         (
             Status::InternalServerError,
             format!("Error inserting vote: {:?}", e),
@@ -108,6 +71,8 @@ pub async fn insert_cast_vote(
 
 async fn try_insert_cast_vote(
     body: Json<InsertCastVoteInput>,
+    tenant_id: &str,
+    user_id: &str,
 ) -> anyhow::Result<InsertCastVoteOutput> {
     let input = body.into_inner();
 

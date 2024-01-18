@@ -116,3 +116,12 @@ pub enum Permissions {
     #[strum(serialize = "tally-sheet-delete")]
     TALLY_SHEET_DELETE,
 }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+pub enum VoterPermissions {
+    #[strum(serialize = "cast-vote")]
+    CAST_VOTE,
+}
