@@ -332,12 +332,17 @@ export const ContestDataForm: React.FC = () => {
     const [update] = useUpdate()
 
     function onSubmit(data: FieldValues) {
-        candidates?.map((c, index) => {
+        data.candidatesOrder?.map((c: Sequent_Backend_Candidate, index: number) => {
             return update("sequent_backend_candidate", {
                 id: c.id,
                 data: {order: index},
+                previousData: c,
             })
         })
+        console.log(
+            "LS -> src/resources/Contest/EditContestDataForm.tsx:340 -> data.candidatesOrder: ",
+            data.candidatesOrder
+        )
         save!(data)
     }
 
