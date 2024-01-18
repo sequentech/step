@@ -5,6 +5,10 @@ interface LoginThis {
     username: string
     password: string
     submitButton: string
+    electionEventLink: string
+    electionLink: string
+    contestLink: string
+    candidateLink: string
 }
 
 // eslint-disable-next-line jest/valid-describe-callback
@@ -14,14 +18,19 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
 
+    this.electionEventLink = "sequent_backend_election_event"
+    this.electionLink = "sequent_backend_election"
+    this.contestLink = "sequent_backend_contest"
+    this.candidateLink = "sequent_backend_candidate"
+
     before(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser.navigateTo(this.testUrl!)
         // perform login
         browser
             .waitForElementVisible(this.username!)
             .waitForElementVisible(this.password!)
-            .sendKeys(this.username!, "felix")
-            .sendKeys(this.password!, "felix")
+            .sendKeys(this.username!, "admin")
+            .sendKeys(this.password!, "admin")
             .click(this.submitButton!)
             .pause(1000)
     })
@@ -37,7 +46,14 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     it("create an election event", async (browser: NightwatchAPI) => {
         browser.assert.urlContains("sequent_backend_election_event")
         browser.assert
-            .visible("button.election-event-create-button")
-            .click("button.election-event-create-button")
+            .visible("a.election-event-create-button")
+            .click("a.election-event-create-button")
+            .assert.visible("input[name=name]")
+            .sendKeys("input[name=name]", "this is a test election event name")
+            .assert.visible("input[name=description]")
+            .sendKeys("input[name=description]", "this is a test election event description")
+            .assert.enabled(`link.${this.electionEventLink!}`)
+            .click(`link.${this.electionEventLink!}`)
+            .pause(2000)
     })
 })
