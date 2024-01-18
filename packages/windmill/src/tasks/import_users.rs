@@ -61,7 +61,7 @@ impl ImportUsersBody {
 
     fn create_temp_password_function_statement(&self) -> String {
         let password_func_statement = r#"
-            CREATE FUNCTION pg_temp.pbkdf2
+            CREATE OR REPLACE FUNCTION pg_temp.pbkdf2
                 (salt bytea, pw text, count integer, desired_length integer, algorithm text)
                 returns bytea
                 immutable
@@ -307,19 +307,19 @@ impl ImportUsersBody {
         // Inserts password credentials if need be
         let credentials_query = if voters_table_columns.contains(&"password".to_string()) {
             format!(
-                r#"
-                WITH pre_credentials AS (
+                r#",
+                pre_credentials AS (
                     SELECT
                         random()::text::bytea AS salt,
                         nu.id AS id,
-                        v.password AS pasword
+                        v.password AS password
                     FROM
                         {voters_table} v
                     JOIN
                         new_user nu ON
                             nu.username = v.username
-                )
-                WITH credentials AS (
+                ),
+                credentials AS (
                     INSERT 
                     INTO credential (
                         id,
@@ -335,7 +335,7 @@ impl ImportUsersBody {
                         gen_random_uuid(),
                         'password',
                         pc.id,
-                        now(),
+                        current_timestamp(),
                         'My password',
                         json_build_object(
                             'value', encode(
@@ -356,7 +356,6 @@ impl ImportUsersBody {
                             'additionalParameters', ''
                         ),
                         10
-                    )
                     FROM pre_credentials pc
                 )
                 "#
@@ -367,10 +366,11 @@ impl ImportUsersBody {
 
         Ok(format!(
             r#"
-            WITH new_user AS (
-                {user_entity_query}
-            )
-            {credentials_query}
+            WITH 
+                new_user AS (
+                    {user_entity_query}
+                )
+                {credentials_query}
             {user_attribute_query};
             "#
         ))
