@@ -1,13 +1,4 @@
 type Mutation {
-  InsertCastVote (
-    id: uuid
-    election_id: uuid!
-    ballot_id: String!
-    content: String!
-  ): InsertCastVoteOutput
-}
-
-type Mutation {
   check_private_key (
     object: CheckPrivateKeyInput!
   ): CheckPrivateKeyOutput
@@ -56,6 +47,14 @@ type Mutation {
     election_event_id: String
     user: KeycloakUser2!
   ): KeycloakUser!
+}
+
+type Mutation {
+  import_users (
+    tenant_id: String!
+    election_event_id: String
+    document_id: String!
+  ): OptionalId
 }
 
 type Mutation {
@@ -174,14 +173,6 @@ type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
-}
-
-type Mutation {
-  import_users (
-    tenant_id: String!
-    election_event_id: String
-    document_id: String!
-  ): OptionalId
 }
 
 type Mutation {
@@ -712,11 +703,5 @@ type RestorePrivateKeyOutput {
 
 type PublishTallyOutput {
   tally_sheet_id : uuid
-}
-
-type InsertCastVoteOutput {
-  id : uuid!
-  created_at : timestamptz!
-  cast_ballot_signature : bytea!
 }
 
