@@ -3,29 +3,11 @@
             failures="0"
             tests="1">
 
-  <testsuite name="e2e.cast_ballot.test"
+  <testsuite name="e2e.login.test"
     errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="13.89" timestamp="">
+    tests="1" time="9.017" timestamp="">
   
-    <testcase name="should cast a ballot" classname="e2e.cast_ballot.test" time="6.943" assertions="15">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
+    <testcase name="should be able to login" classname="e2e.login.test" time="3.222" assertions="6">
 
     
 
