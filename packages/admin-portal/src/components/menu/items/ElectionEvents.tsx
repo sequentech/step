@@ -22,6 +22,8 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
+import {OrderAnswer} from "@/resources/Contest/constants"
+import {cloneDeep} from "lodash"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -61,12 +63,14 @@ export type CandidateType = BaseType & {
     __typename: "sequent_backend_candidate"
     election_event_id: string
     contest_id: string
+    order: number
 }
 
 export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
     election_event_id: string
     election_id: string
+    order_answers: OrderAnswer
     candidates: Array<CandidateType>
 }
 
@@ -147,6 +151,30 @@ export default function ElectionEvents() {
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+    }
+
+    resultData = {
+        electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+            (electionEvent: ElectionEventType) => {
+                return {
+                    ...electionEvent,
+                    elections: electionEvent.elections.map((election) => {
+                        return {
+                            ...election,
+                            contests: election.contests.map((contest) => {
+                                let orderType = contest.order_answers
+
+                                if (orderType === OrderAnswer.CUSTOM) {
+                                    contest.candidates.sort((a, b) => a.order - b.order)
+                                }
+
+                                return contest
+                            }),
+                        }
+                    }),
+                }
+            }
+        ),
     }
 
     const treeMenu = loading ? (
