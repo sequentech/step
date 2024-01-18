@@ -39,7 +39,7 @@ export default function CandidatesInput({source}: {source: string}) {
         reorderedItems.splice(dropIndex, 0, reorderedItem)
 
         setCandidates(reorderedItems)
-        onChange(reorderedItems.map((c) => c?.id ?? null).filter((c) => !!c)) // update the form value
+        onChange(reorderedItems) // update the form value
 
         onDragEnd()
     }

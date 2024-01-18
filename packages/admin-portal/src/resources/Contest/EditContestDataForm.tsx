@@ -18,6 +18,7 @@ import {
     RaRecord,
     Identifier,
     RecordContext,
+    useEditController,
 } from "react-admin"
 import {
     Accordion,
@@ -35,6 +36,7 @@ import {
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
+import {FieldValues, SubmitHandler} from "react-hook-form"
 import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
@@ -210,16 +212,6 @@ export const ContestDataForm: React.FC = () => {
             temp.winning_candidates_num = temp.winning_candidates_num // || 1
             temp.order_answers = temp.order_answers || IOrderAnswer.ALPHABETICAL
 
-            // TODO: check data from hasura
-            if (temp.candidatesOrder === undefined) {
-                temp.candidatesOrder = candidates?.map((c) => c.id) ?? []
-            } else {
-                temp.candidatesOrder =
-                    temp.candidatesOrder
-                        ?.map((id: string) => candidates?.find((c) => c.id === id) ?? null)
-                        .filter((c: Sequent_Backend_Candidate) => !!c) ?? []
-            }
-
             return temp
         },
         [data]
@@ -336,6 +328,19 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
+    const {save} = useEditController()
+    const [update] = useUpdate()
+
+    function onSubmit(data: FieldValues) {
+        candidates?.map((c, index) => {
+            return update("sequent_backend_candidate", {
+                id: c.id,
+                data: {order: index},
+            })
+        })
+        save!(data)
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -351,6 +356,7 @@ export const ContestDataForm: React.FC = () => {
                                 <SaveButton />
                             </Toolbar>
                         }
+                        onSubmit={(data) => onSubmit(data)}
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -418,6 +424,7 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 {
+                                    // TODO: uncomment this
                                     // <BooleanInput source="is_acclaimed" />
                                     // <NumberInput source="min_votes" min={0} />
                                     // <NumberInput source="max_votes" min={0} />
