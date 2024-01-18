@@ -69,7 +69,7 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .sendKeys("input[name=description]", "this is a test election description")
             .assert.enabled(`button.election-save-button`)
             .click("button.election-save-button")
-            .pause(5000)
+            .pause(1000)
             .assert.visible(`a[title='this is a test election name']`)
     })
 
@@ -116,5 +116,87 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .click("button.candidate-save-button")
             .pause(1000)
             .assert.visible(`a[title='this is candidate two name']`)
+    })
+
+    it("delete candidate one", async (browser: NightwatchAPI) => {
+        // browser.debug()
+        const menu = await browser
+            .element(
+                `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.assert
+            .visible(`li.menu-action-delete-${this.candidateLink!}`)
+            .click(`li.menu-action-delete-${this.candidateLink!}`)
+            .assert.enabled(`button.ok-button`)
+            .click("button.ok-button")
+            .pause(1000)
+            .assert.not.elementPresent(`a[title='this is candidate one name']`)
+    })
+    it("delete candidate two", async (browser: NightwatchAPI) => {
+        // browser.debug()
+        const menu = await browser
+            .element(
+                `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.assert
+            .visible(`li.menu-action-delete-${this.candidateLink!}`)
+            .click(`li.menu-action-delete-${this.candidateLink!}`)
+            .assert.enabled(`button.ok-button`)
+            .click("button.ok-button")
+            .pause(1000)
+            .assert.not.elementPresent(`a[title='this is candidate two name']`)
+    })
+    it("delete contest", async (browser: NightwatchAPI) => {
+        // browser.debug()
+        const menu = await browser
+            .element(
+                `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.assert
+            .visible(`li.menu-action-delete-${this.contestLink!}`)
+            .click(`li.menu-action-delete-${this.contestLink!}`)
+            .assert.enabled(`button.ok-button`)
+            .click("button.ok-button")
+            .pause(1000)
+            .assert.not.elementPresent(`a[title='this is a test contest name`)
+    })
+    it("delete an election", async (browser: NightwatchAPI) => {
+        // browser.debug()
+        const menu = await browser
+            .element(
+                `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.assert
+            .visible(`li.menu-action-delete-${this.electionLink!}`)
+            .click(`li.menu-action-delete-${this.electionLink!}`)
+            .assert.enabled(`button.ok-button`)
+            .click("button.ok-button")
+            .pause(1000)
+            .assert.not.elementPresent(`a[title='this is a test election name']`)
+    })
+    it("delete an election event", async (browser: NightwatchAPI) => {
+        // browser.debug()
+        const menu = await browser
+            .element(
+                `a[title='this is a test election event name'] + div.menu-actions-${this
+                    .electionEventLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.assert
+            .visible(`li.menu-action-delete-${this.electionEventLink!}`)
+            .click(`li.menu-action-delete-${this.electionEventLink!}`)
+            .assert.enabled(`button.ok-button`)
+            .click("button.ok-button")
+            .pause(1000)
+            .assert.not.elementPresent(`a[title='this is a test election event name']`)
     })
 })

@@ -60,17 +60,20 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("delete an election event", async (browser: NightwatchAPI) => {
         browser.assert.urlContains("sequent_backend_election_event")
-        browser.
-            .element(`div.menu-actions-${this.electionEventLink!}`)
-            .setAttribute("visible", true)
-            .assert.visible(`div.menu-actions-${this.electionEventLink!}`)
-            .click(`div.menu-actions-${this.electionEventLink!}`)
-            .assert.visible(`div.menu-action-delete-${this.electionEventLink!}`)
-            .click(`div.menu-action-delete-${this.electionEventLink!}`)
+        // browser.debug()
+        const menu = await browser
+            .element(
+                `a[title='this is a test election event name'] + div.menu-actions-${this
+                    .electionEventLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.assert
+            .visible(`li.menu-action-delete-${this.electionEventLink!}`)
+            .click(`li.menu-action-delete-${this.electionEventLink!}`)
             .assert.enabled(`button.ok-button`)
             .click("button.ok-button")
             .pause(1000)
-            .assert.not.visible(`a[title='this is a test election name']`)
+            .assert.not.elementPresent(`a[title='this is a test election name']`)
     })
-
 })
