@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::error::TaskError;
+use deadpool_postgres::Transaction;
 use immu_board::util::get_event_board;
 use sequent_core;
 use sequent_core::services::connection;
@@ -12,6 +13,7 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
+use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;

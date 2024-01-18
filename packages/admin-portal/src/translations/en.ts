@@ -286,11 +286,24 @@ const englishTranslation = {
                 title: "Import Voters",
                 subtitle: "Import voters data",
                 voters: "Voters",
+                votersSubtitle:
+                    "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
                 elections: "Elections",
                 areas: "Areas",
-                sha: "Integrity (SHA 256)",
+                sha: "Integrity Check (SHA-256)",
                 cancel: "Cancel",
                 import: "Import",
+                fileUploadSuccess: "File uploaded to server - but not imported yet",
+                fileUploadError: "Error uploading file",
+                importVotersSuccess: "Voters Import Scheduled Successfully",
+                importVotersError: "Error importing Voters",
+                shaDialog: {
+                    ok: "Yes, Import without Integrity Check",
+                    cancel: "Go Back",
+                    title: "Import Without Integrity Check?",
+                    description:
+                        "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
+                },
             },
         },
         electionScreen: {

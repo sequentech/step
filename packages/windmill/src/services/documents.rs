@@ -81,6 +81,7 @@ pub async fn get_upload_url(
     media_type: &str,
     size: usize,
     tenant_id: &str,
+    is_public: bool,
 ) -> Result<(Document, String)> {
     let document = &hasura::document::insert_document(
         auth_headers,
@@ -89,7 +90,7 @@ pub async fn get_upload_url(
         name.to_string(),
         media_type.to_string(),
         size as i64,
-        true,
+        is_public,
     )
     .await?
     .data
@@ -97,9 +98,19 @@ pub async fn get_upload_url(
     .insert_sequent_backend_document
     .ok_or(anyhow!("expected document"))?
     .returning[0];
-    let path =
-        s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());
-    let url = s3::get_upload_url(path.to_string()).await?;
+    let path = match is_public {
+        true => s3::get_public_document_key(
+            tenant_id.to_string(),
+            document.id.clone(),
+            name.to_string(),
+        ),
+        false => s3::get_document_key(
+            tenant_id.to_string(),
+            Default::default(),
+            document.id.clone(),
+        ),
+    };
+    let url = s3::get_upload_url(path.to_string(), is_public).await?;
 
     let ret_document = Document {
         id: document.id.clone(),

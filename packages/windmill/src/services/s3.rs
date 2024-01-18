@@ -4,19 +4,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::util::aws::{
-    get_fetch_expiration_secs, get_from_env_aws_config, get_max_upload_size, get_s3_aws_config,
-    get_upload_expiration_secs,
+    get_fetch_expiration_secs, get_max_upload_size, get_s3_aws_config, get_upload_expiration_secs,
 };
 
-use anyhow::{anyhow, Result};
-use aws_config::SdkConfig;
+use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
-use std::env;
+use std::fs::File;
+use std::io::Write;
+use std::{env, error::Error};
+use tempfile::tempfile;
+use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
+#[instrument(err, ret)]
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket =
         env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
@@ -134,8 +137,13 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
 }
 
 #[instrument(err, ret)]
-pub async fn get_upload_url(key: String) -> Result<String> {
-    let s3_bucket = get_public_bucket()?;
+pub async fn get_upload_url(key: String, is_public: bool) -> Result<String> {
+    let s3_bucket = match is_public {
+        true => get_public_bucket()?,
+        false => get_private_bucket()?,
+    };
+    // We always use the public aws config since we are generating a client-side
+    // upload url. is_public is only used to define the upload bucket
     let config = get_s3_aws_config(/* private = */ false).await?;
     let client = get_s3_client(config.clone()).await?;
 
@@ -149,4 +157,37 @@ pub async fn get_upload_url(key: String) -> Result<String> {
         .presigned(presigning_config)
         .await?;
     Ok(presigned_request.uri().to_string())
+}
+
+#[instrument(err, ret)]
+pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow::Result<File> {
+    let config = get_s3_aws_config(/* private = */ true)
+        .await
+        .with_context(|| "Error obtaining aws config")?;
+    let client = get_s3_client(config.clone()).await?;
+
+    let response = client
+        .get_object()
+        .bucket(&s3_bucket)
+        .key(&key)
+        .send()
+        .await
+        .map_err(|err| anyhow!("Error getting the object from S3: {:?}", err.source()))?;
+
+    // Stream the data into a temporary file
+    let mut temp_file = tempfile().with_context(|| "Error creating temp file")?;
+    let mut stream = response.body.into_async_read();
+    let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
+
+    while let Ok(size) = stream.read(&mut buffer).await {
+        if size == 0 {
+            break; // End of file
+        }
+        temp_file
+            .write_all(&buffer[..size])
+            .with_context(|| "Error writting to the text file")?;
+    }
+
+    // The file is now downloaded to a temporary file
+    Ok(temp_file)
 }
