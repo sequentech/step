@@ -1,1 +1,1 @@
-{"modules":{"e2e/login.test":{"modulePath":"/home/enric/Developer/backend-services/packages/voting-portal/test/e2e/login.test.ts","status":"pass"}}}
+{"modules":{"e2e/cast_ballot.test":{"modulePath":"/home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts","status":"pass"}}}

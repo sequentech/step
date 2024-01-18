@@ -5,9 +5,9 @@
 
   <testsuite name="e2e.cast_ballot.test"
     errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="13.38" timestamp="">
+    tests="1" time="13.66" timestamp="">
   
-    <testcase name="should cast a ballot" classname="e2e.cast_ballot.test" time="6.691" assertions="15">
+    <testcase name="should cast a ballot" classname="e2e.cast_ballot.test" time="6.830" assertions="15">
 
     
 
