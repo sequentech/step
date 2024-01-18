@@ -16,6 +16,14 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
 
     before(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser.navigateTo(this.testUrl!)
+        // perform login
+        browser
+            .waitForElementVisible(this.username!)
+            .waitForElementVisible(this.password!)
+            .sendKeys(this.username!, "felix")
+            .sendKeys(this.password!, "felix")
+            .click(this.submitButton!)
+            .pause(1000)
     })
 
     after(function (this: ExtendDescribeThis<LoginThis>, browser) {
@@ -26,17 +34,10 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
             .end()
     })
 
-    it("should be able to login", async (browser: NightwatchAPI) => {
-        browser
-            .waitForElementVisible(this.username!)
-            .waitForElementVisible(this.password!)
-            .assert.visible("input[name=username]")
-            .sendKeys(this.username!, "admin")
-            .assert.visible("input[name=password]")
-            .sendKeys(this.password!, "admin")
-            .assert.visible(this.submitButton!)
-            .click(this.submitButton!)
-            .pause(2000)
+    it("create an election event", async (browser: NightwatchAPI) => {
         browser.assert.urlContains("sequent_backend_election_event")
+        browser.assert
+            .visible("button.election-event-create-button")
+            .click("button.election-event-create-button")
     })
 })

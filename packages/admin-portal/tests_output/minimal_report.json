@@ -1,1 +1,1 @@
-{"modules":{"e2e/login.test":{"modulePath":"/home/enric/Developer/backend-services/packages/admin-portal/test/e2e/login.test.ts","status":"pass"}}}
+{"modules":{"e2e/create_election_event.test":{"modulePath":"/home/enric/Developer/backend-services/packages/admin-portal/test/e2e/create_election_event.test.ts","status":"fail"}}}
