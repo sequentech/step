@@ -19,6 +19,8 @@ import {
     Identifier,
     RecordContext,
     useEditController,
+    BooleanInput,
+    NumberInput,
 } from "react-admin"
 import {
     Accordion,
@@ -429,13 +431,10 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                {
-                                    // TODO: uncomment this
-                                    // <BooleanInput source="is_acclaimed" />
-                                    // <NumberInput source="min_votes" min={0} />
-                                    // <NumberInput source="max_votes" min={0} />
-                                    // <NumberInput source="winning_candidates_num" min={0} />
-                                }
+                                <BooleanInput source="is_acclaimed" />
+                                <NumberInput source="min_votes" min={0} />
+                                <NumberInput source="max_votes" min={0} />
+                                <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="order_answers"
                                     choices={orderAnswerChoices()}
