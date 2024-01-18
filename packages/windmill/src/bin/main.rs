@@ -28,7 +28,7 @@ extern crate chrono;
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue"
+            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue", "import_export_queue"
         ], default_value = "beat")]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]

@@ -50,6 +50,14 @@ type Mutation {
 }
 
 type Mutation {
+  import_users (
+    tenant_id: String!
+    election_event_id: String
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -149,6 +157,7 @@ type Mutation {
     name: String!
     media_type: String!
     size: Int!
+    is_public: Boolean!
   ): GetUploadUrlOutput
 }
 
@@ -647,6 +656,10 @@ type CreateUserOutput {
 }
 
 type SetRolePermissionOutput {
+  id : String
+}
+
+type OptionalId {
   id : String
 }
 
