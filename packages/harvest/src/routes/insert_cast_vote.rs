@@ -15,6 +15,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use strand::elgamal::Ciphertext;
 use strand::hash::HashWrapper;
 use tracing::{event, Level};
 use uuid::Uuid;
@@ -34,7 +35,10 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use strand::backend::ristretto::RistrettoCtx;
+use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
+use strand::zkp::Schnorr;
+use strand::zkp::Zkp;
 
 /*
 type Mutation {
@@ -121,6 +125,15 @@ async fn try_insert_cast_vote(
     let voter_id = "";
     let pseudonym_h = [0u8; 64];
     let vote_h = [0u8; 64];
+
+    // get this from the incoming data
+    let ciphertext_bytes = vec![];
+    // get this from the incoming data
+    let proof_bytes = vec![];
+    // must match that used on the proving side (voting client)
+    let label = vec![];
+
+    check_popk(&ciphertext_bytes, &proof_bytes, &label)?;
 
     let (auth_headers, election_event) = get_election_event(&input).await?;
     let (electoral_log, signing_key) =
@@ -336,4 +349,27 @@ async fn insert(
     };
 
     Ok(ret)
+}
+
+fn check_popk(
+    ciphertext_bytes: &[u8],
+    proof_bytes: &[u8],
+    label: &[u8],
+) -> Result<()> {
+    let zkp = Zkp::new(&RistrettoCtx);
+    let proof = Schnorr::<RistrettoCtx>::strand_deserialize(&proof_bytes)?;
+    let ciphertext =
+        Ciphertext::<RistrettoCtx>::strand_deserialize(&ciphertext_bytes)?;
+    let popk_ok = zkp.encryption_popk_verify(
+        &ciphertext.mhr,
+        &ciphertext.gr,
+        &proof,
+        &label,
+    )?;
+
+    if !popk_ok {
+        return Err(anyhow!("Popk validation failed"));
+    }
+
+    Ok(())
 }
