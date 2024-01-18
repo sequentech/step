@@ -26,6 +26,7 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
                     candidates {
                         id
                         name
+                        alias
                         contest_id
                         election_event_id
                         order

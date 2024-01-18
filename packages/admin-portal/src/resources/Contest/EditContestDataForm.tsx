@@ -38,7 +38,7 @@ import {
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import {FieldValues, SubmitHandler} from "react-hook-form"
+import {FieldValues} from "react-hook-form"
 import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"

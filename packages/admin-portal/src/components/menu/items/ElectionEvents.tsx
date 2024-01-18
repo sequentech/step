@@ -57,7 +57,7 @@ const ENTITY_FIELD_NAMES: Array<EntityFieldName> = [
     "candidates",
 ]
 
-type BaseType = {__typename: ResourceName; id: string; name: string}
+type BaseType = {__typename: ResourceName; id: string; name: string; alias?: string}
 
 export type CandidateType = BaseType & {
     __typename: "sequent_backend_candidate"
