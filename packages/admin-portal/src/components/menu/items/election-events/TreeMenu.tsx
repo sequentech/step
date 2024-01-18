@@ -229,7 +229,9 @@ function TreeMenuItem({
                         {item}
                     </NavLink>
                 )}
-                <div className="invisible group-hover:visible">
+                <div
+                    className={`invisible group-hover:visible menu-actions-${treeResourceNames[0]}`}
+                >
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
