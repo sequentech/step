@@ -247,12 +247,17 @@ impl ImportUsersBody {
             select_columns.join(", "),
             voters_table,
         );
+        // Password-related columns are reserved, not being stored as user-attrs
+        let reserved_columns = vec!["password"];
 
-        // Assuming all other columns are user attributes
+        // Assume all other columns are user attributes
         let user_attributes = voters_table_columns
             .clone()
             .into_iter()
-            .filter(|col| !user_entity_columns.contains(&col.as_str()))
+            .filter(|col| {
+                (!user_entity_columns.contains(&col.as_str())
+                    && !reserved_columns.contains(&col.as_str()))
+            })
             .collect::<Vec<String>>();
 
         // Build a single INSERT query for all user_attribute elements
@@ -299,11 +304,73 @@ impl ImportUsersBody {
             String::new()
         };
 
+        // Inserts password credentials if need be
+        let credentials_query = if voters_table_columns.contains(&"password".to_string()) {
+            format!(
+                r#"
+                WITH pre_credentials AS (
+                    SELECT
+                        random()::text::bytea AS salt,
+                        nu.id AS id,
+                        v.password AS pasword
+                    FROM
+                        {voters_table} v
+                    JOIN
+                        new_user nu ON
+                            nu.username = v.username
+                )
+                WITH credentials AS (
+                    INSERT 
+                    INTO credential (
+                        id,
+                        type,
+                        user_id,
+                        created_date,
+                        user_label,
+                        secret_data,
+                        credential_data,
+                        priority
+                    )
+                    SELECT
+                        gen_random_uuid(),
+                        'password',
+                        pc.id,
+                        now(),
+                        'My password',
+                        json_build_object(
+                            'value', encode(
+                                pg_temp.pbkdf2(
+                                    pc.salt,
+                                    pc.password,
+                                    27500,
+                                    32,
+                                    'sha256'
+                                ),
+                                'base64'
+                            ),
+                            'salt', encode(pc.salt, 'base64')
+                        ),
+                        json_build_object(
+                            'hashIterations', 27500,
+                            'algorithm', 'pbkdf2-sha256',
+                            'additionalParameters', ''
+                        ),
+                        10
+                    )
+                    FROM pre_credentials pc
+                )
+                "#
+            )
+        } else {
+            String::new()
+        };
+
         Ok(format!(
             r#"
             WITH new_user AS (
                 {user_entity_query}
             )
+            {credentials_query}
             {user_attribute_query};
             "#
         ))
@@ -370,14 +437,12 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
 
-    let temp_password_function_statement =
-        body.create_temp_password_function_statement();
+    let temp_password_function_statement = body.create_temp_password_function_statement();
 
     keycloak_transaction
         .simple_query(temp_password_function_statement.as_str())
         .await
         .with_context(|| "error executing create temp_password function statement")?;
-
 
     let areas_map = match body.election_event_id {
         Some(ref election_event_id) => Some(
