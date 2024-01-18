@@ -171,12 +171,11 @@ export default function ElectionEvents() {
                         sx={{flexGrow: 2}}
                     />
                     {showAddElectionEvent ? (
-                        <Link to="/sequent_backend_election_event/create">
-                            <StyledIconButton
-                                className="election-event-create"
-                                icon={faPlusCircle}
-                                size="xs"
-                            />
+                        <Link
+                            className="election-event-create-button"
+                            to="/sequent_backend_election_event/create"
+                        >
+                            <StyledIconButton icon={faPlusCircle} size="xs" />
                         </Link>
                     ) : null}
                 </HorizontalBox>
