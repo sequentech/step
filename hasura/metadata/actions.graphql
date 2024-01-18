@@ -1,11 +1,8 @@
 type Mutation {
   InsertCastVote (
     id: uuid
+    election_id: uuid!
     ballot_id: String!
-    election_id: uuid
-    election_event_id: uuid
-    tenant_id: uuid
-    area_id: uuid
     content: String!
   ): InsertCastVoteOutput
 }
@@ -59,14 +56,6 @@ type Mutation {
     election_event_id: String
     user: KeycloakUser2!
   ): KeycloakUser!
-}
-
-type Mutation {
-  import_users (
-    tenant_id: String!
-    election_event_id: String
-    document_id: String!
-  ): OptionalId
 }
 
 type Mutation {
@@ -185,6 +174,14 @@ type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
+}
+
+type Mutation {
+  import_users (
+    tenant_id: String!
+    election_event_id: String
+    document_id: String!
+  ): OptionalId
 }
 
 type Mutation {
