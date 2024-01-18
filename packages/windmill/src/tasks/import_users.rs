@@ -353,7 +353,7 @@ impl ImportUsersBody {
                         json_build_object(
                             'hashIterations', 27500,
                             'algorithm', 'pbkdf2-sha256',
-                            'additionalParameters', ''
+                            'additionalParameters', json_build_object()
                         )::text,
                         10
                     FROM pre_credentials pc
