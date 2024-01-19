@@ -4,12 +4,9 @@
 
 use crate::types::error::Result;
 use anyhow::Context;
-use celery::error::TaskError;
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use sequent_core;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
@@ -151,7 +148,7 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             description: candidate.description.clone(),
             r#type: candidate.type_.clone(),
             presentation: candidate.presentation.clone(),
-            is_public: candidate.is_public.clone(),
+            is_public: candidate.is_public,
         }
     }
 }
@@ -282,7 +279,6 @@ pub async fn create_ballot_style(
                         .collect::<Result<Vec<sequent_core::types::hasura_types::Candidate>>>()
                 },
             )
-            .into_iter()
             .collect::<Result<Vec<Vec<sequent_core::types::hasura_types::Candidate>>>>()?
             .into_iter()
             .flatten()
