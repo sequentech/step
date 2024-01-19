@@ -213,7 +213,7 @@ export const ContestDataForm: React.FC = () => {
             // temp.max_votes = temp.max_votes // || 1
             // temp.winning_candidates_num = temp.winning_candidates_num // || 1
 
-            temp.presentation.candidates_order = temp.candidates_order || OrderAnswer.ALPHABETICAL
+            temp.presentation.candidates_order = temp.contest_candidates_order || OrderAnswer.ALPHABETICAL
 
             return temp
         },
@@ -435,14 +435,14 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
-                                    source="candidates_order"
+                                    source="contest_candidates_order"
                                     choices={orderAnswerChoices()}
                                     validate={required()}
                                 />
 
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        return formData?.candidates_order === "custom" ? (
+                                        return formData?.contest_candidates_order === "custom" ? (
                                             <CandidateRows>
                                                 <Typography
                                                     variant="body1"
