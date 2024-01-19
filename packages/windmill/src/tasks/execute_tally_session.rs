@@ -550,7 +550,7 @@ pub async fn execute_tally_session_wrapped(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
-    let (tally_session_execution, tally_session) = find_last_tally_session_execution(
+    let (tally_session_execution, _tally_session) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -569,18 +569,16 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
-    if plaintexts_data_opt.is_none() {
-        return Ok(());
-    }
-
-    let (
+    let Some((
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
         new_status,
         session_ids,
         cast_votes_count,
-    ) = plaintexts_data_opt.unwrap();
+    )) = plaintexts_data_opt else {
+        return Ok(());
+    };
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
@@ -680,20 +678,24 @@ pub async fn transactions_wrapper(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let res = execute_tally_session_wrapped(
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-        auth_headers.clone(),
-        &hasura_transaction,
-        &keycloak_transaction,
-    )
-    .await;
+    let res =
+        execute_tally_session_wrapped(
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+            auth_headers.clone(),
+            &hasura_transaction,
+            &keycloak_transaction,
+        )
+        .await
+        .with_context(|| "Error executing tally session")?;
+
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
-    res
+
+    Ok(res)
 }
 
 #[instrument(err)]
