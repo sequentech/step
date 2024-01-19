@@ -67,13 +67,12 @@ pub async fn try_insert_cast_vote(
         .await
         .with_context(|| "Cannot set transaction isolation level")?;
 
-    let area_id_opt = get_area_by_id(
-        &hasura_transaction,
-        tenant_id,
-        &input.election_event_id,
-        area_id,
-    )
-    .await?;
+    let election_event_id_string = input.election_event_id.to_string();
+    let election_id_string = input.election_id.to_string();
+    let election_event_id = &election_event_id_string;
+    let election_id = &election_id_string;
+    let area_id_opt =
+        get_area_by_id(&hasura_transaction, tenant_id, election_event_id, area_id).await?;
 
     // TODO get the voter id from somewhere
     let pseudonym_h = [0u8; 64];
@@ -88,19 +87,46 @@ pub async fn try_insert_cast_vote(
 
     check_popk(&ciphertext_bytes, &proof_bytes, &label)?;
 
-    let (auth_headers, election_event) = get_election_event(&input).await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    let election_event = get_election_event(&auth_headers, tenant_id, election_event_id).await?;
     let (electoral_log, signing_key) = get_electoral_log(&election_event).await?;
 
-    let check_status = check_status(&input, auth_headers, &election_event);
+    let check_status = check_status(
+        tenant_id,
+        election_event_id,
+        election_id,
+        auth_headers,
+        &election_event,
+    );
 
     // Transaction isolation begins at this future (unless above methods are
     // switched from hasura to direct sql)
-    let check_previous_votes = check_previous_votes(voter_id, &input, &hasura_transaction);
+    let check_previous_votes = check_previous_votes(
+        voter_id,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        &hasura_transaction,
+    );
+    ////check_previous_votes(voter_id, &input, &hasura_transaction);
 
     // TODO signature must include more information
     let ballot_signature = signing_key.sign(input.content.as_bytes())?;
     let ballot_signature = ballot_signature.to_bytes().to_vec();
-    let insert = insert(&input, voter_id, ballot_signature, &hasura_transaction);
+    let insert = insert(
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        &input.content,
+        voter_id,
+        &input.ballot_id,
+        ballot_signature,
+        &hasura_transaction,
+    );
+    //insert(&input, voter_id, ballot_signature, &hasura_transaction);
 
     let result = check_status
         .and_then(|_| check_previous_votes)
@@ -162,14 +188,14 @@ async fn get_electoral_log(
 
 #[instrument(skip_all, err)]
 async fn get_election_event(
-    input: &InsertCastVoteInput,
-) -> Result<(AuthHeaders, GetElectionEventSequentBackendElectionEvent)> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-
+    auth_headers: &AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<GetElectionEventSequentBackendElectionEvent> {
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
-        input.tenant_id.to_string(),
-        input.election_event_id.to_string(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
     )
     .await
     .context("Cannot retrieve election event data")?;
@@ -180,12 +206,14 @@ async fn get_election_event(
         .expect("expected data".into())
         .sequent_backend_election_event[0];
 
-    Ok((auth_headers, election_event.clone()))
+    Ok(election_event.clone())
 }
 
 #[instrument(skip_all, err)]
 async fn check_status(
-    input: &InsertCastVoteInput,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
     auth_headers: AuthHeaders,
     election_event: &GetElectionEventSequentBackendElectionEvent,
 ) -> anyhow::Result<()> {
@@ -205,9 +233,9 @@ async fn check_status(
 
     let hasura_response = hasura::election::get_election(
         auth_headers.clone(),
-        input.tenant_id.to_string(),
-        input.election_event_id.to_string(),
-        input.election_id.to_string(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        election_id.to_string(),
     )
     .await
     .context("Cannot retrieve election data")?;
@@ -234,21 +262,21 @@ async fn check_status(
 #[instrument(skip_all, err)]
 async fn check_previous_votes(
     voter_id_string: &str,
-    input: &InsertCastVoteInput,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
     hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<()> {
     // TODO
     let max_revotes = 1;
-    // TODO derive area_id from voter id
-    // let area_id = ..
 
     let result = postgres::cast_vote::get_cast_votes(
         &hasura_transaction,
-        &input.tenant_id,
-        &input.election_event_id,
-        &input.election_id,
-        // TODO get the area_id derived from voter
-        &input.area_id,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+        &Uuid::parse_str(election_id)?,
+        &Uuid::parse_str(area_id)?,
         voter_id_string,
     )
     .await?;
@@ -256,7 +284,7 @@ async fn check_previous_votes(
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
         .map(|(_, _, area_id)| area_id)
-        .partition(|area_id| area_id == &input.area_id);
+        .partition(|area_id| area_id.to_string() == area_id.to_string());
 
     event!(Level::INFO, "get cast votes returns same: {:?}", same);
     if same.len() >= max_revotes {
@@ -279,20 +307,25 @@ async fn check_previous_votes(
 
 #[instrument(skip(ballot_signature, hasura_transaction), err)]
 async fn insert(
-    input: &InsertCastVoteInput,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    content: &str,
     voter_id: &str,
+    ballot_id: &str,
     ballot_signature: Vec<u8>,
     hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<InsertCastVoteOutput> {
     let (id, created_at) = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
-        &input.tenant_id,
-        &input.election_event_id,
-        &input.election_id,
-        &input.area_id,
-        &input.content,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+        &Uuid::parse_str(election_id)?,
+        &Uuid::parse_str(area_id)?,
+        content,
         voter_id,
-        &input.ballot_id,
+        ballot_id,
         &ballot_signature,
     )
     .await?;
