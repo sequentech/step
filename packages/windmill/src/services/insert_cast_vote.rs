@@ -39,7 +39,6 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
-    pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub content: String,
 }
@@ -66,12 +65,16 @@ pub async fn try_insert_cast_vote(
         .await
         .with_context(|| "Cannot set transaction isolation level")?;
 
-    let election_event_id_string = input.election_event_id.to_string();
     let election_id_string = input.election_id.to_string();
-    let election_event_id = &election_event_id_string;
-    let election_id = &election_id_string;
-    let area_id_opt =
-        get_area_by_id(&hasura_transaction, tenant_id, election_event_id, area_id).await?;
+    let election_id = election_id_string.as_str();
+    let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id).await?;
+
+    let area = if let Some(area) = area_opt {
+        area
+    } else {
+        return Err(anyhow!("Area id not found"));
+    };
+    let election_event_id = &area.election_event_id;
 
     // TODO get the voter id from somewhere
     let pseudonym_h = [0u8; 64];
@@ -109,7 +112,6 @@ pub async fn try_insert_cast_vote(
         area_id,
         &hasura_transaction,
     );
-    ////check_previous_votes(voter_id, &input, &hasura_transaction);
 
     // TODO signature must include more information
     let ballot_signature = signing_key.sign(input.content.as_bytes())?;
@@ -125,7 +127,6 @@ pub async fn try_insert_cast_vote(
         ballot_signature,
         &hasura_transaction,
     );
-    //insert(&input, voter_id, ballot_signature, &hasura_transaction);
 
     let result = check_status
         .and_then(|_| check_previous_votes)
@@ -145,7 +146,7 @@ pub async fn try_insert_cast_vote(
         Ok(result) => {
             electoral_log
                 .post_cast_vote(
-                    input.election_event_id.to_string(),
+                    election_event_id.to_string(),
                     Some(input.election_id.to_string()),
                     pseudonym_h,
                     vote_h,
@@ -158,7 +159,7 @@ pub async fn try_insert_cast_vote(
             // TODO error message may leak implementation details
             electoral_log
                 .post_cast_vote_error(
-                    input.election_event_id.to_string(),
+                    election_event_id.to_string(),
                     Some(input.election_id.to_string()),
                     pseudonym_h,
                     e.to_string(),

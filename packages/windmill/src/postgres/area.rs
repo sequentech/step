@@ -209,7 +209,6 @@ pub async fn get_elections_by_area(
 pub async fn get_area_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &str,
     area_id: &str,
 ) -> Result<Option<Area>> {
     let total_areas_statement = hasura_transaction
@@ -230,8 +229,7 @@ pub async fn get_area_by_id(
                 sequent_backend.area
             WHERE
                 tenant_id = $1 AND
-                election_event_id = $2 AND
-                id = $3;
+                id = $2;
             "#,
         )
         .await?;
@@ -239,11 +237,7 @@ pub async fn get_area_by_id(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &total_areas_statement,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(area_id)?,
-            ],
+            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(area_id)?],
         )
         .await?;
 
