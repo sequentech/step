@@ -56,9 +56,12 @@ const ActionsContainer = styled(Box)`
     gap: 2px;
 `
 
-const BallotIdContainer = styled(Box)`
+const BallotIdContainer = styled(Box)<{dir: string}>`
     display: flex;
     flex-direction: row;
+
+    justify-content: ${({dir}) => (dir === "rtl" ? "flex-start" : "flex-start")};
+
     gap: 30px;
     margin: 25px 0;
     align-items: center;
@@ -106,7 +109,7 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
     const triggerPrint = () => window.print()
@@ -117,6 +120,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     useEffect(() => {
         if (ballotStyle) {
@@ -136,7 +144,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 variant="secondary"
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
             >
-                <Icon icon={faPrint} size="sm" />
+                <Icon icon={faPrint} size="sm" dir={i18n.dir(i18n.language)} />
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
             {castVotes ? (
@@ -163,7 +171,7 @@ export const ConfirmationScreen: React.FC = () => {
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
 
@@ -171,6 +179,11 @@ export const ConfirmationScreen: React.FC = () => {
 
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     useEffect(() => {
         if (!ballotId) {
@@ -209,15 +222,24 @@ export const ConfirmationScreen: React.FC = () => {
                     {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                variant="body2"
+                sx={{
+                    color: theme.palette.customGrey.main,
+                    textAlign: i18n.dir(i18n.language) === "rtl" ? "right" : "left",
+                }}
+            >
                 {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
-            <BallotIdContainer>
+            <BallotIdContainer dir={i18n.dir(i18n.language)}>
                 <Typography
                     variant="h5"
                     fontSize="18px"
                     fontWeight="bold"
-                    sx={{display: {xs: "none", sm: "block"}}}
+                    sx={{
+                        display: {xs: "none", sm: "block"},
+                        textAlign: i18n.dir(i18n.language) === "rtl" ? "right" : "left",
+                    }}
                 >
                     {t("confirmationScreen.ballotId")}
                 </Typography>
@@ -267,7 +289,13 @@ export const ConfirmationScreen: React.FC = () => {
             <Typography variant="h5" fontSize="18px" fontWeight="bold">
                 {t("confirmationScreen.verifyCastTitle")}
             </Typography>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                variant="body2"
+                sx={{
+                    color: theme.palette.customGrey.main,
+                    textAlign: i18n.dir(i18n.language) === "rtl" ? "right" : "left",
+                }}
+            >
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer>

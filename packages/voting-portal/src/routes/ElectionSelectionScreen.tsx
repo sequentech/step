@@ -89,6 +89,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
+
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
@@ -204,7 +209,7 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const navigate = useNavigate()
 
     const {globalSettings} = useContext(SettingsContext)
@@ -246,6 +251,11 @@ export const ElectionSelectionScreen: React.FC = () => {
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
     }
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     useEffect(() => {
         if (errorBallotStyles || errorElections || errorElectionEvent) {

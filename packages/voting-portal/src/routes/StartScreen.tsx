@@ -83,6 +83,11 @@ export const StartScreen: React.FC = () => {
     const navigate = useNavigate()
 
     useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
+
+    useEffect(() => {
         if (!election) {
             navigate(backLink)
         }
@@ -113,8 +118,16 @@ export const StartScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language))}
                 </Typography>
             ) : null}
-            <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
-            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
+            <Typography variant="h5" dir={i18n.dir(i18n.language)}>
+                {t("startScreen.instructionsTitle")}
+            </Typography>
+            <Typography
+                variant="body2"
+                dir={i18n.dir(i18n.language)}
+                sx={{textAlign: i18n.dir(i18n.language) === "rtl" ? "right" : "left"}}
+            >
+                {t("startScreen.instructionsDescription")}
+            </Typography>
             <Box
                 sx={{
                     display: "flex",

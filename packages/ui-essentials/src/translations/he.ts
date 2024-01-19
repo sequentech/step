@@ -32,8 +32,7 @@ const hebrewTranslation = {
             descriptionMore: "למדו עוד",
             startButton: "סייר קובץ",
             dragDropOption: "או גררו ושחררו כאן",
-            importErrorDescription:
-                "הייתה בעיה בייבוא הקלף הניתן לבדיקה. ?בחרת בקובץ הנכון",
+            importErrorDescription: "הייתה בעיה בייבוא הקלף הניתן לבדיקה. ?בחרת בקובץ הנכון",
             importErrorMoreInfo: "מידע נוסף",
             importErrorTitle: "שגיאה",
             useSampleText: "אין לך קלף ניתן לבדיקה?",
@@ -41,8 +40,7 @@ const hebrewTranslation = {
         },
         confirmationScreen: {
             title: "בודק קלפי הצבעה של Sequent",
-            topDescription1:
-                "בהתאם למידע בקלף הניתן לבדיקה שיובא, חישבנו כי:",
+            topDescription1: "בהתאם למידע בקלף הניתן לבדיקה שיובא, חישבנו כי:",
             topDescription2: "אם זהו המספר הזה של הקלף בחדר ההצבעה:",
             bottomDescription1:
                 "הקלף שלך הוצפן בצורה נכונה. ניתן כעת לסגור חלון זה ולחזור לחדר ההצבעה.",
@@ -56,8 +54,7 @@ const hebrewTranslation = {
         ballotSelectionsScreen: {
             statusModal: {
                 title: "סטטוס",
-                content:
-                    "לוח המצב נותן לך מידע אודות האמיתות שבוצעו.",
+                content: "לוח המצב נותן לך מידע אודות האמיתות שבוצעו.",
                 ok: "אישור",
             },
         },
@@ -72,10 +69,8 @@ const hebrewTranslation = {
                 ballotTooLarge: "הקלף גדול ממה שצפוי",
             },
             implicit: {
-                selectedMax:
-                    "מספר הבחירות שנבחרו {{numSelected}} גדול מהמקסימום {{max}}",
-                selectedMin:
-                    "מספר הבחירות שנבחרו {{numSelected}} קטן מהמינימום {{min}}",
+                selectedMax: "מספר הבחירות שנבחרו {{numSelected}} גדול מהמקסימום {{max}}",
+                selectedMin: "מספר הבחירות שנבחרו {{numSelected}} קטן מהמינימום {{min}}",
             },
             explicit: {
                 notAllowed: "הקלף סומן כלא חוקי מקודם אך השאלה אינה מאפשרת זאת",

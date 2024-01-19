@@ -6,7 +6,7 @@
 import React, {useEffect, useContext} from "react"
 import {Outlet, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, PageBanner, i18n} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -43,6 +43,11 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [])
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {

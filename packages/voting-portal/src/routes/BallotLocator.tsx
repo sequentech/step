@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -83,7 +83,12 @@ export const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     const [inputBallotId, setInputBallotId] = useState<string>("")
 
@@ -163,7 +168,7 @@ export const BallotLocator: React.FC = () => {
                     <Box sx={{marginTop: "20px"}}>
                         <StyledLink to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
                             <Button variant="secondary" className="secondary">
-                                <Icon icon={faAngleLeft} size="sm" />
+                                <Icon icon={faAngleLeft} size="sm" dir={i18n.dir(i18n.language)} />
                                 <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
                             </Button>
                         </StyledLink>

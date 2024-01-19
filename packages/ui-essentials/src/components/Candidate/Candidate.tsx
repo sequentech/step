@@ -106,7 +106,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isInvalidWriteIn,
     children,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
         event.stopPropagation()
         if (setChecked) {
@@ -136,7 +136,7 @@ const Candidate: React.FC<CandidateProps> = ({
             onClick={onClick}
         >
             <ImageBox>{children}</ImageBox>
-            <Box flexGrow={2}>
+            <Box flexGrow={2} dir={i18n.dir(i18n.language)}>
                 <Typography
                     fontWeight="bold"
                     fontSize="16px"
@@ -144,6 +144,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     marginTop="4px"
                     marginBottom="4px"
                     color={theme.palette.customGrey.contrastText}
+                    sx={{textAlign: i18n.dir(i18n.language) === "rtl" ? "right" : "left"}}
                 >
                     {title}
                 </Typography>
@@ -152,6 +153,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     fontSize="16px"
                     marginTop="4px"
                     marginBottom="4px"
+                    sx={{textAlign: i18n.dir(i18n.language) === "rtl" ? "right" : "left"}}
                 >
                     {description}
                 </Typography>

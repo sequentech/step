@@ -59,7 +59,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
-    const [languageSettings] = useState<any>([{es: true}, {en: true}])
+    const [languageSettings] = useState<any>([{es: true}, {en: true}, {he: true}])
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
 

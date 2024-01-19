@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useEffect} from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
@@ -19,8 +19,13 @@ const StyledLink = styled(Link)`
 
 export function ErrorPage() {
     const error = useRouteError()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const backLink = useRootBackLink()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     const isErrorType = error instanceof Error || error instanceof VotingPortalError
 

@@ -3,14 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect} from "react"
+import {useTranslation} from "react-i18next"
 import {Outlet, useMatch, useNavigate, useParams} from "react-router-dom"
 
 export default function TenantEvent() {
     const navigate = useNavigate()
     const params = useParams()
+    const {i18n} = useTranslation()
 
     const noMatch = useMatch("/tenant/:tenantId/event/:eventId/")
     const path = `/tenant/${params.tenantId}/event/${params.eventId}/election-chooser`
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     useEffect(() => {
         if (noMatch) {

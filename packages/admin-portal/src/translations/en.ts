@@ -163,6 +163,7 @@ const englishTranslation = {
                 mail: "Mails",
                 spanish: "Spanish",
                 english: "English",
+                hebrew: "עִברִית",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
@@ -545,6 +546,7 @@ const englishTranslation = {
             language: {
                 es: "Spanish",
                 en: "English",
+                he: "Hebrew",
             },
             channel: {
                 online: "Online",

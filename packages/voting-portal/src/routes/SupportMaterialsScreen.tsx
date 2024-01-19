@@ -86,6 +86,11 @@ export const SupportMaterialsScreen: React.FC = () => {
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
 
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
+
     // Materials
     const {
         data: dataMaterials,

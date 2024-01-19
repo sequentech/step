@@ -165,6 +165,7 @@ const spanishTranslation: TranslationType = {
                 mail: "Mails",
                 spanish: "Spanish",
                 english: "English",
+                hebrew: "עִברִית",
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
@@ -547,6 +548,7 @@ const spanishTranslation: TranslationType = {
             language: {
                 es: "Español",
                 en: "Inglés",
+                he: "Hebreo",
             },
             channel: {
                 online: "En línea",

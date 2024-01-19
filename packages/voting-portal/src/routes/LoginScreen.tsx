@@ -7,12 +7,19 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {useNavigate, useParams} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
+import {useTranslation} from "react-i18next"
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const navigate = useNavigate()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const {i18n} = useTranslation()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     useEffect(() => {
         if (!isAuthenticated && tenantId && eventId) {

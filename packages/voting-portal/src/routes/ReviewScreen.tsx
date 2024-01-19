@@ -83,13 +83,18 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const ballotId = hashBallot(auditableBallot)
     const submit = useSubmit()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -177,7 +182,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
+                        <Icon icon={faAngleLeft} size="sm"  dir={i18n.dir(i18n.language)}/>
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
@@ -186,7 +191,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     variant="warning"
                     onClick={() => setAuditBallotHelp(true)}
                 >
-                    <Icon icon={faFire} size="sm" />
+                    <Icon icon={faFire} size="sm" dir={i18n.dir(i18n.language)} />
                     <Box>{t("reviewScreen.auditButton")}</Box>
                 </StyledButton>
                 <StyledButton
@@ -194,7 +199,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     onClick={castBallotAction}
                 >
                     <Box>{t("reviewScreen.castBallotButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
+                    <Icon icon={faAngleRight} size="sm" dir={i18n.dir(i18n.language)} />
                 </StyledButton>
             </ActionsContainer>
         </Box>

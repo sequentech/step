@@ -59,9 +59,11 @@ const ActionsContainer = styled(Box)`
     gap: 2px;
 `
 
-const StyledButton = styled(Button)`
+const StyledButton = styled(Button)<{dir: string}>`
     display flex;
     padding: 5px;
+
+    justify-content: ${({dir}) => (dir === "rtl" ? "flex-start" : "flex-end")};
 
     span {
         white-space: nowrap;
@@ -77,14 +79,14 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const backLink = useRootBackLink()
 
     return (
         <ActionsContainer>
             <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Icon icon={faAngleLeft} size="sm" />
+                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} dir={i18n.dir(i18n.language)}>
+                    <Icon icon={faAngleLeft} size="sm" dir={i18n.dir(i18n.language)}/>
                     <Box>{t("votingScreen.backButton")}</Box>
                 </StyledButton>
             </StyledLink>
@@ -92,9 +94,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                 sx={{width: {xs: "100%", sm: "200px"}}}
                 onClick={() => handleNext()}
                 disabled={disableNext}
+                dir={i18n.dir(i18n.language)}
             >
                 <Box>{t("votingScreen.reviewButton")}</Box>
-                <Icon icon={faAngleRight} size="sm" />
+                <Icon icon={faAngleRight} size="sm" dir={i18n.dir(i18n.language)} />
             </StyledButton>
         </ActionsContainer>
     )
@@ -120,6 +123,11 @@ const VotingScreen: React.FC = () => {
     const dispatch = useAppDispatch()
 
     const submit = useSubmit()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({

@@ -56,6 +56,8 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
 `
 
 const TextContainer = styled(Box)`
+    display: flex;
+    flex-direction: column;
     flex-grow: 2;
     text-align: left;
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -129,12 +131,14 @@ const DatesUrlWrap = styled(Box)`
     }
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{dir: string}>`
     font-size: 18px;
     line-height: 20px;
     margin-top: 0;
     margin-bottom: 10px;
     font-weight: bold;
+
+    text-align: ${({dir}) => ("rtl" === dir ? "right" : "left")};
 
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         margin-bottom: 0;
@@ -166,7 +170,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickElectionResults,
     onClickBallotLocator,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
@@ -205,7 +209,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             tabIndex={0}
         >
             <TextContainer>
-                <StyledTitle>{title}</StyledTitle>
+                <StyledTitle dir={i18n.dir(i18n.language)}>{title}</StyledTitle>
                 <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                     <StyledLink href={electionHomeUrl} target="_blank">
                         {t("selectElection.electionWebsite")}
