@@ -1,19 +1,28 @@
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
+import {OrderAnswer} from "./constants"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
 
 export const EditContestData: React.FC = () => {
     const [update] = useUpdate()
 
-    const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
+    function updateCandidatesOrder(data: Sequent_Backend_Contest_Extended) {
         data.candidatesOrder?.map((c: Sequent_Backend_Candidate, index: number) => {
-            return update("sequent_backend_candidate", {
-                id: c.id,
-                data: {presentation: {order: index}},
-                previousData: c,
-            })
+            if (data.contest_candidates_order === OrderAnswer.CUSTOM) {
+                return update("sequent_backend_candidate", {
+                    id: c.id,
+                    data: {presentation: {order: index}},
+                    previousData: c,
+                })
+            }
+            return null
         })
+    }
+
+    const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
+        // update candidates
+        updateCandidatesOrder(data)
 
         // save presentation object
         // language_conf

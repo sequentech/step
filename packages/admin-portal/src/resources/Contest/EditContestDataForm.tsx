@@ -124,7 +124,6 @@ export const ContestDataForm: React.FC = () => {
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
-            console.log("INCOMING")
             if (!data) {
                 return incoming as Sequent_Backend_Contest_Extended
             }
@@ -221,7 +220,7 @@ export const ContestDataForm: React.FC = () => {
         [data, buildLanguageSettings]
     )
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
 
