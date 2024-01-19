@@ -188,7 +188,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
                 handleSetStatus(PUBLICH_STATUS_CONVERT[status])
 
-                notify(t("publish.notifications.chang_status"), {
+                notify(t("publish.notifications.change_status"), {
                     type: "success",
                 })
             } catch (e) {
