@@ -21,7 +21,9 @@ use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::HashableBallot;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
@@ -74,7 +76,11 @@ pub async fn try_insert_cast_vote(
     } else {
         return Err(anyhow!("Area id not found"));
     };
-    let election_event_id = &area.election_event_id;
+    let election_event_id = area.election_event_id.as_str();
+
+    let hashable_ballot: HashableBallot<RistrettoCtx> =
+        Base64Deserialize::deserialize(input.content.clone())
+            .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
 
     // TODO get the voter id from somewhere
     let pseudonym_h = [0u8; 64];
