@@ -10,7 +10,7 @@ interface LoginThis {
 // eslint-disable-next-line jest/valid-describe-callback
 describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     this.testUrl =
-        "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/5960217c-ac34-40b2-99ae-40ecc54f03f9"
+        "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/0de7ebe5-09ab-4e4b-b228-48153286c648"
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
