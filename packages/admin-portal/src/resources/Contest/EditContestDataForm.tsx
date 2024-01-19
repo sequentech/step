@@ -42,8 +42,8 @@ import styled from "@emotion/styled"
 
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
-import {DropFile} from "@sequentech/ui-essentials"
-import {ICountingAlgorithm, OrderAnswer, IVotingType} from "./constants"
+import {CandidatesOrder, DropFile} from "@sequentech/ui-essentials"
+import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
@@ -102,7 +102,7 @@ export const ContestDataForm: React.FC = () => {
     }
 
     const orderAnswerChoices = () => {
-        return (Object.values(OrderAnswer) as OrderAnswer[]).map((value) => ({
+        return (Object.values(CandidatesOrder) as CandidatesOrder[]).map((value) => ({
             id: value,
             name: t(`contestScreen.options.${value.toLowerCase()}`),
         }))

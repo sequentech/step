@@ -7,7 +7,7 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {IconButton, adminTheme, CandidatesOrder} from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
@@ -22,7 +22,6 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {OrderAnswer} from "@/resources/Contest/constants"
 import {cloneDeep} from "lodash"
 
 export type ResourceName =
@@ -164,7 +163,7 @@ export default function ElectionEvents() {
                             contests: election.contests.map((contest) => {
                                 let orderType = contest.presentation?.candidates_order
 
-                                if (orderType === OrderAnswer.CUSTOM) {
+                                if (orderType === CandidatesOrder.CUSTOM) {
                                     contest.candidates.sort(
                                         (a, b) => a.presentation?.order - b.presentation?.order
                                     )
