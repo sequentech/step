@@ -11757,6 +11757,16 @@
                 "defaultValue": null
               },
               {
+                "name": "_inc",
+                "description": "increments the numeric columns with given value of the filtered values",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_candidate_inc_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "_prepend",
                 "description": "prepend existing jsonb value of filtered columns with new jsonb value",
                 "type": {
@@ -11839,6 +11849,16 @@
                 "type": {
                   "kind": "INPUT_OBJECT",
                   "name": "sequent_backend_candidate_delete_key_input",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "_inc",
+                "description": "increments the numeric columns with given value of the filtered values",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "sequent_backend_candidate_inc_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -32314,6 +32334,18 @@
             "deprecationReason": null
           },
           {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "presentation",
             "description": null,
             "args": [
@@ -32645,6 +32677,18 @@
         "description": "aggregate fields of \"sequent_backend.candidate\"",
         "fields": [
           {
+            "name": "avg",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_avg_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "count",
             "description": null,
             "args": [
@@ -32712,6 +32756,90 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "stddev",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_stddev_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "stddev_pop",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_stddev_pop_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "stddev_samp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_stddev_samp_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "sum",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_sum_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "var_pop",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_var_pop_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "var_samp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_var_samp_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "variance",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_candidate_variance_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -32725,6 +32853,16 @@
         "description": "order by aggregate values of table \"sequent_backend.candidate\"",
         "fields": null,
         "inputFields": [
+          {
+            "name": "avg",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_avg_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "count",
             "description": null,
@@ -32751,6 +32889,76 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "sequent_backend_candidate_min_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "stddev",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_stddev_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "stddev_pop",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_stddev_pop_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "stddev_samp",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_stddev_samp_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "sum",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_sum_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "var_pop",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_var_pop_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "var_samp",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_var_samp_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "variance",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_variance_order_by",
               "ofType": null
             },
             "defaultValue": null
@@ -32835,6 +33043,50 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "sequent_backend_candidate_on_conflict",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_avg_fields",
+        "description": "aggregate avg on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_avg_order_by",
+        "description": "order by avg() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
               "ofType": null
             },
             "defaultValue": null
@@ -33012,6 +33264,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Int_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -33217,6 +33479,27 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_inc_input",
+        "description": "input type for incrementing numeric columns in table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "sequent_backend_candidate_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.candidate\"",
         "fields": null,
@@ -33337,6 +33620,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
               "ofType": null
             },
             "defaultValue": null
@@ -33490,6 +33783,18 @@
             "deprecationReason": null
           },
           {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -33607,6 +33912,16 @@
           },
           {
             "name": "name",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "order",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -33754,6 +34069,18 @@
             "deprecationReason": null
           },
           {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -33871,6 +34198,16 @@
           },
           {
             "name": "name",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "order",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -34139,6 +34476,16 @@
             "defaultValue": null
           },
           {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -34348,6 +34695,12 @@
             "deprecationReason": null
           },
           {
+            "name": "order",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "presentation",
             "description": "column name",
             "isDeprecated": false,
@@ -34529,6 +34882,16 @@
             "defaultValue": null
           },
           {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -34554,6 +34917,138 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_stddev_fields",
+        "description": "aggregate stddev on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_stddev_order_by",
+        "description": "order by stddev() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_stddev_pop_fields",
+        "description": "aggregate stddev_pop on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_stddev_pop_order_by",
+        "description": "order by stddev_pop() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_stddev_samp_fields",
+        "description": "aggregate stddev_samp on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_stddev_samp_order_by",
+        "description": "order by stddev_samp() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
               "ofType": null
             },
             "defaultValue": null
@@ -34725,6 +35220,16 @@
             "defaultValue": null
           },
           {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -34750,6 +35255,50 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_sum_fields",
+        "description": "aggregate sum on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_sum_order_by",
+        "description": "order by sum() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
               "ofType": null
             },
             "defaultValue": null
@@ -34840,6 +35389,12 @@
             "deprecationReason": null
           },
           {
+            "name": "order",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "presentation",
             "description": "column name",
             "isDeprecated": false,
@@ -34907,6 +35462,16 @@
             "defaultValue": null
           },
           {
+            "name": "_inc",
+            "description": "increments the numeric columns with given value of the filtered values",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_candidate_inc_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "_prepend",
             "description": "prepend existing jsonb value of filtered columns with new jsonb value",
             "type": {
@@ -34937,6 +35502,138 @@
                 "name": "sequent_backend_candidate_bool_exp",
                 "ofType": null
               }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_var_pop_fields",
+        "description": "aggregate var_pop on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_var_pop_order_by",
+        "description": "order by var_pop() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_var_samp_fields",
+        "description": "aggregate var_samp on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_var_samp_order_by",
+        "description": "order by var_samp() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_candidate_variance_fields",
+        "description": "aggregate variance on columns",
+        "fields": [
+          {
+            "name": "order",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_candidate_variance_order_by",
+        "description": "order by variance() on columns of table \"sequent_backend.candidate\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "order",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
             },
             "defaultValue": null
           }

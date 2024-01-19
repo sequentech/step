@@ -123,6 +123,7 @@ query GetBallotStyleArea(
             type
             presentation
             is_public
+            order
         }
     }
   }
