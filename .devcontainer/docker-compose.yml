@@ -647,6 +647,7 @@ services:
       - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
