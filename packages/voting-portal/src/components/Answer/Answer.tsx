@@ -30,6 +30,7 @@ import {useTranslation} from "react-i18next"
 export interface IAnswerProps {
     answer: ICandidate
     questionIndex: number
+    index: number
     ballotStyle: IBallotStyle
     hasCategory?: boolean
     isActive: boolean
@@ -47,6 +48,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     isReview,
     isInvalidVote,
     isInvalidWriteIns,
+    index,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)

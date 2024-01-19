@@ -253,6 +253,7 @@ export default function MenuAction({
                     {!isArchivedTab && canEditElectionEvent && (
                         <MenuItem
                             key={Action.Remove}
+                            className={`menu-action-delete-${resourceType}`}
                             onClick={() =>
                                 handleAction(Action.Remove, {
                                     id: resourceId,

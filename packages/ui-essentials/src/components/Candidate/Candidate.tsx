@@ -89,6 +89,7 @@ export interface CandidateProps extends PropsWithChildren {
     writeInValue?: string
     setWriteInText?: (value: string) => void
     isInvalidWriteIn?: boolean
+    index?: number
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -105,6 +106,7 @@ const Candidate: React.FC<CandidateProps> = ({
     setWriteInText,
     isInvalidWriteIn,
     children,
+    index,
 }) => {
     const {t, i18n} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
@@ -134,10 +136,12 @@ const Candidate: React.FC<CandidateProps> = ({
             hascategory={String(!!hasCategory)}
             isinvalidvote={String(!!isInvalidVote)}
             onClick={onClick}
+            className="candidate-item"
         >
             <ImageBox>{children}</ImageBox>
             <Box flexGrow={2} dir={i18n.dir(i18n.language)}>
                 <Typography
+                    className="candidate-title"
                     fontWeight="bold"
                     fontSize="16px"
                     lineHeight="22px"
@@ -149,6 +153,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     {title}
                 </Typography>
                 <Typography
+                    className="candidate-description"
                     color={theme.palette.customGrey.dark}
                     fontSize="16px"
                     marginTop="4px"
@@ -181,7 +186,15 @@ const Candidate: React.FC<CandidateProps> = ({
                     </Typography>
                 </StyledLink>
             ) : null}
-            {isActive ? <Checkbox checked={checked} onChange={handleChange} /> : null}
+            {isActive ? (
+                <Checkbox
+                    inputProps={{
+                        className: "candidate-input",
+                    }}
+                    checked={checked}
+                    onChange={handleChange}
+                />
+            ) : null}
         </BorderBox>
     )
 }

@@ -207,9 +207,10 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             isactive={String(!!isActive)}
             role="button"
             tabIndex={0}
+            className="election-item"
         >
-            <TextContainer>
-                <StyledTitle dir={i18n.dir(i18n.language)}>{title}</StyledTitle>
+            <TextContainer className="election-info">
+                <StyledTitle className="election-title" dir={i18n.dir(i18n.language)}>{title}</StyledTitle>
                 <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                     <StyledLink href={electionHomeUrl} target="_blank">
                         {t("selectElection.electionWebsite")}
@@ -254,7 +255,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledLink>
                 </Box>
             </DatesUrlWrap>
-            <Box sx={{display: "flex"}}>
+            <Box sx={{display: "flex"}} className="election-actions">
                 {displayBallotLocator && (
                     <StyledButton
                         sx={{marginRight: "16px"}}
@@ -265,7 +266,11 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledButton>
                 )}
                 {isOpen ? (
-                    <StyledButton disabled={!onClickToVote} onClick={handleClickToVote}>
+                    <StyledButton
+                        className="click-to-vote-button"
+                        disabled={!handleClickToVote}
+                        onClick={handleClickToVote}
+                    >
                         {t("selectElection.voteButton")}
                     </StyledButton>
                 ) : (
