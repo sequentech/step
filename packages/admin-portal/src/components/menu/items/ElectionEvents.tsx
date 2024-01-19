@@ -63,14 +63,14 @@ export type CandidateType = BaseType & {
     __typename: "sequent_backend_candidate"
     election_event_id: string
     contest_id: string
-    order: number
+    presentation: any
 }
 
 export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
     election_event_id: string
     election_id: string
-    order_answers: OrderAnswer
+    presentation: any
     candidates: Array<CandidateType>
 }
 
@@ -162,10 +162,12 @@ export default function ElectionEvents() {
                         return {
                             ...election,
                             contests: election.contests.map((contest) => {
-                                let orderType = contest.order_answers
+                                let orderType = contest.presentation?.candidates_order
 
                                 if (orderType === OrderAnswer.CUSTOM) {
-                                    contest.candidates.sort((a, b) => a.order - b.order)
+                                    contest.candidates.sort(
+                                        (a, b) => a.presentation?.order - b.presentation?.order
+                                    )
                                 }
 
                                 return contest
