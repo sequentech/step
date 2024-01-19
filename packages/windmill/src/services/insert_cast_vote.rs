@@ -19,7 +19,6 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
-use rocket::serde::json::Json;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
