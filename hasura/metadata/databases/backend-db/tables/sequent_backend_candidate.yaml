@@ -9,6 +9,7 @@ insert_permissions:
     - is_public
     - name
     - type
+    - order
     - annotations
     - labels
     - presentation
@@ -26,21 +27,22 @@ insert_permissions:
   permission:
     check: {}
     columns:
-    - is_public
-    - name
-    - type
-    - annotations
-    - labels
-    - presentation
     - alias
-    - description
-    - image_document_id
-    - created_at
-    - last_updated_at
+    - annotations
     - contest_id
+    - created_at
+    - description
     - election_event_id
     - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - order
+    - presentation
     - tenant_id
+    - type
   role: service-account
 select_permissions:
 - comment: ""
@@ -50,6 +52,7 @@ select_permissions:
     - is_public
     - name
     - type
+    - order
     - annotations
     - labels
     - presentation
@@ -71,6 +74,7 @@ select_permissions:
     - is_public
     - name
     - type
+    - order
     - annotations
     - labels
     - presentation
@@ -115,6 +119,7 @@ update_permissions:
     - is_public
     - name
     - type
+    - order
     - annotations
     - labels
     - presentation
@@ -136,6 +141,7 @@ update_permissions:
     - is_public
     - name
     - type
+    - order
     - annotations
     - labels
     - presentation
