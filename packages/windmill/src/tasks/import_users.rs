@@ -9,12 +9,15 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::s3;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
+use base64::prelude::*;
 use celery::error::TaskError;
 use csv::StringRecord;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use futures::pin_mut;
 use rand::prelude::*;
+use rand::{thread_rng, Rng};
 use regex::Regex;
+use ring::{digest, pbkdf2};
 use rocket::futures::SinkExt as _;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
@@ -22,18 +25,22 @@ use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Seek;
+use std::num::NonZeroU32;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument};
-use ring::{digest, pbkdf2};
-use std::{collections::HashMap, num::NonZeroU32};
-use sha2::Sha256;
-use base64::prelude::*;
-use rand::{Rng, thread_rng};
 
 lazy_static! {
     static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
     static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
+    static ref SALT_COL_NAME: String = String::from("password_salt");
+    static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
+    static ref PASSWORD_COL_NAME: String = String::from("password");
+    static ref RESERVED_COL_NAMES: Vec<String> = vec![
+        HASHED_PASSWORD_COL_NAME.clone(),
+        SALT_COL_NAME.clone(),
+        PASSWORD_COL_NAME.clone(),
+    ];
 }
 
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
@@ -63,7 +70,7 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
         *PBKDF2_ITERATIONS,
         salt,
         password.as_bytes(),
-        &mut output
+        &mut output,
     );
 
     let generated_hash = BASE64_STANDARD.encode(&output);
@@ -119,10 +126,7 @@ impl ImportUsersBody {
         let random_number: u64 = rand::random();
 
         let temp_table_name = format!("temp_voters_{}", random_number);
-        let headers_vec = headers
-            .iter()
-            .map(String::from)
-            .collect::<Vec<String>>();
+        let headers_vec = headers.iter().map(String::from).collect::<Vec<String>>();
 
         let input_column_names = headers_vec
             .iter()
@@ -136,14 +140,11 @@ impl ImportUsersBody {
             .iter()
             .filter_map(|column_name| match column_name.as_str() {
                 "area-name" => Some("area-id".to_string()),
-                "password" => None,
+                password if password == PASSWORD_COL_NAME.as_str() => None,
                 _ => Some(column_name.clone()),
             })
-            .chain(if headers_vec.contains(&"password".to_string()) {
-                vec![
-                    "salt".to_string(),
-                    "hashed-password".to_string(),
-                ].into_iter()
+            .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
+                vec![SALT_COL_NAME.clone(), HASHED_PASSWORD_COL_NAME.clone()].into_iter()
             } else {
                 Vec::new().into_iter()
             })
@@ -228,16 +229,13 @@ impl ImportUsersBody {
             select_columns.join(", "),
             voters_table,
         );
-        // Password-related columns are reserved, not being stored as user-attrs
-        let reserved_columns = vec!["password", "salt"];
 
         // Assume all other columns are user attributes
         let user_attributes = voters_table_columns
             .clone()
             .into_iter()
             .filter(|col| {
-                (!user_entity_columns.contains(&col.as_str())
-                    && !reserved_columns.contains(&col.as_str()))
+                !user_entity_columns.contains(&col.as_str()) && !RESERVED_COL_NAMES.contains(&col)
             })
             .collect::<Vec<String>>();
 
@@ -285,12 +283,67 @@ impl ImportUsersBody {
             String::new()
         };
 
+        // Inserts password credentials if need be
+        let salt_col_name = &*SALT_COL_NAME;
+        let hashed_password_col_name = &*HASHED_PASSWORD_COL_NAME;
+        let num_iterations = &*PBKDF2_ITERATIONS;
+        let credentials_query = if voters_table_columns.contains(hashed_password_col_name) {
+            format!(
+                r#",
+                pre_credentials AS (
+                    SELECT
+                        v.{salt_col_name} AS salt,
+                        v.{hashed_password_col_name} AS hashed_password,
+                        nu.id AS id
+                    FROM
+                        {voters_table} v
+                    JOIN
+                        new_user nu ON
+                            nu.username = v.username
+                ),
+                credentials AS (
+                    INSERT 
+                    INTO credential (
+                        id,
+                        type,
+                        user_id,
+                        created_date,
+                        user_label,
+                        secret_data,
+                        credential_data,
+                        priority
+                    )
+                    SELECT
+                        gen_random_uuid(),
+                        'password',
+                        pc.id,
+                        (extract(epoch from now()) * 1000)::bigint,
+                        'My password',
+                        json_build_object(
+                            'value', pc.hashed_password,
+                            'salt', pc.salt
+                        )::text,
+                        json_build_object(
+                            'hashIterations', {num_iterations},
+                            'algorithm', 'pbkdf2-sha256',
+                            'additionalParameters', json_build_object()
+                        )::text,
+                        10
+                    FROM pre_credentials pc
+                )
+                "#
+            )
+        } else {
+            String::new()
+        };
+
         Ok(format!(
             r#"
             WITH 
                 new_user AS (
                     {user_entity_query}
                 )
+                {credentials_query}
             {user_attribute_query};
             "#
         ))
@@ -415,7 +468,11 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .with_context(|| "Error obtaining realm id")?;
 
     let insert_user_query = body
-        .get_insert_user_query(realm_id, voters_table, &voters_table_processed_columns_names)
+        .get_insert_user_query(
+            realm_id,
+            voters_table,
+            &voters_table_processed_columns_names,
+        )
         .with_context(|| "Error obtaining insert_user_query query")?;
 
     // Execute the create table query
@@ -452,30 +509,24 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
                     .to_string(),
                 _ => data.to_string(),
             };
-            if column_name.as_str() == "password" {
+            if column_name == &*PASSWORD_COL_NAME {
                 let mut salt_bytes: Credential = Default::default();
                 thread_rng().fill(&mut salt_bytes);
-                
+
                 password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
                 hashed_password = Some(
                     hash_password(&processed_data, &salt_bytes)
-                    .with_context(|| "Error generating hashed password")?
+                        .with_context(|| "Error generating hashed password")?,
                 );
             } else {
                 owned_data.push(processed_data);
             }
         }
         info!("owned_data: {owned_data:?}");
-        if voters_table_processed_columns_names.contains(&"hashed-password".to_string()) {
+        if voters_table_processed_columns_names.contains(&*HASHED_PASSWORD_COL_NAME) {
             info!("password data: salt={password_salt:?}, hashed_password={hashed_password:?}");
-            owned_data.push(
-                password_salt
-                .ok_or_else(|| anyhow!("password salt empty"))?
-            );
-            owned_data.push(
-                hashed_password
-                .ok_or_else(|| anyhow!("hashed password empty"))?
-            );
+            owned_data.push(password_salt.ok_or_else(|| anyhow!("password salt empty"))?);
+            owned_data.push(hashed_password.ok_or_else(|| anyhow!("hashed password empty"))?);
         }
 
         let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data
