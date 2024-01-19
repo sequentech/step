@@ -17,7 +17,7 @@ const getRandomIntInclusive = (min: number, max: number) => {
 // eslint-disable-next-line jest/valid-describe-callback
 describe("cast ballot", function (this: ExtendDescribeThis<LoginThis>) {
     this.testUrl =
-        "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/5960217c-ac34-40b2-99ae-40ecc54f03f9/election-chooser"
+        "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/74de05df-267b-4ec2-a277-a392b2192c36/election-chooser"
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
@@ -58,7 +58,7 @@ describe("cast ballot", function (this: ExtendDescribeThis<LoginThis>) {
         await browser.getText(
             `div.elections-list div.election-item:nth-child(${selectedElection}) p.election-title`,
             (result) => {
-                selectedElectionText = result.value
+                selectedElectionText = result.value as string
             }
         )
 
@@ -82,7 +82,7 @@ describe("cast ballot", function (this: ExtendDescribeThis<LoginThis>) {
         await browser.getText(
             `div.candidates-list div.candidate-item:nth-child(${selectedCandidate}) p.candidate-title`,
             (result) => {
-                selectedCandidateText = result.value
+                selectedCandidateText = result.value as string
             }
         )
 
