@@ -130,13 +130,12 @@ export const ContestDataForm: React.FC = () => {
             const temp: Sequent_Backend_Contest_Extended = {...incoming}
 
             let languageSettings
-            // const languageSettings = buildLanguageSettings()
+
             const votingSettings = data?.voting_channels
 
             // languages
             temp.enabled_languages = {}
 
-            // if (languageSettings) {
             if (
                 incoming?.presentation?.language_conf?.enabled_language_codes &&
                 incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
@@ -178,7 +177,6 @@ export const ContestDataForm: React.FC = () => {
                 }
                 temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
             }
-            // }
 
             // set english first lang always
             if (temp.enabled_languages) {
@@ -212,13 +210,14 @@ export const ContestDataForm: React.FC = () => {
             temp.counting_algorithm =
                 temp.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
             temp.min_votes = temp.min_votes || 0
-            temp.max_votes = temp.max_votes // || 1
-            temp.winning_candidates_num = temp.winning_candidates_num // || 1
-            temp.order_answers = temp.order_answers || OrderAnswer.ALPHABETICAL
+            // temp.max_votes = temp.max_votes // || 1
+            // temp.winning_candidates_num = temp.winning_candidates_num // || 1
+
+            temp.presentation.candidates_order = temp.candidates_order || OrderAnswer.ALPHABETICAL
 
             return temp
         },
-        [data]
+        [data, buildLanguageSettings]
     )
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -339,7 +338,7 @@ export const ContestDataForm: React.FC = () => {
         data.candidatesOrder?.map((c: Sequent_Backend_Candidate, index: number) => {
             return update("sequent_backend_candidate", {
                 id: c.id,
-                data: {order: index},
+                data: {presentation: {order: index}},
                 previousData: c,
             })
         })
@@ -436,14 +435,14 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
-                                    source="order_answers"
+                                    source="candidates_order"
                                     choices={orderAnswerChoices()}
                                     validate={required()}
                                 />
 
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        return formData?.order_answers === "custom" ? (
+                                        return formData?.candidates_order === "custom" ? (
                                             <CandidateRows>
                                                 <Typography
                                                     variant="body1"
