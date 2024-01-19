@@ -34,8 +34,7 @@ export const SettingsLanguages: React.FC<void> = () => {
         undoable: false,
     })
 
-    console.log("record", record);
-    
+    console.log("record", record)
 
     const [setting, setSetting] = useState<any>({
         english: record?.settings?.english || true,
@@ -51,8 +50,7 @@ export const SettingsLanguages: React.FC<void> = () => {
 
         setSetting(updatedSetting)
 
-        console.log("updatedSetting", updatedSetting);
-        
+        console.log("updatedSetting", updatedSetting)
 
         if (save) {
             save({

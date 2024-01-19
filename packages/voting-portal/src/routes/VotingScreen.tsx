@@ -86,7 +86,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
         <ActionsContainer>
             <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} dir={i18n.dir(i18n.language)}>
-                    <Icon icon={faAngleLeft} size="sm" dir={i18n.dir(i18n.language)}/>
+                    <Icon icon={faAngleLeft} size="sm" dir={i18n.dir(i18n.language)} />
                     <Box>{t("votingScreen.backButton")}</Box>
                 </StyledButton>
             </StyledLink>

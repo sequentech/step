@@ -182,7 +182,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm"  dir={i18n.dir(i18n.language)}/>
+                        <Icon icon={faAngleLeft} size="sm" dir={i18n.dir(i18n.language)} />
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>

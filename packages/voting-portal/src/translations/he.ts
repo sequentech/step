@@ -28,8 +28,7 @@ const hebrewTranslation = {
             instructionsTitle: "הוראות",
             instructionsDescription: "עליך לעקוב אחרי השלבים הללו כדי להציב את הקלף שלך:",
             step1Title: "1. בחר את האפשרויות שלך",
-            step1Description:
-                "ענה על שאלות הבחירות לפי הצגתן. בכך תקבע את ההעדפות שלך בקלף.",
+            step1Description: "ענה על שאלות הבחירות לפי הצגתן. בכך תקבע את ההעדפות שלך בקלף.",
             step2Title: "2. סקור את הקלף שלך",
             step2Description:
                 "לאחר שבחרת בהעדפות שלך, נמשיך להצפנתן ותוצג במסך כתובת מסלול הקלף שלך. תוצג גם תקציר של תוכן הקלף לצורך סקירה.",
@@ -46,8 +45,7 @@ const hebrewTranslation = {
             auditButton: "אודיט את הקלף",
             reviewScreenHelpDialog: {
                 title: "מידע: מסך סקירה",
-                content:
-                    "מסך זה מאפשר לך לסקור את הבחירות שלך לפני שתשלח את הקלף.",
+                content: "מסך זה מאפשר לך לסקור את הבחירות שלך לפני שתשלח את הקלף.",
                 ok: "אוקי",
             },
             ballotIdHelpDialog: {
@@ -73,8 +71,7 @@ const hebrewTranslation = {
             printButton: "הדפס",
             finishButton: "סיום",
             verifyCastTitle: "אמת שהקלף שלך הושלם",
-            verifyCastDescription:
-                "תוכל לאמת שהקלף שלך הושלם נכונה בכל רגע באמצעות קוד QR הבא:",
+            verifyCastDescription: "תוכל לאמת שהקלף שלך הושלם נכונה בכל רגע באמצעות קוד QR הבא:",
             confirmationHelpDialog: {
                 title: "מידע: מסך אישור",
                 content:
@@ -138,10 +135,8 @@ const hebrewTranslation = {
                 ballotTooLarge: "הקלף גדול מהמצופה",
             },
             implicit: {
-                selectedMax:
-                    "מספר הבחירות הנבחרות {{numSelected}} גדול מהמקסימום {{max}}",
-                selectedMin:
-                    "מספר הבחירות הנבחרות {{numSelected}} קטן מהמינימום {{min}}",
+                selectedMax: "מספר הבחירות הנבחרות {{numSelected}} גדול מהמקסימום {{max}}",
+                selectedMin: "מספר הבחירות הנבחרות {{numSelected}} קטן מהמינימום {{min}}",
             },
             explicit: {
                 notAllowed: "הקלף סומן כלא תקף באופן מפורש אך השאלה אינה מאפשרת זאת",
