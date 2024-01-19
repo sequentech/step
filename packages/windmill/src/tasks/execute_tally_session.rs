@@ -576,7 +576,8 @@ pub async fn execute_tally_session_wrapped(
         new_status,
         session_ids,
         cast_votes_count,
-    )) = plaintexts_data_opt else {
+    )) = plaintexts_data_opt
+    else {
         return Ok(());
     };
 
@@ -678,17 +679,16 @@ pub async fn transactions_wrapper(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let res =
-        execute_tally_session_wrapped(
-            tenant_id.clone(),
-            election_event_id.clone(),
-            tally_session_id.clone(),
-            auth_headers.clone(),
-            &hasura_transaction,
-            &keycloak_transaction,
-        )
-        .await
-        .with_context(|| "Error executing tally session")?;
+    let res = execute_tally_session_wrapped(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+        auth_headers.clone(),
+        &hasura_transaction,
+        &keycloak_transaction,
+    )
+    .await
+    .with_context(|| "Error executing tally session")?;
 
     hasura_transaction
         .commit()
