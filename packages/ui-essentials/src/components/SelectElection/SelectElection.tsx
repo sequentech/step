@@ -210,7 +210,9 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             className="election-item"
         >
             <TextContainer className="election-info">
-                <StyledTitle className="election-title" dir={i18n.dir(i18n.language)}>{title}</StyledTitle>
+                <StyledTitle className="election-title" dir={i18n.dir(i18n.language)}>
+                    {title}
+                </StyledTitle>
                 <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                     <StyledLink href={electionHomeUrl} target="_blank">
                         {t("selectElection.electionWebsite")}
