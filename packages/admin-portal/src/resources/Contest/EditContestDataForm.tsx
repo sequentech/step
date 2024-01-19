@@ -18,7 +18,6 @@ import {
     RaRecord,
     Identifier,
     RecordContext,
-    useEditController,
     BooleanInput,
     NumberInput,
 } from "react-admin"
@@ -34,11 +33,9 @@ import {
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Contest,
-    Sequent_Backend_Candidate,
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import {FieldValues} from "react-hook-form"
 import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
