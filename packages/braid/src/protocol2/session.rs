@@ -9,7 +9,7 @@ pub struct Session<C: Ctx + 'static> {
     trustee: Trustee<C>,
     board: BoardParams,
     dry_run: bool,
-    last_message_id: i64,
+    last_message_id: Option<i64>,
 }
 impl<C: Ctx> Session<C> {
     pub fn new(trustee: Trustee<C>, board: BoardParams) -> Session<C> {
@@ -17,7 +17,7 @@ impl<C: Ctx> Session<C> {
             trustee,
             board,
             dry_run: false,
-            last_message_id: -1,
+            last_message_id: None,
         }
     }
 
@@ -26,7 +26,7 @@ impl<C: Ctx> Session<C> {
             trustee,
             board,
             dry_run: true,
-            last_message_id: -1,
+            last_message_id: None,
         }
     }
 

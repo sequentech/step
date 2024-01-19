@@ -125,6 +125,15 @@ impl BoardClient {
         self.get(board_db, Table::BraidMessages, last_id).await
     }
 
+    /// Get one braid messages matching id
+    pub async fn get_one_message(
+        &mut self,
+        board_db: &str,
+        id: i64,
+    ) -> Result<Option<BoardMessage>> {
+        self.get_one(board_db, Table::BraidMessages, id).await
+    }
+
     /// Get all electoral log messages whose id is bigger than `last_id`
     pub async fn get_electoral_log_messages(
         &mut self,
@@ -173,6 +182,50 @@ impl BoardClient {
             .collect::<Result<Vec<BoardMessage>>>()?;
 
         Ok(messages)
+    }
+
+    /// Gets message matching id
+    async fn get_one(
+        &mut self,
+        board_db: &str,
+        table: Table,
+        id: i64,
+    ) -> Result<Option<BoardMessage>> {
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message
+        FROM {}
+        WHERE id = @id
+        "#,
+            table.as_str()
+        );
+
+        let params = vec![NamedParam {
+            name: String::from("id"),
+            value: Some(SqlValue {
+                value: Some(Value::N(id)),
+            }),
+        }];
+
+        let sql_query_response = self.client.sql_query(&sql, params).await?;
+        let rows = &sql_query_response
+        .get_ref()
+        .rows;
+
+        if rows.len() > 0 {
+            Ok(Some(BoardMessage::try_from(&rows[0])?))
+        }
+        else {
+            Ok(None)
+        }
+        
     }
 
     pub async fn get_messages_filtered(
