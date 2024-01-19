@@ -9,6 +9,12 @@ export enum EVotingStatus {
     CLOSED = "CLOSED",
 }
 
+export enum CandidatesOrder {
+    RANDOM = "random",
+    CUSTOM = "custom",
+    ALPHABETICAL = "alphabetical",
+}
+
 export interface IElectionEventStatus {
     config_created?: boolean
     keys_ceremony_finished?: boolean
