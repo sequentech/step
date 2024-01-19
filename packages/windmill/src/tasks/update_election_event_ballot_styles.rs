@@ -43,7 +43,6 @@ pub async fn update_election_event_ballot_styles(
     .await?
     .data
     .with_context(|| "can't find election event areas")?;
-    let celery_app = get_celery_app().await;
 
     for area in areas.sequent_backend_area.iter() {
         create_ballot_style(
