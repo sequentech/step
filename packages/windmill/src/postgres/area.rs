@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::{keycloak::UserArea, hasura_types::Area};
+use sequent_core::types::{hasura_types::Area, keycloak::UserArea};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -14,7 +14,7 @@ pub struct AreaWrapper(pub Area);
 impl TryFrom<Row> for AreaWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        Ok(AreaWrapper (Area {
+        Ok(AreaWrapper(Area {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
@@ -201,7 +201,6 @@ pub async fn get_elections_by_area(
     Ok(areas_to_elections)
 }
 
-
 /**
  * Returns a vector of areas per election event, with the posibility of
  * filtering by area_id
@@ -250,8 +249,8 @@ pub async fn get_area_by_id(
 
     let areas: Vec<Area> = rows
         .into_iter()
-        .map(|row| -> Result<Area> { row.try_into()[0] })
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
         .collect::<Result<Vec<Area>>>()?;
 
-    Ok(areas.get(0).clone())
+    Ok(areas.get(0).map(|area| area.clone()))
 }

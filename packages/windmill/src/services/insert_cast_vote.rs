@@ -2,21 +2,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::hasura;
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
-use anyhow::{anyhow, Context, Result};
-use board_messages::braid::message::Signer;
-use deadpool_postgres::Transaction;
-use rocket::futures::TryFutureExt;
-use rocket::serde::json::Json;
-use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::services::connection::AuthHeaders;
-use sequent_core::services::keycloak;
-use strand::elgamal::Ciphertext;
-use strand::hash::HashWrapper;
-use tracing::{event, Level};
-use uuid::Uuid;
-use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
@@ -24,18 +12,30 @@ use crate::{
     hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
     services::database::get_hasura_pool,
 };
+use anyhow::{anyhow, Context, Result};
+use board_messages::braid::message::Signer;
 use board_messages::electoral_log::newtypes::*;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
+use rocket::futures::TryFutureExt;
+use rocket::serde::json::Json;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::services::connection::AuthHeaders;
+use sequent_core::services::keycloak;
+use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
+use strand::elgamal::Ciphertext;
+use strand::hash::HashWrapper;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use tracing::instrument;
 use strand::zkp::Schnorr;
 use strand::zkp::Zkp;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
+use tracing::instrument;
+use tracing::{event, Level};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InsertCastVoteInput {
@@ -57,7 +57,7 @@ pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
     tenant_id: &str,
     voter_id: &str,
-    area_id: &str
+    area_id: &str,
 ) -> Result<InsertCastVoteOutput> {
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
@@ -67,12 +67,13 @@ pub async fn try_insert_cast_vote(
         .await
         .with_context(|| "Cannot set transaction isolation level")?;
 
-    let area_id_opt =  get_area_by_id(
+    let area_id_opt = get_area_by_id(
         &hasura_transaction,
         tenant_id,
         &input.election_event_id,
         area_id,
-    ).await?;
+    )
+    .await?;
 
     // TODO get the voter id from somewhere
     let pseudonym_h = [0u8; 64];
@@ -88,21 +89,18 @@ pub async fn try_insert_cast_vote(
     check_popk(&ciphertext_bytes, &proof_bytes, &label)?;
 
     let (auth_headers, election_event) = get_election_event(&input).await?;
-    let (electoral_log, signing_key) =
-        get_electoral_log(&election_event).await?;
+    let (electoral_log, signing_key) = get_electoral_log(&election_event).await?;
 
     let check_status = check_status(&input, auth_headers, &election_event);
 
     // Transaction isolation begins at this future (unless above methods are
     // switched from hasura to direct sql)
-    let check_previous_votes =
-        check_previous_votes(voter_id, &input, &hasura_transaction);
+    let check_previous_votes = check_previous_votes(voter_id, &input, &hasura_transaction);
 
     // TODO signature must include more information
     let ballot_signature = signing_key.sign(input.content.as_bytes())?;
     let ballot_signature = ballot_signature.to_bytes().to_vec();
-    let insert =
-        insert(&input, voter_id, ballot_signature, &hasura_transaction);
+    let insert = insert(&input, voter_id, ballot_signature, &hasura_transaction);
 
     let result = check_status
         .and_then(|_| check_previous_votes)
@@ -151,17 +149,13 @@ pub async fn try_insert_cast_vote(
 async fn get_electoral_log(
     election_event: &GetElectionEventSequentBackendElectionEvent,
 ) -> anyhow::Result<(ElectoralLog, StrandSignatureSk)> {
-    let board_name = get_election_event_board(
-        election_event.bulletin_board_reference.clone(),
-    )
-    .with_context(|| "missing bulletin board")?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
 
-    let protocol_manager =
-        get_protocol_manager::<RistrettoCtx>(&board_name).await?;
+    let protocol_manager = get_protocol_manager::<RistrettoCtx>(&board_name).await?;
     let sk = protocol_manager.get_signing_key();
 
-    let electoral_log =
-        ElectoralLog::new_from_sk(board_name.as_str(), &sk).await;
+    let electoral_log = ElectoralLog::new_from_sk(board_name.as_str(), &sk).await;
 
     Ok((electoral_log?, sk.clone()))
 }
@@ -203,8 +197,8 @@ async fn check_status(
         .status
         .clone()
         .ok_or(anyhow!("Could not retrieve election event status"))?;
-    let status: ElectionEventStatus = serde_json::from_value(status)
-        .context("Failed to deserialize election event status")?;
+    let status: ElectionEventStatus =
+        serde_json::from_value(status).context("Failed to deserialize election event status")?;
     if status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election event voting status is not open"));
     }
@@ -228,8 +222,8 @@ async fn check_status(
         .status
         .clone()
         .ok_or(anyhow!("Could not retrieve election status"))?;
-    let status: ElectionStatus = serde_json::from_value(status)
-        .context("Failed to deserialize election status")?;
+    let status: ElectionStatus =
+        serde_json::from_value(status).context("Failed to deserialize election status")?;
     if status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election voting status is not open"));
     }
@@ -273,7 +267,11 @@ async fn check_previous_votes(
         ));
     }
     if other.len() > 0 {
-        return Err(anyhow!("Cannot insert cast vote, votes already present in other area(s) ({}, {:?})", voter_id_string, other));
+        return Err(anyhow!(
+            "Cannot insert cast vote, votes already present in other area(s) ({}, {:?})",
+            voter_id_string,
+            other
+        ));
     }
 
     Ok(())
@@ -309,21 +307,11 @@ async fn insert(
 }
 
 #[instrument(skip_all, err)]
-fn check_popk(
-    ciphertext_bytes: &[u8],
-    proof_bytes: &[u8],
-    label: &[u8],
-) -> Result<()> {
+fn check_popk(ciphertext_bytes: &[u8], proof_bytes: &[u8], label: &[u8]) -> Result<()> {
     let zkp = Zkp::new(&RistrettoCtx);
     let proof = Schnorr::<RistrettoCtx>::strand_deserialize(&proof_bytes)?;
-    let ciphertext =
-        Ciphertext::<RistrettoCtx>::strand_deserialize(&ciphertext_bytes)?;
-    let popk_ok = zkp.encryption_popk_verify(
-        &ciphertext.mhr,
-        &ciphertext.gr,
-        &proof,
-        &label,
-    )?;
+    let ciphertext = Ciphertext::<RistrettoCtx>::strand_deserialize(&ciphertext_bytes)?;
+    let popk_ok = zkp.encryption_popk_verify(&ciphertext.mhr, &ciphertext.gr, &proof, &label)?;
 
     if !popk_ok {
         return Err(anyhow!("Popk validation failed"));

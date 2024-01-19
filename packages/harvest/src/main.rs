@@ -13,7 +13,6 @@ use std::net::SocketAddr;
 use tracing::warn;
 
 mod pdf;
-mod postgres;
 mod routes;
 mod services;
 mod types;

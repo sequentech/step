@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::{VoterPermissions, Permissions};
+use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
 use std::env;
 use tracing::instrument;
