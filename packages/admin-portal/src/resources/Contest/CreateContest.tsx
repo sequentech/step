@@ -84,10 +84,7 @@ export const CreateContest: React.FC = () => {
                         ]}
                     />
                     <BooleanInput source="is_encrypted" defaultValue={true} />
-                    <TextInput
-                        source="presentation.candidates_order"
-                        defaultValue={CandidatesOrder.ALPHABETICAL}
-                    />
+                    <TextInput source="presentation.candidates_order" />
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                         <SelectInput optionText="slug" defaultValue={tenantId} />
                     </ReferenceInput>
