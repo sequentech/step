@@ -1,9 +1,20 @@
+import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import React from "react"
-import {EditBase, Identifier, RaRecord} from "react-admin"
+import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
 
 export const EditContestData: React.FC = () => {
+    const [update] = useUpdate()
+
     const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
+        data.candidatesOrder?.map((c: Sequent_Backend_Candidate, index: number) => {
+            return update("sequent_backend_candidate", {
+                id: c.id,
+                data: {presentation: {order: index}},
+                previousData: c,
+            })
+        })
+
         // save presentation object
         // language_conf
         const enabled_language_codes = []
@@ -46,6 +57,7 @@ export const EditContestData: React.FC = () => {
                     ...language_conf,
                     default_language_code: data.defaultLanguage,
                 },
+                candidates_order: data.contest_candidates_order,
             },
         }
     }

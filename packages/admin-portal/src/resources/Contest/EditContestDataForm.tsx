@@ -124,6 +124,7 @@ export const ContestDataForm: React.FC = () => {
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
+            console.log("INCOMING")
             if (!data) {
                 return incoming as Sequent_Backend_Contest_Extended
             }
@@ -213,8 +214,7 @@ export const ContestDataForm: React.FC = () => {
             // temp.max_votes = temp.max_votes // || 1
             // temp.winning_candidates_num = temp.winning_candidates_num // || 1
 
-            temp.contest_candidates_order =
-                temp.presentation?.candidates_order ?? OrderAnswer.ALPHABETICAL
+            temp.contest_candidates_order = temp.presentation?.candidates_order
 
             return temp
         },
@@ -332,23 +332,6 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
-    const {save} = useEditController()
-    const [update] = useUpdate()
-
-    function onSubmit(data: FieldValues) {
-        data.candidatesOrder?.map((c: Sequent_Backend_Candidate, index: number) => {
-            return update("sequent_backend_candidate", {
-                id: c.id,
-                data: {presentation: {order: index}},
-                previousData: c,
-            })
-        })
-
-        if (save) {
-            save(data)
-        }
-    }
-
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -364,7 +347,6 @@ export const ContestDataForm: React.FC = () => {
                                 <SaveButton />
                             </Toolbar>
                         }
-                        onSubmit={(data) => onSubmit(data)}
                     >
                         <Accordion
                             sx={{width: "100%"}}
