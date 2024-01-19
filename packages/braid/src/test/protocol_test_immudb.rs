@@ -35,8 +35,8 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
     // To test all trustees participating
-    // let n_trustees = 12;
-    // let n_threshold = n_trustees;
+    let n_trustees = 4;
+    let n_threshold = n_trustees;
     let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let all = &max[0..n_trustees];
     let mut rng = &mut rand::thread_rng();
@@ -265,7 +265,6 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
         .await
         .unwrap();
 
-    // In case the previous test did not clean up properly
     b.delete_database(INDEX_DB).await.unwrap();
     b.delete_database(BOARD_DB).await.unwrap();
 

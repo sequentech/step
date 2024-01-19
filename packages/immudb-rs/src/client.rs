@@ -30,7 +30,10 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 impl Client {
     #[instrument(skip(password))]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<Client> {
-        let client = ImmuServiceClient::connect(String::from(server_url)).await?;
+        let mut client = ImmuServiceClient::connect(String::from(server_url)).await?;
+        client = client.max_encoding_message_size(67108864);
+        client = client.max_decoding_message_size(67108864);
+        
         Ok(Client {
             client: client,
             username: username.to_string(),

@@ -129,7 +129,7 @@ impl<C: Ctx> Verifier<C> {
             format!("Verifying board '{}'", self.board.board_dbname).bold()
         );
 
-        let messages = self.board.get_messages(-1).await?;
+        let messages = self.board.get_messages(None).await?;
 
         let cfg_message: Vec<&Message> = messages
             .iter()
