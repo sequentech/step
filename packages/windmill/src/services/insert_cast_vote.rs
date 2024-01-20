@@ -21,18 +21,18 @@ use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
-use sequent_core::ballot::HashableBallot;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::{HashableBallot, HashableBallotContest};
+use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
-use strand::elgamal::Ciphertext;
-use strand::hash::HashWrapper;
-use strand::serialization::StrandDeserialize;
+use strand::hash::{hash_to_array, Hash, HashWrapper};
+use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
-use strand::zkp::Schnorr;
+use strand::util::StrandError;
 use strand::zkp::Zkp;
 use tracing::instrument;
 use tracing::{event, Level};
@@ -50,6 +50,16 @@ pub struct InsertCastVoteOutput {
     pub id: String,
     pub created_at: DateTime<Utc>,
     pub cast_ballot_signature: Vec<u8>,
+}
+
+fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
+    let bytes = voter_id.to_string().strand_serialize()?;
+    hash_to_array(&bytes)
+}
+
+fn hash_ballot(ballot: HashableBallot<RistrettoCtx>) -> Result<Hash, StrandError> {
+    let bytes = ballot.strand_serialize()?;
+    hash_to_array(&bytes)
 }
 
 #[instrument(err)]
@@ -82,18 +92,16 @@ pub async fn try_insert_cast_vote(
         Base64Deserialize::deserialize(input.content.clone())
             .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
 
-    // TODO get the voter id from somewhere
-    let pseudonym_h = [0u8; 64];
-    let vote_h = [0u8; 64];
+    let pseudonym_h =
+        hash_voter_id(voter_id).map_err(|err| anyhow!("Error hashing voter id: {:?}", err))?;
+    let vote_h = hash_ballot(hashable_ballot.clone())
+        .map_err(|err| anyhow!("Error hashing ballot: {:?}", err))?;
 
-    // get this from the incoming data
-    let ciphertext_bytes = vec![];
-    // get this from the incoming data
-    let proof_bytes = vec![];
-    // must match that used on the proving side (voting client)
-    let label = vec![];
-
-    check_popk(&ciphertext_bytes, &proof_bytes, &label)?;
+    hashable_ballot
+        .contests
+        .iter()
+        .map(|contest| check_popk(contest))
+        .collect::<Result<Vec<()>>>()?;
 
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -346,14 +354,20 @@ async fn insert(
 }
 
 #[instrument(skip_all, err)]
-fn check_popk(ciphertext_bytes: &[u8], proof_bytes: &[u8], label: &[u8]) -> Result<()> {
+fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()> {
     let zkp = Zkp::new(&RistrettoCtx);
-    let proof = Schnorr::<RistrettoCtx>::strand_deserialize(&proof_bytes)?;
-    let ciphertext = Ciphertext::<RistrettoCtx>::strand_deserialize(&ciphertext_bytes)?;
-    let popk_ok = zkp.encryption_popk_verify(&ciphertext.mhr, &ciphertext.gr, &proof, &label)?;
+    let popk_ok = zkp.encryption_popk_verify(
+        &ballot_contest.ciphertext.mhr,
+        &ballot_contest.ciphertext.gr,
+        &ballot_contest.proof,
+        &DEFAULT_PLAINTEXT_LABEL,
+    )?;
 
     if !popk_ok {
-        return Err(anyhow!("Popk validation failed"));
+        return Err(anyhow!(
+            "Popk validation failed for contest {}",
+            ballot_contest.contest_id
+        ));
     }
 
     Ok(())
