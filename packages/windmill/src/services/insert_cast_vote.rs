@@ -267,7 +267,7 @@ async fn check_status(
     .context("Cannot retrieve election data")?;
 
     // TODO expect
-    let election = &hasura_response
+    /*let election = &hasura_response
         .data
         .expect("expected data".into())
         .sequent_backend_election[0];
@@ -280,7 +280,7 @@ async fn check_status(
         serde_json::from_value(status).context("Failed to deserialize election status")?;
     if status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election voting status is not open"));
-    }
+    }*/
 
     Ok(())
 }

@@ -51,7 +51,7 @@ pub struct JwtClaims {
     pub email_verified: bool,
     #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
-    pub name: String,
+    pub name: Option<String>,
     pub preferred_username: Option<String>,
     pub given_name: Option<String>,
     pub family_name: Option<String>,

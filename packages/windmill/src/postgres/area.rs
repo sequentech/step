@@ -219,7 +219,7 @@ pub async fn get_area_by_id(
                 tenant_id,
                 election_event_id,
                 created_at,
-                last_updated_at
+                last_updated_at,
                 labels,
                 annotations,
                 name,

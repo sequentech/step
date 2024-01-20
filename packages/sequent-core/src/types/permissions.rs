@@ -122,6 +122,6 @@ pub enum Permissions {
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum VoterPermissions {
-    #[strum(serialize = "cast-vote")]
+    #[strum(serialize = "user")]
     CAST_VOTE,
 }
