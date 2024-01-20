@@ -11,9 +11,11 @@ import {
     Create,
     NumberInput,
     ReferenceInput,
+    SaveButton,
     SelectInput,
     SimpleForm,
     TextInput,
+    Toolbar,
     useGetOne,
     useRedirect,
 } from "react-admin"
@@ -60,7 +62,13 @@ export const CreateElection: React.FC = () => {
                 },
             }}
         >
-            <SimpleForm>
+            <SimpleForm
+                toolbar={
+                    <Toolbar>
+                        <SaveButton className="election-save-button" />
+                    </Toolbar>
+                }
+            >
                 <Typography variant="h4">{t("common.resources.election")}</Typography>
                 <Typography variant="body2">{t("createResource.election")}</Typography>
                 <TextInput source="name" />

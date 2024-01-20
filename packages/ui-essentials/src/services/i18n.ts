@@ -20,7 +20,8 @@ export const initializeLanguages = (externalTranslations: Resource) => {
         .init({
             // we init with resources
             resources: mergedTranslations,
-            fallbackLng: "es",
+            fallbackLng: "en",
+            lng: "en",
             debug: true,
 
             // have a common namespace used around the full app

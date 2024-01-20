@@ -48,6 +48,7 @@ use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
+use tokio::time::{interval, Duration as ChronoDuration};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -549,7 +550,7 @@ pub async fn execute_tally_session_wrapped(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
-    let (tally_session_execution, tally_session) = find_last_tally_session_execution(
+    let (tally_session_execution, _tally_session) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -568,18 +569,17 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
-    if plaintexts_data_opt.is_none() {
-        return Ok(());
-    }
-
-    let (
+    let Some((
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
         new_status,
         session_ids,
         cast_votes_count,
-    ) = plaintexts_data_opt.unwrap();
+    )) = plaintexts_data_opt
+    else {
+        return Ok(());
+    };
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
@@ -654,29 +654,17 @@ pub async fn execute_tally_session_wrapped(
 }
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0)]
-pub async fn execute_tally_session(
+pub async fn transactions_wrapper(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let lock = PgLock::acquire(
-        auth_headers.clone(),
-        format!(
-            "execute_tally_session-{}-{}-{}",
-            tenant_id, election_event_id, tally_session_id
-        ),
-        Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(120)),
-    )
-    .await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
-        .with_context(|| "Error acquiring keycloak db client")?;
+        .with_context(|| "Error acquiring keycloak connection pool")?;
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
@@ -685,7 +673,7 @@ pub async fn execute_tally_session(
         .await
         .get()
         .await
-        .with_context(|| "Error acquiring hasura db client")?;
+        .with_context(|| "Error acquiring hasura connection pool")?;
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
@@ -699,12 +687,52 @@ pub async fn execute_tally_session(
         &hasura_transaction,
         &keycloak_transaction,
     )
-    .await;
+    .await
+    .with_context(|| "Error executing tally session")?;
+
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
-    lock.release(auth_headers.clone()).await?;
 
+    Ok(res)
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(time_limit = 1200000, max_retries = 0)]
+pub async fn execute_tally_session(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<()> {
+    let lock = PgLock::acquire(
+        format!(
+            "execute_tally_session-{}-{}-{}",
+            tenant_id, election_event_id, tally_session_id
+        ),
+        Uuid::new_v4().to_string(),
+        ISO8601::now() + Duration::seconds(120),
+    )
+    .await?;
+    let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
+    let mut current_task = tokio::spawn(transactions_wrapper(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    ));
+    let res = loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                // Execute the callback function here
+                lock.update_expiry().await?;
+            }
+            res = &mut current_task => {
+
+                break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+            }
+        }
+    };
+    lock.release().await?;
     res
 }

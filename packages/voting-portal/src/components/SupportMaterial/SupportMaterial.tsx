@@ -169,9 +169,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             <>
                                 <img
                                     src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
                                     )}
-                                    alt={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    alt={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
                                 />
                             </>
                         ) : kind.includes("pdf") ? (
@@ -186,9 +186,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             >
                                 <iframe
                                     src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
                                     )}
-                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
                                     width="1400"
                                     height="800"
                                 ></iframe>
@@ -208,11 +208,11 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     width="800"
                                     height="500"
                                     src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
                                     )}
                                     referrerPolicy="origin"
                                     sandbox="allow-scripts allow-same-origin"
-                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
                                     allow="autoplay;"
                                 ></iframe>
                             </Box>
@@ -231,9 +231,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     width="800"
                                     height="120"
                                     src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`
+                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
                                     )}
-                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0].name}`}
+                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
                                     allow="autoplay"
                                 ></iframe>
                             </Box>

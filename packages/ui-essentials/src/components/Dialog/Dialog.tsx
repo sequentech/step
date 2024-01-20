@@ -63,6 +63,7 @@ const Dialog: React.FC<DialogProps> = ({
             <DialogActions>
                 {cancel ? (
                     <Button
+                        className="cancel-button"
                         variant={cancelVariant}
                         onClick={closeDialog}
                         sx={{minWidth: "unset", flexGrow: 2}}
@@ -71,6 +72,7 @@ const Dialog: React.FC<DialogProps> = ({
                     </Button>
                 ) : undefined}
                 <Button
+                    className="ok-button"
                     disabled={okEnabled ? !okEnabled() : undefined}
                     variant={okVariant as any}
                     onClick={clickOk}

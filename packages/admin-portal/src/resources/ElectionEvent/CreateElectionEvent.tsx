@@ -180,7 +180,7 @@ export const CreateElectionList: React.FC = () => {
             onSubmit={handleSubmit}
             toolbar={
                 <Toolbar>
-                    <SaveButton disabled={isLoading} />
+                    <SaveButton className="election-event-save-button" disabled={isLoading} />
                 </Toolbar>
             }
         >
