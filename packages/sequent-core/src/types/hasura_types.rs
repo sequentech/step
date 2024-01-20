@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use chrono::{DateTime, Local};
+use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
 pub type Uuid = String;
@@ -138,4 +139,21 @@ pub struct ElectionType {
     pub updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct CastVote {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_id: Uuid,
+    pub area_id: Uuid,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub content: Option<String>,
+    pub cast_ballot_signature: Vec<u8>,
+    pub voter_id_string: Option<String>,
+    pub election_event_id: String,
+    pub ballot_id: Option<String>,
 }

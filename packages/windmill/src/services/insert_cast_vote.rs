@@ -15,19 +15,19 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Signer;
 use board_messages::electoral_log::newtypes::*;
-use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
+use sequent_core::types::hasura_types::CastVote;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -44,12 +44,7 @@ pub struct InsertCastVoteInput {
     pub content: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct InsertCastVoteOutput {
-    pub id: String,
-    pub created_at: DateTime<Utc>,
-    pub cast_ballot_signature: Vec<u8>,
-}
+pub type InsertCastVoteOutput = CastVote;
 
 fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     let bytes = voter_id.to_string().strand_serialize()?;
@@ -129,16 +124,20 @@ pub async fn try_insert_cast_vote(
     // TODO signature must include more information
     let ballot_signature = signing_key.sign(input.content.as_bytes())?;
     let ballot_signature = ballot_signature.to_bytes().to_vec();
-    let insert = insert(
-        tenant_id,
-        election_event_id,
-        election_id,
-        area_id,
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let election_uuid = Uuid::parse_str(election_id)?;
+    let area_uuid = Uuid::parse_str(area_id)?;
+    let insert = postgres::cast_vote::insert_cast_vote(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        &election_uuid,
+        &area_uuid,
         &input.content,
         voter_id,
         &input.ballot_id,
-        ballot_signature,
-        &hasura_transaction,
+        &ballot_signature,
     );
 
     let result = check_status
@@ -329,40 +328,6 @@ async fn check_previous_votes(
     }
 
     Ok(())
-}
-
-#[instrument(skip(ballot_signature, hasura_transaction), err)]
-async fn insert(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    area_id: &str,
-    content: &str,
-    voter_id: &str,
-    ballot_id: &str,
-    ballot_signature: Vec<u8>,
-    hasura_transaction: &Transaction<'_>,
-) -> anyhow::Result<InsertCastVoteOutput> {
-    let (id, created_at) = postgres::cast_vote::insert_cast_vote(
-        &hasura_transaction,
-        &Uuid::parse_str(tenant_id)?,
-        &Uuid::parse_str(election_event_id)?,
-        &Uuid::parse_str(election_id)?,
-        &Uuid::parse_str(area_id)?,
-        content,
-        voter_id,
-        ballot_id,
-        &ballot_signature,
-    )
-    .await?;
-
-    let ret = InsertCastVoteOutput {
-        id: id.to_string(),
-        created_at: created_at,
-        cast_ballot_signature: ballot_signature,
-    };
-
-    Ok(ret)
 }
 
 #[instrument(skip_all, err)]
