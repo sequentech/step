@@ -34,8 +34,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
-use tracing::instrument;
-use tracing::{event, Level};
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -158,29 +157,42 @@ pub async fn try_insert_cast_vote(
 
     match result {
         Ok(result) => {
-            electoral_log
+            let log_result = electoral_log
                 .post_cast_vote(
                     election_event_id.to_string(),
                     Some(input.election_id.to_string()),
                     pseudonym_h,
                     vote_h,
                 )
-                .await
-                .with_context(|| "Error posting to the electoral log")?;
+                .await;
+            if let Err(log_err) = log_result {
+                event!(
+                    Level::ERROR,
+                    "Error posting to the electoral log {:?}",
+                    log_err
+                );
+            }
             Ok(result)
         }
-        Err(e) => {
+        Err(err) => {
             // TODO error message may leak implementation details
-            electoral_log
+            let log_result = electoral_log
                 .post_cast_vote_error(
                     election_event_id.to_string(),
                     Some(input.election_id.to_string()),
                     pseudonym_h,
-                    e.to_string(),
+                    err.to_string(),
                 )
-                .await
-                .with_context(|| "Error posting to the electoral log")?;
-            Err(e)
+                .await;
+
+            if let Err(log_err) = log_result {
+                event!(
+                    Level::ERROR,
+                    "Error posting error to the electoral log {:?}",
+                    log_err
+                );
+            }
+            Err(err)
         }
     }
 }
