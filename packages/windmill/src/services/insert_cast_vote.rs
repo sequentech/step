@@ -46,17 +46,7 @@ pub struct InsertCastVoteInput {
 
 pub type InsertCastVoteOutput = CastVote;
 
-fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
-    let bytes = voter_id.to_string().strand_serialize()?;
-    hash_to_array(&bytes)
-}
-
-fn hash_ballot(ballot: HashableBallot<RistrettoCtx>) -> Result<Hash, StrandError> {
-    let bytes = ballot.strand_serialize()?;
-    hash_to_array(&bytes)
-}
-
-#[instrument(err)]
+#[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
     tenant_id: &str,
@@ -194,6 +184,16 @@ pub async fn try_insert_cast_vote(
             Err(err)
         }
     }
+}
+
+fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
+    let bytes = voter_id.to_string().strand_serialize()?;
+    hash_to_array(&bytes)
+}
+
+fn hash_ballot(ballot: HashableBallot<RistrettoCtx>) -> Result<Hash, StrandError> {
+    let bytes = ballot.strand_serialize()?;
+    hash_to_array(&bytes)
 }
 
 #[instrument(skip_all, err)]

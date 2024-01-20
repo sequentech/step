@@ -137,7 +137,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             })
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
-                dispatch(addCastVotes([newCastVote] as any))
+                dispatch(addCastVotes([newCastVote]))
             }
 
             return submit(null, {method: "post"})

@@ -32,7 +32,7 @@ impl TryFrom<Row> for CastVoteWrapper {
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,

@@ -13,7 +13,7 @@ use sequent_core::types::permissions::VoterPermissions;
 use tracing::instrument;
 use windmill::services::insert_cast_vote::*;
 
-#[instrument(skip(claims))]
+#[instrument(skip_all)]
 #[post("/insert-cast-vote", format = "json", data = "<body>")]
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,

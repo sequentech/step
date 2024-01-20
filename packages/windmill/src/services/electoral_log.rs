@@ -39,7 +39,7 @@ impl ElectoralLog {
         })
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, pseudonym_h, vote_h))]
     pub async fn post_cast_vote(
         &self,
         event_id: String,
@@ -55,7 +55,7 @@ impl ElectoralLog {
         self.post(message).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,
         event_id: String,

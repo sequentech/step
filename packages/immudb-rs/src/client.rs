@@ -136,7 +136,7 @@ impl Client {
     }
 
     /// Commits a transaction, returning the transaction results
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn commit(&mut self, transaction_id: &String) -> Result<CommittedSqlTx> {
         let mut commit_request = self.get_request(())?;
         let tx_id: MetadataValue<_> = transaction_id.parse()?;
@@ -146,8 +146,8 @@ impl Client {
         Ok(commit_response.get_ref().clone())
     }
 
-    /// Rollsback a transaction
-    #[instrument]
+    /// Rolls back a transaction
+    #[instrument(skip(self))]
     pub async fn rollback(&mut self, transaction_id: &String) -> Result<()> {
         let mut rollback_request = self.get_request(())?;
         let tx_id: MetadataValue<_> = transaction_id.parse()?;
