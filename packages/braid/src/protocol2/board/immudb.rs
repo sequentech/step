@@ -45,6 +45,7 @@ impl ImmudbBoard {
             // When not using a store, we get messages one by one to not hit request limits.
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
             let messages = self.get_remote_messages_consecutively(last_id.unwrap_or(0)).await?;
+            // let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
 
             messages
                 .iter()
@@ -129,6 +130,7 @@ impl ImmudbBoard {
             warn!("sql error retrieving external_last_id {:?}", external_last_id);
         }
 
+        // When querying for all messages from immudb we use -1 as a lower limit (this requests uses the > comparator in sql)
         let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
         // To activate consecutive requests for update requests (messages not yet received):
         // If last_id is None, use 0 as last_id: immudb sequences start with 1

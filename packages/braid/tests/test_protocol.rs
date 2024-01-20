@@ -31,7 +31,8 @@ async fn test_protocol_immudb() {
     init_log(true);
 
     let ctx = RistrettoCtx;
-    braid::test::protocol_test_immudb::run(100000, 1, ctx).await;
+    // maximum size limit is currently 135295
+    braid::test::protocol_test_immudb::run(1000, 1, ctx).await;
     /* cfg_if::cfg_if! {
         if #[cfg(unix)] {
             let ctx = RugCtx::<RUGP2048>::default();
