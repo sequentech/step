@@ -103,7 +103,7 @@ pub async fn insert_election_event_db(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 4)]
+#[celery::task]
 pub async fn insert_election_event_t(object: InsertElectionEventInput, id: String) -> Result<()> {
     let mut final_object = object.clone();
     final_object.id = Some(id.clone());

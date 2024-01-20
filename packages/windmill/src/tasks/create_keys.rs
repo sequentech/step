@@ -25,7 +25,7 @@ pub struct CreateKeysBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 4)]
+#[celery::task]
 pub async fn create_keys(
     body: CreateKeysBody,
     tenant_id: String,

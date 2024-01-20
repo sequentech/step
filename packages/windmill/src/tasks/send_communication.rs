@@ -413,7 +413,7 @@ async fn update_stats(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 4)]
+#[celery::task]
 pub async fn send_communication(
     body: SendCommunicationBody,
     tenant_id: String,

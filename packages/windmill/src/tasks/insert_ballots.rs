@@ -32,7 +32,7 @@ pub struct InsertBallotsPayload {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 4)]
+#[celery::task]
 pub async fn insert_ballots(
     body: InsertBallotsPayload,
     tenant_id: String,

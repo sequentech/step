@@ -69,7 +69,7 @@ pub async fn check_tenant_exists(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 4)]
+#[celery::task]
 pub async fn insert_tenant(tenant_id: String, slug: String) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
     let tenant_exists = check_tenant_exists(&auth_headers, &slug).await?;
