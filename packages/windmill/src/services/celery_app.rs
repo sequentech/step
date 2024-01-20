@@ -38,6 +38,12 @@ pub fn set_acks_late(new_val: bool) {
     }
 }
 
+pub fn set_task_max_retries(new_val: u32) {
+    unsafe {
+        TASK_MAX_RETRIES = new_val;
+    }
+}
+
 #[instrument]
 pub async fn generate_celery_app() -> Arc<Celery> {
     let prefetch_count: u16;
