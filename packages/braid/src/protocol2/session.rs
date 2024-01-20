@@ -33,27 +33,44 @@ impl<C: Ctx> Session<C> {
     // Takes ownership of self to allow spawning threads in parallel
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
     // See also protocol_test_immudb::run_protocol_test_immudb
-    pub async fn step(mut self) -> Result<Self> {
-        let mut board = self.board.get_board().await?;
-        let messages = board.get_messages(self.last_message_id).await?;
+    pub async fn step(mut self) -> (Self, Result<()>) {
+        let board = self.board.get_board().await;
+        if let Err(err) = board {
+            return (self, Err(err));
+        }
+        let mut board = board.expect("impossible");
+
+        let messages = board.get_messages(self.last_message_id).await;
+        
+        if let Err(err) = messages {
+            return (self, Err(err));
+        }
+        let messages = messages.expect("impossible");
 
         if 0 == messages.len() {
             info!("No messages in board, no action taken");
-            return Ok(self);
+            return (self, Ok(()));
         }
 
-        let (send_messages, _actions) = self.trustee.step(messages)?;
+        // let (send_messages, _actions) = self.trustee.step(messages);
+        let step_result = self.trustee.step(messages);
+        if let Err(err) = step_result {
+            return (self, Err(err));
+        }
+        let (send_messages, _actions) = step_result.expect("impossible");
+
         if !self.dry_run {
             let result = board.insert_messages(send_messages).await;
-            match result {
+            return (self, result);
+            /* match result {
                 Ok(_) => (),
                 Err(err) => {
                     warn!("Insert messages returns error {:?}", err)
                 }
-            }
+            }*/
         }
 
-        Ok(self)
+        (self, Ok(()))
     }
 }
 

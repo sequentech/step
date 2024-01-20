@@ -31,8 +31,8 @@ impl Client {
     #[instrument(skip(password))]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<Client> {
         let mut client = ImmuServiceClient::connect(String::from(server_url)).await?;
-        client = client.max_encoding_message_size(67108864);
-        client = client.max_decoding_message_size(67108864);
+        client = client.max_encoding_message_size(134217728);
+        client = client.max_decoding_message_size(134217728);
         
         Ok(Client {
             client: client,
