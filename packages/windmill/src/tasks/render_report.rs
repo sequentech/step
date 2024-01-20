@@ -29,7 +29,7 @@ pub struct RenderTemplateBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 60000)]
+#[celery::task(time_limit = 60000, max_retries = 4)]
 pub async fn render_report(
     input: RenderTemplateBody,
     tenant_id: String,
