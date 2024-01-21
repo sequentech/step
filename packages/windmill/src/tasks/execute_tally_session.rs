@@ -88,67 +88,55 @@ async fn process_plaintexts(
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
 ) -> Result<Vec<AreaContestDataType>> {
-    let almost_vec: Vec<AreaContestDataType> = relevant_plaintexts
+    let almost_vec: Vec<AreaContestDataType> = tally_session_data
+        .sequent_backend_tally_session_contest
         .iter()
-        .filter_map(|plaintexts_message| {
-            plaintexts_message.artifact.clone().map(|artifact| {
-                let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                    .ok()
-                    .map(|plaintexts| plaintexts.0 .0);
+        .filter_map(|session_contest| {
+            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+                ballot_style.area_id == session_contest.area_id
+                    && ballot_style.election_id == session_contest.election_id
+                    && ballot_style
+                        .contests
+                        .iter()
+                        .any(|contest| contest.id == session_contest.contest_id)
+            }) else {
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id);
+                return None;
+            };
 
-                let batch_num = plaintexts_message.statement.get_batch_number();
-
-                let tally_session_contest_opt = tally_session_data
-                    .sequent_backend_tally_session_contest
-                    .iter()
-                    .find(|tsc| tsc.session_id == batch_num as i64);
-
-                let ballot_style_opt =
-                    if let Some(tally_session_contest) = tally_session_contest_opt {
-                        ballot_styles.iter().find(|ballot_style| {
-                            ballot_style.area_id == tally_session_contest.area_id
-                                && ballot_style.election_id == tally_session_contest.election_id
-                                && ballot_style
-                                    .contests
-                                    .iter()
-                                    .any(|contest| contest.id == tally_session_contest.contest_id)
-                        })
-                    } else {
-                        None
-                    };
-
-                let contest = if let Some(tally_session_contest) = tally_session_contest_opt {
-                    ballot_style_opt
-                        .map(|ballot_style| {
-                            ballot_style
-                                .contests
-                                .iter()
-                                .find(|contest| contest.id == tally_session_contest.contest_id)
-                        })
-                        .flatten()
-                } else {
-                    None
+            let Some(contest) = ballot_style
+                .contests
+                .iter()
+                .find(|contest| contest.id == session_contest.contest_id) else {
+                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id);
+                    return None;
                 };
 
-                (
-                    plaintexts,
-                    tally_session_contest_opt,
-                    contest,
-                    ballot_style_opt,
+            let batch_num = session_contest.session_id;
+            let plaintexts = relevant_plaintexts
+                .iter()
+                .find(|plaintexts_message|
+                    batch_num == plaintexts_message.statement.get_batch_number() as i64
                 )
-            })
-        })
-        .filter_map(|s| match s {
-            (Some(plaintexts), Some(tally_session_contest), Some(contest), Some(ballots_style)) => {
-                Some(AreaContestDataType {
-                    plaintexts: Some(plaintexts),
-                    last_tally_session_execution: tally_session_contest.clone(),
-                    contest: contest.clone(),
-                    ballot_style: ballots_style.clone(),
-                    eligible_voters: 0,
+                .map(|plaintexts_message| {
+                    plaintexts_message.artifact
+                        .clone()
+                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
+                            Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                                .ok()
+                                .map(|plaintexts| plaintexts.0 .0)
+                        })
+                        .flatten()
                 })
-            }
-            _ => None,
+                .flatten();
+
+            Some(AreaContestDataType {
+                plaintexts: plaintexts,
+                last_tally_session_execution: session_contest.clone(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
+            })
         })
         .collect();
 
@@ -190,10 +178,11 @@ async fn process_plaintexts(
         area_contest.eligible_voters = eligible_voters;
         data.push(area_contest);
     }
+    /* commenting out as not needed/there's no mutation
     keycloak_transaction
         .commit()
         .await
-        .with_context(|| "error comitting transaction")?;
+        .with_context(|| "error comitting transaction")?;*/
     Ok(data)
 }
 
