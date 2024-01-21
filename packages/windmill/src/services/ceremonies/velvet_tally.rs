@@ -143,8 +143,9 @@ pub fn create_election_configs(
         area_contests.len()
     );
     for area_contest in area_contests {
-        // let (plaintexts, tally_session_contest, contest, ballot_style, eligible_voters) =
-        //    area_contest_plaintext;
+        if area_contest.plaintexts.is_none() {
+            continue;
+        }
 
         let election_id = area_contest.contest.election_id.clone();
         let election_cast_votes_count = cast_votes_count
@@ -240,7 +241,9 @@ pub fn run_velvet_tally(
     cast_votes_count: &Vec<ElectionCastVotes>,
 ) -> Result<State> {
     for area_contest in area_contests {
-        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
+        if area_contest.plaintexts.is_some() {
+            prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
+        }
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count)?;
     create_config_file(base_tally_path.clone())?;
