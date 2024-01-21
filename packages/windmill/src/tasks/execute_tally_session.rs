@@ -167,7 +167,6 @@ async fn process_plaintexts(
     // fill in the eligible voters data
     for almost in almost_vec {
         let mut area_contest = almost.clone();
-        //let (_plaintexts, tally_session_contest, contest, _ballots_style, _count) = almost.clone();
         let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
             &hasura_transaction,
@@ -181,11 +180,6 @@ async fn process_plaintexts(
         area_contest.eligible_voters = eligible_voters;
         data.push(area_contest);
     }
-    /* commenting out as not needed/there's no mutation
-    keycloak_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;*/
     Ok(data)
 }
 
