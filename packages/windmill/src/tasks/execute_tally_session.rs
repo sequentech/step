@@ -20,6 +20,7 @@ use crate::services::ceremonies::tally_ceremony::find_last_tally_session_executi
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
+use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::compress::compress_folder;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
@@ -52,13 +53,13 @@ use tokio::time::{interval, Duration as ChronoDuration};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-type AreaContestDataType = (
+/*type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
     Contest,
     BallotStyle,
     u64,
-);
+);*/
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
@@ -139,13 +140,13 @@ async fn process_plaintexts(
         })
         .filter_map(|s| match s {
             (Some(plaintexts), Some(tally_session_contest), Some(contest), Some(ballots_style)) => {
-                Some((
-                    plaintexts,
-                    tally_session_contest.clone(),
-                    contest.clone(),
-                    ballots_style.clone(),
-                    0,
-                ))
+                Some(AreaContestDataType {
+                    plaintexts: Some(plaintexts),
+                    last_tally_session_execution: tally_session_contest.clone(),
+                    contest: contest.clone(),
+                    ballot_style: ballots_style.clone(),
+                    eligible_voters: 0,
+                })
             }
             _ => None,
         })
@@ -172,22 +173,22 @@ async fn process_plaintexts(
 
     let mut data: Vec<AreaContestDataType> = vec![];
 
+    // fill in the eligible voters data
     for almost in almost_vec {
-        let (_plaintexts, tally_session_contest, contest, _ballots_style, _count) = almost.clone();
-        let count = get_eligible_voters(
+        let mut area_contest = almost.clone();
+        //let (_plaintexts, tally_session_contest, contest, _ballots_style, _count) = almost.clone();
+        let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
             &hasura_transaction,
             &keycloak_transaction,
-            &contest.tenant_id,
-            &contest.election_event_id,
-            &contest.election_id,
-            &tally_session_contest.area_id,
+            &area_contest.contest.tenant_id,
+            &area_contest.contest.election_event_id,
+            &area_contest.contest.election_id,
+            &area_contest.last_tally_session_execution.area_id,
         )
         .await?;
-
-        let mut with_count = almost.clone();
-        with_count.4 = count;
-        data.push(with_count);
+        area_contest.eligible_voters = eligible_voters;
+        data.push(area_contest);
     }
     keycloak_transaction
         .commit()
@@ -479,13 +480,14 @@ async fn map_plaintext_data(
     event!(Level::INFO, "Num ballot_styles {}", ballot_styles.len());
 
     // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
-    let relevant_plaintexts: Vec<&Message> = messages
-        .iter()
-        .filter(|message| {
-            message.statement.get_kind() == StatementType::Plaintexts
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-        })
-        .collect();
+    // FFF TODO remove comment
+    let relevant_plaintexts: Vec<&Message> = vec![]; /*messages
+                                                     .iter()
+                                                     .filter(|message| {
+                                                         message.statement.get_kind() == StatementType::Plaintexts
+                                                             && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+                                                     })
+                                                     .collect();*/
     event!(
         Level::INFO,
         "Num relevant_plaintexts {}",
