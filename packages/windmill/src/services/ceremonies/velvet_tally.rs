@@ -12,26 +12,17 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use tracing::{event, instrument, Level};
-use uuid::{uuid, Uuid};
+use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures::get_config;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 
-/*
-pub type AreaContestDataType = (
-    Vec<<RistrettoCtx as Ctx>::P>,
-    GetLastTallySessionExecutionSequentBackendTallySessionContest,
-    Contest,
-    BallotStyle,
-    u64,
-);
-*/
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
-    pub plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>>,
+    pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
     pub last_tally_session_execution: GetLastTallySessionExecutionSequentBackendTallySessionContest,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
@@ -75,9 +66,8 @@ pub fn prepare_tally_for_area_contest(
     let contest_id = area_contest.contest.id.clone();
     let election_id = area_contest.contest.election_id.clone();
 
-    let plaintexts = area_contest.plaintexts.clone().unwrap_or(vec![]);
-
-    let biguit_ballots = decode_plantexts_to_biguints(&plaintexts, &area_contest.contest);
+    let biguit_ballots =
+        decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
 
     let velvet_input_dir = base_tempdir.join("input");
     let velvet_output_dir = base_tempdir.join("output");
@@ -143,10 +133,6 @@ pub fn create_election_configs(
         area_contests.len()
     );
     for area_contest in area_contests {
-        if area_contest.plaintexts.is_none() {
-            continue;
-        }
-
         let election_id = area_contest.contest.election_id.clone();
         let election_cast_votes_count = cast_votes_count
             .iter()
@@ -241,9 +227,7 @@ pub fn run_velvet_tally(
     cast_votes_count: &Vec<ElectionCastVotes>,
 ) -> Result<State> {
     for area_contest in area_contests {
-        if area_contest.plaintexts.is_some() {
-            prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
-        }
+        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count)?;
     create_config_file(base_tally_path.clone())?;

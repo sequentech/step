@@ -113,7 +113,7 @@ async fn process_plaintexts(
                 };
 
             let batch_num = session_contest.session_id;
-            let plaintexts = relevant_plaintexts
+            let Some(plaintexts) = relevant_plaintexts
                 .iter()
                 .find(|plaintexts_message|
                     batch_num == plaintexts_message.statement.get_batch_number() as i64
@@ -128,7 +128,10 @@ async fn process_plaintexts(
                         })
                         .flatten()
                 })
-                .flatten();
+                .flatten() else {
+                    event!(Level::INFO, "Expected: Plantexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
+                    return None;
+                };
 
             Some(AreaContestDataType {
                 plaintexts: plaintexts,
@@ -469,14 +472,13 @@ async fn map_plaintext_data(
     event!(Level::INFO, "Num ballot_styles {}", ballot_styles.len());
 
     // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
-    // FFF TODO remove comment
-    let relevant_plaintexts: Vec<&Message> = vec![]; /*messages
-                                                     .iter()
-                                                     .filter(|message| {
-                                                         message.statement.get_kind() == StatementType::Plaintexts
-                                                             && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                                                     })
-                                                     .collect();*/
+    let relevant_plaintexts: Vec<&Message> = messages
+        .iter()
+        .filter(|message| {
+            message.statement.get_kind() == StatementType::Plaintexts
+                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+        })
+        .collect();
     event!(
         Level::INFO,
         "Num relevant_plaintexts {}",
@@ -581,11 +583,15 @@ pub async fn execute_tally_session_wrapped(
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let status = run_velvet_tally(
-        base_tempdir.path().to_path_buf(),
-        &plaintexts_data,
-        &cast_votes_count,
-    )?;
+    let status = if plaintexts_data.len() > 0 {
+        Some(run_velvet_tally(
+            base_tempdir.path().to_path_buf(),
+            &plaintexts_data,
+            &cast_votes_count,
+        )?)
+    } else {
+        None
+    };
 
     let results_event_id = populate_results_tables(
         auth_headers.clone(),
