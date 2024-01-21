@@ -264,10 +264,6 @@ pub async fn count_cast_votes_election_with_census(
         .await?;
         cast_vote.census = census as i64;
     }
-    //keycloak_transaction
-    //    .commit()
-    //    .await
-    //    .with_context(|| "error comitting transaction")?;
 
     Ok(cast_votes)
 }

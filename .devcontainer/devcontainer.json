@@ -85,7 +85,10 @@
 
 				// To support multiple settings file and merge them, so that our
 				// fworkaround to support rust analyzer works fine
-				"swellaby.workspace-config-plus"
+				"swellaby.workspace-config-plus",
+
+				// Git blame support on hover of a line
+				"eamodio.gitlens"
     		]
 		}
 	}
