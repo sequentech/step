@@ -594,6 +594,8 @@ impl BoardClient {
         .await
     }
 
+    // TODO create a unique index on (sender_pk, statement_type, batch_number, mix_number)
+    // CREATE UNIQUE INDEX ON {}();
     pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
