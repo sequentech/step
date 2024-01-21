@@ -6,13 +6,13 @@ use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
-use sequent_core::types::keycloak::User;
 use deadpool_postgres::Transaction;
+use sequent_core::types::keycloak::User;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -249,32 +249,35 @@ type ElectionId = String;
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VoteInfo {
     num_votes: usize,
-    last_voted_at: String
+    last_voted_at: String,
 }
 
-
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct UserVotes {
+pub struct UserVoteInfo {
     pub user: User,
     pub votes_info: HashMap<ElectionId, VoteInfo>,
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_user_with_votes(
+pub async fn get_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     users: Vec<User>,
-) -> Result<Vec<UserVotes>> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)
-        .with_context(|| "Error parsing tenant_id as UUID")?;
+) -> Result<Vec<UserVoteInfo>> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     // Prepare the list of user IDs for the query
     let user_ids: Vec<String> = users
         .iter()
-        .map(|user| user.id.clone().ok_or_else(|| anyhow!("Encountered a user without an ID")))
+        .map(|user| {
+            user.id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))
+        })
         .collect::<Result<Vec<String>>>()
         .with_context(|| "Error extracting user IDs")?;
 
@@ -294,7 +297,7 @@ pub async fn get_user_with_votes(
                 v.voter_id_string = ANY($3)
             GROUP BY 
                 v.voter_id_string, v.election_id;
-            "#
+            "#,
         )
         .await
         .with_context(|| "Error preparing the vote info statement")?;
@@ -307,20 +310,21 @@ pub async fn get_user_with_votes(
         .await
         .with_context(|| "Error executing the vote info query")?;
 
-    let mut user_votes_map: HashMap<String, UserVotes> = users
+    let mut user_votes_map: HashMap<String, UserVoteInfo> = users
         .iter()
         .map(|user| {
-            user
-                .id
+            user.id
                 .clone()
                 .ok_or_else(|| anyhow!("Encountered a user without an ID"))
-                .map(|id| (
-                    id.clone(), 
-                    UserVotes {
-                        user: user.clone(),
-                        votes_info: HashMap::new(),
-                    }
-                ))
+                .map(|id| {
+                    (
+                        id.clone(),
+                        UserVoteInfo {
+                            user: user.clone(),
+                            votes_info: HashMap::new(),
+                        },
+                    )
+                })
         })
         .collect::<Result<_>>()
         .with_context(|| "Error processing users for user_votes_map")?;
@@ -350,5 +354,15 @@ pub async fn get_user_with_votes(
         }
     }
 
-    Ok(user_votes_map.into_values().collect())
+    // Construct the final Vec<UserVoteInfo> in the same order as the input users
+    Ok(user_ids
+        .iter()
+        .map(|id| {
+            user_votes_map
+                .get(id)
+                .cloned()
+                .ok_or_else(|| anyhow!("Missing vote info for user ID {}", id))
+        })
+        .collect::<Result<Vec<UserVoteInfo>>>()
+        .with_context(|| "Error constructing final user vote info result")?)
 }

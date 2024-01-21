@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
+use crate::services::cast_votes::{get_users_with_vote_info, UserVoteInfo};
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use futures::stream::Filter;
 use sequent_core::types::keycloak::*;
 use std::convert::From;
 use tokio_postgres::row::Row;
@@ -246,4 +248,23 @@ pub async fn list_users(
     } else {
         Ok((users, count))
     }
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn list_users_with_vote_info(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(Vec<UserVoteInfo>, i32)> {
+    let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
+        .await
+        .with_context(|| "Error listing users")?;
+    let users_with_vote_info =
+        get_users_with_vote_info(hasura_transaction, tenant_id, election_event_id, users)
+            .await
+            .with_context(|| "Error listing users with vote info")?;
+
+    Ok((users_with_vote_info, users_count))
 }
