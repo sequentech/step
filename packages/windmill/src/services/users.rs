@@ -255,16 +255,23 @@ pub async fn list_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
-    tenant_id: &str,
-    election_event_id: &str,
 ) -> Result<(Vec<UserVoteInfo>, i32)> {
+    let tenant_id = filter.tenant_id.clone();
+    let election_event_id = filter
+        .election_event_id
+        .clone()
+        .ok_or(anyhow!("Election event id is empty"))?;
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
-    let users_with_vote_info =
-        get_users_with_vote_info(hasura_transaction, tenant_id, election_event_id, users)
-            .await
-            .with_context(|| "Error listing users with vote info")?;
+    let users_with_vote_info = get_users_with_vote_info(
+        hasura_transaction,
+        tenant_id.as_str(),
+        election_event_id.as_str(),
+        users,
+    )
+    .await
+    .with_context(|| "Error listing users with vote info")?;
 
     Ok((users_with_vote_info, users_count))
 }

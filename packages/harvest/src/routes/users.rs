@@ -16,10 +16,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
+use windmill::services::cast_votes::UserVoteInfo;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::users::list_users;
 use windmill::services::users::ListUsersFilter;
+use windmill::services::users::{list_users, list_users_with_vote_info};
 use windmill::tasks::import_users;
 
 use crate::services::authorization::authorize;
@@ -124,6 +125,7 @@ pub struct GetUsersBody {
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
+    show_vote_info: bool,
 }
 
 #[instrument(skip(claims), ret)]
@@ -131,7 +133,7 @@ pub struct GetUsersBody {
 pub async fn get_users(
     claims: jwt::JwtClaims,
     body: Json<GetUsersBody>,
-) -> Result<Json<DataList<User>>, (Status, String)> {
+) -> Result<Json<DataList<UserVoteInfo>>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_READ
@@ -144,9 +146,13 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let auth_headers =
+        keycloak::get_client_credentials().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining JWT client credentials: {:?}", e),
+            )
+        })?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -155,48 +161,91 @@ pub async fn get_users(
         None => get_tenant_realm(&input.tenant_id),
     };
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {:?}", e),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {:?}", e),
+            )
+        })?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
 
-    let (users, count) = list_users(
-        &hasura_transaction,
-        &keycloak_transaction,
-        ListUsersFilter {
-            tenant_id: input.tenant_id.clone(),
-            election_event_id: input.election_event_id.clone(),
-            election_id: input.election_id.clone(),
-            area_id: None,
-            realm: realm.clone(),
-            search: input.search,
-            first_name: input.first_name,
-            last_name: input.last_name,
-            username: input.username,
-            email: input.email,
-            limit: input.limit,
-            offset: input.offset,
-            user_ids: None,
-        },
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let filter = ListUsersFilter {
+        tenant_id: input.tenant_id.clone(),
+        election_event_id: input.election_event_id.clone(),
+        election_id: input.election_id.clone(),
+        area_id: None,
+        realm: realm.clone(),
+        search: input.search,
+        first_name: input.first_name,
+        last_name: input.last_name,
+        username: input.username,
+        email: input.email,
+        limit: input.limit,
+        offset: input.offset,
+        user_ids: None,
+    };
+
+    let (users_with_vote_info, count) = match input.show_vote_info {
+        true => {
+            // If show_vote_info is true, call list_users_with_vote_info()
+            list_users_with_vote_info(
+                &hasura_transaction,
+                &keycloak_transaction,
+                filter,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users {:?}", e),
+                )
+            })?
+        }
+        // If show_vote_info is false, call list_users() and return empty
+        // votes_info
+        false => {
+            let (users, count) =
+                list_users(&hasura_transaction, &keycloak_transaction, filter)
+                    .await
+                    .map_err(|e| {
+                        (
+                            Status::InternalServerError,
+                            format!("Error listing users {:?}", e),
+                        )
+                    })?;
+            let users_with_vote_info = users
+                .into_iter()
+                .map(|user| UserVoteInfo {
+                    user: user,
+                    votes_info: Default::default(),
+                })
+                .collect();
+            (users_with_vote_info, count)
+        }
+    };
     Ok(Json(DataList {
-        items: users,
+        items: users_with_vote_info,
         total: TotalAggregate {
             aggregate: Aggregate {
                 count: count as i64,
