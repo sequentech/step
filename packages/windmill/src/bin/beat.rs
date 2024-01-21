@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
 }
 
 fn setup_probe() {
-    /*let addr_s = std::env::var("BEAT_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
+    let addr_s = std::env::var("BEAT_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
     let live_path = std::env::var("BEAT_PROBE_LIVE_PATH").unwrap_or("live".to_string());
     let ready_path = std::env::var("BEAT_PROBE_READY_PATH").unwrap_or("ready".to_string());
 
@@ -63,5 +63,5 @@ fn setup_probe() {
         let f = ph.future();
         ph.set_live(move || true);
         tokio::spawn(f);
-    }*/
+    }
 }
