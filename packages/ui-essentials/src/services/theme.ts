@@ -164,6 +164,11 @@ let MuiButton: Components["MuiButton"] = {
                 border: "1px solid rgba(255, 255, 255, 0.4)",
                 color: palette.white,
             },
+
+            "border-radius": "0",
+            [`@media (min-width: ${breakpoints.values!.sm!}px)`]: {
+                "border-radius": "4px",
+            },
         },
     },
     variants: [
