@@ -81,8 +81,13 @@ function TreeLeaves({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
-    const {t} = useTranslation()
-
+    const {t, i18n} = useTranslation()
+    
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
+    
     const {canCreateElectionEvent} = useActionPermissions()
 
     return (
@@ -106,11 +111,12 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && canCreateElectionEvent && (
-                    <div className="flex items-center space-x-2 text-secondary">
+                    <div className="flex items-center space-x-2 text-secondary rtl:justify-start ltr:justify-end">
                         <AddIcon className="flex-none"></AddIcon>
                         <NavLink
                             className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
+                            style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "end"}}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                         </NavLink>
@@ -144,6 +150,7 @@ function TreeMenuItem({
     canCreateElectionEvent,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
+    const {i18n} = useTranslation()
 
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
@@ -225,6 +232,7 @@ function TreeMenuItem({
                             )
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
+                        style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "end"}}
                     >
                         {item}
                     </NavLink>

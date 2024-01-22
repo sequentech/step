@@ -13,11 +13,13 @@ import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
+import { useTranslation } from 'react-i18next'
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {i18n} = useTranslation()
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
@@ -50,7 +52,14 @@ const SelectTenants: React.FC = () => {
             {!!data && (
                 <>
                     {hasSingle ? (
-                        <p className="grow ml-2.5">{data[0].slug}</p>
+                        <p
+                            className="grow ml-2.5"
+                            style={{
+                                textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                            }}
+                        >
+                            {data[0].slug}
+                        </p>
                     ) : (
                         <Select
                             labelId="tenant-select-label"

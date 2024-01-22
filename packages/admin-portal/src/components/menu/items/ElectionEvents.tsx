@@ -127,7 +127,7 @@ export default function ElectionEvents() {
         tenantId,
         IPermissions.ELECTION_EVENT_CREATE
     )
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
@@ -163,12 +163,23 @@ export default function ElectionEvents() {
     return (
         <>
             <div className={cn(isElectionEventActive && "bg-green-light")}>
-                <HorizontalBox sx={{alignItems: "center"}}>
+                <HorizontalBox
+                    sx={{
+                        alignItems: "center",
+                        paddingRight: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
+                        paddingLeft: i18n.dir(i18n.language) === "rtl" ? "32px" : 0,
+                    }}
+                    dir={i18n.dir(i18n.language)}
+                >
                     <MenuItem
                         to="/sequent_backend_election_event"
                         primaryText={isOpenSidebar && t("sideMenu.electionEvents")}
                         leftIcon={<WebIcon sx={{color: adminTheme.palette.brandColor}} />}
-                        sx={{flexGrow: 2}}
+                        sx={{
+                            flexGrow: 2,
+                            paddingLeft: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
+                            paddingRight: i18n.dir(i18n.language) === "rtl" ? "16px" : 0,
+                        }}
                     />
                     {showAddElectionEvent ? (
                         <Link to="/sequent_backend_election_event/create">
@@ -176,6 +187,7 @@ export default function ElectionEvents() {
                                 className="election-event-create-button"
                                 icon={faPlusCircle}
                                 size="xs"
+                                dir={i18n.dir(i18n.language)}
                             />
                         </Link>
                     ) : null}
@@ -213,7 +225,6 @@ const StyledIconButton = styled(IconButton)`
     &:hover {
         padding: unset !important;
     }
-    margin-right: 16px;
     font-size: 1rem;
     line-height: 1.5rem;
 `
