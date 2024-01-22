@@ -7,8 +7,7 @@ export const getUsers = (fields: any) => {
     let electionEventId = fields.filter?.election_event_id
         ? `"${fields.filter?.election_event_id}"`
         : "null"
-    let showVotesInfo = fields.filter?.election_event_id
-        ? "true" : "false"
+    let showVotesInfo = fields.filter?.election_event_id ? "true" : "false"
     let electionId = fields.filter?.election_id ? `"${fields.filter?.election_id}"` : "null"
     let email = fields.filter?.email ? `"${fields.filter?.email}"` : "null"
     let username = fields.filter?.username ? `"${fields.filter?.username}"` : "null"

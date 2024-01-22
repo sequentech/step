@@ -299,7 +299,8 @@ pub async fn get_users_with_vote_info(
     let mut user_votes_map: HashMap<String, Vec<VotesInfo>> = users
         .iter()
         .map(|user| {
-            let user_id = user.id
+            let user_id = user
+                .id
                 .clone()
                 .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
             Ok((user_id, vec![]))
@@ -322,36 +323,33 @@ pub async fn get_users_with_vote_info(
             .with_context(|| "Error getting last_voted_at from row")?;
 
         if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
-            user_votes_info.push(
-                VotesInfo {
-                    election_id: election_id.to_string(),
-                    num_votes: num_votes as usize,
-                    last_voted_at: last_voted_at.to_string(),
-                },
-            );
+            user_votes_info.push(VotesInfo {
+                election_id: election_id.to_string(),
+                num_votes: num_votes as usize,
+                last_voted_at: last_voted_at.to_string(),
+            });
         } else {
             return Err(anyhow!("Not found user for voter-id={voter_id_string}"));
         }
     }
 
     // Construct the final Vec<User> in the same order as the input users
-    Ok(
-        users
-            .iter()
-            .map(|user| {
-                let user_id = user.id
-                    .clone()
-                    .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
-                let votes_info = user_votes_map
-                    .get(&user_id)
-                    .cloned()
-                    .ok_or_else(|| anyhow!("Missing vote info for user ID {user_id}"))?;
-                Ok(User {
-                    votes_info: Some(votes_info),
-                    ..user.clone()
-                })
+    Ok(users
+        .iter()
+        .map(|user| {
+            let user_id = user
+                .id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
+            let votes_info = user_votes_map
+                .get(&user_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("Missing vote info for user ID {user_id}"))?;
+            Ok(User {
+                votes_info: Some(votes_info),
+                ..user.clone()
             })
-            .collect::<Result<Vec<User>>>()
-            .with_context(|| "Error constructing users result")?
-    )
+        })
+        .collect::<Result<Vec<User>>>()
+        .with_context(|| "Error constructing users result")?)
 }

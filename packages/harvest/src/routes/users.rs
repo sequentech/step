@@ -207,7 +207,8 @@ pub async fn get_users(
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {
         true =>
-            // If show_vote_info is true, call list_users_with_vote_info()
+        // If show_vote_info is true, call list_users_with_vote_info()
+        {
             list_users_with_vote_info(
                 &hasura_transaction,
                 &keycloak_transaction,
@@ -219,18 +220,18 @@ pub async fn get_users(
                     Status::InternalServerError,
                     format!("Error listing users {:?}", e),
                 )
-            })?,
+            })?
+        }
         // If show_vote_info is false, call list_users() and return empty
         // votes_info
-        false =>
-            list_users(&hasura_transaction, &keycloak_transaction, filter)
-                .await
-                .map_err(|e| {
-                    (
-                        Status::InternalServerError,
-                        format!("Error listing users {:?}", e),
-                    )
-                })?
+        false => list_users(&hasura_transaction, &keycloak_transaction, filter)
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users {:?}", e),
+                )
+            })?,
     };
     Ok(Json(DataList {
         items: users,

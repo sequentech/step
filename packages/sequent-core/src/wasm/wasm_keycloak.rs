@@ -18,7 +18,6 @@ extern "C" {
     pub type IUserArea;
 }
 
-
 #[wasm_bindgen(typescript_custom_section)]
 const IVotesInfo: &'static str = r#"
 interface IVotesInfo {
@@ -33,7 +32,6 @@ extern "C" {
     #[wasm_bindgen(typescript_type = "IVotesInfo")]
     pub type IVotesInfo;
 }
-
 
 #[wasm_bindgen(typescript_custom_section)]
 const IUSER: &'static str = r#"
