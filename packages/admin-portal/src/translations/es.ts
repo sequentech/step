@@ -1054,11 +1054,6 @@ const spanishTranslation: TranslationType = {
                 document: "El documento es obligatorio",
             },
         },
-        ra: {
-            action: {
-                add_filter: "Add filter",
-            },
-        },
     },
 }
 

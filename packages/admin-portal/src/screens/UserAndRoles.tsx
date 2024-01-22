@@ -23,7 +23,7 @@ export const UserAndRoles: React.FC = () => {
         const dir = i18n.dir(i18n.language)
         document.documentElement.dir = dir
     }, [i18n, i18n.language])
-    
+
     const showUsers = authContext.isAuthorized(true, tenantId, IPermissions.USER_READ)
     const showRoles = authContext.isAuthorized(true, tenantId, IPermissions.ROLE_READ)
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {

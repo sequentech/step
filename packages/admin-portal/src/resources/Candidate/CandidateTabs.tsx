@@ -3,7 +3,7 @@ import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Candidate} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditCandidateData} from "./EditCandidateData"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 export const CandidateTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()

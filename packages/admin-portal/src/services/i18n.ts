@@ -4,7 +4,7 @@
 import {initializeLanguages} from "@sequentech/ui-essentials"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
-import hebrewTranslation from '@/translations/he'
+import hebrewTranslation from "@/translations/he"
 
 initializeLanguages({
     en: englishTranslation,

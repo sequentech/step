@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"
+import React, {useEffect} from "react"
 import {Box} from "@mui/system"
 import {Resource} from "react-admin"
 import {useTranslation} from "react-i18next"

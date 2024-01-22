@@ -13,7 +13,7 @@ import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
