@@ -184,6 +184,12 @@ const englishTranslation = {
         dashboard: {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
+            channel: {
+                Online: "Online",
+                Paper: "Paper",
+                Telephone: "Telephone",
+                Postal: "Postal",
+            },
         },
         electionEventScreen: {
             common: {

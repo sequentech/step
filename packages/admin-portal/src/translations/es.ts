@@ -186,6 +186,12 @@ const spanishTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
+            channel: {
+                Online: "Online",
+                Paper: "Papel",
+                Telephone: "Teléfono",
+                Postal: "Correo",
+            },
         },
         electionEventScreen: {
             common: {

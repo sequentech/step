@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-const hebrewTranslation = {
+import {TranslationType} from "./en"
+
+const hebrewTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "רשימת הבחירות",
@@ -183,6 +185,12 @@ const hebrewTranslation = {
         dashboard: {
             voteByDay: "הצבעות לפי יום",
             votersByChannels: "מצביעים לפי ערוצים",
+            channel: {
+                Online: "מקוון",
+                Paper: "נייר",
+                Telephone: "טלפון",
+                Postal: "דואר",
+            },
         },
         electionEventScreen: {
             common: {
@@ -1046,7 +1054,5 @@ const hebrewTranslation = {
         },
     },
 }
-
-export type TranslationType = typeof hebrewTranslation
 
 export default hebrewTranslation
