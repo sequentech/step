@@ -309,7 +309,7 @@ export function TreeMenu({
                     {t("sideMenu.archived")}
                 </li>
             </ul>
-            <div className="mx-5 py-2">
+            <div className="py-2">
                 {isEmpty ? (
                     <div className="p-4 bg-white">No result</div>
                 ) : (

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect} from "react"
-import {useGetList, useRefresh} from "react-admin"
+import {useGetList, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
 import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
@@ -20,6 +20,7 @@ const SelectTenants: React.FC = () => {
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {i18n} = useTranslation()
+    const [isOpenSidebar] = useSidebarState()
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
@@ -49,7 +50,7 @@ const SelectTenants: React.FC = () => {
     return (
         <div className={cn("flex items-center px-4 space-x-4", hasSingle ? "py-1.5" : "py-1")}>
             <AccountCircleIcon />
-            {!!data && (
+            {isOpenSidebar && !!data && (
                 <>
                     {hasSingle ? (
                         <p

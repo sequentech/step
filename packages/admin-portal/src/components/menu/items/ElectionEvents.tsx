@@ -162,14 +162,16 @@ export default function ElectionEvents() {
 
     return (
         <>
-            <div className={cn(isElectionEventActive && "bg-green-light")}>
+            <div
+                className={cn(isElectionEventActive && "bg-green-light")}
+                style={{overflowX: "hidden"}}
+            >
                 <HorizontalBox
                     sx={{
                         alignItems: "center",
                         paddingRight: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
                         paddingLeft: i18n.dir(i18n.language) === "rtl" ? "32px" : 0,
                     }}
-                    dir={i18n.dir(i18n.language)}
                 >
                     <MenuItem
                         to="/sequent_backend_election_event"
@@ -181,7 +183,7 @@ export default function ElectionEvents() {
                             paddingRight: i18n.dir(i18n.language) === "rtl" ? "16px" : 0,
                         }}
                     />
-                    {showAddElectionEvent ? (
+                    {isOpenSidebar && showAddElectionEvent ? (
                         <Link to="/sequent_backend_election_event/create">
                             <StyledIconButton
                                 className="election-event-create-button"
@@ -192,9 +194,13 @@ export default function ElectionEvents() {
                         </Link>
                     ) : null}
                 </HorizontalBox>
+
                 {isOpenSidebar && (
                     <>
-                        <div className="flex items-center space-x-4 bg-white px-4">
+                        <div
+                            className="flex items-center space-x-4 bg-white px-4"
+                            dir={i18n.dir(i18n.language)}
+                        >
                             <TextField
                                 dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
