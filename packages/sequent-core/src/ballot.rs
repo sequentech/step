@@ -203,6 +203,28 @@ impl Candidate {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum CandidatesOrder {
+    #[strum(serialize = "random")]
+    Random,
+    #[strum(serialize = "custom")]
+    Custom,
+    #[strum(serialize = "alphabetical")]
+    Alphabetical,
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -223,6 +245,7 @@ pub struct ContestPresentation {
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
+    pub candidates_order: Option<CandidatesOrder>,
 }
 
 impl ContestPresentation {
@@ -237,6 +260,7 @@ impl ContestPresentation {
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }
     }
 }

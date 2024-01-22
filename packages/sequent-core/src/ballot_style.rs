@@ -1,7 +1,11 @@
+use std::str::FromStr;
+
+use serde_json::Value;
+
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot;
+use crate::ballot::{self, CandidatesOrder, ContestPresentation};
 use crate::types::hasura_types;
 
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
@@ -44,6 +48,7 @@ pub fn create_ballot_style(
                     .into_iter()
                     .filter(|c| c.contest_id == Some(contest.id.clone()))
                     .collect::<Vec<hasura_types::Candidate>>();
+
                 create_contest(contest, election_candidates)
             })
             .collect(),
@@ -56,6 +61,18 @@ fn create_contest(
 ) -> ballot::Contest {
     let mut sorted_candidates = candidates.clone();
     sorted_candidates.sort_by_key(|k| k.id.clone());
+
+    let mut cp = ContestPresentation::new();
+
+    if let Some(incoming_cp) = contest.presentation {
+        if let Some(val) =
+            incoming_cp.get("candidates_order").and_then(Value::as_str)
+        {
+            if let Ok(val) = CandidatesOrder::from_str(val) {
+                cp.candidates_order = Some(val)
+            }
+        }
+    }
 
     ballot::Contest {
         id: contest.id.clone(),
@@ -89,6 +106,6 @@ fn create_contest(
                 ),
             })
             .collect(),
-        presentation: None,
+        presentation: Some(cp),
     }
 }
