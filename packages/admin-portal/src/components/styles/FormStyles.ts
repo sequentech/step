@@ -26,6 +26,10 @@ export const FormStyles = {
         color: ${({theme}) => theme.palette.errorColor};
     `,
     ShowProgress: muiStyled(CircularProgress)`
+        text-align: center;
+    `,
+    ReservedProgressSpace: muiStyled(Box)`
+        min-height: 45px;
     `,
     CheckboxControlLabel: muiStyled(FormControlLabel)`
         padding-bottom: 2em !important;

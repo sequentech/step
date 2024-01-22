@@ -20,7 +20,7 @@ import {
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Drawer, Typography} from "@mui/material"
+import {Button, Chip, CircularProgress, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -41,6 +41,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {useAtom} from "jotai"
+import { FormStyles } from "@/components/styles/FormStyles"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -65,6 +66,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [open, setOpen] = React.useState(false)
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
+    const [exporting, setExporting] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
@@ -296,6 +298,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
+        setExporting(true)
+        //setOpenExport(false)
     }
 
     return (
@@ -362,9 +366,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <FunctionField
                             source="has_voted"
                             label={t("usersAndRolesScreen.users.fields.has_voted")}
-                            render={(record: any, source: string | undefined) => {
+                            render={(record: IUser, source: string | undefined) => {
                                 let newRecord = {
-                                    has_voted: record?.votes_info?.length > 0,
+                                    has_voted: (record?.votes_info?.length ?? 0) > 0,
                                     ...record,
                                 }
                                 return <BooleanField record={newRecord} source={source} />
@@ -448,16 +452,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 variant="info"
                 open={openExport}
                 ok={t("common.label.export")}
+                okEnabled={() => !exporting}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.export")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
                     }
-                    setOpenExport(false)
                 }}
             >
                 {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                </FormStyles.ReservedProgressSpace>
             </Dialog>
         </>
     )
