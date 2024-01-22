@@ -4,6 +4,7 @@
 
 pub mod area;
 pub mod keycloak_realm;
+pub mod lock;
 pub mod results_area_contest;
 pub mod results_contest;
 pub mod results_election;

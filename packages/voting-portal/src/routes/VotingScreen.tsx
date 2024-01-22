@@ -88,6 +88,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                 </StyledButton>
             </StyledLink>
             <StyledButton
+                className="next-button"
                 sx={{width: {xs: "100%", sm: "200px"}}}
                 onClick={() => handleNext()}
                 disabled={disableNext}
@@ -188,7 +189,9 @@ const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box>{translateElection(election, "name", i18n.language) || ""}</Box>
+                <Box className="selected-election-title">
+                    {translateElection(election, "name", i18n.language) || ""}
+                </Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}

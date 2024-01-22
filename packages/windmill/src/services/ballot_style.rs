@@ -188,10 +188,9 @@ pub async fn create_ballot_style(
     ballot_publication_id: String,
 ) -> Result<()> {
     let lock = PgLock::acquire(
-        auth_headers.clone(),
         format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
         Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(60)),
+        ISO8601::now() + Duration::seconds(60),
     )
     .await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
@@ -308,7 +307,7 @@ pub async fn create_ballot_style(
         )
         .await?;
     }
-    lock.release(auth_headers.clone()).await?;
+    lock.release().await?;
 
     Ok(())
 }

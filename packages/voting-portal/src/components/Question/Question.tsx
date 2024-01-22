@@ -118,7 +118,7 @@ export const Question: React.FC<IQuestionProps> = ({
 
     return (
         <Box>
-            <StyledTitle variant="h5">
+            <StyledTitle className="contest-title" variant="h5">
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
             {question.description ? (
@@ -126,7 +126,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
-            <CandidatesWrapper>
+            <CandidatesWrapper className="candidates-list">
                 <InvalidErrorsList
                     ballotStyle={ballotStyle}
                     question={question}
@@ -139,6 +139,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         answer={answer}
                         questionIndex={questionIndex}
                         key={answerIndex}
+                        index={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
@@ -169,6 +170,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             ballotStyle={ballotStyle}
                             answer={answer}
                             questionIndex={questionIndex}
+                            index={answerIndex}
                             key={answerIndex}
                             isActive={!isReview}
                             isReview={isReview}
@@ -179,6 +181,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         ballotStyle={ballotStyle}
                         answer={answer}
                         questionIndex={questionIndex}
+                        index={answerIndex}
                         key={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}

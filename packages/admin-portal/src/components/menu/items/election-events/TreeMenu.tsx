@@ -109,7 +109,7 @@ function TreeLeaves({
                     <div className="flex items-center space-x-2 text-secondary">
                         <AddIcon className="flex-none"></AddIcon>
                         <NavLink
-                            className="grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                            className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
@@ -229,7 +229,9 @@ function TreeMenuItem({
                         {item}
                     </NavLink>
                 )}
-                <div className="invisible group-hover:visible">
+                <div
+                    className={`invisible group-hover:visible menu-actions-${treeResourceNames[0]}`}
+                >
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
