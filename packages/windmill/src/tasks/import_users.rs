@@ -89,7 +89,7 @@ impl ImportUsersBody {
         s3::get_object_into_temp_file(s3_bucket, document_s3_key).await
     }
 
-    /**
+    /*
      * Creates a temp table and load voters from the voters_file with COPY FROM
      *
      * Notes:
@@ -116,7 +116,6 @@ impl ImportUsersBody {
      *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
      *  - area-name: string. Example "Area 52"
      *  - password: string: Example "secret-password"
-     *  
      */
     #[instrument(ret)]
     fn get_copy_from_query(
@@ -179,7 +178,7 @@ impl ImportUsersBody {
         ))
     }
 
-    /**
+    /*
      * Insert the voters from the temporal voters table into the user_element
      * and user_attribute tables. For each user, we enter in a single query
      * (using WITH statements or similar if need be) the user in the
