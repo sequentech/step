@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {ListUsers} from "../resources/User/ListUsers"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useTenantStore} from "../providers/TenantContextProvider"
@@ -17,8 +17,13 @@ export const UserAndRoles: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const [value, setValue] = useState(0)
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
+    
     const showUsers = authContext.isAuthorized(true, tenantId, IPermissions.USER_READ)
     const showRoles = authContext.isAuthorized(true, tenantId, IPermissions.ROLE_READ)
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
