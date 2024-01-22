@@ -95,7 +95,7 @@ export const StartScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="start-screen">
             <Box marginTop="48px">
                 <BreadCrumbSteps
                     labels={[
