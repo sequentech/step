@@ -196,6 +196,7 @@ export default function ElectionEvents() {
                     <>
                         <div className="flex items-center space-x-4 bg-white px-4">
                             <TextField
+                                dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
                                 size="small"
                                 value={searchInput}

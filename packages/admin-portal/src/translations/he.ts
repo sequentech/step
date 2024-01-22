@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 const hebrewTranslation = {
-    translations: {
+    "translations": {
         breadcrumbSteps: {
             electionList: "רשימת הבחירות",
             ballot: "קלף ההצבעה",
@@ -1042,6 +1042,11 @@ const hebrewTranslation = {
             error: {
                 title: "נדרש שדה כותרת",
                 document: "נדרש מסמך",
+            },
+        },
+        "ra": {
+            action: {
+                add_filter: "הוסף סינון",
             },
         },
     },

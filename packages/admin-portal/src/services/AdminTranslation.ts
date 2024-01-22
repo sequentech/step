@@ -22,9 +22,34 @@ const spanishMessages = {
     },
 }
 
+const hebrewMessages = {
+    ...englishMessages,
+    ra: {
+        ...englishMessages.ra,
+        action: {
+            ...englishMessages.ra.action,
+            add_filter: "הוסף סינון",
+            select_columns: "עמודות",
+            save: "שמור",
+            confirm: "אישור",
+            create: "יצירה",
+            create_item: "יצירת %{item}",
+            delete: "מחק",
+            edit: "ערוך",
+            export: "יצא",
+            list: "רשימה",
+            refresh: "רענן",
+        },
+    },
+}
+
 export const adminI18nProvider = polyglotI18nProvider(
     (locale) => {
-        return locale === "es" ? spanishMessages : englishMessages
+        return locale === "es"
+            ? spanishMessages
+            : locale === "he"
+            ? hebrewMessages
+            : englishMessages
     },
     "en" // Default locale
 )

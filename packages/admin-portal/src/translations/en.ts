@@ -1051,6 +1051,11 @@ const englishTranslation = {
                 document: "Document is required",
             },
         },
+        ra: {
+            action: {
+                add_filter: "Add filter",
+            },
+        },
     },
 }
 

@@ -52,14 +52,14 @@ code {
     border-top: 1px solid #0F054C !important;
     border-bottom: 1px solid #0F054C !important;
     border-left: 1px solid #0F054C !important;
-    border-right: none;
+    /* border-right: none; */
 
     &:hover {
       box-shadow: none;
       border-top: 1px solid #0F054C !important;
       border-bottom: 1px solid #0F054C !important;
       border-left: 1px solid #0F054C !important;
-      border-right: none;
+      /* border-right: none; */
     }
   }
 
