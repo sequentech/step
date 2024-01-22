@@ -142,6 +142,19 @@ pub struct CandidatePresentation {
     pub urls: Option<Vec<CandidateUrl>>,
 }
 
+impl CandidatePresentation {
+    pub fn new() -> CandidatePresentation {
+        CandidatePresentation {
+            is_explicit_invalid: false,
+            is_category_list: false,
+            invalid_vote_position: None,
+            is_write_in: false,
+            sort_order: None,
+            urls: None,
+        }
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
