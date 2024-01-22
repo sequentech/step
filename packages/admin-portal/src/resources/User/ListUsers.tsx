@@ -353,7 +353,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     {electionEventId && (
                         <FunctionField
                             label={t("usersAndRolesScreen.users.fields.area")}
-                            render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
+                            render={(record: IUser) => 
+                                record?.area?.name
+                                    ? <Chip label={record?.area?.name ?? ""} />
+                                    : "-"
+                            }
+                        />)}
+                    {electionEventId && (
+                        <FunctionField
+                            source="has_voted"
+                            label={t("usersAndRolesScreen.users.fields.has_voted")}
+                            render={(record: any, source: string | undefined) => {
+                                let newRecord = {
+                                    has_voted: (record?.votes_info?.length > 0),
+                                    ...record
+                                }
+                                return <BooleanField record={newRecord} source={source} />
+                            }}
                         />
                     )}
                     <WrapperField source="actions" label="Actions">

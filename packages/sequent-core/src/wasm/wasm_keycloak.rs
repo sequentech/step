@@ -18,6 +18,23 @@ extern "C" {
     pub type IUserArea;
 }
 
+
+#[wasm_bindgen(typescript_custom_section)]
+const IVotesInfo: &'static str = r#"
+interface IVotesInfo {
+    election_id: string;
+    num_votes: Int;
+    last_voted_at: string;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "IVotesInfo")]
+    pub type IVotesInfo;
+}
+
+
 #[wasm_bindgen(typescript_custom_section)]
 const IUSER: &'static str = r#"
 interface IUser {
@@ -31,6 +48,7 @@ interface IUser {
     username?: string;
     password?: string;
     area?: IUserArea;
+    votes_info?: Array<IVotesInfo>;
 }
 "#;
 

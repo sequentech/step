@@ -16,7 +16,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
-use windmill::services::cast_votes::UserVoteInfo;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::ListUsersFilter;
@@ -125,7 +124,7 @@ pub struct GetUsersBody {
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
-    show_vote_info: bool,
+    show_votes_info: Option<bool>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -133,7 +132,7 @@ pub struct GetUsersBody {
 pub async fn get_users(
     claims: jwt::JwtClaims,
     body: Json<GetUsersBody>,
-) -> Result<Json<DataList<UserVoteInfo>>, (Status, String)> {
+) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_READ
@@ -206,8 +205,8 @@ pub async fn get_users(
         user_ids: None,
     };
 
-    let (users_with_vote_info, count) = match input.show_vote_info {
-        true => {
+    let (users, count) = match input.show_votes_info.unwrap_or(false) {
+        true =>
             // If show_vote_info is true, call list_users_with_vote_info()
             list_users_with_vote_info(
                 &hasura_transaction,
@@ -220,32 +219,21 @@ pub async fn get_users(
                     Status::InternalServerError,
                     format!("Error listing users {:?}", e),
                 )
-            })?
-        }
+            })?,
         // If show_vote_info is false, call list_users() and return empty
         // votes_info
-        false => {
-            let (users, count) =
-                list_users(&hasura_transaction, &keycloak_transaction, filter)
-                    .await
-                    .map_err(|e| {
-                        (
-                            Status::InternalServerError,
-                            format!("Error listing users {:?}", e),
-                        )
-                    })?;
-            let users_with_vote_info = users
-                .into_iter()
-                .map(|user| UserVoteInfo {
-                    user: user,
-                    votes_info: Default::default(),
-                })
-                .collect();
-            (users_with_vote_info, count)
-        }
+        false =>
+            list_users(&hasura_transaction, &keycloak_transaction, filter)
+                .await
+                .map_err(|e| {
+                    (
+                        Status::InternalServerError,
+                        format!("Error listing users {:?}", e),
+                    )
+                })?
     };
     Ok(Json(DataList {
-        items: users_with_vote_info,
+        items: users,
         total: TotalAggregate {
             aggregate: Aggregate {
                 count: count as i64,

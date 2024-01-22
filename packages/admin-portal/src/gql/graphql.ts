@@ -254,6 +254,7 @@ export type GetUsersInput = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
+  show_votes_info?: InputMaybe<Scalars['Boolean']['input']>;
   tenant_id: Scalars['uuid']['input'];
   username?: InputMaybe<Scalars['String']['input']>;
 };
@@ -348,6 +349,7 @@ export type KeycloakUser = {
   id?: Maybe<Scalars['String']['output']>;
   last_name?: Maybe<Scalars['String']['output']>;
   username?: Maybe<Scalars['String']['output']>;
+  votes_info?: Maybe<Array<VotesInfo>>;
 };
 
 export type KeycloakUser2 = {
@@ -506,6 +508,13 @@ export type UpdateElectionVotingStatusOutput = {
 export type UpdateEventVotingStatusOutput = {
   __typename?: 'UpdateEventVotingStatusOutput';
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+export type VotesInfo = {
+  __typename?: 'VotesInfo';
+  election_id: Scalars['String']['output'];
+  last_voted_at: Scalars['String']['output'];
+  num_votes: Scalars['Int']['output'];
 };
 
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
