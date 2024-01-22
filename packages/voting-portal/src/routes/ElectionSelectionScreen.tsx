@@ -335,7 +335,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
-            <ElectionContainer>
+            <ElectionContainer className="elections-list">
                 {!hasNoResults ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper electionId={electionId} key={electionId} />

@@ -69,7 +69,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
                 to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote`}
                 sx={{margin: "auto 0", width: "100%"}}
             >
-                <StyledButton sx={{width: "100%"}}>{t("startScreen.startButton")}</StyledButton>
+                <StyledButton className="start-voting-button" sx={{width: "100%"}}>
+                    {t("startScreen.startButton")}
+                </StyledButton>
             </StyledLink>
         </ActionsContainer>
     )
