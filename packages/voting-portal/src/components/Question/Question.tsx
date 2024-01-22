@@ -3,13 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {Box} from "@mui/material"
-import {theme, stringToHtml, shuffle, splitList, keyBy, translate} from "@sequentech/ui-essentials"
+import {
+    theme,
+    stringToHtml,
+    shuffle,
+    splitList,
+    keyBy,
+    translate,
+    IContest,
+} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
-import {IContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
+    checkCustomCandidatesOrder,
     checkPositionIsTop,
     checkShuffleAllOptions,
     checkShuffleCategories,
@@ -66,6 +74,7 @@ export const Question: React.FC<IQuestionProps> = ({
     )
 
     // do the shuffling
+    const checkCustomSort = checkCustomCandidatesOrder(question)
     const shuffleAllOptions = checkShuffleAllOptions(question)
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
@@ -84,7 +93,15 @@ export const Question: React.FC<IQuestionProps> = ({
         if (shuffleAllOptions) {
             setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
         } else {
-            setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
+            if (checkCustomSort) {
+                setCandidatesOrder(
+                    noCategoryCandidates
+                        .sort((a, b) => a.presentation!.sort_order! - b.presentation!.sort_order!)
+                        .map((c) => c.id)
+                )
+            } else {
+                setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
+            }
         }
     }
 

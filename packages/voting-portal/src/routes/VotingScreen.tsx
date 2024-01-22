@@ -24,7 +24,6 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
-    resetBallotSelection,
     selectBallotSelectionByElectionId,
     setBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
@@ -211,14 +210,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language))}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {ballotStyle.ballot_eml.contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
-                    question={question}
+                    question={contest}
                     questionIndex={index}
                     key={index}
                     isReview={false}
-                    setDisableNext={onSetDisableNext(question.id)}
+                    setDisableNext={onSetDisableNext(contest.id)}
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />

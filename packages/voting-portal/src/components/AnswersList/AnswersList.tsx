@@ -73,6 +73,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 },
             })
         )
+
     if (isReview && !showCategoryOnReview(category, questionState)) {
         return null
     }
