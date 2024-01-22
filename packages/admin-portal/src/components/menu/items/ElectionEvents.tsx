@@ -165,7 +165,8 @@ export default function ElectionEvents() {
 
                                 if (orderType === CandidatesOrder.CUSTOM) {
                                     contest.candidates.sort(
-                                        (a, b) => a.presentation?.order - b.presentation?.order
+                                        (a, b) =>
+                                            a.presentation?.sort_order - b.presentation?.sort_order
                                     )
                                 }
 

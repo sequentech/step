@@ -85,7 +85,7 @@ export const ContestDataForm: React.FC = () => {
         filter: {contest_id: record.id},
     })
 
-    candidates?.sort((a, b) => a.order - b.order)
+    candidates?.sort((a, b) => a.sort_order - b.sort_order)
 
     const votingTypesChoices = () => {
         return (Object.values(IVotingType) as IVotingType[]).map((value) => ({

@@ -1,5 +1,5 @@
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import {CandidatesOrder} from "@sequentech/ui-essentials"
+import { CandidatesOrder } from "@sequentech/ui-essentials"
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
@@ -12,7 +12,7 @@ export const EditContestData: React.FC = () => {
             if (data.contest_candidates_order === CandidatesOrder.CUSTOM) {
                 return update("sequent_backend_candidate", {
                     id: c.id,
-                    data: {presentation: {order: index}},
+                    data: {presentation: {sort_order: index}},
                     previousData: c,
                 })
             }
