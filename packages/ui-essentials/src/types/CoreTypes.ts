@@ -93,3 +93,19 @@ export interface ICandidate {
     candidate_type?: string
     presentation?: ICandidatePresentation
 }
+
+export interface IBallotStyle {
+    id: string
+    tenant_id: string
+    election_event_id: string
+    election_id: string
+    description?: string
+    public_key?: IPublicKeyConfig
+    area_id: string
+    contests: Array<IContest>
+}
+
+export interface IPublicKeyConfig {
+    public_key: string
+    is_demo: boolean
+}

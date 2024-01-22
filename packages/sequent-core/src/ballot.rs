@@ -11,8 +11,7 @@ use std::default::Default;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
-use strum_macros::Display;
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -230,10 +229,13 @@ impl Candidate {
 )]
 pub enum CandidatesOrder {
     #[strum(serialize = "random")]
+    #[serde(rename = "random")]
     Random,
     #[strum(serialize = "custom")]
+    #[serde(rename = "custom")]
     Custom,
     #[strum(serialize = "alphabetical")]
+    #[serde(rename = "alphabetical")]
     Alphabetical,
 }
 
