@@ -205,7 +205,11 @@ pub async fn generate_results_id_if_necessary(
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+    state_opt: &Option<State>,
 ) -> Result<Option<String>> {
+    if state_opt.is_none() {
+        return Ok(None);
+    }
     let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
     let session_ids = session_ids_opt.unwrap_or(vec![]);
 
@@ -222,7 +226,7 @@ pub async fn populate_results_tables(
     auth_headers: connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     base_tally_path: &PathBuf,
-    state: State,
+    state_opt: Option<State>,
     tenant_id: &str,
     election_event_id: &str,
     session_ids: Option<Vec<i64>>,
@@ -234,10 +238,11 @@ pub async fn populate_results_tables(
         election_event_id,
         session_ids,
         previous_execution.clone(),
+        &state_opt,
     )
     .await?;
 
-    if let Some(results_event_id) = results_event_id_opt.clone() {
+    if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
         if let Ok(results) = state.get_results() {
             save_results(
                 auth_headers.clone(),
