@@ -39,7 +39,7 @@ const StyledLink = styled.a`
 
 const StyledImage = styled(Image)`
     max-height: 100%;
-    min-width: 200px;
+    min-width: 100px;
 `
 
 type ApplicationVersion = {
