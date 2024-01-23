@@ -215,17 +215,13 @@ impl BoardClient {
         }];
 
         let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let rows = &sql_query_response
-        .get_ref()
-        .rows;
+        let rows = &sql_query_response.get_ref().rows;
 
         if rows.len() > 0 {
             Ok(Some(BoardMessage::try_from(&rows[0])?))
-        }
-        else {
+        } else {
             Ok(None)
         }
-        
     }
 
     pub async fn get_messages_filtered(

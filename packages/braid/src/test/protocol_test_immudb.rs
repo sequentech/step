@@ -1,6 +1,6 @@
 use anyhow::Result;
 use immu_board::{BoardClient, BoardMessage};
-use log::{info,warn};
+use log::{info, warn};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;

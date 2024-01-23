@@ -44,7 +44,9 @@ impl ImmudbBoard {
         } else {
             // When not using a store, we get all messages, one at a time
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            let messages = self.get_remote_messages_consecutively(last_id.unwrap_or(0)).await?;
+            let messages = self
+                .get_remote_messages_consecutively(last_id.unwrap_or(0))
+                .await?;
             // let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
 
             messages
@@ -58,22 +60,27 @@ impl ImmudbBoard {
 
     // Returns all messages from immudb starting from last_id + 1,  using consecutive requests.
     // If the value at last_id + 1 does not exist, an empty vector will be returned.
-    // If there are gaps in the sequence, the returned vector will contain messages until 
+    // If there are gaps in the sequence, the returned vector will contain messages until
     // the last value before the gap.
     // Note that there should be no gaps according to
     // https://docs.immudb.io/1.1.0/reference/sql.html?
-    // The type of an AUTO_INCREMENT column must be INTEGER. Internally immudb will assign 
+    // The type of an AUTO_INCREMENT column must be INTEGER. Internally immudb will assign
     // sequentially increasing values for new rows ensuring this value is unique within a single table
-    pub async fn get_remote_messages_consecutively(&mut self, last_id: i64) -> Result<Vec<BoardMessage>> {
+    pub async fn get_remote_messages_consecutively(
+        &mut self,
+        last_id: i64,
+    ) -> Result<Vec<BoardMessage>> {
         let mut ret = vec![];
         let mut next_id = last_id + 1;
         loop {
-            let message = self.board_client.get_one_message(&self.board_dbname, next_id).await?;
+            let message = self
+                .board_client
+                .get_one_message(&self.board_dbname, next_id)
+                .await?;
             if let Some(message) = message {
                 ret.push(message);
                 next_id = next_id + 1;
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -121,23 +128,28 @@ impl ImmudbBoard {
     async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<Message>> {
         let connection = self.get_store()?;
 
-        let external_last_id = connection
-            .query_row("SELECT max(external_id) FROM messages;", [], |row| {
+        let external_last_id =
+            connection.query_row("SELECT max(external_id) FROM messages;", [], |row| {
                 row.get(0)
             });
 
         if external_last_id.is_err() {
-            warn!("sql error retrieving external_last_id {:?}", external_last_id);
+            warn!(
+                "sql error retrieving external_last_id {:?}",
+                external_last_id
+            );
         }
 
         // All messages in one request implementation
         // When querying for all messages from immudb we use -1 as default lower limit (this requests uses the > comparator in sql)
         // let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
-        
+
         // One by one implementation
         // When retrieving messages one at a time from we use 0 as default value since
         // immudb ids start at 1 (this requests uses the = comparator in sql)
-        let messages = self.get_remote_messages_consecutively(external_last_id.unwrap_or(0)).await?;
+        let messages = self
+            .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
+            .await?;
 
         for message in messages {
             connection.execute(

@@ -41,7 +41,7 @@ impl<C: Ctx> Session<C> {
         let mut board = board.expect("impossible");
 
         let messages = board.get_messages(self.last_message_id).await;
-        
+
         if let Err(err) = messages {
             return (self, Err(err));
         }
