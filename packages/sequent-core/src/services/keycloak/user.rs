@@ -50,6 +50,7 @@ impl TryFrom<Row> for User {
             last_name: item.try_get("last_name")?,
             username: item.try_get("username")?,
             area: None,
+            votes_info: None,
         })
     }
 }
@@ -66,6 +67,7 @@ impl From<UserRepresentation> for User {
             last_name: item.last_name.clone(),
             username: item.username.clone(),
             area: None,
+            votes_info: None,
         }
     }
 }

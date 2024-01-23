@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -31,9 +31,9 @@ import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {DeleteUserMutation} from "@/gql/graphql"
+import {DeleteUserMutation, ExportUsersMutation, GetDocumentQuery} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
@@ -41,6 +41,9 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {useAtom} from "jotai"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {EXPORT_USERS} from "@/queries/ExportUsers"
+import {DownloadDocument} from "./DownloadDocument"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -65,6 +68,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [open, setOpen] = React.useState(false)
     const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
+    const [exporting, setExporting] = React.useState(false)
+    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openNew, setOpenNew] = React.useState(false)
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
@@ -80,6 +85,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -291,11 +297,37 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleExport = () => {
+        setExporting(false)
+        setExportDocumentId(undefined)
         setOpenExport(true)
     }
 
     const confirmExportAction = async () => {
-        console.log("CONFIRM EXPORT")
+        setExportDocumentId(undefined)
+        setExporting(true)
+        const {data: exportUsersData, errors} = await exportUsers({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                electionId: electionId,
+            },
+        })
+        if (errors || !exportUsersData) {
+            setExporting(false)
+            setOpenExport(false)
+            notify(
+                t(
+                    `usersAndRolesScreen.${
+                        electionEventId ? "voters" : "users"
+                    }.notifications.exportError`
+                ),
+                {type: "error"}
+            )
+            console.log(`Error exporting users: ${errors}`)
+            return
+        }
+        let documentId = exportUsersData.export_users?.document_id
+        setExportDocumentId(documentId)
     }
 
     return (
@@ -353,7 +385,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     {electionEventId && (
                         <FunctionField
                             label={t("usersAndRolesScreen.users.fields.area")}
-                            render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
+                            render={(record: IUser) =>
+                                record?.area?.name ? <Chip label={record?.area?.name ?? ""} /> : "-"
+                            }
+                        />
+                    )}
+                    {electionEventId && (
+                        <FunctionField
+                            source="has_voted"
+                            label={t("usersAndRolesScreen.users.fields.has_voted")}
+                            render={(record: IUser, source: string | undefined) => {
+                                let newRecord = {
+                                    has_voted: (record?.votes_info?.length ?? 0) > 0,
+                                    ...record,
+                                }
+                                return <BooleanField record={newRecord} source={source} />
+                            }}
                         />
                     )}
                     <WrapperField source="actions" label="Actions">
@@ -433,16 +480,36 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 variant="info"
                 open={openExport}
                 ok={t("common.label.export")}
+                okEnabled={() => !exporting}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.export")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
                     }
-                    setOpenExport(false)
                 }}
             >
                 {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            electionEventId={electionEventId ?? ""}
+                            fileName={`users-export.tsv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
             </Dialog>
         </>
     )

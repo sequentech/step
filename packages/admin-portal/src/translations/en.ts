@@ -374,6 +374,7 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Username",
                     first_name: "First Name",
                     last_name: "Last Name",

@@ -31,6 +31,7 @@ pub async fn upload_and_return_document(
         media_type.clone(),
         size as i64,
         false,
+        None,
     )
     .await?;
 
@@ -91,6 +92,7 @@ pub async fn get_upload_url(
         media_type.to_string(),
         size as i64,
         is_public,
+        None,
     )
     .await?
     .data
@@ -149,10 +151,15 @@ pub async fn fetch_document(
     )
     .await?;
 
-    let document = &document_result
+    let documents = document_result
         .data
         .ok_or(anyhow!("expected data"))?
-        .sequent_backend_document[0];
+        .sequent_backend_document;
+
+    if documents.len() == 0 {
+        return Err(anyhow!("document not found").into());
+    }
+    let document = &documents[0];
 
     let document_s3_key = s3::get_document_key(tenant_id.clone(), election_event_id, document_id);
     let bucket = if document.is_public.unwrap_or(false) {
