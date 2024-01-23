@@ -58,23 +58,6 @@ services:
     depends_on:
       - postgres-volume-init
 
-  #pgadmin:
-  #  image: dpage/pgadmin4
-  #  ports:
-  #    - 8888:80
-  #  environment:
-  #    - PGADMIN_DEFAULT_EMAIL=postgres@example.com
-  #    - PGADMIN_DEFAULT_PASSWORD=postgres
-  #    - PGADMIN_CONFIG_SERVER_MODE=False
-  #    - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
-  #  entrypoint: /bin/sh -c "chmod 600 /pgpass; /entrypoint.sh;"
-  #  user: root
-  #  configs:
-  #    - source: servers.json
-  #      target: /pgadmin4/servers.json
-  #    - source: pgpass
-  #      target: /pgpass
-
   minio:
     profiles: ["full", "base"]
     container_name: minio
@@ -755,36 +738,3 @@ volumes:
   trustee2_data:
   protocol_manager_data:
   vault-volume:
-
-
-#configs:
-#  pgpass:
-#    content: |
-#      ${HASURA_PG_HOST}:${HASURA_PG_PORT}:*:${HASURA_PG_USER}:${HASURA_PG_PASSWORD}
-#      ${KC_DB_URL_HOST}:${KC_DB_URL_PORT}:*:${KC_DB_USERNAME}:${KC_DB_PASSWORD}
-#  servers.json:
-#    content: |
-#      {
-#        "Servers": {
-#          "1": {
-#            "Name": "Hasura",
-#            "Group": "Servers",
-#            "Host": "${HASURA_PG_HOST}",
-#            "Port": ${HASURA_PG_PORT},
-#            "MaintenanceDB": "postgres",
-#            "Username": "${HASURA_PG_USER}",
-#            "PassFile": "/pgpass",
-#            "SSLMode": "prefer"
-#          },
-#          "2": {
-#            "Name": "Keycloak",
-#            "Group": "Servers",
-#            "Host": "${KC_DB_URL_HOST}",
-#            "Port": ${KC_DB_URL_PORT},
-#            "MaintenanceDB": "postgres",
-#            "Username": "${KC_DB_USERNAME}",
-#            "PassFile": "/pgpass",
-#            "SSLMode": "prefer"
-#          }
-#        }
-#      }

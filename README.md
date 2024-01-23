@@ -56,8 +56,6 @@ using them and continue development:
     - Password: `immudb`
   - To create the index db, run:
       `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
-- **Pgadmin**:
-  - PGAdmin4 available at [http://127.0.0.1:8888]
 
 Additionally, this dev container comes with:
  - Relevant VS Code plugins installed
