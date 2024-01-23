@@ -41,7 +41,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {useAtom} from "jotai"
-import { FormStyles } from "@/components/styles/FormStyles"
+import {FormStyles} from "@/components/styles/FormStyles"
 
 const OMIT_FIELDS: Array<string> = []
 

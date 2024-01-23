@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -16,15 +19,13 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
+use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};
+use windmill::tasks::export_users;
 use windmill::tasks::import_users;
-
-use crate::services::authorization::authorize;
-use crate::types::optional::OptionalId;
-use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -457,4 +458,42 @@ pub async fn import_users_f(
     Ok(Json(OptionalId {
         id: Some(task.task_id),
     }))
+}
+
+#[instrument(skip(claims))]
+#[post("/export-users", format = "json", data = "<input>")]
+pub async fn export_users_f(
+    claims: jwt::JwtClaims,
+    input: Json<export_users::ExportUsersBody>,
+) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+    let body = input.into_inner();
+    let required_perm: Permissions = if body.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let document_id = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(export_users::export_users::new(body, document_id.clone()))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending export_users task: {error:?}"),
+            )
+        })?;
+    let output = export_users::ExportUsersOutput {
+        document_id: document_id,
+        task_id: task.task_id.clone(),
+    };
+    info!("Sent EXPORT_USERS task {}", task.task_id);
+
+    Ok(Json(output))
 }
