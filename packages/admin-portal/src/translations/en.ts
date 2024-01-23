@@ -368,6 +368,12 @@ const englishTranslation = {
                 title: "Users and Roles",
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
+                // mail: "Email",
+                // emailVerified: "Email Verified",
+                // enabled: "Enabled",
+                // firstName: "First Name",
+                // lastName: "Last Name",
+                // username: "Username",
             },
             users: {
                 title: "Users",

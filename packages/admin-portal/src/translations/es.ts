@@ -370,6 +370,12 @@ const spanishTranslation: TranslationType = {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
                 mobileNumber: "Móvil",
+                // mail: "Correo electrónico",
+                // emailVerified: "Correo electrónico verificado",
+                // enabled: "Habilitado",
+                // firstName: "Nombre",
+                // lastName: "Apellido",
+                // username: "Nombre de usuario",
             },
             users: {
                 title: "Usuarios",

@@ -369,6 +369,12 @@ const hebrewTranslation: TranslationType = {
                 title: "משתמשים ותפקידים",
                 subtitle: "תצורה כללית",
                 mobileNumber: "טלפון נייד",
+                // mail: "דואר",
+                // emailVerified: "אימייל מאומת",
+                // enabled: "מופעל",
+                // firstName: "שם פרטי",
+                // lastName: "שם משפחה",
+                // username: "שם משתמש",
             },
             users: {
                 title: "משתמשים",

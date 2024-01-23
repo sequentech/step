@@ -356,7 +356,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
                         />
                     )}
-                    <WrapperField source="actions" label="Actions">
+                    <WrapperField source="actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>

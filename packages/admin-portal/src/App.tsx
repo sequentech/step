@@ -58,6 +58,7 @@ const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
     const {i18n} = useTranslation()
+    
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
 
