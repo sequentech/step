@@ -86,7 +86,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
-    const {eventId} = useParams<TenantEventType>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const election = useAppSelector(selectElectionById(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
@@ -103,7 +103,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
         if (!canVote) {
             return
         }
-        navigate(`../election/${electionId}/start`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
     }
 
     const handleClickBallotLocator = () => {
@@ -285,9 +285,6 @@ export const ElectionSelectionScreen: React.FC = () => {
             !!dataElections
         if (newBypassChooser && !bypassChooser) {
             setBypassChooser(newBypassChooser)
-            const electionId = electionIds[0]
-
-            navigate(`../election/${electionId}/start`)
         }
     }, [castVotes, electionIds, errorCastVote, castVotes, electionEvent, dataElections])
 
