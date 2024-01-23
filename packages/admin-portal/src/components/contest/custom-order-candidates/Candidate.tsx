@@ -1,6 +1,6 @@
 import React, {useRef, useState} from "react"
 import styled from "@emotion/styled"
-import {theme, ICandidate,} from "@sequentech/ui-essentials"
+import {theme, ICandidate} from "@sequentech/ui-essentials"
 import {TextField} from "react-admin"
 
 export interface CandidateRowItemProps {
