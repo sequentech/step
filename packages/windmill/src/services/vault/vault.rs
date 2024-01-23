@@ -20,7 +20,7 @@ pub trait Vault: Send {
 }
 
 fn get_vault() -> Result<Box<dyn Vault + Send>> {
-    let vault_name = std::env::var("VAULT_MANAGER").unwrap_or("HashiCorpVault".to_string());
+    let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("HashiCorpVault".to_string());
 
     info!("Vault: vault_name={vault_name}");
 
