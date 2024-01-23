@@ -16,6 +16,7 @@ const englishTranslation = {
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
+            clearButton: "Clear selection",
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
