@@ -4,6 +4,7 @@
 
 pub mod area;
 pub mod cast_vote;
+pub mod election;
 pub mod keycloak_realm;
 pub mod lock;
 pub mod results_area_contest;

@@ -5,6 +5,7 @@
 use crate::hasura;
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::election::get_election_max_revotes;
 use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
@@ -293,8 +294,13 @@ async fn check_previous_votes(
     area_id: &str,
     hasura_transaction: &Transaction<'_>,
 ) -> anyhow::Result<()> {
-    // TODO
-    let max_revotes = 1;
+    let max_revotes = get_election_max_revotes(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?;
 
     let result = postgres::cast_vote::get_cast_votes(
         &hasura_transaction,
