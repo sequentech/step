@@ -14,12 +14,12 @@ enum VaultManagerType {
 }
 
 #[async_trait]
-pub trait Vault {
+pub trait Vault: Send {
     async fn save_secret(&self, key: String, value: String) -> Result<()>;
     async fn read_secret(&self, key: String) -> Result<Option<String>>;
 }
 
-fn get_vault() -> Result<Box<dyn Vault>> {
+fn get_vault() -> Result<Box<dyn Vault + Send>> {
     let vault_name = std::env::var("VAULT_MANAGER").unwrap_or("HashiCorpVault".to_string());
 
     info!("Vault: vault_name={vault_name}");
