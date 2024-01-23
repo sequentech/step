@@ -3,21 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura;
-use crate::services::users::ListUsersFilter;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use crate::services::users::{list_users, list_users_with_vote_info};
-use crate::util::aws::get_max_upload_size;
 use crate::services::s3;
+use crate::services::users::ListUsersFilter;
+use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::types::error::{Error, Result};
+use crate::util::aws::get_max_upload_size;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use sequent_core::services::keycloak;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
+use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, instrument};
+use std::io::{BufWriter, Write};
 use tempfile::NamedTempFile;
-use std::io::{Write, BufWriter};
+use tracing::{debug, info, instrument};
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ExportUsersBody {
@@ -37,9 +37,7 @@ pub struct ExportUsersOutput {
 #[celery::task(max_retries = 0)]
 pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<()> {
     let realm = match body.election_event_id {
-        Some(ref election_event_id) => {
-            get_event_realm(&body.tenant_id, &election_event_id)
-        }
+        Some(ref election_event_id) => get_event_realm(&body.tenant_id, &election_event_id),
         None => get_tenant_realm(&body.tenant_id),
     };
 
@@ -72,7 +70,9 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     let mut offset: i32 = 0;
     let mut total_count: Option<i32> = None;
     let file = NamedTempFile::new().with_context(|| "Error creating named temp file")?;
-    let file2 = file.reopen().with_context(|| "Couldn't reopen file for writting")?;
+    let file2 = file
+        .reopen()
+        .with_context(|| "Couldn't reopen file for writting")?;
     let mut writer = csv::WriterBuilder::new()
         .delimiter(b'\t')
         .from_writer(&file2);
@@ -89,7 +89,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
             "last_name",
             "username",
             "area",
-            "votes_info"
+            "votes_info",
         ]
     } else {
         vec![
@@ -101,7 +101,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
             "first_name",
             "last_name",
             "username",
-            "area"
+            "area",
         ]
     };
     writer.write_record(&headers)?;
@@ -122,16 +122,14 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
             user_ids: None,
         };
         let (users, count) = match body.election_event_id.is_some() {
-            true =>
-                list_users_with_vote_info(
-                    &hasura_transaction,
-                    &keycloak_transaction,
-                    filter.clone(),
-                )
-                .await
-                .map_err(|error| anyhow!("Error listing users with vote info {error:?}"))?,
-            false => 
-                list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
+            true => list_users_with_vote_info(
+                &hasura_transaction,
+                &keycloak_transaction,
+                filter.clone(),
+            )
+            .await
+            .map_err(|error| anyhow!("Error listing users with vote info {error:?}"))?,
+            false => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
                 .await
                 .map_err(|error| anyhow!("Error listing users {error:?}"))?,
         };
@@ -154,7 +152,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
                     user.last_name.unwrap_or_default(),
                     user.username.unwrap_or_default(),
                     format!("{:?}", user.area),
-                    format!("{:?}", user.votes_info)
+                    format!("{:?}", user.votes_info),
                 ]
             } else {
                 vec![
@@ -166,7 +164,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
                     user.first_name.unwrap_or_default(),
                     user.last_name.unwrap_or_default(),
                     user.username.unwrap_or_default(),
-                    format!("{:?}", user.area)
+                    format!("{:?}", user.area),
                 ]
             };
             writer.write_record(&record)?;
@@ -178,28 +176,32 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     }
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
-    let name = format!("export-users-{}.tsv", document_id.clone());
+    let name = "users-export.tsv".to_string();
+    let key = s3::get_public_document_key(
+        body.tenant_id.to_string(),
+        document_id.clone(),
+        name.to_string(),
+    );
     let media_type = "text/tsv".to_string();
     s3::upload_file_to_s3(
-        /* key */ s3::get_document_key(
-            body.tenant_id.clone(),
-            Default::default(),
-            name.clone(),
-        ),
-        /* is_public */ false,
-        /* s3_bucket */ s3::get_private_bucket()?,
+        /* key */ key,
+        /* is_public */ true,
+        /* s3_bucket */ s3::get_public_bucket()?,
         /* media_type */ media_type.clone(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
     )
-        .await
-        .with_context(|| "Error uploading file to s3")?;
-    temp_path.close().with_context(|| "Error closing temp file path")?;
+    .await
+    .with_context(|| "Error uploading file to s3")?;
+    temp_path
+        .close()
+        .with_context(|| "Error closing temp file path")?;
     if size > get_max_upload_size()? as u64 {
         return Err(anyhow!(
             "File is too big: file.metada().len() [{}] > get_max_upload_size() [{}]",
             size,
             get_max_upload_size()?
-        ).into());
+        )
+        .into());
     }
 
     let auth_headers = keycloak::get_client_credentials()
@@ -209,7 +211,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     let _document = &hasura::document::insert_document(
         auth_headers,
         body.tenant_id.to_string(),
-        None,
+        body.election_event_id.clone(),
         name.clone(),
         media_type.clone(),
         size as i64,
