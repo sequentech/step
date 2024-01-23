@@ -96,6 +96,12 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
                 {index + 1}
             </StepNumber>
             <StepLabel
+                sx={{
+                    display: {
+                        xs: isSelected ? "block" : "none",
+                        sm: "block",
+                    },
+                }}
                 isselected={(isSelected || colorStep).toString()}
                 className={isSelected ? "selected" : "not-selected"}
             >

@@ -78,9 +78,10 @@ const StyledButton = styled(Button)`
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: string
+    hideAudit: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot, hideAudit}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t, i18n} = useTranslation()
@@ -186,14 +187,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                <StyledButton
-                    sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" dir={i18n.dir(i18n.language)} />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
+                {hideAudit ? null : (
+                    <StyledButton
+                        sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
+                        variant="warning"
+                        onClick={() => setAuditBallotHelp(true)}
+                    >
+                        <Icon icon={faFire} size="sm" />
+                        <Box>{t("reviewScreen.auditButton")}</Box>
+                    </StyledButton>
+                )}
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -220,6 +223,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+    const hideAudit = true
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -247,7 +251,9 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg">
-            <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            {hideAudit ? null : (
+                <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            )}
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
@@ -299,7 +305,11 @@ export const ReviewScreen: React.FC = () => {
                     isReview={true}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
+            <ActionButtons
+                ballotStyle={ballotStyle}
+                auditableBallot={auditableBallot}
+                hideAudit={hideAudit}
+            />
         </PageLimit>
     )
 }

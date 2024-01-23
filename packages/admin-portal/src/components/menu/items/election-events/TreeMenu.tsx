@@ -102,7 +102,7 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={resource.name}
+                                name={resource.alias ?? resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}
@@ -202,8 +202,7 @@ function TreeMenuItem({
                 <img
                     width={24}
                     height={24}
-                    src={`http://localhost:9000/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
-                    alt={`tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                    src={`http://localhost:9002/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
                 <span>{name}</span>
             </p>

@@ -18,6 +18,7 @@ const spanishTranslation: TranslationType = {
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguente",
+            clearButton: "Limpiar selección",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
                 content:

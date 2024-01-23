@@ -389,6 +389,7 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear usuario",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Nombre de Usuario",
                     first_name: "Nombre",
                     last_name: "Apellido",
@@ -676,7 +677,7 @@ const spanishTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
-                "random-answers": "Respuestas Aleatorias",
+                "random": "Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },

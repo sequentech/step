@@ -22,7 +22,7 @@ import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
-import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -97,7 +97,7 @@ const QRContainer = styled(Box)`
     margin: 15px auto;
 `
 
-const ActionLink = styled(Link)`ç
+const ActionLink = styled(Link)`
     text-decoration: none;
     &:hover {
         text-decoration: none;
@@ -111,7 +111,7 @@ interface ActionButtonsProps {
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
+    const canVote = useAppSelector(canVoteSomeElection())
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
@@ -147,7 +147,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 <Icon icon={faPrint} size="sm" dir={i18n.dir(i18n.language)} />
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
-            {castVotes ? (
+            {!canVote ? (
                 <ActionLink
                     href="https://sequentech.io"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}

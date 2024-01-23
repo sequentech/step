@@ -144,7 +144,6 @@ let MuiButton: Components["MuiButton"] = {
             "backgroundColor": palette.brandColor,
             "border": `1px solid ${palette.brandColor}`,
             "color": palette.white,
-            "minWidth": "100px",
             "minHeight": "44px",
             "&:hover": {
                 backgroundColor: palette.brandColor,
@@ -164,6 +163,11 @@ let MuiButton: Components["MuiButton"] = {
                 background: "rgba(15, 5, 76, 0.4)",
                 border: "1px solid rgba(255, 255, 255, 0.4)",
                 color: palette.white,
+            },
+
+            "border-radius": "0",
+            [`@media (min-width: ${breakpoints.values!.sm!}px)`]: {
+                "border-radius": "4px",
             },
         },
     },

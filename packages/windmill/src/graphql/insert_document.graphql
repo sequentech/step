@@ -5,16 +5,18 @@ mutation InsertDocument(
   $size: Int!,
   $mediaType: String!,
   $is_public: Boolean!,
+  $document_id: uuid,
 ) {
   insert_sequent_backend_document(
     objects: 
     {
       election_event_id: $electionEventId,
+      id: $document_id,
       tenant_id: $tenantId,
       name: $name,
       size: $size,
       media_type: $mediaType,
-      is_public: $is_public,
+      is_public: $is_public
     }
   ) {
     returning {

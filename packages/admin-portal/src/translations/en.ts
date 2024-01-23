@@ -387,6 +387,7 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Username",
                     first_name: "First Name",
                     last_name: "Last Name",
@@ -674,7 +675,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-answers": "Random Answers",
+                "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },

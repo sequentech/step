@@ -24,9 +24,9 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
-    resetBallotSelection,
     selectBallotSelectionByElectionId,
     setBallotSelection,
+    resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -81,6 +81,20 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
     const {t, i18n} = useTranslation()
     const backLink = useRootBackLink()
+    const {electionId} = useParams<{electionId?: string}>()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const dispatch = useAppDispatch()
+
+    function handleClearSelection() {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+    }
 
     return (
         <ActionsContainer>
@@ -90,6 +104,19 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                     <Box>{t("votingScreen.backButton")}</Box>
                 </StyledButton>
             </StyledLink>
+
+            <StyledButton
+                dir={i18n.dir(i18n.language)}
+                sx={{
+                    display: {xs: "none", sm: "block"},
+                    width: {xs: "100%", sm: "200px"},
+                }}
+                variant="secondary"
+                onClick={() => handleClearSelection()}
+            >
+                <Box>{t("votingScreen.clearButton")}</Box>
+            </StyledButton>
+
             <StyledButton
                 className="next-button"
                 sx={{width: {xs: "100%", sm: "200px"}}}
@@ -222,14 +249,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language))}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {ballotStyle.ballot_eml.contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
-                    question={question}
+                    question={contest}
                     questionIndex={index}
                     key={index}
                     isReview={false}
-                    setDisableNext={onSetDisableNext(question.id)}
+                    setDisableNext={onSetDisableNext(contest.id)}
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
