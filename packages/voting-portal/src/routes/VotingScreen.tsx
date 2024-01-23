@@ -79,6 +79,20 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
+    const {electionId} = useParams<{electionId?: string}>()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const dispatch = useAppDispatch()
+
+    function handleClearSelection() {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+    }
 
     return (
         <ActionsContainer>
@@ -88,6 +102,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                     <Box>{t("votingScreen.backButton")}</Box>
                 </StyledButton>
             </StyledLink>
+
+            <StyledButton
+                sx={{width: {xs: "100%", sm: "200px"}}}
+                variant="secondary"
+                onClick={() => handleClearSelection()}
+            >
+                <Box>{t("votingScreen.clearButton")}</Box>
+            </StyledButton>
+
             <StyledButton
                 className="next-button"
                 sx={{width: {xs: "100%", sm: "200px"}}}
