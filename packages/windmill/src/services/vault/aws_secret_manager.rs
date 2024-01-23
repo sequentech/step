@@ -1,20 +1,17 @@
 use super::Vault;
 use crate::util::aws::get_from_env_aws_config;
 use anyhow::Result;
+use async_trait::async_trait;
 use aws_sdk_secretsmanager::Client;
 use tracing::instrument;
 
+#[derive(Debug)]
 pub struct AwsSecretManager;
 
-impl AwsSecretManager {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
+#[async_trait]
 impl Vault for AwsSecretManager {
     #[instrument(skip(value), err)]
-    async fn save_secret(key: String, value: String) -> Result<()> {
+    async fn save_secret(&self, key: String, value: String) -> Result<()> {
         let shared_config = get_from_env_aws_config().await?;
         let client = Client::new(&shared_config);
 
@@ -29,7 +26,7 @@ impl Vault for AwsSecretManager {
     }
 
     #[instrument(err)]
-    async fn read_secret(key: String) -> Result<Option<String>> {
+    async fn read_secret(&self, key: String) -> Result<Option<String>> {
         let shared_config = get_from_env_aws_config().await?;
         let client = Client::new(&shared_config);
 

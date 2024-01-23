@@ -4,6 +4,7 @@
 
 use super::Vault;
 use anyhow::Result;
+use async_trait::async_trait;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -24,17 +25,13 @@ struct VaultRead {
     renewable: bool,
 }
 
+#[derive(Debug)]
 pub struct HashiCorpVault;
 
-impl HashiCorpVault {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
+#[async_trait]
 impl Vault for HashiCorpVault {
     #[instrument(skip(value), err)]
-    async fn save_secret(key: String, value: String) -> Result<()> {
+    async fn save_secret(&self, key: String, value: String) -> Result<()> {
         let server_url =
             env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
         let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
@@ -52,7 +49,7 @@ impl Vault for HashiCorpVault {
     }
 
     #[instrument(err)]
-    async fn read_secret(key: String) -> Result<Option<String>> {
+    async fn read_secret(&self, key: String) -> Result<Option<String>> {
         let server_url =
             env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
         let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
