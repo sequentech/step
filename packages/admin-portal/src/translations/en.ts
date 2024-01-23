@@ -661,7 +661,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-answers": "Random Answers",
+                "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },

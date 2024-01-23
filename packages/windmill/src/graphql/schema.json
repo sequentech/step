@@ -39310,18 +39310,6 @@
             "deprecationReason": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "args": [
@@ -40414,16 +40402,6 @@
             "defaultValue": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -40946,16 +40924,6 @@
             "defaultValue": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -41148,18 +41116,6 @@
             "deprecationReason": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -41309,16 +41265,6 @@
           },
           {
             "name": "name",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "order_answers",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -41500,18 +41446,6 @@
             "deprecationReason": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -41661,16 +41595,6 @@
           },
           {
             "name": "name",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "order_answers",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -42044,16 +41968,6 @@
             "defaultValue": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -42333,12 +42247,6 @@
             "deprecationReason": null
           },
           {
-            "name": "order_answers",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "presentation",
             "description": "column name",
             "isDeprecated": false,
@@ -42597,16 +42505,6 @@
           },
           {
             "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "order_answers",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -43146,16 +43044,6 @@
             "defaultValue": null
           },
           {
-            "name": "order_answers",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -43404,12 +43292,6 @@
           },
           {
             "name": "name",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "order_answers",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

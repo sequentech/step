@@ -380,6 +380,21 @@ actions:
   - role: voter-read
   - role: user-read
   - role: admin-user
+- name: import_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: voter-create
+  - role: user-create
 - name: insertElectionEvent
   definition:
     kind: synchronous
@@ -662,6 +677,7 @@ custom_types:
   - name: DeleteUserOutput
   - name: CreateUserOutput
   - name: SetRolePermissionOutput
+  - name: OptionalId
   - name: SetUserRoleOutput
   - name: CreateTallyOutput
   - name: StartTallyOutput

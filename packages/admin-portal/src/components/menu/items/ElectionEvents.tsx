@@ -7,7 +7,13 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {
+    IconButton,
+    adminTheme,
+    CandidatesOrder,
+    ICandidatePresentation,
+    IContestPresentation,
+} from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
@@ -22,6 +28,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
+import {cloneDeep} from "lodash"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -55,18 +62,20 @@ const ENTITY_FIELD_NAMES: Array<EntityFieldName> = [
     "candidates",
 ]
 
-type BaseType = {__typename: ResourceName; id: string; name: string}
+type BaseType = {__typename: ResourceName; id: string; name: string; alias?: string}
 
 export type CandidateType = BaseType & {
     __typename: "sequent_backend_candidate"
     election_event_id: string
     contest_id: string
+    presentation: ICandidatePresentation
 }
 
 export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
     election_event_id: string
     election_id: string
+    presentation: IContestPresentation
     candidates: Array<CandidateType>
 }
 
@@ -147,6 +156,34 @@ export default function ElectionEvents() {
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+    }
+
+    resultData = {
+        electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+            (electionEvent: ElectionEventType) => {
+                return {
+                    ...electionEvent,
+                    elections: electionEvent.elections.map((election) => {
+                        return {
+                            ...election,
+                            contests: election.contests.map((contest) => {
+                                let orderType = contest.presentation?.candidates_order
+
+                                if (orderType === CandidatesOrder.CUSTOM) {
+                                    contest.candidates.sort(
+                                        (a, b) =>
+                                            a.presentation?.sort_order! -
+                                            b.presentation?.sort_order!
+                                    )
+                                }
+
+                                return contest
+                            }),
+                        }
+                    }),
+                }
+            }
+        ),
     }
 
     const treeMenu = loading ? (

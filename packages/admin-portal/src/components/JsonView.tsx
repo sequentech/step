@@ -1,10 +1,6 @@
 import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
-import React, {useRef} from "react"
-import {TextField} from "react-admin"
-import {ItemTypes} from "./types"
-import {useDrag, useDrop} from "react-dnd"
-import type {Identifier, XYCoord} from "dnd-core"
+import React from "react"
 
 export interface JsonViewProps {
     origin: object
