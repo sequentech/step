@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -16,15 +19,13 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
+use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::users::list_users;
 use windmill::services::users::ListUsersFilter;
+use windmill::services::users::{list_users, list_users_with_vote_info};
+use windmill::tasks::export_users;
 use windmill::tasks::import_users;
-
-use crate::services::authorization::authorize;
-use crate::types::optional::OptionalId;
-use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -132,6 +133,7 @@ pub struct GetUsersBody {
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
+    show_votes_info: Option<bool>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -152,9 +154,6 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -163,46 +162,79 @@ pub async fn get_users(
         None => get_tenant_realm(&input.tenant_id),
     };
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {:?}", e),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {:?}", e),
+            )
+        })?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
 
-    let (users, count) = list_users(
-        &hasura_transaction,
-        &keycloak_transaction,
-        ListUsersFilter {
-            tenant_id: input.tenant_id.clone(),
-            election_event_id: input.election_event_id.clone(),
-            election_id: input.election_id.clone(),
-            area_id: None,
-            realm: realm.clone(),
-            search: input.search,
-            first_name: input.first_name,
-            last_name: input.last_name,
-            username: input.username,
-            email: input.email,
-            limit: input.limit,
-            offset: input.offset,
-            user_ids: None,
-        },
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let filter = ListUsersFilter {
+        tenant_id: input.tenant_id.clone(),
+        election_event_id: input.election_event_id.clone(),
+        election_id: input.election_id.clone(),
+        area_id: None,
+        realm: realm.clone(),
+        search: input.search,
+        first_name: input.first_name,
+        last_name: input.last_name,
+        username: input.username,
+        email: input.email,
+        limit: input.limit,
+        offset: input.offset,
+        user_ids: None,
+    };
+
+    let (users, count) = match input.show_votes_info.unwrap_or(false) {
+        true =>
+        // If show_vote_info is true, call list_users_with_vote_info()
+        {
+            list_users_with_vote_info(
+                &hasura_transaction,
+                &keycloak_transaction,
+                filter,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users with vote info {:?}", e),
+                )
+            })?
+        }
+        // If show_vote_info is false, call list_users() and return empty
+        // votes_info
+        false => list_users(&hasura_transaction, &keycloak_transaction, filter)
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users {:?}", e),
+                )
+            })?,
+    };
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {
@@ -419,4 +451,42 @@ pub async fn import_users_f(
     Ok(Json(OptionalId {
         id: Some(task.task_id),
     }))
+}
+
+#[instrument(skip(claims))]
+#[post("/export-users", format = "json", data = "<input>")]
+pub async fn export_users_f(
+    claims: jwt::JwtClaims,
+    input: Json<export_users::ExportUsersBody>,
+) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+    let body = input.into_inner();
+    let required_perm: Permissions = if body.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let document_id = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(export_users::export_users::new(body, document_id.clone()))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending export_users task: {error:?}"),
+            )
+        })?;
+    let output = export_users::ExportUsersOutput {
+        document_id: document_id,
+        task_id: task.task_id.clone(),
+    };
+    info!("Sent EXPORT_USERS task {}", task.task_id);
+
+    Ok(Json(output))
 }
