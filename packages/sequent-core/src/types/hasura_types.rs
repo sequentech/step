@@ -141,7 +141,7 @@ pub struct ElectionType {
     pub annotations: Option<Value>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: Uuid,
     pub tenant_id: Uuid,

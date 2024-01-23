@@ -44,7 +44,23 @@ pub struct InsertCastVoteInput {
     pub content: String,
 }
 
-pub type InsertCastVoteOutput = CastVote;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct InsertCastVoteOutput {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_id: Uuid,
+    pub area_id: Uuid,
+    pub created_at: Option<String>,
+    pub last_updated_at: Option<String>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub content: Option<String>,
+    pub cast_ballot_signature: Vec<u8>,
+    pub voter_id_string: Option<String>,
+    pub election_event_id: String,
+    pub ballot_id: Option<String>,
+}
 
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
