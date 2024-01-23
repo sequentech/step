@@ -140,7 +140,7 @@ pub struct ElectionType {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
 }
-
+/*
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
     pub id: Uuid,
@@ -157,3 +157,4 @@ pub struct CastVote {
     pub election_event_id: String,
     pub ballot_id: Option<String>,
 }
+*/

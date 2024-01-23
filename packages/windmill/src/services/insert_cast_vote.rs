@@ -5,6 +5,7 @@
 use crate::hasura;
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::services::cast_votes::CastVote;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
@@ -25,7 +26,6 @@ use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
-use sequent_core::types::hasura_types::CastVote;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strand::backend::ristretto::RistrettoCtx;
@@ -44,23 +44,7 @@ pub struct InsertCastVoteInput {
     pub content: String,
 }
 
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct InsertCastVoteOutput {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_id: Uuid,
-    pub area_id: Uuid,
-    pub created_at: Option<String>,
-    pub last_updated_at: Option<String>,
-    pub labels: Option<Value>,
-    pub annotations: Option<Value>,
-    pub content: Option<String>,
-    pub cast_ballot_signature: Vec<u8>,
-    pub voter_id_string: Option<String>,
-    pub election_event_id: String,
-    pub ballot_id: Option<String>,
-}
+pub type InsertCastVoteOutput = CastVote;
 
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
@@ -177,7 +161,7 @@ pub async fn try_insert_cast_vote(
                     log_err
                 );
             }
-            Ok(result)
+            Ok(result.into())
         }
         Err(err) => {
             // TODO error message may leak implementation details
