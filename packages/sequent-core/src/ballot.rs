@@ -154,6 +154,12 @@ impl CandidatePresentation {
     }
 }
 
+impl Default for CandidatePresentation {
+    fn default() -> Self {
+        CandidatePresentation::new()
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -277,6 +283,12 @@ impl ContestPresentation {
             enable_checkable_lists: None,
             candidates_order: None,
         }
+    }
+}
+
+impl Default for ContestPresentation {
+    fn default() -> Self {
+        ContestPresentation::new()
     }
 }
 
