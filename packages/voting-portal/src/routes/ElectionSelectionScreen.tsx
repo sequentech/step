@@ -17,6 +17,7 @@ import {
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
+    IBallotStyle as IElectionDTO,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
@@ -44,7 +45,6 @@ import {
     GetElectionEventQuery,
     GetElectionsQuery,
 } from "../gql/graphql"
-import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
