@@ -433,15 +433,17 @@ To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` enviro
 VAULT_MANAGER=AWSSecretManager
 ```
 
-## Update Sequent Core
+## Update `sequent-core`
 
 ```bash
 cd /workspaces/backend-services/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
+```
+This returns a hash that you need to put in 3 different places in the  yarn.lock 
+of packages/ directory:
 
-# esto da un hash que hay que poner en 3 sitios en el yarn.lock de packages:
-
+```bash
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
@@ -453,22 +455,23 @@ wasm-pack -v pack .
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+```
 
-# luego ejecutar:
+Then you need to execute some further updates:
+
+```bash
 cd /workspaces/backend-services/packages/
-rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 
 rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
-# y luego:
-
 yarn && yarn build:ui-essentials
-
-# y luego ya funciona todo
 ```
+
+And then everything should work and be updated.
 
 ## Create election event
 

@@ -623,13 +623,14 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue"
+      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
     ]
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}

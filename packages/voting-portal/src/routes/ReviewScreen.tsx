@@ -16,6 +16,7 @@ import {
     BallotHash,
     Dialog,
     EVotingStatus,
+    IElectionEventStatus,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -77,9 +78,10 @@ const StyledButton = styled(Button)`
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: string
+    hideAudit: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot, hideAudit}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
@@ -119,7 +121,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
 
             const record = data?.sequent_backend_election_event?.[0]
 
-            if (record?.status !== EVotingStatus.OPEN) {
+            const eventStatus = record?.status as IElectionEventStatus | undefined
+
+            if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 console.warn("Election event is not open")
                 return submit({error: errorType.toString()}, {method: "post"})
             }
@@ -178,15 +182,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
+                {hideAudit ? null : (
+                    <StyledButton
+                        sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
+                        variant="warning"
+                        onClick={() => setAuditBallotHelp(true)}
+                    >
+                        <Icon icon={faFire} size="sm" />
+                        <Box>{t("reviewScreen.auditButton")}</Box>
+                    </StyledButton>
+                )}
                 <StyledButton
-                    sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
-                <StyledButton
+                    className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={castBallotAction}
                 >
@@ -211,6 +218,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+    const hideAudit = true
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -238,7 +246,9 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg">
-            <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            {hideAudit ? null : (
+                <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            )}
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
@@ -290,7 +300,11 @@ export const ReviewScreen: React.FC = () => {
                     isReview={true}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
+            <ActionButtons
+                ballotStyle={ballotStyle}
+                auditableBallot={auditableBallot}
+                hideAudit={hideAudit}
+            />
         </PageLimit>
     )
 }

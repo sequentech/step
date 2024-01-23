@@ -17,7 +17,7 @@ use crate::types::error::Result;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(max_retries = 0)]
 pub async fn process_board(tenant_id: String, election_event_id: String) -> Result<()> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;

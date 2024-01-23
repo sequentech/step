@@ -97,7 +97,7 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={resource.name}
+                                name={resource.alias ?? resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}
@@ -109,7 +109,7 @@ function TreeLeaves({
                     <div className="flex items-center space-x-2 text-secondary">
                         <AddIcon className="flex-none"></AddIcon>
                         <NavLink
-                            className="grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                            className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
@@ -195,8 +195,7 @@ function TreeMenuItem({
                 <img
                     width={24}
                     height={24}
-                    src={`http://localhost:9000/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
-                    alt={`tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                    src={`http://localhost:9002/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
                 <span>{name}</span>
             </p>
@@ -229,7 +228,9 @@ function TreeMenuItem({
                         {item}
                     </NavLink>
                 )}
-                <div className="invisible group-hover:visible">
+                <div
+                    className={`invisible group-hover:visible menu-actions-${treeResourceNames[0]}`}
+                >
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}

@@ -24,9 +24,9 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
-    resetBallotSelection,
     selectBallotSelectionByElectionId,
     setBallotSelection,
+    resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -79,24 +79,64 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
+    const {electionId} = useParams<{electionId?: string}>()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const dispatch = useAppDispatch()
+
+    function handleClearSelection() {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+    }
 
     return (
-        <ActionsContainer>
-            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Icon icon={faAngleLeft} size="sm" />
-                    <Box>{t("votingScreen.backButton")}</Box>
-                </StyledButton>
-            </StyledLink>
+        <>
             <StyledButton
-                sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={() => handleNext()}
-                disabled={disableNext}
+                sx={{
+                    display: {sm: "none"},
+                    width: "100%",
+                }}
+                variant="secondary"
+                onClick={() => handleClearSelection()}
             >
-                <Box>{t("votingScreen.reviewButton")}</Box>
-                <Icon icon={faAngleRight} size="sm" />
+                <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
-        </ActionsContainer>
+
+            <ActionsContainer>
+                <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box>{t("votingScreen.backButton")}</Box>
+                    </StyledButton>
+                </StyledLink>
+
+                <StyledButton
+                    sx={{
+                        display: {xs: "none", sm: "block"},
+                        width: {xs: "100%", sm: "200px"},
+                    }}
+                    variant="secondary"
+                    onClick={() => handleClearSelection()}
+                >
+                    <Box>{t("votingScreen.clearButton")}</Box>
+                </StyledButton>
+
+                <StyledButton
+                    className="next-button"
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                    onClick={() => handleNext()}
+                    disabled={disableNext}
+                >
+                    <Box>{t("votingScreen.reviewButton")}</Box>
+                    <Icon icon={faAngleRight} size="sm" />
+                </StyledButton>
+            </ActionsContainer>
+        </>
     )
 }
 
@@ -157,13 +197,6 @@ const VotingScreen: React.FC = () => {
                         ballotSelection: decodedSelectionState,
                     })
                 )
-
-                dispatch(
-                    resetBallotSelection({
-                        ballotStyle,
-                        force: true,
-                    })
-                )
             }
 
             submit(null, {method: "post"})
@@ -196,7 +229,9 @@ const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box>{translateElection(election, "name", i18n.language) || ""}</Box>
+                <Box className="selected-election-title">
+                    {translateElection(election, "name", i18n.language) || ""}
+                </Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -218,14 +253,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language))}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {ballotStyle.ballot_eml.contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
-                    question={question}
+                    question={contest}
                     questionIndex={index}
                     key={index}
                     isReview={false}
-                    setDisableNext={onSetDisableNext(question.id)}
+                    setDisableNext={onSetDisableNext(contest.id)}
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />

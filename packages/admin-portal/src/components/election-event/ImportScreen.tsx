@@ -1,12 +1,18 @@
 import {Box, styled, Button, TextField, CircularProgress} from "@mui/material"
-import {DropFile} from "@sequentech/ui-essentials"
+import {DropFile, Dialog} from "@sequentech/ui-essentials"
+import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, memo, useRef} from "react"
 import {useTranslation} from "react-i18next"
+import {GetUploadUrlMutation} from "@/gql/graphql"
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {useMutation} from "@apollo/client"
+import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
-    doImport: (file: FileList | null, sha: string) => void
+    doImport: (documentId: string, sha256: string) => void
     doCancel: () => void
     isLoading: boolean
+    errors: String | null
     refresh?: string
 }
 
@@ -24,25 +30,78 @@ export const ImportStyles = {
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, doImport, isLoading, refresh} = props
+        const {doCancel, doImport, isLoading, refresh, errors} = props
 
         const {t} = useTranslation()
-
+        const notify = useNotify()
         const [shaField, setShaField] = React.useState<string>("")
-        const [fileImport, setFileImport] = React.useState<FileList | null>(null)
+        const [showShaDialog, setShowShaDialog] = React.useState<boolean>(false)
+        const [isUploading, setIsUploading] = React.useState<boolean>(false)
+        const [documentId, setDocumentId] = React.useState<string | null>(null)
+        const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
 
-        const handleFiles = (files: FileList | null) => {
-            setFileImport(files)
+        const handleFiles = async (files: FileList | null) => {
+            // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+            setIsUploading(true)
+            const theFile = files?.[0]
+
+            if (theFile) {
+                // Get the Upload URL
+                let {data, errors} = await getUploadUrl({
+                    variables: {
+                        name: theFile.name,
+                        media_type: theFile.type,
+                        size: theFile.size,
+                        is_public: false,
+                    },
+                })
+
+                try {
+                    if (!data?.get_upload_url?.url) {
+                        notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                        return
+                    }
+                    // Actually upload the CSV file
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "text/csv",
+                        },
+                        body: theFile,
+                    })
+                    setIsUploading(false)
+                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+                    setDocumentId(data.get_upload_url.document_id)
+                } catch (_error) {
+                    setIsUploading(false)
+                    notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                }
+            } else {
+                setIsUploading(false)
+                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            }
         }
 
         useEffect(() => {
             setShaField("")
-            setFileImport(null)
+            setDocumentId(null)
         }, [refresh])
 
+        const onImportButtonClick = () => {
+            if (!shaField) {
+                setShowShaDialog(true)
+                return
+            }
+
+            doImport(documentId as string, shaField)
+        }
+
+        const isWorking = () => isLoading || isUploading
+
         return (
-            <Box sx={{padding: "16px"}}>
+            <Box sx={{padding: "0"}}>
                 <TextField
+                    disabled={isWorking()}
                     label={t("electionEventScreen.import.sha")}
                     size="small"
                     value={shaField}
@@ -51,20 +110,14 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }
                 />
 
-                <DropFile handleFiles={handleFiles} />
+                <DropFile handleFiles={async (files) => handleFiles(files)} />
 
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginTop: "32px",
-                        height: "48px",
-                    }}
-                >
-                    {isLoading ? <CircularProgress /> : null}
-                </Box>
+                <FormStyles.StatusBox>
+                    {isWorking() ? <FormStyles.ShowProgress /> : null}
+                    {errors ? (
+                        <FormStyles.ErrorMessage variant="body2">{errors}</FormStyles.ErrorMessage>
+                    ) : null}
+                </FormStyles.StatusBox>
 
                 <Box
                     sx={{
@@ -75,16 +128,31 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         marginTop: "16px",
                     }}
                 >
-                    <ImportStyles.CancelButton onClick={() => doCancel()}>
+                    <ImportStyles.CancelButton disabled={isWorking()} onClick={() => doCancel()}>
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!fileImport || shaField === ""}
-                        onClick={() => doImport(fileImport, shaField)}
+                        disabled={!documentId || isWorking()}
+                        onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}
                     </ImportStyles.ImportButton>
                 </Box>
+                <Dialog
+                    variant="warning"
+                    open={showShaDialog}
+                    ok={t("electionEventScreen.import.shaDialog.ok")}
+                    cancel={t("electionEventScreen.import.shaDialog.cancel")}
+                    title={t("electionEventScreen.import.shaDialog.title")}
+                    handleClose={(result: boolean) => {
+                        if (result) {
+                            doImport(documentId as string, shaField)
+                        }
+                        setShowShaDialog(false)
+                    }}
+                >
+                    {t("electionEventScreen.import.shaDialog.description")}
+                </Dialog>
             </Box>
         )
     }

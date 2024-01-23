@@ -33,6 +33,7 @@ const HeaderWithContext: React.FC = () => {
                 openLink: authContext.openProfileLink,
             }}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
+            logoUrl={"https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"}
         />
     )
 }
@@ -69,7 +70,7 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     return (
-        <StyledApp>
+        <StyledApp className="app-root">
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <ApolloWrapper>

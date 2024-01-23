@@ -28,13 +28,15 @@ extern crate chrono;
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue"
+            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue", "import_export_queue"
         ], default_value = "beat")]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
         prefetch_count: u16,
         #[structopt(short, long)]
         acks_late: bool,
+        #[structopt(short, long, default_value = "4")]
+        task_max_retries: u32,
     },
     Produce,
 }
@@ -53,9 +55,11 @@ async fn main() -> Result<()> {
             queues,
             prefetch_count,
             acks_late,
+            task_max_retries,
         } => {
             set_prefetch_count(prefetch_count);
             set_acks_late(acks_late);
+            set_task_max_retries(task_max_retries);
             let celery_app = get_celery_app().await;
             celery_app.display_pretty().await;
 

@@ -17,38 +17,6 @@ actions:
   - role: trustee-ceremony
   - role: admin-user
   comment: check private key
-- name: getElectionStats
-  definition:
-    kind: synchronous
-    handler: http://{{HARVEST_DOMAIN}}/election/stats
-    forward_client_headers: true
-    headers:
-    request_transform:
-      body:
-        action: transform
-        template: '{{$body.input.object}}'
-      template_engine: Kriti
-      version: 2
-  permissions:
-  - role: admin-dashboard-view
-  - role: admin-user
-  comment: get election event stats
-- name: getElectionEventStats
-  definition:
-    kind: synchronous
-    handler: http://{{HARVEST_DOMAIN}}/election-event/stats
-    forward_client_headers: true
-    headers:
-    request_transform:
-      body:
-        action: transform
-        template: '{{$body.input.object}}'
-      template_engine: Kriti
-      version: 2
-  permissions:
-  - role: admin-dashboard-view
-  - role: admin-user
-  comment: get election event stats
 - name: createScheduledEvent
   definition:
     kind: synchronous
@@ -137,6 +105,21 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: export_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: voter-read
+  - role: user-read
 - name: delete_permission
   definition:
     kind: synchronous
@@ -250,6 +233,36 @@ actions:
   permissions:
   - role: publish-write
   - role: admin-user
+- name: getElectionEventStats
+  definition:
+    kind: ""
+    handler: http://{{HARVEST_DOMAIN}}/election-event/stats
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-dashboard-view
+  - role: admin-user
+  comment: get election event stats
+- name: getElectionStats
+  definition:
+    kind: ""
+    handler: http://{{HARVEST_DOMAIN}}/election/stats
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-dashboard-view
+  - role: admin-user
+  comment: get election event stats
 - name: get_ballot_publication_changes
   definition:
     kind: synchronous
@@ -352,6 +365,21 @@ actions:
   - role: voter-read
   - role: user-read
   - role: admin-user
+- name: import_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: voter-create
+  - role: user-create
 - name: insertElectionEvent
   definition:
     kind: synchronous
@@ -587,9 +615,9 @@ custom_types:
   - name: CreateElectionEventInput
   - name: GetUsersInput
   - name: CreateKeysCeremonyInput
-  - name: GetPrivateKeyInput
   - name: ElectionEventStatsInput
   - name: ElectionStatsInput
+  - name: GetPrivateKeyInput
   - name: CheckPrivateKeyInput
   - name: GetPermissionsInput
   - name: GetRolesInput
@@ -604,6 +632,8 @@ custom_types:
   objects:
   - name: CreateKeysCeremonyOutput
   - name: GetPrivateKeyOutput
+  - name: CastVotesPerDay
+  - name: VotesInfo
   - name: ElectionEventStatsOutput
   - name: ElectionStatsOutput
   - name: CheckPrivateKeyOutput
@@ -632,6 +662,7 @@ custom_types:
   - name: DeleteUserOutput
   - name: CreateUserOutput
   - name: SetRolePermissionOutput
+  - name: OptionalId
   - name: SetUserRoleOutput
   - name: CreateTallyOutput
   - name: StartTallyOutput
@@ -642,4 +673,5 @@ custom_types:
   - name: GetBallotPublicationChangesOutput
   - name: RestorePrivateKeyOutput
   - name: PublishTallyOutput
+  - name: ExportUsersOutput
   scalars: []

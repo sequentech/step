@@ -143,10 +143,15 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
+                deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
+            empty: {
+                header: "No hay Áreas aún.",
+                action: "Crear un Área",
+            },
         },
         electionTypeScreen: {
             common: {
@@ -283,11 +288,24 @@ const spanishTranslation: TranslationType = {
                 title: "Importar votantes",
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
+                votersSubtitle:
+                    "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
                 elections: "Elections",
                 areas: "Areas",
-                sha: "Integridad (SHA 256)",
+                sha: "Verificación de Integridad (SHA 256)",
                 cancel: "Cancelar",
                 import: "Importar",
+                fileUploadSuccess: "Fichero subido al servidor - pero no importado aún",
+                fileUploadError: "Error subiendo el fichero",
+                importVotersSuccess: "Importación de Votantes lanzada en segundo plano con éxito.",
+                importVotersError: "Error Importando Votantes.",
+                shaDialog: {
+                    ok: "Sí, Importar Sin Verificación de Integridad",
+                    cancel: "Volver",
+                    title: "Importar Sin Verificación de Integridad?",
+                    description:
+                        "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
+                },
             },
         },
         electionScreen: {
@@ -358,6 +376,7 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear usuario",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Nombre de Usuario",
                     first_name: "Nombre",
                     last_name: "Apellido",
@@ -642,9 +661,9 @@ const spanishTranslation: TranslationType = {
                 description: "Descripción",
             },
             options: {
-                "no-preferential": "Sin Preferencia",
+                "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
-                "random-asnwers": "Respuestas Aleatorias",
+                "random": "Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
@@ -884,16 +903,30 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
+            method: "Método de Comunicación",
+            type: "Tipo de Comunicación",
+            alias: "Alias de la Plantilla",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
                 SELECTED: "A {{total}} Votantes seleccionados",
             },
+            path: {
+                users: "usuarios",
+                voters: "votantes",
+            },
             methodTitle: "Método de Comunicación",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+            },
+            communicationType: {
+                CREDENTIALS: "Credenciales",
+                BALLOT_RECEIPT: "Comprobante de Votación",
+                PARTICIPATION_REPORT: "Informe de Participación",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                OTP: "OTP",
             },
             email: {
                 subject: "Subject",

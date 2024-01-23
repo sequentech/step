@@ -3,13 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {Box} from "@mui/material"
-import {theme, stringToHtml, shuffle, splitList, keyBy, translate} from "@sequentech/ui-essentials"
+import {
+    theme,
+    stringToHtml,
+    shuffle,
+    splitList,
+    keyBy,
+    translate,
+    IContest,
+    CandidatesOrder,
+} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
-import {IContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
+    checkCustomCandidatesOrder,
     checkPositionIsTop,
     checkShuffleAllOptions,
     checkShuffleCategories,
@@ -66,6 +75,7 @@ export const Question: React.FC<IQuestionProps> = ({
     )
 
     // do the shuffling
+    const checkCustomSort = checkCustomCandidatesOrder(question)
     const shuffleAllOptions = checkShuffleAllOptions(question)
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
@@ -81,7 +91,11 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        if (shuffleAllOptions) {
+        if (checkCustomSort) {
+            let candidates = [...noCategoryCandidates]
+            candidates.sort((a, b) => a.presentation!.sort_order! - b.presentation!.sort_order!)
+            setCandidatesOrder(candidates.map((c) => c.id))
+        } else if (shuffleAllOptions) {
             setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
         } else {
             setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
@@ -100,7 +114,7 @@ export const Question: React.FC<IQuestionProps> = ({
 
     return (
         <Box>
-            <StyledTitle variant="h5">
+            <StyledTitle className="contest-title" variant="h5">
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
             {question.description ? (
@@ -108,7 +122,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
-            <CandidatesWrapper>
+            <CandidatesWrapper className="candidates-list">
                 <InvalidErrorsList
                     ballotStyle={ballotStyle}
                     question={question}
@@ -121,6 +135,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         answer={answer}
                         questionIndex={questionIndex}
                         key={answerIndex}
+                        index={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
@@ -151,6 +166,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             ballotStyle={ballotStyle}
                             answer={answer}
                             questionIndex={questionIndex}
+                            index={answerIndex}
                             key={answerIndex}
                             isActive={!isReview}
                             isReview={isReview}
@@ -161,6 +177,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         ballotStyle={ballotStyle}
                         answer={answer}
                         questionIndex={questionIndex}
+                        index={answerIndex}
                         key={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}

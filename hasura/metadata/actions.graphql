@@ -50,6 +50,14 @@ type Mutation {
 }
 
 type Mutation {
+  export_users (
+    tenant_id: String!
+    election_event_id: String
+    election_id: String
+  ): ExportUsersOutput
+}
+
+type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -107,6 +115,18 @@ type Mutation {
   ): PublishBallotOutput
 }
 
+type Query {
+  getElectionEventStats (
+    object: ElectionEventStatsInput!
+  ): ElectionEventStatsOutput
+}
+
+type Query {
+  getElectionStats (
+    object: ElectionStatsInput!
+  ): ElectionStatsOutput
+}
+
 type Mutation {
   get_ballot_publication_changes (
     election_event_id: uuid!
@@ -132,23 +152,12 @@ type Query {
   ): GetRolesOutput!
 }
 
-type Query {
-  getElectionEventStats (
-    object: ElectionEventStatsInput!
-  ): ElectionEventStatsOutput
-}
-
-type Query {
-  getElectionStats (
-    object: ElectionStatsInput!
-  ): ElectionStatsOutput
-}
-
 type Mutation {
   get_upload_url (
     name: String!
     media_type: String!
     size: Int!
+    is_public: Boolean!
   ): GetUploadUrlOutput
 }
 
@@ -164,6 +173,14 @@ type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
+}
+
+type Mutation {
+  import_users (
+    tenant_id: String!
+    election_event_id: String
+    document_id: String!
+  ): OptionalId
 }
 
 type Mutation {
@@ -354,6 +371,7 @@ input GetUsersInput {
   username : String
   limit : Int
   offset : Int
+  show_votes_info : Boolean
 }
 
 input CreateKeysCeremonyInput {
@@ -364,15 +382,15 @@ input CreateKeysCeremonyInput {
 
 input ElectionEventStatsInput {
   election_event_id : uuid!
-  start_date: String!
-  end_date: String!
+  start_date : String!
+  end_date : String!
 }
 
 input ElectionStatsInput {
   election_event_id : uuid!
   election_id : uuid!
-  start_date: String!
-  end_date: String!
+  start_date : String!
+  end_date : String!
 }
 
 input GetPrivateKeyInput {
@@ -475,15 +493,15 @@ type GetPrivateKeyOutput {
 }
 
 type CastVotesPerDay {
-  day: date!
-  day_count: Int!
+  day : date!
+  day_count : Int!
 }
 
 type ElectionEventStatsOutput {
   total_distinct_voters : Int!
-  total_areas: Int!
-  total_eligible_voters: Int!
-  total_elections: Int!
+  total_areas : Int!
+  total_eligible_voters : Int!
+  total_elections : Int!
   votes_per_day : [CastVotesPerDay]!
 }
 
@@ -588,6 +606,12 @@ type KeycloakUserArea {
   name : String
 }
 
+type VotesInfo {
+    election_id : String!
+    num_votes : Int!
+    last_voted_at : String!
+}
+
 type KeycloakUser {
   id : String
   attributes : jsonb
@@ -599,6 +623,7 @@ type KeycloakUser {
   last_name : String
   username : String
   area : KeycloakUserArea
+  votes_info : [VotesInfo!]
 }
 
 type GetUsersOutput {
@@ -648,6 +673,15 @@ type CreateUserOutput {
 
 type SetRolePermissionOutput {
   id : String
+}
+
+type OptionalId {
+  id : String
+}
+
+type ExportUsersOutput {
+  task_id: String!
+  document_id: String!
 }
 
 type SetUserRoleOutput {

@@ -3,17 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::area::get_areas_by_ids;
+use crate::postgres::area::get_areas;
+use crate::services::cast_votes::get_users_with_vote_info;
+use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
+use futures::stream::Filter;
 use sequent_core::types::keycloak::*;
 use std::convert::From;
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
-
-use crate::services::database::PgConfig;
-use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
@@ -212,11 +213,11 @@ pub async fn list_users(
 
     if let Some(ref some_election_event_id) = filter.election_event_id {
         let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
-        let areas_by_ids = get_areas_by_ids(
+        let areas_by_ids = get_areas(
             hasura_transaction,
             filter.tenant_id.as_str(),
             some_election_event_id.as_str(),
-            area_ids,
+            &area_ids,
         )
         .await
         .with_context(|| "can't find areas by ids")?;
@@ -247,4 +248,30 @@ pub async fn list_users(
     } else {
         Ok((users, count))
     }
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn list_users_with_vote_info(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<(Vec<User>, i32)> {
+    let tenant_id = filter.tenant_id.clone();
+    let election_event_id = filter
+        .election_event_id
+        .clone()
+        .ok_or(anyhow!("Election event id is empty"))?;
+    let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
+        .await
+        .with_context(|| "Error listing users")?;
+    let users = get_users_with_vote_info(
+        hasura_transaction,
+        tenant_id.as_str(),
+        election_event_id.as_str(),
+        users,
+    )
+    .await
+    .with_context(|| "Error listing users with vote info")?;
+
+    Ok((users, users_count))
 }

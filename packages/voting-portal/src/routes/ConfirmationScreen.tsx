@@ -19,12 +19,14 @@ import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-ic
 import Button from "@mui/material/Button"
 import {useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
-import {useAppSelector} from "../store/hooks"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
-import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
+import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -92,7 +94,7 @@ const QRContainer = styled(Box)`
     margin: 15px auto;
 `
 
-const ActionLink = styled(Link)`ç
+const ActionLink = styled(Link)`
     text-decoration: none;
     &:hover {
         text-decoration: none;
@@ -106,13 +108,26 @@ interface ActionButtonsProps {
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
+    const canVote = useAppSelector(canVoteSomeElection())
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const dispatch = useAppDispatch()
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
+
+    useEffect(() => {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+    }, [ballotStyle, dispatch])
 
     return (
         <ActionsContainer>
@@ -124,17 +139,21 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
-            {castVotes ? (
+            {!canVote ? (
                 <ActionLink
                     href="https://sequentech.io"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton className="finish-button" sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
                 </ActionLink>
             ) : (
-                <StyledButton onClick={onClickToScreen} sx={{width: {xs: "100%", sm: "200px"}}}>
+                <StyledButton
+                    className="finish-button"
+                    onClick={onClickToScreen}
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                >
                     <Box>{t("confirmationScreen.finishButton")}</Box>
                 </StyledButton>
             )}

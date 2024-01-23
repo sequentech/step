@@ -10,6 +10,8 @@ use tracing::{event, instrument, Level};
 
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
+use crate::tasks::export_users::export_users;
+use crate::tasks::import_users::import_users;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
@@ -23,6 +25,7 @@ use crate::tasks::update_voting_status::update_voting_status;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
+static mut TASK_MAX_RETRIES: u32 = 4;
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
@@ -36,13 +39,21 @@ pub fn set_acks_late(new_val: bool) {
     }
 }
 
+pub fn set_task_max_retries(new_val: u32) {
+    unsafe {
+        TASK_MAX_RETRIES = new_val;
+    }
+}
+
 #[instrument]
 pub async fn generate_celery_app() -> Arc<Celery> {
     let prefetch_count: u16;
     let acks_late: bool;
+    let task_max_retries: u32;
     unsafe {
         prefetch_count = PREFETCH_COUNT_S;
         acks_late = ACKS_LATE_S;
+        task_max_retries = TASK_MAX_RETRIES;
     }
     event!(
         Level::INFO,
@@ -65,6 +76,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             insert_election_event_t,
             insert_tenant,
             send_communication,
+            import_users,
+            export_users,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -80,9 +93,12 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "insert_election_event_t" => "short_queue",
             "insert_tenant" => "short_queue",
             "send_communication" => "communication_queue",
+            "import_users" => "import_export_queue",
+            "export_users" => "import_export_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
+        task_max_retries = task_max_retries,
         heartbeat = Some(10),
     ).await.unwrap()
 }

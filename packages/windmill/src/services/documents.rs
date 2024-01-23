@@ -31,6 +31,7 @@ pub async fn upload_and_return_document(
         media_type.clone(),
         size as i64,
         false,
+        None,
     )
     .await?;
 
@@ -81,6 +82,7 @@ pub async fn get_upload_url(
     media_type: &str,
     size: usize,
     tenant_id: &str,
+    is_public: bool,
 ) -> Result<(Document, String)> {
     let document = &hasura::document::insert_document(
         auth_headers,
@@ -89,7 +91,8 @@ pub async fn get_upload_url(
         name.to_string(),
         media_type.to_string(),
         size as i64,
-        true,
+        is_public,
+        None,
     )
     .await?
     .data
@@ -97,9 +100,19 @@ pub async fn get_upload_url(
     .insert_sequent_backend_document
     .ok_or(anyhow!("expected document"))?
     .returning[0];
-    let path =
-        s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());
-    let url = s3::get_upload_url(path.to_string()).await?;
+    let path = match is_public {
+        true => s3::get_public_document_key(
+            tenant_id.to_string(),
+            document.id.clone(),
+            name.to_string(),
+        ),
+        false => s3::get_document_key(
+            tenant_id.to_string(),
+            Default::default(),
+            document.id.clone(),
+        ),
+    };
+    let url = s3::get_upload_url(path.to_string(), is_public).await?;
 
     let ret_document = Document {
         id: document.id.clone(),
@@ -138,10 +151,15 @@ pub async fn fetch_document(
     )
     .await?;
 
-    let document = &document_result
+    let documents = document_result
         .data
         .ok_or(anyhow!("expected data"))?
-        .sequent_backend_document[0];
+        .sequent_backend_document;
+
+    if documents.len() == 0 {
+        return Err(anyhow!("document not found").into());
+    }
+    let document = &documents[0];
 
     let document_s3_key = s3::get_document_key(tenant_id.clone(), election_event_id, document_id);
     let bucket = if document.is_public.unwrap_or(false) {

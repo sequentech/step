@@ -38,8 +38,10 @@ const StyledLink = styled.a`
 `
 
 const StyledImage = styled(Image)`
-    max-height: 100%;
-    min-width: 200px;
+    max-height: 60px;
+    max-width: 200px;
+    width: auto;
+    min-width: 40px;
 `
 
 type ApplicationVersion = {
@@ -57,6 +59,7 @@ export interface HeaderProps {
     appVersion?: ApplicationVersion
     logoLink?: string
     userProfile?: UserProfile
+    logoUrl?: string
 }
 
 export default function Header({
@@ -64,6 +67,7 @@ export default function Header({
     appVersion,
     logoutFn,
     logoLink = "//sequentech.io/",
+    logoUrl,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -90,7 +94,7 @@ export default function Header({
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
                         <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={LogoImg} duration={100} alt="Logo Image" />
+                            <StyledImage src={logoUrl ?? LogoImg} duration={100} alt="Logo Image" />
                         </StyledLink>
                         <Box
                             display="flex"
@@ -102,6 +106,7 @@ export default function Header({
                             {userProfile && (
                                 <div>
                                     <IconButton
+                                        className="profile-menu-button"
                                         size="large"
                                         aria-label="account of current user"
                                         aria-controls="menu-appbar"
@@ -156,6 +161,7 @@ export default function Header({
                                         </MenuItem>
                                         {logoutFn && (
                                             <MenuItem
+                                                className="logout-button"
                                                 onClick={() => {
                                                     setOpenModal(true)
                                                     handleClose()

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -14,13 +14,14 @@ import {
     WrapperField,
     FunctionField,
     useRefresh,
+    useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Drawer} from "@mui/material"
+import {Button, Drawer, Typography} from "@mui/material"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -28,6 +29,10 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
 import {AreaContestItems} from "@/components/AreaContestItems"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -49,15 +54,21 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const refresh = useRefresh()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const notify = useNotify()
 
     const [tenantId] = useTenantStore()
-    const [deleteOne, {isLoading, error}] = useDelete()
+    const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
+    const [openCreate, setOpenCreate] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+
+    const authContext = useContext(AuthContext)
+    const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
+    const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
 
     // const rowClickHandler = generateRowClickHandler(["election_event_id"])
     const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
@@ -71,8 +82,36 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         }
     }, [recordId])
 
+    const createAction = () => {
+        setOpenCreate(true)
+    }
+
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t("areas.empty.header")}
+            </Typography>
+            {canCreate && (
+                <>
+                    <Button onClick={createAction}>
+                        <IconButton icon={faPlus} fontSize="24px" />
+                        {t("areas.empty.action")}
+                    </Button>
+                    <Typography variant="body1" paragraph>
+                        {t("common.resources.noResult.askCreate")}
+                    </Typography>
+                </>
+            )}
+        </ResourceListStyles.EmptyBox>
+    )
+
+    if (!canView) {
+        return <Empty />
+    }
+
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
+        setOpenCreate(false)
         setOpenDrawer(false)
     }
 
@@ -101,6 +140,10 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 onSuccess() {
                     refresh()
                 },
+                onError() {
+                    notify(t("areas.common.deleteError"), {type: "error"})
+                    refresh()
+                },
             }
         )
         setDeleteId(undefined)
@@ -123,7 +166,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                         Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
                     />
                 }
-                empty={false}
+                empty={<Empty />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
@@ -155,6 +198,16 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 }}
             >
                 <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
+            </Drawer>
+            <Drawer
+                anchor="right"
+                open={openCreate}
+                onClose={handleCloseCreateDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <CreateArea record={record} close={handleCloseCreateDrawer} />
             </Drawer>
             <Dialog
                 variant="warning"

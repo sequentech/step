@@ -73,6 +73,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 },
             })
         )
+
     if (isReview && !showCategoryOnReview(category, questionState)) {
         return null
     }
@@ -91,6 +92,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                     answer={candidate}
                     questionIndex={questionIndex}
                     key={candidateIndex}
+                    index={candidateIndex}
                     hasCategory={true}
                     isActive={!isReview && checkableCandidates}
                     isReview={isReview}

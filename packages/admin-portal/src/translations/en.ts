@@ -141,10 +141,15 @@ const englishTranslation = {
             common: {
                 title: "Areas",
                 subTitle: "Area configuration.",
+                deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
+            empty: {
+                header: "No Areas yet.",
+                action: "Create Area",
+            },
         },
         electionTypeScreen: {
             common: {
@@ -281,11 +286,24 @@ const englishTranslation = {
                 title: "Import Voters",
                 subtitle: "Import voters data",
                 voters: "Voters",
+                votersSubtitle:
+                    "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
                 elections: "Elections",
                 areas: "Areas",
-                sha: "Integrity (SHA 256)",
+                sha: "Integrity Check (SHA-256)",
                 cancel: "Cancel",
                 import: "Import",
+                fileUploadSuccess: "File uploaded to server - but not imported yet",
+                fileUploadError: "Error uploading file",
+                importVotersSuccess: "Voters Import Scheduled Successfully",
+                importVotersError: "Error importing Voters",
+                shaDialog: {
+                    ok: "Yes, Import without Integrity Check",
+                    cancel: "Go Back",
+                    title: "Import Without Integrity Check?",
+                    description:
+                        "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
+                },
             },
         },
         electionScreen: {
@@ -356,6 +374,7 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Username",
                     first_name: "First Name",
                     last_name: "Last Name",
@@ -640,9 +659,9 @@ const englishTranslation = {
                 description: "Description",
             },
             options: {
-                "no-preferential": "No Preferential",
+                "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-asnwers": "Random Answers",
+                "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
@@ -882,16 +901,30 @@ const englishTranslation = {
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
             successSending: "Notification programmed/sent successfully",
+            method: "Communication Method",
+            type: "Communication Type",
+            alias: "Template Alias",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
-                SELECTED: "To {{total}} Selected Voters",
+                SELECTED: "To {{total}} Selected {{voters}}",
             },
-            methodTitle: "Communication Method",
+            path: {
+                users: "users",
+                voters: "voters",
+            },
+            methodTitle: "Communication Template",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+            },
+            communicationType: {
+                CREDENTIALS: "Credentials",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                PARTICIPATION_REPORT: "Participation Report",
+                ELECTORAL_RESULTS: "Electoral Results",
+                OTP: "OTP",
             },
             email: {
                 subject: "Subject",

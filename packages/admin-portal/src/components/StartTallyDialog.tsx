@@ -39,34 +39,6 @@ const Horizontal = styled(Box)`
     gap: 8px;
 `
 
-interface DownloadDocumentProps {
-    documentId: string
-    electionEventId: string
-    onClose: () => void
-}
-function DownloadDocument({documentId, electionEventId, onClose}: DownloadDocumentProps) {
-    const [tenantId] = useTenantStore()
-    const {data: document} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
-        variables: {
-            tenantId: tenantId,
-            electionEventId: electionEventId,
-            documentId: documentId,
-        },
-    })
-
-    useEffect(() => {
-        if (!document?.fetchDocument?.url) {
-            return
-        } else {
-            console.log(`FF ${document?.fetchDocument?.url}`)
-            downloadUrl(document?.fetchDocument?.url ?? "", "tally.tar.gz")
-            onClose()
-        }
-    }, [document?.fetchDocument?.url])
-
-    return <>Downloading</>
-}
-
 interface SelectElectionsProps {
     electionEvent: Sequent_Backend_Election_Event
     selectedElections: Array<Sequent_Backend_Election>
@@ -152,7 +124,6 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
     const [showProgress, setShowProgress] = useState(false)
     const [trustee, setTrustee] = useState<Sequent_Backend_Trustee | null>(null)
     const [tallySessionId, setTallySessionId] = useState<string | null>(null)
-    const [documentId, setDocumentId] = useState<string | null>(null)
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const {data, total, isLoading, error} = useGetList<Sequent_Backend_Trustee>(
@@ -190,16 +161,6 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
-
-    useEffect(() => {
-        if (
-            !documentId &&
-            tallySession?.is_execution_completed &&
-            tallySessionExecutions?.[0]?.document_id
-        ) {
-            setDocumentId(tallySessionExecutions[0].document_id)
-        }
-    }, [documentId, tallySession?.is_execution_completed, tallySessionExecutions?.[0]?.document_id])
 
     const closeAll = () => {
         setShowProgress(false)
@@ -272,14 +233,6 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
 
     return (
         <>
-            {documentId ? (
-                <DownloadDocument
-                    documentId={documentId}
-                    electionEventId={electionEvent.id}
-                    onClose={closeAll}
-                />
-            ) : null}
-
             <Dialog
                 handleClose={clickHandler}
                 open={show}
