@@ -12,7 +12,12 @@ export const EditContestData: React.FC = () => {
             if (data.contest_candidates_order === CandidatesOrder.CUSTOM) {
                 return update("sequent_backend_candidate", {
                     id: c.id,
-                    data: {presentation: {sort_order: index}},
+                    data: {
+                        presentation: {
+                            ...c.presentation,
+                            sort_order: index,
+                        },
+                    },
                     previousData: c,
                 })
             }
