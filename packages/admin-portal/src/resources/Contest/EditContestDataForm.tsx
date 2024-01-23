@@ -85,8 +85,6 @@ export const ContestDataForm: React.FC = () => {
         filter: {contest_id: record.id},
     })
 
-    candidates?.sort((a, b) => a.sort_order - b.sort_order)
-
     const votingTypesChoices = () => {
         return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
             id: value,
@@ -212,9 +210,15 @@ export const ContestDataForm: React.FC = () => {
 
             temp.contest_candidates_order = temp.presentation?.candidates_order
 
+            let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
+            if (temp.contest_candidates_order === CandidatesOrder.CUSTOM) {
+                tempCandidates.sort((a, b) => a.presentation.sort_order - b.presentation.sort_order)
+            }
+            temp.candidatesOrder = tempCandidates
+
             return temp
         },
-        [data, buildLanguageSettings]
+        [data, candidates, buildLanguageSettings]
     )
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
