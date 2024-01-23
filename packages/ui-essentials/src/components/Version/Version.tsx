@@ -23,7 +23,12 @@ const Version: React.FC<VersionProps> = ({version}) => {
     const {t} = useTranslation()
 
     return (
-        <StyledButton variant="actionbar" disabled={true} sx={{display: {xs: "none", sm: "block"}}}>
+        <StyledButton
+            variant="actionbar"
+            disabled={true}
+            sx={{display: {xs: "none", sm: "block"}}}
+            className="app-version"
+        >
             <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
                 {t("version.header")}
             </Box>

@@ -32,7 +32,7 @@ const Footer: React.FC<PaperProps> = (args) => {
     const {t} = useTranslation()
 
     return (
-        <StyledPaper {...args}>
+        <StyledPaper className="footer-class" {...args}>
             <Typography variant="subtitle2" fontStyle="italic">
                 {t("poweredBy")}{" "}
                 <StyledLink href="//sequentech.io/" target="_blank" variant="black">
