@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
+use ::uuid::Uuid as UuidType;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
@@ -32,7 +33,7 @@ pub async fn insert_document(
 ) -> Result<Response<insert_document::ResponseData>> {
     let variables = insert_document::Variables {
         tenant_id: tenant_id,
-        document_id: document_id,
+        document_id: document_id.unwrap_or(UuidType::new_v4().to_string()),
         election_event_id: election_event_id,
         name: name,
         media_type: media_type,
