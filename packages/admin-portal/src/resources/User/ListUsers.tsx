@@ -33,7 +33,8 @@ import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {DeleteUserMutation} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {useMutation} from "@apollo/client"
+import {GET_DOCUMENT} from "@/queries/GetDocument"
+import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
@@ -299,6 +300,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
         setExporting(true)
+        const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
+            variables: {
+                id: documentId || "",
+                tenantId: tenantId || "",
+            },
+        })
+    
         //setOpenExport(false)
     }
 

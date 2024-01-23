@@ -191,3 +191,37 @@ pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow
     // The file is now downloaded to a temporary file
     Ok(temp_file)
 }
+
+#[instrument(err, ret)]
+pub async fn upload_file_to_s3(
+    key: String,
+    is_public: bool,
+    s3_bucket: String,
+    media_type: String,
+    file_path: String,
+) -> Result<()> {
+    let body = ByteStream::from_path(&file_path)
+        .await
+        .with_context(|| anyhow!("Error creating bytestream from file path={file_path}"))?;
+    let config = get_s3_aws_config(!is_public)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+    create_bucket_if_not_exists(&client, &config, &s3_bucket)
+        .await
+        .with_context(|| "Error creating bucket if it doesn't exist")?;
+
+    client
+        .put_object()
+        .bucket(s3_bucket)
+        .key(key)
+        .content_type(media_type)
+        .body(body)
+        .send()
+        .await
+        .context("Error uploading file to S3")?;
+
+    Ok(())
+}

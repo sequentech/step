@@ -53,6 +53,7 @@ type Mutation {
   export_users (
     tenant_id: String!
     election_event_id: String
+    election_id: String
   ): ExportUsersOutput
 }
 

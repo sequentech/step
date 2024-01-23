@@ -154,13 +154,6 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let auth_headers =
-        keycloak::get_client_credentials().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error obtaining JWT client credentials: {:?}", e),
-            )
-        })?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -227,7 +220,7 @@ pub async fn get_users(
             .map_err(|e| {
                 (
                     Status::InternalServerError,
-                    format!("Error listing users {:?}", e),
+                    format!("Error listing users with vote info {:?}", e),
                 )
             })?
         }
