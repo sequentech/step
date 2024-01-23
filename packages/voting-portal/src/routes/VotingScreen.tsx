@@ -26,6 +26,7 @@ import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "r
 import {
     selectBallotSelectionByElectionId,
     setBallotSelection,
+    resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
