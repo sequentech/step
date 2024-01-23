@@ -95,32 +95,48 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
     }
 
     return (
-        <ActionsContainer>
-            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Icon icon={faAngleLeft} size="sm" />
-                    <Box>{t("votingScreen.backButton")}</Box>
-                </StyledButton>
-            </StyledLink>
-
+        <>
             <StyledButton
-                sx={{width: {xs: "100%", sm: "200px"}}}
+                sx={{
+                    display: {sm: "none"},
+                    width: "100%",
+                }}
                 variant="secondary"
                 onClick={() => handleClearSelection()}
             >
                 <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
-            <StyledButton
-                className="next-button"
-                sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={() => handleNext()}
-                disabled={disableNext}
-            >
-                <Box>{t("votingScreen.reviewButton")}</Box>
-                <Icon icon={faAngleRight} size="sm" />
-            </StyledButton>
-        </ActionsContainer>
+            <ActionsContainer>
+                <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box>{t("votingScreen.backButton")}</Box>
+                    </StyledButton>
+                </StyledLink>
+
+                <StyledButton
+                    sx={{
+                        display: {xs: "none", sm: "block"},
+                        width: {xs: "100%", sm: "200px"},
+                    }}
+                    variant="secondary"
+                    onClick={() => handleClearSelection()}
+                >
+                    <Box>{t("votingScreen.clearButton")}</Box>
+                </StyledButton>
+
+                <StyledButton
+                    className="next-button"
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                    onClick={() => handleNext()}
+                    disabled={disableNext}
+                >
+                    <Box>{t("votingScreen.reviewButton")}</Box>
+                    <Icon icon={faAngleRight} size="sm" />
+                </StyledButton>
+            </ActionsContainer>
+        </>
     )
 }
 
