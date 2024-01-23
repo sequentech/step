@@ -174,19 +174,23 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
             break;
         }
     }
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writter")?;
+
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
     let name = "users-export.tsv".to_string();
-    let key = s3::get_public_document_key(
+    let key = s3::get_document_key(
         body.tenant_id.to_string(),
+        body.election_event_id.clone().unwrap_or("".to_string()),
         document_id.clone(),
-        name.to_string(),
     );
     let media_type = "text/tsv".to_string();
     s3::upload_file_to_s3(
         /* key */ key,
-        /* is_public */ true,
-        /* s3_bucket */ s3::get_public_bucket()?,
+        /* is_public */ false,
+        /* s3_bucket */ s3::get_private_bucket()?,
         /* media_type */ media_type.clone(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
     )
@@ -216,6 +220,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
         media_type.clone(),
         size as i64,
         false,
+        Some(document_id),
     )
     .await?
     .data

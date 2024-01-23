@@ -60,7 +60,8 @@ async fn create_bucket_if_not_exists(
             )
             .bucket(bucket_name)
             .send()
-            .await?;
+            .await
+            .with_context(|| format!("Error creating bucket with name={bucket_name}"))?;
         println!("Bucket {} created", bucket_name);
     }
     Ok(())
@@ -209,9 +210,6 @@ pub async fn upload_file_to_s3(
     let client = get_s3_client(config.clone())
         .await
         .with_context(|| "Error getting s3 client")?;
-    create_bucket_if_not_exists(&client, &config, &s3_bucket)
-        .await
-        .with_context(|| "Error creating bucket if it doesn't exist")?;
 
     client
         .put_object()

@@ -297,6 +297,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleExport = () => {
+        setExporting(false)
+        setExportDocumentId(undefined)
         setOpenExport(true)
     }
 
@@ -312,6 +314,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         })
         if (errors || !exportUsersData) {
             setExporting(false)
+            setOpenExport(false)
             notify(
                 t(
                     `usersAndRolesScreen.${
@@ -484,6 +487,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     if (result) {
                         confirmExportAction()
                     } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
                         setOpenExport(false)
                     }
                 }}
@@ -495,8 +500,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <DownloadDocument
                             documentId={exportDocumentId}
                             electionEventId={electionEventId ?? ""}
-                            fileName={`users-export-${tenantId}-${electionEventId}.tsv`}
-                            onDownload={() => setExporting(false)}
+                            fileName={`users-export.tsv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                            }}
                         />
                     ) : null}
                 </FormStyles.ReservedProgressSpace>

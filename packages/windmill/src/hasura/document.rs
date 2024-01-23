@@ -28,9 +28,11 @@ pub async fn insert_document(
     media_type: String,
     size: i64,
     is_public: bool,
+    document_id: Option<String>,
 ) -> Result<Response<insert_document::ResponseData>> {
     let variables = insert_document::Variables {
         tenant_id: tenant_id,
+        document_id: document_id,
         election_event_id: election_event_id,
         name: name,
         media_type: media_type,

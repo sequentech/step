@@ -31,6 +31,7 @@ pub async fn upload_and_return_document(
         media_type.clone(),
         size as i64,
         false,
+        None,
     )
     .await?;
 
@@ -91,6 +92,7 @@ pub async fn get_upload_url(
         media_type.to_string(),
         size as i64,
         is_public,
+        None,
     )
     .await?
     .data

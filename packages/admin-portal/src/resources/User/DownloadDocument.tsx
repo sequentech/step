@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
+import React, {useContext, useEffect} from "react"
 import {FetchDocumentQuery} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
@@ -17,14 +17,13 @@ export interface DownloadDocumentProps {
     electionEventId: string
 }
 
-let downloading = false
-
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     onDownload,
     fileName,
     documentId,
     electionEventId,
 }) => {
+    const [downloaded, setDownloaded] = React.useState(false)
     const {globalSettings} = useContext(SettingsContext)
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
@@ -34,11 +33,13 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
-    if (!loading && !error && data?.fetchDocument?.url && !downloading) {
-        downloading = true
-
-        downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
-    }
+    useEffect(() => {
+        console.log(`use effect called filename=${fileName}`)
+        if (!error && data?.fetchDocument?.url && !downloaded) {
+            setDownloaded(true)
+            downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
+        }
+    }, [data, error, loading])
 
     return <></>
 }
