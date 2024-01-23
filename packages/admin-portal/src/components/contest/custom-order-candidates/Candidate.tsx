@@ -1,11 +1,11 @@
 import React, {useRef, useState} from "react"
 import styled from "@emotion/styled"
-import {theme} from "@sequentech/ui-essentials"
+import {theme, ICandidate,} from "@sequentech/ui-essentials"
 import {TextField} from "react-admin"
 
 export interface CandidateRowItemProps {
     id: any
-    candidate: any
+    candidate: ICandidate
     index: number
     onDragStart: (event: React.DragEvent<HTMLDivElement>, index: number) => void
     onDragOver: (event: React.DragEvent<HTMLDivElement>, index: number) => void

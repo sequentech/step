@@ -7,7 +7,13 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {IconButton, adminTheme, CandidatesOrder} from "@sequentech/ui-essentials"
+import {
+    IconButton,
+    adminTheme,
+    CandidatesOrder,
+    ICandidatePresentation,
+    IContestPresentation,
+} from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
@@ -62,14 +68,14 @@ export type CandidateType = BaseType & {
     __typename: "sequent_backend_candidate"
     election_event_id: string
     contest_id: string
-    presentation: any
+    presentation: ICandidatePresentation
 }
 
 export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
     election_event_id: string
     election_id: string
-    presentation: any
+    presentation: IContestPresentation
     candidates: Array<CandidateType>
 }
 
@@ -166,7 +172,8 @@ export default function ElectionEvents() {
                                 if (orderType === CandidatesOrder.CUSTOM) {
                                     contest.candidates.sort(
                                         (a, b) =>
-                                            a.presentation?.sort_order - b.presentation?.sort_order
+                                            a.presentation?.sort_order! -
+                                            b.presentation?.sort_order!
                                     )
                                 }
 
