@@ -91,18 +91,14 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        if (shuffleAllOptions) {
+        if (checkCustomSort) {
+            let candidates = [...noCategoryCandidates]
+            candidates.sort((a, b) => a.presentation!.sort_order! - b.presentation!.sort_order!)
+            setCandidatesOrder(candidates.map((c) => c.id))
+        } else if (shuffleAllOptions) {
             setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
         } else {
-            if (checkCustomSort) {
-                setCandidatesOrder(
-                    noCategoryCandidates
-                        .sort((a, b) => a.presentation!.sort_order! - b.presentation!.sort_order!)
-                        .map((c) => c.id)
-                )
-            } else {
-                setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
-            }
+            setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
         }
     }
 
