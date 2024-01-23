@@ -97,7 +97,7 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={resource.name}
+                                name={resource.alias ?? resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}

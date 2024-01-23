@@ -9,27 +9,43 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::s3;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
+use base64::prelude::*;
 use celery::error::TaskError;
 use csv::StringRecord;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use futures::pin_mut;
 use rand::prelude::*;
+use rand::{thread_rng, Rng};
 use regex::Regex;
+use ring::{digest, pbkdf2};
 use rocket::futures::SinkExt as _;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Seek;
+use std::num::NonZeroU32;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument};
 
 lazy_static! {
     static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+    static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
+    static ref SALT_COL_NAME: String = String::from("password_salt");
+    static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
+    static ref PASSWORD_COL_NAME: String = String::from("password");
+    static ref RESERVED_COL_NAMES: Vec<String> = vec![
+        HASHED_PASSWORD_COL_NAME.clone(),
+        SALT_COL_NAME.clone(),
+        PASSWORD_COL_NAME.clone(),
+    ];
 }
+
+static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
+const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
+pub type Credential = [u8; CREDENTIAL_LEN];
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
@@ -47,6 +63,20 @@ fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
+fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
+    let mut output: Credential = [0u8; CREDENTIAL_LEN];
+    pbkdf2::derive(
+        PBKDF2_ALGORITHM,
+        *PBKDF2_ITERATIONS,
+        salt,
+        password.as_bytes(),
+        &mut output,
+    );
+
+    let generated_hash = BASE64_STANDARD.encode(&output);
+    Ok(generated_hash)
+}
+
 impl ImportUsersBody {
     #[instrument(err)]
     async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<File> {
@@ -59,7 +89,7 @@ impl ImportUsersBody {
         s3::get_object_into_temp_file(s3_bucket, document_s3_key).await
     }
 
-    /**
+    /*
      * Creates a temp table and load voters from the voters_file with COPY FROM
      *
      * Notes:
@@ -71,9 +101,11 @@ impl ImportUsersBody {
      *  1. The name of the voters_table
      *  2. The SQL Query with the CREATE TEMP TABLE statement
      *  3. The SQL Query with COPY FROM statement
-     *  4. The Vector with the name of the columns loaded. The columns being
+     *  4. The Vector with the name of the input columns loaded. The columns being
      *     loaded come from the CSV file's first row.
-     *  5. The vector with the types of the columns.
+     *  5. The Vector with the name of the processed columns loaded. The columns being
+     *     loaded come from the CSV file's first row changing the password for example.
+     *  6. The vector with the types of the columns.
      *
      *  Possible Table columns:
      *  - email: string. example: "somebody@example.com"
@@ -83,21 +115,37 @@ impl ImportUsersBody {
      *  - username: string. Example: "johndoe"
      *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
      *  - area-name: string. Example "Area 52"
-     *  
+     *  - password: string: Example "secret-password"
      */
+    #[instrument(ret)]
     fn get_copy_from_query(
         &self,
         headers: &StringRecord,
-    ) -> anyhow::Result<(String, String, String, Vec<String>, Vec<Type>)> {
+    ) -> anyhow::Result<(String, String, String, Vec<String>, Vec<String>, Vec<Type>)> {
         let random_number: u64 = rand::random();
 
         let temp_table_name = format!("temp_voters_{}", random_number);
+        let headers_vec = headers.iter().map(String::from).collect::<Vec<String>>();
 
-        let column_names = headers
+        let input_column_names = headers_vec
             .iter()
-            .map(|column_name| match column_name {
+            .map(|column_name| match column_name.as_str() {
                 "area-name" => "area-id".to_string(),
-                _ => column_name.to_string(),
+                _ => column_name.clone(),
+            })
+            .collect::<Vec<String>>();
+
+        let processed_column_names = headers_vec
+            .iter()
+            .filter_map(|column_name| match column_name.as_str() {
+                "area-name" => Some("area-id".to_string()),
+                password if password == PASSWORD_COL_NAME.as_str() => None,
+                _ => Some(column_name.clone()),
+            })
+            .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
+                vec![SALT_COL_NAME.clone(), HASHED_PASSWORD_COL_NAME.clone()].into_iter()
+            } else {
+                Vec::new().into_iter()
             })
             .collect::<Vec<String>>();
 
@@ -105,7 +153,7 @@ impl ImportUsersBody {
         let create_table_query = format!(
             "CREATE TEMP TABLE {} ({});",
             temp_table_name,
-            column_names
+            processed_column_names
                 .iter()
                 .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
                 .collect::<Vec<String>>()
@@ -115,7 +163,7 @@ impl ImportUsersBody {
         // Create the COPY FROM STDIN query
         let copy_from_query = format!("COPY {} FROM STDIN BINARY;", temp_table_name);
 
-        let column_types = headers
+        let processed_column_types = processed_column_names
             .iter()
             .map(|_column_name| Type::VARCHAR)
             .collect::<Vec<Type>>();
@@ -124,12 +172,13 @@ impl ImportUsersBody {
             temp_table_name,
             create_table_query,
             copy_from_query,
-            column_names,
-            column_types,
+            input_column_names,
+            processed_column_names,
+            processed_column_types,
         ))
     }
 
-    /**
+    /*
      * Insert the voters from the temporal voters table into the user_element
      * and user_attribute tables. For each user, we enter in a single query
      * (using WITH statements or similar if need be) the user in the
@@ -180,11 +229,13 @@ impl ImportUsersBody {
             voters_table,
         );
 
-        // Assuming all other columns are user attributes
+        // Assume all other columns are user attributes
         let user_attributes = voters_table_columns
             .clone()
             .into_iter()
-            .filter(|col| !user_entity_columns.contains(&col.as_str()))
+            .filter(|col| {
+                !user_entity_columns.contains(&col.as_str()) && !RESERVED_COL_NAMES.contains(&col)
+            })
             .collect::<Vec<String>>();
 
         // Build a single INSERT query for all user_attribute elements
@@ -231,11 +282,67 @@ impl ImportUsersBody {
             String::new()
         };
 
+        // Inserts password credentials if need be
+        let salt_col_name = &*SALT_COL_NAME;
+        let hashed_password_col_name = &*HASHED_PASSWORD_COL_NAME;
+        let num_iterations = &*PBKDF2_ITERATIONS;
+        let credentials_query = if voters_table_columns.contains(hashed_password_col_name) {
+            format!(
+                r#",
+                pre_credentials AS (
+                    SELECT
+                        v.{salt_col_name} AS salt,
+                        v.{hashed_password_col_name} AS hashed_password,
+                        nu.id AS id
+                    FROM
+                        {voters_table} v
+                    JOIN
+                        new_user nu ON
+                            nu.username = v.username
+                ),
+                credentials AS (
+                    INSERT 
+                    INTO credential (
+                        id,
+                        type,
+                        user_id,
+                        created_date,
+                        user_label,
+                        secret_data,
+                        credential_data,
+                        priority
+                    )
+                    SELECT
+                        gen_random_uuid(),
+                        'password',
+                        pc.id,
+                        (extract(epoch from now()) * 1000)::bigint,
+                        'My password',
+                        json_build_object(
+                            'value', pc.hashed_password,
+                            'salt', pc.salt
+                        )::text,
+                        json_build_object(
+                            'hashIterations', {num_iterations},
+                            'algorithm', 'pbkdf2-sha256',
+                            'additionalParameters', json_build_object()
+                        )::text,
+                        10
+                    FROM pre_credentials pc
+                )
+                "#
+            )
+        } else {
+            String::new()
+        };
+
         Ok(format!(
             r#"
-            WITH new_user AS (
-                {user_entity_query}
-            )
+            WITH 
+                new_user AS (
+                    {user_entity_query}
+                )
+                {credentials_query}
             {user_attribute_query};
             "#
         ))
@@ -301,7 +408,6 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         )
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
-    info!("after isolation");
 
     let areas_map = match body.election_event_id {
         Some(ref election_event_id) => Some(
@@ -345,8 +451,9 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         voters_table,
         create_table_query,
         copy_from_query,
-        voters_table_columns_names,
-        voters_table_columns_types,
+        voters_table_input_columns_names,
+        voters_table_processed_columns_names,
+        voters_table_processed_columns_types,
     ) = body
         .get_copy_from_query(&headers)
         .with_context(|| "Error obtaining copy_from query")?;
@@ -360,7 +467,11 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .with_context(|| "Error obtaining realm id")?;
 
     let insert_user_query = body
-        .get_insert_user_query(realm_id, voters_table, &voters_table_columns_names)
+        .get_insert_user_query(
+            realm_id,
+            voters_table,
+            &voters_table_processed_columns_names,
+        )
         .with_context(|| "Error obtaining insert_user_query query")?;
 
     // Execute the create table query
@@ -374,7 +485,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         .copy_in(copy_from_query.as_str())
         .await
         .with_context(|| "Error preparing COPY transaction")?;
-    let writer = BinaryCopyInWriter::new(sink, &voters_table_columns_types);
+    let writer = BinaryCopyInWriter::new(sink, &voters_table_processed_columns_types);
     pin_mut!(writer);
 
     // Stream data from CSV to sink
@@ -385,7 +496,9 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         owned_data.clear(); // Clear previously stored data
 
         // Store owned data, and process it
-        for (data, column_name) in record.iter().zip(voters_table_columns_names.iter()) {
+        let mut password_salt: Option<String> = None;
+        let mut hashed_password: Option<String> = None;
+        for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let processed_data = match column_name.as_str() {
                 "area-id" => areas_map
                     .as_ref()
@@ -395,9 +508,25 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
                     .to_string(),
                 _ => data.to_string(),
             };
-            owned_data.push(processed_data);
+            if column_name == &*PASSWORD_COL_NAME {
+                let mut salt_bytes: Credential = Default::default();
+                thread_rng().fill(&mut salt_bytes);
+
+                password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
+                hashed_password = Some(
+                    hash_password(&processed_data, &salt_bytes)
+                        .with_context(|| "Error generating hashed password")?,
+                );
+            } else {
+                owned_data.push(processed_data);
+            }
         }
         info!("owned_data: {owned_data:?}");
+        if voters_table_processed_columns_names.contains(&*HASHED_PASSWORD_COL_NAME) {
+            info!("password data: salt={password_salt:?}, hashed_password={hashed_password:?}");
+            owned_data.push(password_salt.ok_or_else(|| anyhow!("password salt empty"))?);
+            owned_data.push(hashed_password.ok_or_else(|| anyhow!("hashed password empty"))?);
+        }
 
         let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data
             .iter()

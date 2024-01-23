@@ -662,7 +662,7 @@ const spanishTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
-                "random-answers": "Respuestas Aleatorias",
+                "random": "Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },

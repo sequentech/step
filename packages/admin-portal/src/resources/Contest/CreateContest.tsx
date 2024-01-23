@@ -21,7 +21,8 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {ICountingAlgorithm, IOrderAnswer, IVotingType} from "./constants"
+import {ICountingAlgorithm, IVotingType} from "./constants"
+import {CandidatesOrder} from "@sequentech/ui-essentials"
 
 const Hidden = styled(Box)`
     display: none;
@@ -91,7 +92,7 @@ export const CreateContest: React.FC = () => {
                         ]}
                     />
                     <BooleanInput source="is_encrypted" defaultValue={true} />
-                    <TextInput source="order_answers" defaultValue={IOrderAnswer.ALPHABETICAL} />
+                    <TextInput source="presentation.candidates_order" />
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                         <SelectInput optionText="slug" defaultValue={tenantId} />
                     </ReferenceInput>
