@@ -214,7 +214,9 @@ export const ContestDataForm: React.FC = () => {
 
             let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
             if (temp.contest_candidates_order === CandidatesOrder.CUSTOM) {
-                tempCandidates.sort((a, b) => a.presentation?.sort_order - b.presentation?.sort_order)
+                tempCandidates.sort(
+                    (a, b) => a.presentation?.sort_order - b.presentation?.sort_order
+                )
             }
             temp.candidatesOrder = tempCandidates
 
@@ -443,7 +445,7 @@ export const ContestDataForm: React.FC = () => {
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
                                                 <CandidatesInput source="candidatesOrder"></CandidatesInput>
-                                                <Box sx={{width: "100%", height: "200px"}}></Box>
+                                                <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </CandidateRows>
                                         ) : null
                                     }}
@@ -451,14 +453,13 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionDetails>
                         </Accordion>
 
-
                         <Accordion
                             sx={{width: "100%"}}
-                            expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
+                            expanded={expanded === "contest-data-image"}
+                            onChange={() => setExpanded("contest-data-image")}
                         >
                             <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
+                                expandIcon={<ExpandMoreIcon id="contest-data-image" />}
                             >
                                 <CandidateStyles.Wrapper>
                                     <CandidateStyles.Title>
