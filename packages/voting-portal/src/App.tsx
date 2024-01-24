@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useContext} from "react"
-import {Outlet, useLocation, useParams} from "react-router-dom"
+import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
@@ -18,7 +18,6 @@ import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalE
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
-//
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -33,7 +32,7 @@ const HeaderWithContext: React.FC = () => {
                 openLink: authContext.openProfileLink,
             }}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-            logoUrl={"https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"}
+            logoUrl="https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"
         />
     )
 }
@@ -71,6 +70,7 @@ const App = () => {
 
     return (
         <StyledApp className="app-root">
+            <ScrollRestoration />
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <ApolloWrapper>
