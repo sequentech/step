@@ -9,8 +9,7 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::{compress_folder, get_file_size, read_file_to_bytes},
-        documents::upload_and_return_document,
+        compress::compress_folder, documents::upload_and_return_document, temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -132,7 +131,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             let path = Path::new(&tar_gz_path);
             // compressed file with the tally
-            let (tarfile_path, tarfile_size) = compress_folder(path)?;
+            let (_tarfile_temp_path, tarfile_path, tarfile_size) = compress_folder(path)?;
 
             let contest = &self[0].reports[0].contest;
 
@@ -147,9 +146,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 "tally.tar.gz".into(),
             )
             .await?;
-
-            // Remove the tar file since it's no longer needed
-            std::fs::remove_file(tarfile_path)?;
 
             let documents = ResultDocuments {
                 json: None,

@@ -12,8 +12,8 @@ use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::hasura;
-use crate::services::compress::write_into_named_temp_file;
 use crate::services::documents::upload_and_return_document;
+use crate::services::temp_path::write_into_named_temp_file;
 use crate::types::error::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -59,7 +59,7 @@ pub async fn render_report(
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
         let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&render.into_bytes())
+            write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
                 .with_context(|| "Error writing to file")?;
         upload_and_return_document(
             temp_path_string,
@@ -75,7 +75,8 @@ pub async fn render_report(
         let bytes =
             pdf::html_to_pdf(render).with_context(|| "Error converting html to pdf format")?;
         let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&bytes).with_context(|| "Error writing to file")?;
+            write_into_named_temp_file(&bytes, "reports-", ".html")
+                .with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
             temp_path_string,
