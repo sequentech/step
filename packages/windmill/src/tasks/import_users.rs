@@ -83,9 +83,10 @@ impl ImportUsersBody {
     async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<NamedTempFile> {
         let s3_bucket = s3::get_private_bucket()?;
         let document_s3_key = s3::get_document_key(
-            self.tenant_id.clone(),
-            Default::default(),
-            self.document_id.clone(),
+            &self.tenant_id,
+            &"none".to_string(),
+            &self.document_id,
+            &"import-users".to_string(),
         );
         s3::get_object_into_temp_file(s3_bucket, document_s3_key, "import-users-", ".tsv").await
     }

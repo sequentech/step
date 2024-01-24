@@ -27,7 +27,7 @@ pub async fn upload_and_return_document(
         auth_headers,
         tenant_id.clone(),
         Some(election_event_id.clone()),
-        name,
+        name.clone(),
         media_type.clone(),
         file_size.try_into()?,
         /* is_public */ false,
@@ -42,9 +42,7 @@ pub async fn upload_and_return_document(
         .ok_or(anyhow!("expected document"))?
         .returning[0];
 
-    let document_id = document.id.clone();
-
-    let document_s3_key = s3::get_document_key(tenant_id, election_event_id, document_id);
+    let document_s3_key = s3::get_document_key(&tenant_id, &election_event_id, &document.id, &name);
 
     s3::upload_file_to_s3(
         /* key */ document_s3_key,
@@ -109,9 +107,10 @@ pub async fn get_upload_url(
             name.to_string(),
         ),
         false => s3::get_document_key(
-            tenant_id.to_string(),
-            Default::default(),
-            document.id.clone(),
+            &tenant_id.to_string(),
+            &Default::default(),
+            &document.id,
+            &name.to_string(),
         ),
     };
     let url = s3::get_upload_url(path.to_string(), is_public).await?;
@@ -163,7 +162,12 @@ pub async fn fetch_document(
     }
     let document = &documents[0];
 
-    let document_s3_key = s3::get_document_key(tenant_id.clone(), election_event_id, document_id);
+    let document_s3_key = s3::get_document_key(
+        &tenant_id,
+        &election_event_id,
+        &document_id,
+        &document.name.clone().unwrap_or_default(),
+    );
     let bucket = if document.is_public.unwrap_or(false) {
         s3::get_public_bucket()?
     } else {

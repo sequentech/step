@@ -18,6 +18,7 @@ use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
+use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
@@ -221,11 +222,13 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
 
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
-    let name = "users-export.tsv".to_string();
+    let timestamp = util::date::timestamp().with_context(|| "Error obtaining timestamp")?;
+    let name = format!("users-export-{timestamp}.tsv");
     let key = s3::get_document_key(
-        body.tenant_id.to_string(),
-        body.election_event_id.clone().unwrap_or("".to_string()),
-        document_id.clone(),
+        &body.tenant_id,
+        &body.election_event_id.clone().unwrap_or("".to_string()),
+        &document_id,
+        &name,
     );
     let media_type = "text/tsv".to_string();
     s3::upload_file_to_s3(
