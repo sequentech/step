@@ -46,6 +46,8 @@ const StyledTitle = styled(Typography)`
     display: flex;
     flex-direction: row;
     gap: 16px;
+    font-size: 36px;
+    justify-content: center;
 `
 
 const ActionsContainer = styled(Box)`
