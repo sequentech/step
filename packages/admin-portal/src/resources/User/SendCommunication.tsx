@@ -256,7 +256,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 
     const handleSelectAliasChange = async (e: any) => {
         console.log("handleSelectAliasChange", e.target.value)
-        
+
         const {value} = e.target
         var newCommunication = {...communication}
         newCommunication.alias = value

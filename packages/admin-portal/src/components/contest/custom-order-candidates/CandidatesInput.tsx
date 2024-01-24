@@ -2,7 +2,7 @@ import React, {useState} from "react"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import Candidate from "./Candidate"
 import {useInput} from "react-admin"
-import { Box } from '@mui/material'
+import {Box} from "@mui/material"
 
 export default function CandidatesInput({source}: {source: string}) {
     const {
