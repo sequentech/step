@@ -208,7 +208,7 @@ export const ContestDataForm: React.FC = () => {
             // temp.max_votes = temp.max_votes // || 1
             // temp.winning_candidates_num = temp.winning_candidates_num // || 1
 
-            temp.contest_candidates_order = temp.presentation?.candidates_order
+            temp.contest_candidates_order = temp.presentation?.candidates_order || CandidatesOrder.ALPHABETICAL
 
             let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
             if (temp.contest_candidates_order === CandidatesOrder.CUSTOM) {
