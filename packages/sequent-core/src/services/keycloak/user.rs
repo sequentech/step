@@ -32,6 +32,22 @@ impl User {
                 .to_string(),
         )
     }
+
+    pub fn get_votes_info_by_election_id(
+        &self,
+    ) -> Option<HashMap<String, VotesInfo>> {
+        match self.votes_info {
+            Some(ref votes_info_vec) => Some(
+                votes_info_vec
+                    .iter()
+                    .map(|votes_info| {
+                        (votes_info.election_id.clone(), votes_info.clone())
+                    })
+                    .collect::<HashMap<String, VotesInfo>>(),
+            ),
+            None => None,
+        }
+    }
 }
 
 impl TryFrom<Row> for User {
