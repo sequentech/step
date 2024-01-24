@@ -27,6 +27,9 @@ quick_error! {
         FileAccess(path: std::path::PathBuf, err: std::io::Error) {
             display("An error occurred while accessing the file at '{}': {}", path.display(), err)
         }
+        TryFromIntError(err: std::num::TryFromIntError) {
+            from()
+        }
     }
 }
 
@@ -42,6 +45,7 @@ impl From<Error> for TaskError {
                 path.display(),
                 err
             )),
+            Error::TryFromIntError(err) => TaskError::UnexpectedError(format!("{err:?}")),
         }
     }
 }

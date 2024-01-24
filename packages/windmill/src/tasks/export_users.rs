@@ -72,7 +72,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     let file = NamedTempFile::new().with_context(|| "Error creating named temp file")?;
     let file2 = file
         .reopen()
-        .with_context(|| "Couldn't reopen file for writting")?;
+        .with_context(|| "Couldn't reopen file for writing")?;
     let mut writer = csv::WriterBuilder::new()
         .delimiter(b'\t')
         .from_writer(&file2);

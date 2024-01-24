@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Felix Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Context;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
@@ -10,6 +12,7 @@ use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::hasura;
+use crate::services::compress::write_into_named_temp_file;
 use crate::services::documents::upload_and_return_document;
 use crate::types::error::Result;
 
@@ -55,8 +58,12 @@ pub async fn render_report(
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
+        let (_temp_path, temp_path_string, file_size) =
+            write_into_named_temp_file(&render.into_bytes())
+                .with_context(|| "Error writing to file")?;
         upload_and_return_document(
-            render.into_bytes(),
+            temp_path_string,
+            file_size,
             "text/plain".to_string(),
             auth_headers.clone(),
             tenant_id,
@@ -65,10 +72,14 @@ pub async fn render_report(
         )
         .await?;
     } else {
-        let bytes = pdf::html_to_pdf(render)?;
+        let bytes =
+            pdf::html_to_pdf(render).with_context(|| "Error converting html to pdf format")?;
+        let (_temp_path, temp_path_string, file_size) =
+            write_into_named_temp_file(&bytes).with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
-            bytes,
+            temp_path_string,
+            file_size,
             "application/pdf".to_string(),
             auth_headers.clone(),
             tenant_id,

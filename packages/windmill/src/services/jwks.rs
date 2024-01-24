@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::s3;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::to_string;
 use std::env;
+use std::io::{BufWriter, Write};
+use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -92,15 +93,29 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     let jwks_output = JwksOutput {
         keys: existing_jwks,
     };
-    let jwks_output_str = to_string(&jwks_output)?;
+    let file = NamedTempFile::new().with_context(|| "Error creating named temp file")?;
+    let file2 = file
+        .reopen()
+        .with_context(|| "Couldn't reopen file for writing")?;
+    let buf_writer = BufWriter::new(file2);
+    serde_json::to_writer_pretty(buf_writer, &jwks_output)
+        .with_context(|| "Failed writing into temp file")?;
 
-    s3::upload_to_s3(
-        &jwks_output_str.into_bytes(),
-        get_jwks_secret_path(),
-        "application/json".to_string(),
-        s3::get_public_bucket()?,
+    let temp_path = file.into_temp_path();
+
+    s3::upload_file_to_s3(
+        /* key */ get_jwks_secret_path(),
+        /* is_public */ true,
+        /* s3_bucket */ s3::get_public_bucket()?,
+        /* media_type */ "application/json".to_string(),
+        /* file_path */ temp_path.to_string_lossy().to_string(),
     )
-    .await?;
+    .await
+    .with_context(|| "Error uploading file to s3")?;
+
+    temp_path
+        .close()
+        .with_context(|| "Error closing temp file path")?;
 
     Ok(())
 }

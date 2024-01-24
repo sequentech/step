@@ -72,36 +72,6 @@ pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     Ok(client)
 }
 
-#[instrument(skip(data), err)]
-pub async fn upload_to_s3(
-    data: &Vec<u8>,
-    key: String,
-    media_type: String,
-    s3_bucket: String,
-) -> Result<()> {
-    if data.len() > get_max_upload_size()? {
-        return Err(anyhow!(
-            "File is too big: data.len() [{}] > get_max_upload_size() [{}]",
-            data.len(),
-            get_max_upload_size()?
-        ));
-    }
-
-    let config = get_s3_aws_config(/* private = */ true).await?;
-    let client = get_s3_client(config.clone()).await?;
-    create_bucket_if_not_exists(&client, &config, s3_bucket.as_str()).await?;
-    client
-        .put_object()
-        .bucket(s3_bucket)
-        .key(key)
-        .content_type(media_type)
-        .body(ByteStream::from(data.to_vec()))
-        .send()
-        .await?;
-
-    Ok(())
-}
-
 #[instrument]
 pub fn get_document_key(
     tenant_id: String,
