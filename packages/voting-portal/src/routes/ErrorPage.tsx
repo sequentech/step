@@ -18,6 +18,15 @@ const StyledLink = styled(Link)`
     margin-top: 40px;
 `
 
+const StyledTitle = styled(Typography)`
+    margin-top: 25.5px;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    font-size: 36px;
+    justify-content: center;
+`
+
 export function ErrorPage() {
     const error = useRouteError()
     const {t} = useTranslation()
@@ -28,9 +37,9 @@ export function ErrorPage() {
 
     let content = (
         <>
-            <Typography variant="h3" sx={{marginBottom: "24px"}}>
+            <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                 {t("errors.page.oopsWithoutStatus")}
-            </Typography>
+            </StyledTitle>
             <Typography variant="h6" sx={{marginBottom: "24px"}}>
                 {t("errors.page.somethingWrong")}
             </Typography>
@@ -40,9 +49,9 @@ export function ErrorPage() {
     if (isRouteErrorResponse(error)) {
         content = (
             <>
-                <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithStatus", {status: error.status})}
-                </Typography>
+                </StyledTitle>
                 <Typography variant="h6" sx={{marginBottom: "24px"}}>
                     {error.statusText}
                 </Typography>
@@ -56,9 +65,9 @@ export function ErrorPage() {
     } else if (isErrorType) {
         content = (
             <>
-                <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithoutStatus")}
-                </Typography>
+                </StyledTitle>
                 <Typography variant="h6" sx={{marginBottom: "24px"}}>
                     {t("errors.page.somethingWrong")}
                 </Typography>
