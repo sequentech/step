@@ -28,6 +28,7 @@ pub struct JwtHasuraClaims {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
 pub enum StringOrVec {
     Single(String),
     Multiple(Vec<String>),
@@ -40,7 +41,7 @@ pub struct JwtClaims {
     pub auth_time: i64,
     pub jti: String,
     pub iss: String,
-    //pub aud: StringOrVec,
+    pub aud: StringOrVec,
     pub sub: String,
     pub typ: String,
     pub azp: String,
@@ -56,7 +57,7 @@ pub struct JwtClaims {
     pub email_verified: bool,
     #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
-    pub name: String,
+    pub name: Option<String>,
     pub preferred_username: Option<String>,
     pub given_name: Option<String>,
     pub family_name: Option<String>,
