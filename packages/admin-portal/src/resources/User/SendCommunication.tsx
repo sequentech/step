@@ -255,9 +255,12 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     }
 
     const handleSelectAliasChange = async (e: any) => {
+        console.log("handleSelectAliasChange", e.target.value)
+        
         const {value} = e.target
         var newCommunication = {...communication}
         newCommunication.alias = value
+        console.log("handleSelectAliasChange newCommunication", newCommunication)
         setCommunication(newCommunication)
 
         const selectedReceipt = receipts?.filter(
@@ -266,8 +269,6 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 receipt.communication_method === selectedMethod &&
                 receipt.template.alias === value
         )
-
-        console.log("selectedReceipt", selectedReceipt)
 
         if (selectedReceipt && selectedReceipt.length > 0) {
             console.log(
@@ -278,21 +279,25 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 let newEmail = selectedReceipt[0]["template"][
                     selectedMethod.toLowerCase()
                 ] as IEmail
-                setEmail(newEmail)
+                setEmail(newEmail, value)
             } else {
                 let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()] as string
-                var newCommunication = {...communication}
-                let a = newCommunication.i18n?.["en"]
+                let newSMSCommunication = {...communication}
+                let a = newSMSCommunication.i18n?.["en"]
                 if (a?.sms?.message) {
                     a.sms.message = newSms
                 }
-                setCommunication(newCommunication)
+                setCommunication(newSMSCommunication)
             }
         }
     }
 
-    const setEmail = async (newEmail: any) => {
-        var newCommunication = {...communication}
+    useEffect(() => {
+        console.log("handleSelectAliasChange communication", communication)
+    }, [communication])
+
+    const setEmail = async (newEmail: any, alias = "") => {
+        var newCommunication = {...communication, alias}
         newCommunication.i18n["en"].email = newEmail
         setCommunication(newCommunication)
     }
