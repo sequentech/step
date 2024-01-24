@@ -29,6 +29,7 @@ import {
     Tab,
     Typography,
     Grid,
+    Box,
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
@@ -413,7 +414,8 @@ export const ContestDataForm: React.FC = () => {
                                     </ContestStyles.Title>
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
-                            <AccordionDetails sx={{maxHeight: "800px", overflowY: "scroll"}}>
+                            {/* <AccordionDetails sx={{maxHeight: "800px", overflowY: "scroll"}}> */}
+                            <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
@@ -441,12 +443,14 @@ export const ContestDataForm: React.FC = () => {
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
                                                 <CandidatesInput source="candidatesOrder"></CandidatesInput>
+                                                <Box sx={{width: "100%", height: "200px"}}></Box>
                                             </CandidateRows>
                                         ) : null
                                     }}
                                 </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
+
 
                         <Accordion
                             sx={{width: "100%"}}
