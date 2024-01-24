@@ -28,7 +28,7 @@ pub struct JwtHasuraClaims {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum StringOrVec  {
+pub enum StringOrVec {
     Single(String),
     Multiple(Vec<String>),
 }
@@ -64,14 +64,16 @@ pub struct JwtClaims {
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
-    let bytes = general_purpose::STANDARD_NO_PAD.decode(parts[1])
+    let bytes = general_purpose::STANDARD_NO_PAD
+        .decode(parts[1])
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
 
     event!(Level::INFO, "json: {:?}", json);
-    let claims: JwtClaims = serde_json::from_str(&json)
-        .map_err(|err| anyhow!("Error decoding string into formatted json: {:?}", err))?;
+    let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
+        anyhow!("Error decoding string into formatted json: {:?}", err)
+    })?;
     Ok(claims)
 }
 
