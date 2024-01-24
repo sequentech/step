@@ -28,6 +28,7 @@ pub struct JwtHasuraClaims {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
 pub enum StringOrVec {
     Single(String),
     Multiple(Vec<String>),
@@ -40,7 +41,7 @@ pub struct JwtClaims {
     pub auth_time: i64,
     pub jti: String,
     pub iss: String,
-    //pub aud: StringOrVec,
+    pub aud: StringOrVec,
     pub sub: String,
     pub typ: String,
     pub azp: String,
