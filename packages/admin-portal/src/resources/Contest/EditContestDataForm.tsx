@@ -208,11 +208,12 @@ export const ContestDataForm: React.FC = () => {
             // temp.max_votes = temp.max_votes // || 1
             // temp.winning_candidates_num = temp.winning_candidates_num // || 1
 
-            temp.contest_candidates_order = temp.presentation?.candidates_order || CandidatesOrder.ALPHABETICAL
+            temp.contest_candidates_order =
+                temp.presentation?.candidates_order || CandidatesOrder.ALPHABETICAL
 
             let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
             if (temp.contest_candidates_order === CandidatesOrder.CUSTOM) {
-                tempCandidates.sort((a, b) => a.presentation.sort_order - b.presentation.sort_order)
+                tempCandidates.sort((a, b) => a.presentation?.sort_order - b.presentation?.sort_order)
             }
             temp.candidatesOrder = tempCandidates
 
@@ -412,7 +413,7 @@ export const ContestDataForm: React.FC = () => {
                                     </ContestStyles.Title>
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
-                            <AccordionDetails>
+                            <AccordionDetails sx={{maxHeight: "800px", overflowY: "scroll"}}>
                                 <BooleanInput source="is_acclaimed" />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />

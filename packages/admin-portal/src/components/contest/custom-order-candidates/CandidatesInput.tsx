@@ -2,6 +2,7 @@ import React, {useState} from "react"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import Candidate from "./Candidate"
 import {useInput} from "react-admin"
+import { Box } from '@mui/material'
 
 export default function CandidatesInput({source}: {source: string}) {
     const {
@@ -45,25 +46,23 @@ export default function CandidatesInput({source}: {source: string}) {
     }
 
     return (
-        <>
-            <div>
-                {candidates?.map((candidate: any, index: number) => {
-                    return (
-                        candidate && (
-                            <Candidate
-                                key={candidate.id}
-                                index={index}
-                                id={candidate.id}
-                                candidate={candidate}
-                                onDragStart={onDragStart}
-                                onDragOver={onDragOver}
-                                onDrop={onDrop}
-                                isOver={overIndex === index}
-                            />
-                        )
+        <Box>
+            {candidates?.map((candidate: any, index: number) => {
+                return (
+                    candidate && (
+                        <Candidate
+                            key={candidate.id}
+                            index={index}
+                            id={candidate.id}
+                            candidate={candidate}
+                            onDragStart={onDragStart}
+                            onDragOver={onDragOver}
+                            onDrop={onDrop}
+                            isOver={overIndex === index}
+                        />
                     )
-                })}
-            </div>
-        </>
+                )
+            })}
+        </Box>
     )
 }
