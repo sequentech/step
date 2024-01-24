@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useContext } from "react"
+import React, {useContext} from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
@@ -11,7 +11,7 @@ import {Header} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import { SettingsContext } from "../providers/SettingsContextProvider"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
