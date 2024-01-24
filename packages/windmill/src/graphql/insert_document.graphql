@@ -5,7 +5,7 @@ mutation InsertDocument(
   $size: Int!,
   $mediaType: String!,
   $is_public: Boolean!,
-  $document_id: uuid,
+  $document_id: uuid!,
 ) {
   insert_sequent_backend_document(
     objects: 
