@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Seek;
 use std::num::NonZeroU32;
+use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument};
@@ -78,15 +79,15 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
 }
 
 impl ImportUsersBody {
-    #[instrument(err)]
-    async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<File> {
+    #[instrument(ret)]
+    async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<NamedTempFile> {
         let s3_bucket = s3::get_private_bucket()?;
         let document_s3_key = s3::get_document_key(
             self.tenant_id.clone(),
             Default::default(),
             self.document_id.clone(),
         );
-        s3::get_object_into_temp_file(s3_bucket, document_s3_key).await
+        s3::get_object_into_temp_file(s3_bucket, document_s3_key, "import-users-", ".tsv").await
     }
 
     /*

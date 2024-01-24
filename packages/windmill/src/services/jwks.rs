@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::s3;
+use crate::services::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -93,7 +94,8 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     let jwks_output = JwksOutput {
         keys: existing_jwks,
     };
-    let file = NamedTempFile::new().with_context(|| "Error creating named temp file")?;
+
+    let file = generate_temp_file("jwks-", ".json").with_context(|| "Error creating temp file")?;
     let file2 = file
         .reopen()
         .with_context(|| "Couldn't reopen file for writing")?;

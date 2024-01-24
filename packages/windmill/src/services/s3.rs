@@ -3,10 +3,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::temp_path::generate_temp_file;
 use crate::util::aws::{
     get_fetch_expiration_secs, get_max_upload_size, get_s3_aws_config, get_upload_expiration_secs,
 };
-
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
@@ -15,7 +15,7 @@ use s3::presigning::PresigningConfig;
 use std::fs::File;
 use std::io::Write;
 use std::{env, error::Error};
-use tempfile::tempfile;
+use tempfile::{tempfile, NamedTempFile};
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
@@ -131,7 +131,12 @@ pub async fn get_upload_url(key: String, is_public: bool) -> Result<String> {
 }
 
 #[instrument(err, ret)]
-pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow::Result<File> {
+pub async fn get_object_into_temp_file(
+    s3_bucket: String,
+    key: String,
+    prefix: &str,
+    suffix: &str,
+) -> anyhow::Result<NamedTempFile> {
     let config = get_s3_aws_config(/* private = */ true)
         .await
         .with_context(|| "Error obtaining aws config")?;
@@ -146,7 +151,8 @@ pub async fn get_object_into_temp_file(s3_bucket: String, key: String) -> anyhow
         .map_err(|err| anyhow!("Error getting the object from S3: {:?}", err.source()))?;
 
     // Stream the data into a temporary file
-    let mut temp_file = tempfile().with_context(|| "Error creating temp file")?;
+    let mut temp_file =
+        generate_temp_file(prefix, suffix).with_context(|| "Error creating temp file")?;
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 

@@ -5,6 +5,7 @@
 use crate::hasura;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::s3;
+use crate::services::temp_path::generate_temp_file;
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::types::error::{Error, Result};
@@ -69,7 +70,8 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
 
     let mut offset: i32 = 0;
     let mut total_count: Option<i32> = None;
-    let file = NamedTempFile::new().with_context(|| "Error creating named temp file")?;
+    let file =
+        generate_temp_file("export-users-", ".tsv").with_context(|| "Error creating temp file")?;
     let file2 = file
         .reopen()
         .with_context(|| "Couldn't reopen file for writing")?;

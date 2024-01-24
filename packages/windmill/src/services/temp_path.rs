@@ -55,7 +55,7 @@ pub fn write_into_named_temp_file(
     Ok((temp_path, temp_path_string, file_size))
 }
 
-#[instrument(err)]
+#[instrument(ret)]
 pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
