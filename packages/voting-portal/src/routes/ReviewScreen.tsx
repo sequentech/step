@@ -8,7 +8,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
     PageLimit,
-    BreadCrumbSteps,
     Icon,
     IconButton,
     theme,
@@ -41,6 +40,7 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import Stepper from "../components/Stepper"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -260,15 +260,7 @@ export const ReviewScreen: React.FC = () => {
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={2}
-                />
+                <Stepper selected={2} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
                 <Box>{t("reviewScreen.title")}</Box>

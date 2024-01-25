@@ -6,7 +6,6 @@ import {Box, Button, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
-    BreadCrumbSteps,
     PageLimit,
     stringToHtml,
     theme,
@@ -37,6 +36,7 @@ import {
     selectElectionEventById,
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -149,15 +149,7 @@ export const SupportMaterialsScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={0}
-                />
+                <Stepper selected={0} />
             </Box>
             <Box
                 sx={{

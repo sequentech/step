@@ -4,13 +4,7 @@
 import React, {useEffect} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {
-    BreadCrumbSteps,
-    PageLimit,
-    theme,
-    stringToHtml,
-    translateElection,
-} from "@sequentech/ui-essentials"
+import {PageLimit, theme, stringToHtml, translateElection} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -20,6 +14,7 @@ import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {useBypassElectionChooser} from "../hooks/bypass-election-chooser"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -106,15 +101,7 @@ export const StartScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="start-screen">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={1}
-                />
+                <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
                 <span>{translateElection(election, "name", i18n.language)}</span>
