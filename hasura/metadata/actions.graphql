@@ -50,14 +50,6 @@ type Mutation {
 }
 
 type Mutation {
-  export_users (
-    tenant_id: String!
-    election_event_id: String
-    election_id: String
-  ): ExportUsersOutput
-}
-
-type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -99,6 +91,14 @@ type Mutation {
   edit_user (
     body: EditUsersInput!
   ): KeycloakUser!
+}
+
+type Mutation {
+  export_users (
+    tenant_id: String!
+    election_event_id: String
+    election_id: String
+  ): ExportUsersOutput
 }
 
 type Query {
@@ -607,9 +607,9 @@ type KeycloakUserArea {
 }
 
 type VotesInfo {
-    election_id : String!
-    num_votes : Int!
-    last_voted_at : String!
+  election_id : String!
+  num_votes : Int!
+  last_voted_at : String!
 }
 
 type KeycloakUser {
@@ -680,8 +680,8 @@ type OptionalId {
 }
 
 type ExportUsersOutput {
-  task_id: String!
-  document_id: String!
+  task_id : String!
+  document_id : String!
 }
 
 type SetUserRoleOutput {
