@@ -113,7 +113,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
         <SelectElection
             isActive={canVote}
             isOpen={isVotingOpen}
-            title={translateElection(election, "name", i18n.language) || ""}
+            title={translateElection(election, "name", i18n.language) || "-"}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote ? onClickToVote : undefined}

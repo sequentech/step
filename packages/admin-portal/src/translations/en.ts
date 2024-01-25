@@ -504,6 +504,12 @@ const englishTranslation = {
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "tally-sheet-create": "Create Tally Sheet",
+                "trustee-ceremony": "Trustee Ceremony",
+                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-view": "View Tally Sheet",
+                "admin-ceremony": "Admin Ceremony",
+                "tally-sheet-delete": "Delete Tally Sheet",
             },
         },
         common: {

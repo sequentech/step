@@ -118,6 +118,7 @@ const StyledDrawer = styled(Drawer, {
         [theme.breakpoints.up("md")]: {
             border: "none",
         },
+        overflowX: "hidden",
         zIndex: "inherit",
     },
 }))

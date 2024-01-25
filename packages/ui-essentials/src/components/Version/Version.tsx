@@ -29,10 +29,12 @@ const Version: React.FC<VersionProps> = ({version}) => {
             sx={{display: {xs: "none", sm: "block"}}}
             className="app-version"
         >
-            <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
-                {t("version.header")}
+            <Box sx={{width: "100%", display: "flex", flexDirection: "row", alignItems: "center"}}>
+                <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
+                    {t("version.header")}
+                </Box>
+                <Box component="span">{version["main"]}</Box>
             </Box>
-            <Box component="span">{version["main"]}</Box>
         </StyledButton>
     )
 }
