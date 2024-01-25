@@ -38,9 +38,9 @@ const StyledLink = styled.a`
 `
 
 const StyledImage = styled(Image)`
-    max-height: 47px;
+    height: 47px !important;
     @media (max-width: ${theme.breakpoints.values.md}px) {
-        max-height: 37px;
+        height: 37px !important;
     }
 `
 

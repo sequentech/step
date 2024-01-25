@@ -289,7 +289,7 @@ export const ReviewScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("reviewScreen.description"))}
+                {stringToHtml(t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description"))}
             </Typography>
             {ballotStyle.ballot_eml.contests.map((question, index) => (
                 <Question
