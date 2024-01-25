@@ -38,10 +38,14 @@ const StyledLink = styled.a`
 `
 
 const StyledImage = styled(Image)`
-    max-height: 60px;
+    max-height: 40px;
     max-width: 200px;
     width: auto;
     min-width: 40px;
+
+    @media (min-width: ${theme.breakpoints.values.lg}px) {
+        max-height: 60px;
+    }
 `
 
 type ApplicationVersion = {
