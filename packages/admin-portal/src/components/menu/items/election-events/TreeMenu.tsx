@@ -105,7 +105,6 @@ function TreeLeaves({
                                 superParentData={parentData}
                                 id={resource.id}
                                 name={translateElection(resource, "alias", i18n.language) || translateElection(resource, "name", i18n.language) || resource.alias || resource.name}
-                                // name={resource.alias ?? resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}

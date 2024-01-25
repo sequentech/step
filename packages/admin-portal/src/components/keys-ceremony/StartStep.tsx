@@ -15,7 +15,7 @@ export interface ConfigureStepProps {
 }
 
 export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
     return (
         <>
@@ -25,7 +25,7 @@ export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
                     <Typography variant="body1">
-                        <p>
+                        <p style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}>
                             <Trans
                                 i18nKey="keysGeneration.startStep.subtitle"
                                 values={{name: authContext.username}}

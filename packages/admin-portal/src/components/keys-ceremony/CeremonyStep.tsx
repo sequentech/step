@@ -59,7 +59,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
@@ -113,7 +113,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         />
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>
-                        <Typography variant="body2">
+                        <Typography variant="body2" sx={{textAlign: "start"}}>
                             {t("keysGeneration.ceremonyStep.description")}
                         </Typography>
                         <TableContainer component={Paper}>
@@ -179,21 +179,28 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             </WizardStyles.ContentBox>
             <WizardStyles.Toolbar>
                 <WizardStyles.BackButton color="info" onClick={goBack}>
-                    <ArrowBackIosIcon />
+                    <ArrowBackIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
+                <div style={{flex: 1}}> </div>
                 {!!goNext && (
                     <WizardStyles.NextButton color="info" onClick={goNext}>
-                        <ArrowForwardIosIcon />
+                        <ArrowForwardIosIcon
+                            style={{
+                                transform:
+                                    i18n.dir(i18n.language) === "rtl"
+                                        ? "rotate(180deg)"
+                                        : "rotate(0)",
+                            }}
+                        />
                         {t("common.label.next")}
                     </WizardStyles.NextButton>
                 )}
-                {/*cancellable() ? (
-                    <CancelButton onClick={() => setOpenConfirmationModal(true)}>
-                        <CloseIcon />
-                        {t("keysGeneration.ceremonyStep.cancel")}
-                    </CancelButton>
-                ) : null*/}
             </WizardStyles.Toolbar>
             <Dialog
                 variant="warning"

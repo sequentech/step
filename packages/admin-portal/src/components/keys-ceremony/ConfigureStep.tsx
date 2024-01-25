@@ -43,7 +43,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     openCeremonyStep,
     goBack,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
@@ -203,11 +203,27 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                     toolbar={
                         <WizardStyles.Toolbar>
                             <WizardStyles.BackButton color="info" onClick={goBack}>
-                                <ArrowBackIosIcon />
+                                <ArrowBackIosIcon
+                                    style={{
+                                        transform:
+                                            i18n.dir(i18n.language) === "rtl"
+                                                ? "rotate(180deg)"
+                                                : "rotate(0)",
+                                    }}
+                                />
                                 {t("common.label.back")}
                             </WizardStyles.BackButton>
                             <WizardStyles.CreateButton
-                                icon={<ArrowForwardIosIcon />}
+                                icon={
+                                    <ArrowForwardIosIcon
+                                        style={{
+                                            transform:
+                                                i18n.dir(i18n.language) === "rtl"
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0)",
+                                        }}
+                                    />
+                                }
                                 label={t("keysGeneration.configureStep.create")}
                             />
                         </WizardStyles.Toolbar>
@@ -217,7 +233,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <WizardStyles.StepHeader variant="h4">
                             {t("keysGeneration.configureStep.title")}
                         </WizardStyles.StepHeader>
-                        <Typography variant="body2">
+                        <Typography variant="body2" sx={{textAlign: "start"}}>
                             {t("keysGeneration.configureStep.subtitle")}
                         </Typography>
 

@@ -1,10 +1,10 @@
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {useQuery} from "@apollo/client"
-import styled from "@emotion/styled"
-import {Chip, IconButton} from "@mui/material"
-import {adminTheme} from "@sequentech/ui-essentials"
-import React, {useEffect} from "react"
-import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
+import {Chip} from "@mui/material"
+import { translateElection } from '@sequentech/ui-essentials'
+import React from "react"
+import {Identifier, RaRecord} from "react-admin"
+import { useTranslation } from 'react-i18next'
 
 /*  
         In the component where you want to use the actions column:
@@ -22,6 +22,7 @@ interface AreaContestItemsProps {
 
 export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {
     const {record} = props
+    const {i18n} = useTranslation()
     const {data} = useQuery(GET_AREA_WITH_AREA_CONTESTS, {
         variables: {
             electionEventId: record.election_event_id,
@@ -33,7 +34,7 @@ export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {
         <>
             {data && data.sequent_backend_area_contest
                 ? data.sequent_backend_area_contest.map((item: any, index: number) => (
-                      <Chip key={index} label={item?.contest?.name} />
+                      <Chip key={index} label={translateElection(item?.contest, "name", i18n.language)} />
                   ))
                 : null}
         </>
