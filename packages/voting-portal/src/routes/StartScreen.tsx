@@ -108,11 +108,11 @@ export const StartScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateElection(election, "name", i18n.language)}</span>
+                <span>{translateElection(election, "name", i18n.language) ?? "-"}</span>
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language))}
+                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>

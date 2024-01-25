@@ -172,7 +172,12 @@ export const SupportMaterialsScreen: React.FC = () => {
                     <StyledTitle variant="h1">
                         <Box>
                             {materialsTitles &&
-                                translateElection(materialsTitles, "materialsTitle", i18n.language)}
+                                (translateElection(
+                                    materialsTitles,
+                                    "materialsTitle",
+                                    i18n.language
+                                ) ??
+                                    "-")}
                         </Box>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
@@ -182,7 +187,7 @@ export const SupportMaterialsScreen: React.FC = () => {
                                       materialsTitles,
                                       "materialsSubtitle",
                                       i18n.language
-                                  )
+                                  ) ?? "-"
                                 : ""
                         )}
                     </Typography>
