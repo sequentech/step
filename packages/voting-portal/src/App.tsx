@@ -31,6 +31,7 @@ const HeaderWithContext: React.FC = () => {
                 email: authContext.email,
                 openLink: authContext.openProfileLink,
             }}
+            languagesList={["en"]}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl="https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"
         />

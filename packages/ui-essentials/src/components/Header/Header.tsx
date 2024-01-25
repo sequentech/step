@@ -64,6 +64,7 @@ export interface HeaderProps {
     logoLink?: string
     userProfile?: UserProfile
     logoUrl?: string
+    languagesList?: Array<string>
 }
 
 export default function Header({
@@ -72,6 +73,7 @@ export default function Header({
     logoutFn,
     logoLink = "//sequentech.io/",
     logoUrl,
+    languagesList,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -106,7 +108,7 @@ export default function Header({
                             sx={{gap: {xs: "11px", lg: "31px"}}}
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
-                            <LanguageMenu />
+                            <LanguageMenu languagesList={languagesList} />
                             {userProfile && (
                                 <div>
                                     <IconButton
