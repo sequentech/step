@@ -155,7 +155,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
             <StyledButton
-                sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                sx={{display: {xs: "none", sm: "none"}, marginBottom: "2px", width: "100%"}}
                 variant="warning"
                 onClick={() => setAuditBallotHelp(true)}
             >
