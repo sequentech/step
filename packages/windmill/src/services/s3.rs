@@ -130,8 +130,8 @@ pub async fn get_upload_url(key: String, is_public: bool) -> Result<String> {
 
 #[instrument(err, ret)]
 pub async fn get_object_into_temp_file(
-    s3_bucket: String,
-    key: String,
+    s3_bucket: &str,
+    key: &str,
     prefix: &str,
     suffix: &str,
 ) -> anyhow::Result<NamedTempFile> {
@@ -142,8 +142,8 @@ pub async fn get_object_into_temp_file(
 
     let response = client
         .get_object()
-        .bucket(&s3_bucket)
-        .key(&key)
+        .bucket(s3_bucket)
+        .key(key)
         .send()
         .await
         .map_err(|err| anyhow!("Error getting the object from S3: {:?}", err.source()))?;

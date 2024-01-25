@@ -88,7 +88,13 @@ impl ImportUsersBody {
             &self.document_id,
             &"import-users".to_string(),
         );
-        s3::get_object_into_temp_file(s3_bucket, document_s3_key, "import-users-", ".tsv").await
+        s3::get_object_into_temp_file(
+            s3_bucket.as_str(),
+            document_s3_key.as_str(),
+            "import-users-",
+            ".tsv",
+        )
+        .await
     }
 
     /*

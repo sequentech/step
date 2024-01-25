@@ -123,7 +123,7 @@ pub async fn get_areas_by_name(
 }
 
 /**
- * Returns a map of areas per election event by id
+ * Returns a map of area-names of an election event addressable by area-id
  */
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_id(
