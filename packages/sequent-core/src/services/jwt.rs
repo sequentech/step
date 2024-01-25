@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
+use tracing::{event, instrument, Level};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -27,13 +28,20 @@ pub struct JwtHasuraClaims {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum StringOrVec {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
     pub exp: i64,
     pub iat: i64,
     pub auth_time: i64,
     pub jti: String,
     pub iss: String,
-    pub aud: String,
+    pub aud: StringOrVec,
     pub sub: String,
     pub typ: String,
     pub azp: String,
@@ -49,7 +57,7 @@ pub struct JwtClaims {
     pub email_verified: bool,
     #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
-    pub name: String,
+    pub name: Option<String>,
     pub preferred_username: Option<String>,
     pub given_name: Option<String>,
     pub family_name: Option<String>,
@@ -57,9 +65,16 @@ pub struct JwtClaims {
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
-    let bytes = general_purpose::STANDARD_NO_PAD.decode(parts[1]).unwrap();
-    let json = String::from_utf8(bytes).unwrap();
-    let claims: JwtClaims = serde_json::from_str(&json).unwrap();
+    let bytes = general_purpose::STANDARD_NO_PAD
+        .decode(parts[1])
+        .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
+    let json = String::from_utf8(bytes)
+        .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
+
+    event!(Level::INFO, "json: {:?}", json);
+    let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
+        anyhow!("Error decoding string into formatted json: {:?}", err)
+    })?;
     Ok(claims)
 }
 
