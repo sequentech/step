@@ -27,7 +27,7 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import { translate } from '@sequentech/ui-essentials'
+import { translate, translateElection } from '@sequentech/ui-essentials'
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -87,7 +87,8 @@ function TreeLeaves({
     useEffect(() => {
         const dir = i18n.dir(i18n.language)
         document.documentElement.dir = dir
-    }, [i18n, i18n.language])
+        
+    }, [i18n, i18n.language, data])
 
     const {canCreateElectionEvent} = useActionPermissions()
 
@@ -103,7 +104,7 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={translate(resource, "alias", i18n.language) || translate(resource, "name", i18n.language) || resource.alias || resource.name}
+                                name={translateElection(resource, "alias", i18n.language) || translateElection(resource, "name", i18n.language) || resource.alias || resource.name}
                                 // name={resource.alias ?? resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}

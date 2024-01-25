@@ -27,6 +27,20 @@ export interface IElectionStatus {
     voting_status: EVotingStatus
 }
 
+export interface IElectionMaterials {
+    activated?: boolean
+}
+
+export interface IElectionLanguageConf {
+    enabled_language_codes?: Array<string>
+}
+
+export interface IElectionPresentation {
+    i18n?: Record<string, string>
+    materials?: IElectionMaterials
+    language_conf: IElectionLanguageConf
+}
+
 export interface IElectionEventStatistics {
     num_emails_sent: number
     num_sms_sent: number
