@@ -42,7 +42,6 @@ const StyledImage = styled(Image)`
     max-width: 200px;
     width: auto;
     min-width: 40px;
-
     @media (min-width: ${theme.breakpoints.values.lg}px) {
         max-height: 60px;
     }

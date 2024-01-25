@@ -151,19 +151,26 @@ export const CreateElectionList: React.FC = () => {
 
         console.log("electionSubmit :: ", electionSubmit)
 
-        let {data, errors} = await insertElectionEvent({
-            variables: {
-                electionEvent: electionSubmit,
-            },
-        })
+        try {
+            let {data, errors} = await insertElectionEvent({
+                variables: {
+                    electionEvent: electionSubmit,
+                },
+            })
 
-        const newId = data?.insertElectionEvent?.id ?? null
+            const newId = data?.insertElectionEvent?.id ?? null
 
-        if (newId) {
-            setNewId(newId)
-            setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
-            setIsLoading(true)
-        } else {
+            if (newId) {
+                setNewId(newId)
+                setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
+                setIsLoading(true)
+            } else {
+                console.log(`Error creating Election Event ${errors}`)
+                notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
+                setIsLoading(false)
+            }
+        } catch (error) {
+            console.log(`Error creating Election Event ${error}`)
             notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             setIsLoading(false)
         }
