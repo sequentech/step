@@ -14,7 +14,6 @@ import {
     ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
-    IElectionPresentation,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
@@ -85,7 +84,6 @@ export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
     election_event_id: string
     image_document_id: string
-    presentation: IElectionPresentation
     contests: Array<ContestType>
 }
 
@@ -229,7 +227,6 @@ export default function ElectionEvents() {
                                 className="election-event-create-button"
                                 icon={faPlusCircle}
                                 size="xs"
-                                dir={i18n.dir(i18n.language)}
                             />
                         </Link>
                     ) : null}
