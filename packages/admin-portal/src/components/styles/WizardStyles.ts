@@ -98,6 +98,7 @@ export const WizardStyles = {
     ListItem: styled.li`
         padding: 1em;
         display: list-item;
+        text-align: start;
     `,
 
     // TODO: use this later when we support multiple ceremonies per election event
