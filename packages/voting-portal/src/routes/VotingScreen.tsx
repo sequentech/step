@@ -230,7 +230,7 @@ const VotingScreen: React.FC = () => {
             </Box>
             <StyledTitle variant="h4">
                 <Box className="selected-election-title">
-                    {translateElection(election, "name", i18n.language) || ""}
+                    {translateElection(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
                     icon={faCircleQuestion}
@@ -250,7 +250,7 @@ const VotingScreen: React.FC = () => {
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language))}
+                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
             {ballotStyle.ballot_eml.contests.map((contest, index) => (
