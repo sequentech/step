@@ -14,6 +14,9 @@ import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
+import {GET_ELECTION_EVENT} from "./queries/GetElectionEvent"
+import {useQuery} from "@apollo/client"
+import {GetElectionEventQuery} from "./gql/graphql"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -22,6 +25,20 @@ const StyledApp = styled(Stack)`
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
+    const {tenantId, eventId} = useParams<TenantEventType>()
+
+    const {data} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+    })
+
+    let languagesList = ["en"]
+    const event = data?.sequent_backend_election_event?.[0]
+    if (event) {
+        languagesList = event.presentation.language_conf?.enabled_language_codes
+    }
 
     return (
         <Header
@@ -31,7 +48,7 @@ const HeaderWithContext: React.FC = () => {
                 email: authContext.email,
                 openLink: authContext.openProfileLink,
             }}
-            languagesList={["en"]}
+            languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl="https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"
         />
@@ -72,12 +89,12 @@ const App = () => {
     return (
         <StyledApp className="app-root">
             <ScrollRestoration />
-            {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-            <PageBanner marginBottom="auto">
-                <ApolloWrapper>
+            <ApolloWrapper>
+                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                <PageBanner marginBottom="auto">
                     <Outlet />
-                </ApolloWrapper>
-            </PageBanner>
+                </PageBanner>
+            </ApolloWrapper>
             <Footer />
         </StyledApp>
     )
