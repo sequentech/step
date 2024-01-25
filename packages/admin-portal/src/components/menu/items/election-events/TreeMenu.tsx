@@ -27,6 +27,7 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
+import { translate } from '@sequentech/ui-essentials'
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -94,7 +95,7 @@ function TreeLeaves({
         <div className="bg-white">
             <div className="flex flex-col ml-3">
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
-                    (resource: DataTreeMenuType) => {
+                    (resource: DataTreeMenuType) => {                        
                         return (
                             <TreeMenuItem
                                 key={resource.id}
@@ -102,7 +103,8 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={resource.alias ?? resource.name}
+                                name={translate(resource, "alias", i18n.language) || translate(resource, "name", i18n.language) || resource.alias || resource.name}
+                                // name={resource.alias ?? resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}
@@ -111,15 +113,31 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && canCreateElectionEvent && (
-                    <div className="flex items-center space-x-2 text-secondary rtl:justify-start ltr:justify-end">
-                        <AddIcon className="flex-none"></AddIcon>
+                    <div
+                        className="flex items-center space-x-2 text-secondary"
+                        style={{
+                            justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                        }}
+                    >
+                        <AddIcon
+                            className="flex-none"
+                            style={{
+                                display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
+                            }}
+                        />
                         <NavLink
                             className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
-                            style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "end"}}
+                            style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                         </NavLink>
+                        <AddIcon
+                            className="flex-none"
+                            style={{
+                                display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
+                            }}
+                        />
                         <div className="flex-none w-6 h-6 invisible"></div>
                     </div>
                 )}
@@ -216,7 +234,18 @@ function TreeMenuItem({
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext && canCreateElectionEvent ? (
                     <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
-                        {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
+                        {open ? (
+                            <ExpandMoreIcon />
+                        ) : (
+                            <ChevronRightIcon
+                                style={{
+                                    transform:
+                                        i18n.dir(i18n.language) === "rtl"
+                                            ? "rotate(180deg)"
+                                            : "rotate(0)",
+                                }}
+                            />
+                        )}
                     </div>
                 ) : (
                     <div className={cn("flex-none h-6", canCreateElectionEvent && "w-6")}></div>
@@ -231,7 +260,7 @@ function TreeMenuItem({
                             )
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
-                        style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "end"}}
+                        style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
                         {item}
                     </NavLink>
