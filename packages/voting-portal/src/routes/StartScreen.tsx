@@ -19,6 +19,7 @@ import {IElection, selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
+import {useBypassElectionChooser} from "../hooks/bypass-election-chooser"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -85,6 +86,12 @@ export const StartScreen: React.FC = () => {
     const election = useAppSelector(selectElectionById(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+
+    const bypassElectionChooser = useBypassElectionChooser()
+    console.log(
+        "LS -> src/routes/StartScreen.tsx:90 -> bypassElectionChooser: ",
+        bypassElectionChooser
+    )
 
     useEffect(() => {
         if (!election) {

@@ -6,7 +6,6 @@ import {Box, Button, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
-    BreadCrumbSteps,
     Dialog,
     IconButton,
     PageLimit,
@@ -17,7 +16,6 @@ import {
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
-    isUndefined,
     IBallotStyle as IElectionDTO,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -29,12 +27,7 @@ import {
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    IElection,
-    selectElectionById,
-    setElection,
-    selectElectionIds,
-} from "../store/elections/electionsSlice"
+import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useNavigate, useParams} from "react-router-dom"
@@ -57,6 +50,8 @@ import {
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
+import {useBypassElectionChooser} from "../hooks/bypass-election-chooser"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -202,12 +197,12 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const dispatch = useAppDispatch()
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
-    const [bypassChooser, setBypassChooser] = useState<boolean>(false)
+
+    const bypassElectionChooser = useBypassElectionChooser()
 
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -231,7 +226,7 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     )
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
+    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
     const hasNoResults = electionIds.length === 0
 
@@ -276,30 +271,10 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     }, [castVotes, dispatch])
 
-    useEffect(() => {
-        const newBypassChooser =
-            1 === electionIds.length &&
-            !errorCastVote &&
-            !isUndefined(castVotes) &&
-            !!electionEvent &&
-            !!dataElections
-        if (newBypassChooser && !bypassChooser) {
-            setBypassChooser(newBypassChooser)
-        }
-    }, [castVotes, electionIds, errorCastVote, castVotes, electionEvent, dataElections])
-
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={0}
-                />
+                <Stepper selected={0} />
             </Box>
             <Box
                 sx={{
@@ -343,7 +318,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                         <ElectionWrapper
                             electionId={electionId}
                             key={electionId}
-                            bypassChooser={bypassChooser}
+                            bypassChooser={bypassElectionChooser}
                         />
                     ))
                 ) : (
