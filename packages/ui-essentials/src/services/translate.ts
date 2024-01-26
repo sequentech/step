@@ -17,10 +17,10 @@ export const translate = <T, K extends keyof T>(
     return input[key] as string
 }
 
-export const translateElection = (object: any, key: string, lang: string): string => {
+export const translateElection = (object: any, key: string, lang: string): string | undefined => {
     if (object?.["presentation"]?.["i18n"]) {
-        return object["presentation"]["i18n"][lang]?.[key] || object[key] || "-"
+        return object["presentation"]["i18n"][lang]?.[key] || object[key] || undefined
     } else {
-        return object?.[key] || "-"
+        return object?.[key] || undefined
     }
 }

@@ -7,6 +7,7 @@ import {IDecodedVoteContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
+    resetBallotSelection,
     selectBallotSelectionQuestion,
     selectBallotSelectionVoteChoice,
     setBallotSelectionVoteChoice,
@@ -24,6 +25,7 @@ export interface AnswersListProps {
     questionIndex: number
     isReview: boolean
     isInvalidWriteIns?: boolean
+    isUniqChecked?: boolean
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -51,6 +53,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     questionIndex,
     isReview,
     isInvalidWriteIns,
+    isUniqChecked,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -61,18 +64,30 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     )
     const dispatch = useAppDispatch()
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
-    const setChecked = (value: boolean) =>
-        isActive &&
-        dispatch(
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                questionIndex,
-                voteChoice: {
-                    id: categoryAnswerId,
-                    selected: value ? 0 : -1,
-                },
-            })
+    const setChecked = (value: boolean) => {
+        if (isUniqChecked) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+
+        return (
+            isActive &&
+            dispatch(
+                setBallotSelectionVoteChoice({
+                    ballotStyle,
+                    questionIndex,
+                    voteChoice: {
+                        id: categoryAnswerId,
+                        selected: value ? 0 : -1,
+                    },
+                })
+            )
         )
+    }
 
     if (isReview && !showCategoryOnReview(category, questionState)) {
         return null

@@ -53,7 +53,7 @@ export default function MenuAction({
     parentData,
     menuItemRef,
 }: Props) {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const navigate = useNavigate()
 
@@ -208,6 +208,7 @@ export default function MenuAction({
                 <MenuList dense>
                     {!isArchivedTab && canCreateElectionEvent && (
                         <MenuItem
+                            dir={i18n.dir(i18n.language)}
                             key={Action.Add}
                             onClick={() =>
                                 handleAction(Action.Add, {
@@ -230,6 +231,7 @@ export default function MenuAction({
 
                     {isItemElectionEventType && canEditElectionEvent && (
                         <MenuItem
+                            dir={i18n.dir(i18n.language)}
                             key={Action.Archive}
                             onClick={() =>
                                 handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
@@ -252,6 +254,7 @@ export default function MenuAction({
 
                     {!isArchivedTab && canEditElectionEvent && (
                         <MenuItem
+                            dir={i18n.dir(i18n.language)}
                             key={Action.Remove}
                             className={`menu-action-delete-${resourceType}`}
                             onClick={() =>
