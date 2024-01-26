@@ -329,6 +329,7 @@ const hebrewTranslation: TranslationType = {
                 receipts: "קבלות",
                 image: "תמונה",
                 advanced: "תצורה מתקדמת",
+                defaultLanguage: "שפת ברירת מחדל",
             },
             field: {
                 name: "שם",
@@ -679,6 +680,13 @@ const hebrewTranslation: TranslationType = {
                 name: "שם",
                 alias: "כינוי",
                 description: "תיאור",
+                isAcclaimed: "מועמד מוביל",
+                votingType: "סוג הצבעה",
+                countingAlgorithm: "Counting Algorithm",
+                minVotes: "מינימום הצבעות",
+                maxVotes: "מקסימום הצבעות",
+                winningCandidatesNum: "מספר מועמדים מנצחים",
+                candidatesOrder: "סדר מועמדים",
             },
             options: {
                 "non-preferential": "ללא העדפה",

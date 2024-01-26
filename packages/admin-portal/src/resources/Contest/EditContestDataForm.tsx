@@ -391,11 +391,13 @@ export const ContestDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <SelectInput
                                     source="voting_type"
+                                    label={t("contestScreen.field.votingType")}
                                     choices={votingTypesChoices()}
                                     validate={required()}
                                 />
                                 <SelectInput
                                     source="counting_algorithm"
+                                    label={t("contestScreen.field.countingAlgorithm")}
                                     choices={countingAlgorithmChoices()}
                                     validate={required()}
                                 />
@@ -418,12 +420,28 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             {/* <AccordionDetails sx={{maxHeight: "800px", overflowY: "scroll"}}> */}
                             <AccordionDetails>
-                                <BooleanInput source="is_acclaimed" />
-                                <NumberInput source="min_votes" min={0} />
-                                <NumberInput source="max_votes" min={0} />
-                                <NumberInput source="winning_candidates_num" min={0} />
+                                <BooleanInput
+                                    source="is_acclaimed"
+                                    label={t("contestScreen.field.isAcclaimed")}
+                                />
+                                <NumberInput
+                                    source="min_votes"
+                                    min={0}
+                                    label={t("contestScreen.field.minVotes")}
+                                />
+                                <NumberInput
+                                    source="max_votes"
+                                    min={0}
+                                    label={t("contestScreen.field.maxVotes")}
+                                />
+                                <NumberInput
+                                    source="winning_candidates_num"
+                                    min={0}
+                                    label={t("contestScreen.field.winningCandidatesNum")}
+                                />
                                 <SelectInput
                                     source="contest_candidates_order"
+                                    label={t("contestScreen.field.candidatesOrder")}
                                     choices={orderAnswerChoices()}
                                     validate={required()}
                                 />

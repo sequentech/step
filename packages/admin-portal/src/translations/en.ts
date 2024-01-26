@@ -328,6 +328,7 @@ const englishTranslation = {
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
+                defaultLanguage: "Default Language",
             },
             field: {
                 name: "Name",
@@ -666,8 +667,8 @@ const englishTranslation = {
                 subtitle: "Contest configuration.",
             },
             tab: {
-                "data": "Data",
-                "tallySheet": "Tally Sheets",
+                data: "Data",
+                tallySheet: "Tally Sheets",
             },
             edit: {
                 general: "General",
@@ -681,6 +682,13 @@ const englishTranslation = {
                 name: "Name",
                 alias: "Alias",
                 description: "Description",
+                isAcclaimed: "Is Acclaimed",
+                votingType: "Voting Type",
+                countingAlgorithm: "Counting Algorithm",
+                minVotes: "Minimum Votes",
+                maxVotes: "Maximum Votes",
+                winningCandidatesNum: "Winning Candidates Number",
+                candidatesOrder: "Candidates Order",
             },
             options: {
                 "non-preferential": "No Preferential",

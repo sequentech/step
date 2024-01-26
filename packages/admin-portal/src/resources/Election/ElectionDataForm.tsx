@@ -262,7 +262,14 @@ export const ElectionDataForm: React.FC = () => {
         for (const lang in parsedValue?.enabled_languages) {
             langNodes.push({id: lang, name: t(`electionScreen.edit.default`)})
         }
-        return <RadioButtonGroupInput source="defaultLanguage" choices={langNodes} row={true} />
+        return (
+            <RadioButtonGroupInput
+                source="defaultLanguage"
+                label={t("electionScreen.edit.defaultLanguage")}
+                choices={langNodes}
+                row={true}
+            />
+        )
     }
 
     const renderVotingChannels = (parsedValue: any) => {
