@@ -6237,6 +6237,7 @@ export type Sequent_Backend_Communication_Template_Updates = {
 /** columns and relationships of "sequent_backend.contest" */
 export type Sequent_Backend_Contest = {
   __typename?: 'sequent_backend_contest';
+  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   /** An array relationship */
   candidates: Array<Sequent_Backend_Candidate>;
@@ -6423,6 +6424,7 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
+  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   candidates?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
   candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp>;
@@ -6491,6 +6493,7 @@ export type Sequent_Backend_Contest_Inc_Input = {
 
 /** input type for inserting data into table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Insert_Input = {
+  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   candidates?: InputMaybe<Sequent_Backend_Candidate_Arr_Rel_Insert_Input>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
@@ -6519,6 +6522,7 @@ export type Sequent_Backend_Contest_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Contest_Max_Fields = {
   __typename?: 'sequent_backend_contest_max_fields';
+  alias?: Maybe<Scalars['String']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
@@ -6537,6 +6541,7 @@ export type Sequent_Backend_Contest_Max_Fields = {
 
 /** order by max() on columns of table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Max_Order_By = {
+  alias?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
@@ -6556,6 +6561,7 @@ export type Sequent_Backend_Contest_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Contest_Min_Fields = {
   __typename?: 'sequent_backend_contest_min_fields';
+  alias?: Maybe<Scalars['String']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
@@ -6574,6 +6580,7 @@ export type Sequent_Backend_Contest_Min_Fields = {
 
 /** order by min() on columns of table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Min_Order_By = {
+  alias?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
@@ -6615,6 +6622,7 @@ export type Sequent_Backend_Contest_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.contest". */
 export type Sequent_Backend_Contest_Order_By = {
+  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Order_By>;
   conditions?: InputMaybe<Order_By>;
@@ -6658,6 +6666,8 @@ export type Sequent_Backend_Contest_Prepend_Input = {
 
 /** select columns of table "sequent_backend.contest" */
 export enum Sequent_Backend_Contest_Select_Column {
+  /** column name */
+  Alias = 'alias',
   /** column name */
   Annotations = 'annotations',
   /** column name */
@@ -6726,6 +6736,7 @@ export enum Sequent_Backend_Contest_Select_Column_Sequent_Backend_Contest_Aggreg
 
 /** input type for updating data in table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Set_Input = {
+  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
@@ -6805,6 +6816,7 @@ export type Sequent_Backend_Contest_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
+  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
@@ -6846,6 +6858,8 @@ export type Sequent_Backend_Contest_Sum_Order_By = {
 
 /** update columns of table "sequent_backend.contest" */
 export enum Sequent_Backend_Contest_Update_Column {
+  /** column name */
+  Alias = 'alias',
   /** column name */
   Annotations = 'annotations',
   /** column name */

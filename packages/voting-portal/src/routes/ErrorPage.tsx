@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
+import React, {useEffect, useContext} from "react"
 import {Box} from "@mui/system"
 import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
@@ -11,16 +11,27 @@ import {Header} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
     margin-top: 40px;
 `
 
+const StyledTitle = styled(Typography)`
+    margin-top: 25.5px;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    font-size: 36px;
+    justify-content: center;
+`
+
 export function ErrorPage() {
     const error = useRouteError()
     const {t, i18n} = useTranslation()
     const backLink = useRootBackLink()
+    const {globalSettings} = useContext(SettingsContext)
 
     useEffect(() => {
         const dir = i18n.dir(i18n.language)
@@ -31,9 +42,9 @@ export function ErrorPage() {
 
     let content = (
         <>
-            <Typography variant="h3" sx={{marginBottom: "24px"}}>
+            <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                 {t("errors.page.oopsWithoutStatus")}
-            </Typography>
+            </StyledTitle>
             <Typography variant="h6" sx={{marginBottom: "24px"}}>
                 {t("errors.page.somethingWrong")}
             </Typography>
@@ -43,9 +54,9 @@ export function ErrorPage() {
     if (isRouteErrorResponse(error)) {
         content = (
             <>
-                <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithStatus", {status: error.status})}
-                </Typography>
+                </StyledTitle>
                 <Typography variant="h6" sx={{marginBottom: "24px"}}>
                     {error.statusText}
                 </Typography>
@@ -59,9 +70,9 @@ export function ErrorPage() {
     } else if (isErrorType) {
         content = (
             <>
-                <Typography variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithoutStatus")}
-                </Typography>
+                </StyledTitle>
                 <Typography variant="h6" sx={{marginBottom: "24px"}}>
                     {t("errors.page.somethingWrong")}
                 </Typography>
@@ -74,7 +85,7 @@ export function ErrorPage() {
 
     return (
         <Box sx={{minHeight: "100vh"}}>
-            <Header />
+            <Header appVersion={{main: globalSettings.APP_VERSION}} />
             <Box
                 id="error-page"
                 sx={{

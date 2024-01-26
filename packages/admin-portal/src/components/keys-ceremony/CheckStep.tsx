@@ -95,7 +95,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                     {t("keysGeneration.checkStep.title")}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
-                    <Typography variant="body1">
+                    <Typography variant="body1" sx={{textAlign: "start"}}>
                         <Trans
                             i18nKey="keysGeneration.checkStep.subtitle"
                             values={{name: authContext.username}}

@@ -16,12 +16,14 @@ import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
 import {ElectoralLog} from "./ElectoralLog"
+import { translateElection } from '@sequentech/ui-essentials'
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
-
+    const {i18n} = useTranslation()
+    
     const location = useLocation()
     const navigate = useNavigate()
 
@@ -75,7 +77,10 @@ export const ElectionEventTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
+            <ElectionHeader
+                title={translateElection(record, "name", i18n.language) ?? ""}
+                subtitle="electionEventScreen.common.subtitle"
+            />
             <TabbedShowLayout>
                 {showDashboard ? (
                     <TabbedShowLayout.Tab

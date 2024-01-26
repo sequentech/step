@@ -2,6 +2,7 @@ import React, {useRef, useState} from "react"
 import styled from "@emotion/styled"
 import {theme, ICandidate} from "@sequentech/ui-essentials"
 import {TextField} from "react-admin"
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
 
 export interface CandidateRowItemProps {
     id: any
@@ -15,7 +16,9 @@ export interface CandidateRowItemProps {
 
 const CandidateRow = styled.div`
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
     width: 100%;
     cursor: move;
     margin-bottom: 0.1rem;
@@ -63,6 +66,7 @@ export default function Candidate(props: CandidateRowItemProps) {
             onDragEnd={handleDragEnd}
         >
             <CandidateRow className={isDragging ? "dragging" : isOver ? "over" : ""}>
+                <DragIndicatorIcon sx={{mr: 1}} />
                 <TextField record={candidate} source="name" />
             </CandidateRow>
         </div>

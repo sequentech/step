@@ -213,6 +213,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 />
                                 {t("common.label.back")}
                             </WizardStyles.BackButton>
+                            <div style={{flex: 1}}> </div>
                             <WizardStyles.CreateButton
                                 icon={
                                     <ArrowForwardIosIcon

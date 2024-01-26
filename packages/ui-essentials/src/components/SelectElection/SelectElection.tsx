@@ -270,7 +270,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 {isOpen ? (
                     <StyledButton
                         className="click-to-vote-button"
-                        disabled={!handleClickToVote}
+                        disabled={!onClickToVote}
                         onClick={handleClickToVote}
                     >
                         {t("selectElection.voteButton")}

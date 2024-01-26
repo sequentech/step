@@ -75,17 +75,19 @@ async fn main() -> Result<()> {
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
-    let mut board_index: ImmudbBoardIndex = ImmudbBoardIndex::new(
-        &args.server_url,
-        &args.user,
-        &args.password,
-        args.board_index,
-    )
-    .await?;
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
     loop {
         info!(">");
+
+        let mut board_index: ImmudbBoardIndex = ImmudbBoardIndex::new(
+            &args.server_url,
+            &args.user,
+            &args.password,
+            args.board_index.clone(),
+        )
+        .await?;
+
         let boards_result = board_index.get_board_names().await;
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,

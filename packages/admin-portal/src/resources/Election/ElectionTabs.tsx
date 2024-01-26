@@ -13,10 +13,11 @@ import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
 import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
+import { translateElection } from '@sequentech/ui-essentials'
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const showDashboard = authContext.isAuthorized(
@@ -37,7 +38,10 @@ export const ElectionTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
+            <ElectionHeader
+                title={translateElection(record, "name", i18n.language) ?? ""}
+                subtitle="electionEventScreen.common.subtitle"
+            />
             <TabbedShowLayout>
                 {showDashboard && (
                     <TabbedShowLayout.Tab label={t("electionScreen.tabs.dashboard")}>

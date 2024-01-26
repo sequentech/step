@@ -4,15 +4,16 @@ import {Sequent_Backend_Candidate} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditCandidateData} from "./EditCandidateData"
 import {useTranslation} from "react-i18next"
+import { translateElection } from '@sequentech/ui-essentials'
 
 export const CandidateTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     return (
         <>
             <ElectionHeader
-                title={record?.name || ""}
+                title={translateElection(record, "name", i18n.language) ?? ""}
                 subtitle="electionEventScreen.common.subtitle"
             />
             <TabbedShowLayout>

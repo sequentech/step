@@ -54,6 +54,7 @@ export interface IQuestionProps {
     questionIndex: number
     isReview: boolean
     setDisableNext?: (value: boolean) => void
+    isUniqChecked?: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -62,6 +63,7 @@ export const Question: React.FC<IQuestionProps> = ({
     questionIndex,
     isReview,
     setDisableNext,
+    isUniqChecked,
 }) => {
     const {i18n} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
@@ -139,6 +141,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
+                        isUniqChecked={isUniqChecked}
                     />
                 ))}
                 {categoriesMapOrder &&
@@ -155,6 +158,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 questionIndex={questionIndex}
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
+                                isUniqChecked={isUniqChecked}
                             />
                         )
                     )}
@@ -170,6 +174,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             key={answerIndex}
                             isActive={!isReview}
                             isReview={isReview}
+                            isUniqChecked={isUniqChecked}
                         />
                     ))}
                 {invalidBottomCandidates.map((answer, answerIndex) => (
@@ -183,6 +188,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isReview={isReview}
                         isInvalidVote={true}
                         isInvalidWriteIns={false}
+                        isUniqChecked={isUniqChecked}
                     />
                 ))}
             </CandidatesWrapper>

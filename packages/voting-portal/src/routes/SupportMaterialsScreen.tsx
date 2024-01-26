@@ -6,7 +6,6 @@ import {Box, Button, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
-    BreadCrumbSteps,
     PageLimit,
     stringToHtml,
     theme,
@@ -37,6 +36,7 @@ import {
     selectElectionEventById,
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -154,15 +154,7 @@ export const SupportMaterialsScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={0}
-                />
+                <Stepper selected={0} />
             </Box>
             <Box
                 sx={{
@@ -177,7 +169,12 @@ export const SupportMaterialsScreen: React.FC = () => {
                     <StyledTitle variant="h1">
                         <Box>
                             {materialsTitles &&
-                                translateElection(materialsTitles, "materialsTitle", i18n.language)}
+                                (translateElection(
+                                    materialsTitles,
+                                    "materialsTitle",
+                                    i18n.language
+                                ) ??
+                                    "-")}
                         </Box>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
@@ -187,7 +184,7 @@ export const SupportMaterialsScreen: React.FC = () => {
                                       materialsTitles,
                                       "materialsSubtitle",
                                       i18n.language
-                                  )
+                                  ) ?? "-"
                                 : ""
                         )}
                     </Typography>
