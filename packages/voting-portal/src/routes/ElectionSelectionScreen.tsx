@@ -86,6 +86,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
     const election = useAppSelector(selectElectionById(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
 
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
@@ -93,10 +94,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
     const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
-    const canVote = castVotes.length < (election?.num_allowed_revotes ?? 1) && isVotingOpen
+    const canVote = () => castVotes.length < (election?.num_allowed_revotes ?? 1) && isVotingOpen
 
     const onClickToVote = () => {
-        if (!canVote) {
+        if (!canVote()) {
             return
         }
         navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
@@ -106,18 +107,24 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
         navigate(`../election/${electionId}/ballot-locator`)
     }
 
-    if (bypassChooser) {
-        onClickToVote()
-    }
+    useEffect(() => {
+        if (visitedBypassChooser) {
+            return
+        }
+        if (bypassChooser) {
+            setVisitedBypassChooser(true)
+            onClickToVote()
+        }
+    }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser])
 
     return (
         <SelectElection
-            isActive={canVote}
+            isActive={canVote()}
             isOpen={isVotingOpen}
             title={translateElection(election, "name", i18n.language) || "-"}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
-            onClickToVote={canVote ? onClickToVote : undefined}
+            onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
         />
     )
