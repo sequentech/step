@@ -38,6 +38,7 @@ export const ballotSelectionsSlice = createSlice({
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
                 force?: boolean
+                questionIndex?: number
             }>
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]

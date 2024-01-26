@@ -9,8 +9,8 @@ import {
     isUndefined,
     normalizeWriteInText,
     translate,
+    ICandidate,
 } from "@sequentech/ui-essentials"
-import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {
     resetBallotSelection,

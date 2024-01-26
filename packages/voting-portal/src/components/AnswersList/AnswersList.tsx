@@ -70,6 +70,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 resetBallotSelection({
                     ballotStyle,
                     force: true,
+                    questionIndex,
                 })
             )
         }
