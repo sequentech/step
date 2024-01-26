@@ -84,7 +84,7 @@ serde = { version = "1.0", features = ["derive"] }
 hex = { version = "0.4.2" }
 
 [target.'cfg(unix)'.dependencies]
-rug = { version = "1.19.2", default-features = false, features = ["integer", "rand"]}
+rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"]}
 # RNG, ecdsa, sha512, shake256, aes-gcm
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924

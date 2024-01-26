@@ -42,6 +42,8 @@ const englishTranslation = {
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
+            descriptionNoAudit:
+                "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",

@@ -105,21 +105,6 @@ actions:
       version: 2
   permissions:
   - role: admin-user
-- name: export_users
-  definition:
-    kind: synchronous
-    handler: http://{{HARVEST_DOMAIN}}/export-users
-    forward_client_headers: true
-    request_transform:
-      body:
-        action: transform
-        template: '{{$body.input}}'
-      template_engine: Kriti
-      version: 2
-  permissions:
-  - role: admin-user
-  - role: voter-read
-  - role: user-read
 - name: delete_permission
   definition:
     kind: synchronous
@@ -198,6 +183,21 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: export_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: voter-read
+  - role: user-read
 - name: fetchDocument
   definition:
     kind: ""
@@ -633,7 +633,6 @@ custom_types:
   - name: CreateKeysCeremonyOutput
   - name: GetPrivateKeyOutput
   - name: CastVotesPerDay
-  - name: VotesInfo
   - name: ElectionEventStatsOutput
   - name: ElectionStatsOutput
   - name: CheckPrivateKeyOutput
@@ -652,6 +651,7 @@ custom_types:
   - name: CreateElectionEventOutput
   - name: InsertTenantOutput
   - name: KeycloakUserArea
+  - name: VotesInfo
   - name: KeycloakUser
   - name: GetUsersOutput
   - name: GetPermissionsOutput
@@ -663,6 +663,7 @@ custom_types:
   - name: CreateUserOutput
   - name: SetRolePermissionOutput
   - name: OptionalId
+  - name: ExportUsersOutput
   - name: SetUserRoleOutput
   - name: CreateTallyOutput
   - name: StartTallyOutput
@@ -673,5 +674,4 @@ custom_types:
   - name: GetBallotPublicationChangesOutput
   - name: RestorePrivateKeyOutput
   - name: PublishTallyOutput
-  - name: ExportUsersOutput
   scalars: []
