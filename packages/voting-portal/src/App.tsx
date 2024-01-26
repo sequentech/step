@@ -6,7 +6,7 @@
 import React, {useEffect, useContext} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, IElectionEventPresentation, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -17,6 +17,8 @@ import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalE
 import {GET_ELECTION_EVENT} from "./queries/GetElectionEvent"
 import {useQuery} from "@apollo/client"
 import {GetElectionEventQuery} from "./gql/graphql"
+import {useAppSelector} from "./store/hooks"
+import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -25,20 +27,13 @@ const StyledApp = styled(Stack)`
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
-    const {tenantId, eventId} = useParams<TenantEventType>()
+    const {eventId} = useParams<TenantEventType>()
 
-    const {data} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-    })
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
-    let languagesList = ["en"]
-    const event = data?.sequent_backend_election_event?.[0]
-    if (event) {
-        languagesList = event.presentation.language_conf?.enabled_language_codes
-    }
+    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+
+    let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
 
     return (
         <Header
