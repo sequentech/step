@@ -6,7 +6,6 @@ import React, {useState, useEffect} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
-    BreadCrumbSteps,
     Icon,
     IconButton,
     stringToHtml,
@@ -27,6 +26,7 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -185,15 +185,7 @@ export const ConfirmationScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="24px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={3}
-                />
+                <Stepper selected={3} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
                 <Box>{t("confirmationScreen.title")}</Box>

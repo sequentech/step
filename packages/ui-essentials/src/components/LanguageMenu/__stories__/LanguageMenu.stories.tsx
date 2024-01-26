@@ -28,12 +28,14 @@ export const CollapsedMenu = Template.bind({})
 // More on args: https://storybook.js.org/docs/react/writing-stories/args
 CollapsedMenu.args = {
     label: "LanguageMenu",
+    languagesList: ["en", "es"],
 }
 
 export const ExpandedMenu = Template.bind({})
 // More on args: https://storybook.js.org/docs/react/writing-stories/args
 ExpandedMenu.args = {
     label: "LanguageMenu",
+    languagesList: ["en", "es"],
 }
 
 ExpandedMenu.play = async ({canvasElement}) => {

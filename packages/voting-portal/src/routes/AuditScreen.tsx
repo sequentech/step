@@ -7,7 +7,6 @@ import {useTranslation} from "react-i18next"
 import {
     Icon,
     PageLimit,
-    BreadCrumbSteps,
     BallotHash,
     Dialog,
     IconButton,
@@ -34,6 +33,7 @@ import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
+import Stepper from "../components/Stepper"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -144,17 +144,7 @@ export const AuditScreen: React.FC = () => {
                 >
                     {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
                 </Dialog>
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                        "breadcrumbSteps.audit",
-                    ]}
-                    selected={4}
-                    warning={true}
-                />
+                <Stepper selected={4} warning={true} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px">
                 <Box>{t("auditScreen.title")}</Box>
