@@ -38,20 +38,42 @@ export const ballotSelectionsSlice = createSlice({
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
                 force?: boolean
+                contestId?: string
             }>
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
-                    action.payload.ballotStyle.ballot_eml.contests.map((question) => ({
-                        contest_id: question.id,
-                        is_explicit_invalid: false,
-                        invalid_errors: [],
-                        choices: question.candidates.map((answer) => ({
-                            id: answer.id,
-                            selected: -1,
-                        })),
-                    }))
+                    action.payload.ballotStyle.ballot_eml.contests.map(
+                        (question): IDecodedVoteContest => {
+                            let currentContestValue = state[
+                                action.payload.ballotStyle.election_id
+                            ]?.find((contest) => contest.contest_id === question.id)
+
+                            if (
+                                currentContestValue &&
+                                action.payload.contestId &&
+                                action.payload.contestId !== question.id
+                            ) {
+                                return {
+                                    contest_id: currentContestValue.contest_id,
+                                    is_explicit_invalid: currentContestValue.is_explicit_invalid,
+                                    invalid_errors: currentContestValue.invalid_errors,
+                                    choices: currentContestValue.choices,
+                                }
+                            }
+
+                            return {
+                                contest_id: question.id,
+                                is_explicit_invalid: false,
+                                invalid_errors: [],
+                                choices: question.candidates.map((answer) => ({
+                                    id: answer.id,
+                                    selected: -1,
+                                })),
+                            }
+                        }
+                    )
             }
 
             return state

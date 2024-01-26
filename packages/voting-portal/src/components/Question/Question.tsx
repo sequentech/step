@@ -142,6 +142,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isReview={isReview}
                         isInvalidVote={true}
                         isUniqChecked={isUniqChecked}
+                        contest={question}
                     />
                 ))}
                 {categoriesMapOrder &&
@@ -159,6 +160,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
                                 isUniqChecked={isUniqChecked}
+                                contest={question}
                             />
                         )
                     )}
@@ -175,6 +177,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             isActive={!isReview}
                             isReview={isReview}
                             isUniqChecked={isUniqChecked}
+                            contest={question}
                         />
                     ))}
                 {invalidBottomCandidates.map((answer, answerIndex) => (
@@ -189,6 +192,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isInvalidVote={true}
                         isInvalidWriteIns={false}
                         isUniqChecked={isUniqChecked}
+                        contest={question}
                     />
                 ))}
             </CandidatesWrapper>

@@ -123,6 +123,56 @@ pub async fn get_areas_by_name(
 }
 
 /**
+ * Returns a map of area-names of an election event addressable by area-id
+ */
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, String>> {
+    let total_areas_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                id, name
+            FROM
+                sequent_backend.area a
+            WHERE
+                a.tenant_id = $1 AND
+                a.election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &total_areas_statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let areas_map: HashMap<String, String> = rows
+        .iter()
+        .map(|row| {
+            let area_id: Uuid = row
+                .try_get("id")
+                .with_context(|| "Error getting id from row")?;
+
+            let area_name: String = row
+                .try_get("name")
+                .with_context(|| "Error getting name from row")?;
+
+            Ok((area_id.to_string(), area_name))
+        })
+        .collect::<Result<HashMap<String, String>>>()?;
+    Ok(areas_map)
+}
+
+/**
  * Returns a hash map with the list of elections (Vec<String> value) associated
  * with each area (String key).
  */

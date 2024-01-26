@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ICandidate, IContest} from "sequent-core"
-import {shuffle, splitList} from "@sequentech/ui-essentials"
+import {shuffle, splitList, ICandidate, IContest} from "@sequentech/ui-essentials"
 import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
 
 export interface ICategory {
