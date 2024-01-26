@@ -122,12 +122,19 @@ fn create_contest(
             .enumerate()
             .map(|(_i, candidate)| {
                 let mut cp = CandidatePresentation::new();
+                let mut name_i18n = None;
+                let mut description_i18n = None;
 
                 if let Some(incoming_cp) = candidate.presentation.clone() {
                     if let Some(val) =
                         incoming_cp.get("sort_order").and_then(Value::as_i64)
                     {
                         cp.sort_order = Some(val);
+                    }
+
+                    if let Some(val) = incoming_cp.get("i18n") {
+                        name_i18n = parse_i18n_field(val, "name");
+                        description_i18n = parse_i18n_field(val, "description");
                     }
                 }
 
@@ -138,9 +145,9 @@ fn create_contest(
                     election_id: contest.election_id.clone(),
                     contest_id: contest.id.clone(),
                     name: candidate.name.clone(),
-                    name_i18n: None,
+                    name_i18n,
                     description: candidate.description.clone(),
-                    description_i18n: None,
+                    description_i18n,
                     alias: None,
                     alias_i18n: None,
                     candidate_type: candidate.r#type.clone(),
