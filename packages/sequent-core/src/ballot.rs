@@ -15,7 +15,7 @@ use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
-type I18nContent = HashMap<String, String>;
+pub type I18nContent = HashMap<String, String>;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
