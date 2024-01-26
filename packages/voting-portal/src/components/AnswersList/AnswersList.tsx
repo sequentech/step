@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {CandidatesList, isUndefined} from "@sequentech/ui-essentials"
+import {CandidatesList, isUndefined, IContest} from "@sequentech/ui-essentials"
 import {IDecodedVoteContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
@@ -26,6 +26,7 @@ export interface AnswersListProps {
     isReview: boolean
     isInvalidWriteIns?: boolean
     isUniqChecked?: boolean
+    contest: IContest
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -54,6 +55,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     isReview,
     isInvalidWriteIns,
     isUniqChecked,
+    contest,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -70,7 +72,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 resetBallotSelection({
                     ballotStyle,
                     force: true,
-                    questionIndex,
+                    contestId: contest.id,
                 })
             )
         }
@@ -113,6 +115,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                     isActive={!isReview && checkableCandidates}
                     isReview={isReview}
                     isInvalidWriteIns={isInvalidWriteIns}
+                    contest={contest}
                 />
             ))}
         </CandidatesList>
