@@ -40,10 +40,12 @@ lazy_static! {
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
+    static ref GROUP_COL_NAME: String = String::from("group");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
         HASHED_PASSWORD_COL_NAME.clone(),
         SALT_COL_NAME.clone(),
         PASSWORD_COL_NAME.clone(),
+        GROUP_COL_NAME.clone(),
     ];
 }
 
@@ -288,7 +290,7 @@ impl ImportUsersBody {
 
             format!(
                 r#"
-                INSERT 
+                INSERT
                 INTO user_attribute (id, user_id, name, value)
                 {values_subquery}
                 UNION ALL
@@ -301,6 +303,41 @@ impl ImportUsersBody {
                     new_user nu
                 "#,
                 self.tenant_id,
+            )
+        } else {
+            String::new()
+        };
+
+        let group_col_name = &*GROUP_COL_NAME;
+        let group_query = if voters_table_columns.contains(group_col_name) {
+            format!(
+                r#",
+                pre_user_group AS (
+                    SELECT
+                        kg.id AS group_id,
+                        nu.id AS user_id
+                    FROM
+                        {voters_table} v
+                    JOIN
+                        new_user nu ON
+                            nu.username = v.username
+                    JOIN
+                        keycloak_group kg ON
+                            kg.name = v.{group_col_name}
+                            AND kg.realm_id = {realm_id}
+                ),
+                user_group AS (
+                    INSERT 
+                    INTO user_group_membership (
+                        group_id,
+                        user_id
+                    )
+                    SELECT
+                        pug.group_id,
+                        pug.user_id
+                    FROM pre_user_group pug
+                )
+                "#
             )
         } else {
             String::new()
@@ -360,16 +397,19 @@ impl ImportUsersBody {
             String::new()
         };
 
-        Ok(format!(
+        let ret = Ok(format!(
             r#"
             WITH 
                 new_user AS (
                     {user_entity_query}
                 )
                 {credentials_query}
+                {group_query}
             {user_attribute_query};
             "#
-        ))
+        ));
+        info!("ret = {ret:?}");
+        ret
     }
 }
 
