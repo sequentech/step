@@ -4,6 +4,7 @@
 
 use crate::hasura::election_event::get_election_event;
 use crate::postgres::area::get_areas_by_name;
+use crate::postgres::document::get_document;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::s3;
@@ -12,6 +13,7 @@ use anyhow::{anyhow, Context};
 use base64::prelude::*;
 use celery::error::TaskError;
 use csv::StringRecord;
+use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use futures::pin_mut;
 use rand::prelude::*;
@@ -19,6 +21,7 @@ use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
 use rocket::futures::SinkExt as _;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
@@ -80,13 +83,26 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
 
 impl ImportUsersBody {
     #[instrument(ret)]
-    async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<NamedTempFile> {
+    async fn get_s3_document_as_temp_file(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> anyhow::Result<NamedTempFile> {
+        let document = get_document(
+            hasura_transaction,
+            self.tenant_id.as_str(),
+            None,
+            self.document_id.as_str(),
+        )
+        .await
+        .with_context(|| "Error obtaining the document")?
+        .ok_or(anyhow!("document not found"))?;
+
         let s3_bucket = s3::get_private_bucket()?;
         let document_s3_key = s3::get_document_key(
             &self.tenant_id,
-            &"none".to_string(),
+            &Default::default(),
             &self.document_id,
-            &"import-users".to_string(),
+            &document.name.clone().unwrap_or_default(),
         );
         s3::get_object_into_temp_file(
             s3_bucket.as_str(),
@@ -431,7 +447,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     };
 
     let mut voters_file = body
-        .get_s3_document_as_temp_file()
+        .get_s3_document_as_temp_file(&hasura_transaction)
         .await
         .with_context(|| "Error obtaining voters file from S3 as temp file")?;
     voters_file.rewind()?;

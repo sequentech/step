@@ -162,12 +162,19 @@ pub async fn fetch_document(
     }
     let document = &documents[0];
 
-    let document_s3_key = s3::get_document_key(
-        &tenant_id,
-        &election_event_id,
-        &document_id,
-        &document.name.clone().unwrap_or_default(),
-    );
+    let document_s3_key = match document.is_public.unwrap_or(false) {
+        true => s3::get_public_document_key(
+            tenant_id.clone(),
+            document_id.clone(),
+            document.name.clone().unwrap_or_default().to_string(),
+        ),
+        false => s3::get_document_key(
+            &&tenant_id,
+            &election_event_id,
+            &document_id,
+            &document.name.clone().unwrap_or_default(),
+        ),
+    };
     let bucket = if document.is_public.unwrap_or(false) {
         s3::get_public_bucket()?
     } else {
