@@ -8,7 +8,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
     PageLimit,
-    BreadCrumbSteps,
     Icon,
     IconButton,
     theme,
@@ -35,6 +34,7 @@ import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import Stepper from "../components/Stepper"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -46,6 +46,8 @@ const StyledTitle = styled(Typography)`
     display: flex;
     flex-direction: row;
     gap: 16px;
+    font-size: 36px;
+    justify-content: center;
 `
 
 const ActionsContainer = styled(Box)`
@@ -218,19 +220,11 @@ const VotingScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={1}
-                />
+                <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h4">
                 <Box className="selected-election-title">
-                    {translateElection(election, "name", i18n.language) || ""}
+                    {translateElection(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
                     icon={faCircleQuestion}
@@ -250,7 +244,7 @@ const VotingScreen: React.FC = () => {
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language))}
+                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
             {ballotStyle.ballot_eml.contests.map((contest, index) => (
@@ -261,6 +255,7 @@ const VotingScreen: React.FC = () => {
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
+                    isUniqChecked={true} // TODO: make it configurable
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />

@@ -13,6 +13,7 @@ import {
 import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {
+    resetBallotSelection,
     selectBallotSelectionQuestion,
     selectBallotSelectionVoteChoice,
     setBallotSelectionInvalidVote,
@@ -37,6 +38,7 @@ export interface IAnswerProps {
     isReview: boolean
     isInvalidVote?: boolean
     isInvalidWriteIns?: boolean
+    isUniqChecked?: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -48,7 +50,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     isReview,
     isInvalidVote,
     isInvalidWriteIns,
-    index,
+    isUniqChecked,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
@@ -86,8 +88,19 @@ export const Answer: React.FC<IAnswerProps> = ({
             setInvalidVote(value)
             return
         }
+
         let cleanedText =
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
+
+        if (isUniqChecked) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
@@ -109,6 +122,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             return
         }
         let cleanedText = normalizeWriteInText(writeInText)
+
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,

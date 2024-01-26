@@ -107,7 +107,8 @@ function TreeLeaves({
                                     translateElection(resource, "alias", i18n.language) ||
                                     translateElection(resource, "name", i18n.language) ||
                                     resource.alias ||
-                                    resource.name
+                                    resource.name ||
+                                    "-"
                                 }
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
