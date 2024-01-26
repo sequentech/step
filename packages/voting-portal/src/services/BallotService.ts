@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    IBallotStyle,
     decode_auditable_ballot_js,
     to_hashable_ballot_js,
     hash_auditable_ballot_js,
@@ -12,6 +11,7 @@ import {
     IDecodedVoteContest,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {IBallotStyle} from "@sequentech/ui-essentials"
 
 export interface IBallotService {
     toHashableBallot: (auditableBallot: string) => string

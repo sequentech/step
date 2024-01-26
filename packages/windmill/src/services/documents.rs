@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura_types::Document;
@@ -12,25 +13,24 @@ use crate::services::date::ISO8601;
 use crate::services::s3;
 use crate::types::error::Result;
 
-#[instrument(skip(bytes, auth_headers), err)]
+#[instrument(skip(auth_headers), err)]
 pub async fn upload_and_return_document(
-    bytes: Vec<u8>,
+    file_path: String,
+    file_size: u64,
     media_type: String,
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
     name: String,
 ) -> Result<Document> {
-    let size = bytes.len();
-
     let new_document = hasura::document::insert_document(
         auth_headers,
         tenant_id.clone(),
         Some(election_event_id.clone()),
-        name,
+        name.clone(),
         media_type.clone(),
-        size as i64,
-        false,
+        file_size.try_into()?,
+        /* is_public */ false,
         None,
     )
     .await?;
@@ -42,17 +42,17 @@ pub async fn upload_and_return_document(
         .ok_or(anyhow!("expected document"))?
         .returning[0];
 
-    let document_id = document.id.clone();
+    let document_s3_key = s3::get_document_key(&tenant_id, &election_event_id, &document.id, &name);
 
-    let document_s3_key = s3::get_document_key(tenant_id, election_event_id, document_id);
-
-    s3::upload_to_s3(
-        &bytes,
-        document_s3_key,
-        media_type,
-        s3::get_private_bucket()?,
+    s3::upload_file_to_s3(
+        /* key */ document_s3_key,
+        /* is_public */ false,
+        /* s3_bucket */ s3::get_private_bucket()?,
+        /* media_type */ media_type,
+        /* file_path */ file_path,
     )
-    .await?;
+    .await
+    .with_context(|| "Error uploading file to s3")?;
 
     Ok(Document {
         id: document.id.clone(),
@@ -107,9 +107,10 @@ pub async fn get_upload_url(
             name.to_string(),
         ),
         false => s3::get_document_key(
-            tenant_id.to_string(),
-            Default::default(),
-            document.id.clone(),
+            &tenant_id.to_string(),
+            &Default::default(),
+            &document.id,
+            &name.to_string(),
         ),
     };
     let url = s3::get_upload_url(path.to_string(), is_public).await?;
@@ -161,7 +162,19 @@ pub async fn fetch_document(
     }
     let document = &documents[0];
 
-    let document_s3_key = s3::get_document_key(tenant_id.clone(), election_event_id, document_id);
+    let document_s3_key = match document.is_public.unwrap_or(false) {
+        true => s3::get_public_document_key(
+            tenant_id.clone(),
+            document_id.clone(),
+            document.name.clone().unwrap_or_default().to_string(),
+        ),
+        false => s3::get_document_key(
+            &&tenant_id,
+            &election_event_id,
+            &document_id,
+            &document.name.clone().unwrap_or_default(),
+        ),
+    };
     let bucket = if document.is_public.unwrap_or(false) {
         s3::get_public_bucket()?
     } else {

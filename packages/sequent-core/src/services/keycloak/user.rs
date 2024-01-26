@@ -13,24 +13,35 @@ use tracing::instrument;
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
-        match self.attributes {
-            Some(ref attributes) => {
-                let mobile_phone =
-                    attributes.get(MOBILE_PHONE_ATTR_NAME)?.clone();
-                serde_json::from_value(mobile_phone).ok()?
-            }
-            None => None,
-        }
+        self.attributes.as_ref().and_then(|attributes| {
+            let mobile_phone = attributes.get(MOBILE_PHONE_ATTR_NAME)?.clone();
+            serde_json::from_value(mobile_phone).ok()?
+        })
     }
 
     pub fn get_area_id(&self) -> Option<String> {
         Some(
             self.attributes
                 .as_ref()?
-                .get("area-id")?
+                .get(AREA_ID_ATTR_NAME)?
                 .as_str()?
                 .to_string(),
         )
+    }
+
+    pub fn get_votes_info_by_election_id(
+        &self,
+    ) -> Option<HashMap<String, VotesInfo>> {
+        self.votes_info.as_ref().and_then(|votes_info_vec| {
+            Some(
+                votes_info_vec
+                    .iter()
+                    .map(|votes_info| {
+                        (votes_info.election_id.clone(), votes_info.clone())
+                    })
+                    .collect::<HashMap<String, VotesInfo>>(),
+            )
+        })
     }
 }
 
