@@ -24,7 +24,7 @@ use rocket::futures::SinkExt as _;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
-use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
+use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Seek;
@@ -40,7 +40,8 @@ lazy_static! {
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
-    static ref GROUP_COL_NAME: String = String::from("group");
+    static ref GROUP_COL_NAME: String = String::from("group_name");
+    static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
         HASHED_PASSWORD_COL_NAME.clone(),
         SALT_COL_NAME.clone(),
@@ -140,7 +141,8 @@ impl ImportUsersBody {
      *  - last_name: string. Example: "Doe"
      *  - username: string. Example: "johndoe"
      *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
-     *  - area-name: string. Example "Area 52"
+     *  - area_name: string. Example "Area 52"
+     *  - group_name: string. Example "voter"
      *  - password: string: Example "secret-password"
      */
     #[instrument(ret)]
@@ -156,7 +158,7 @@ impl ImportUsersBody {
         let input_column_names = headers_vec
             .iter()
             .map(|column_name| match column_name.as_str() {
-                "area-name" => "area-id".to_string(),
+                column_name if column_name == *AREA_NAME_COL_NAME => AREA_ID_ATTR_NAME.to_string(),
                 _ => column_name.clone(),
             })
             .collect::<Vec<String>>();
@@ -164,8 +166,10 @@ impl ImportUsersBody {
         let processed_column_names = headers_vec
             .iter()
             .filter_map(|column_name| match column_name.as_str() {
-                "area-name" => Some("area-id".to_string()),
-                password if password == PASSWORD_COL_NAME.as_str() => None,
+                column_name if column_name == *AREA_NAME_COL_NAME => {
+                    Some(AREA_ID_ATTR_NAME.to_string())
+                }
+                column_name if column_name == *PASSWORD_COL_NAME => None,
                 _ => Some(column_name.clone()),
             })
             .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
@@ -241,11 +245,13 @@ impl ImportUsersBody {
             r#"INSERT INTO user_entity (
                     realm_id,
                     email_verified,
+                    created_timestamp,
                     {}
                 )
                 SELECT
                     '{realm_id}',
                     true,
+                    (extract(epoch from now()) * 1000)::bigint,
                     {}
                 FROM
                     {}
@@ -324,7 +330,7 @@ impl ImportUsersBody {
                     JOIN
                         keycloak_group kg ON
                             kg.name = v.{group_col_name}
-                            AND kg.realm_id = {realm_id}
+                            AND kg.realm_id = '{realm_id}'
                 ),
                 user_group AS (
                     INSERT 
@@ -397,7 +403,7 @@ impl ImportUsersBody {
             String::new()
         };
 
-        let ret = Ok(format!(
+        let ret = format!(
             r#"
             WITH 
                 new_user AS (
@@ -407,9 +413,9 @@ impl ImportUsersBody {
                 {group_query}
             {user_attribute_query};
             "#
-        ));
-        info!("ret = {ret:?}");
-        ret
+        );
+        info!("ret = {ret}");
+        Ok(ret)
     }
 }
 
@@ -564,7 +570,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         let mut hashed_password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let processed_data = match column_name.as_str() {
-                "area-id" => areas_map
+                column_name if column_name == AREA_ID_ATTR_NAME => areas_map
                     .as_ref()
                     .ok_or_else(|| anyhow!("Using area-id without providing election-event-id"))?
                     .get(data)

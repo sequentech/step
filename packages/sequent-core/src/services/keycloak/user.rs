@@ -23,7 +23,7 @@ impl User {
         Some(
             self.attributes
                 .as_ref()?
-                .get("area-id")?
+                .get(AREA_ID_ATTR_NAME)?
                 .as_str()?
                 .to_string(),
         )
