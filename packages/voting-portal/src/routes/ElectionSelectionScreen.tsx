@@ -17,6 +17,7 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IBallotStyle as IElectionDTO,
+    isUndefined,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
@@ -50,8 +51,8 @@ import {
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
-import {useBypassElectionChooser} from "../hooks/bypass-election-chooser"
 import Stepper from "../components/Stepper"
+import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -197,12 +198,13 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const dispatch = useAppDispatch()
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
 
-    const bypassElectionChooser = useBypassElectionChooser()
+    const bypassChooser = useAppSelector(selectBypassChooser())
 
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -226,7 +228,7 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     )
 
-    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
+    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
     const hasNoResults = electionIds.length === 0
 
@@ -270,6 +272,18 @@ export const ElectionSelectionScreen: React.FC = () => {
             dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
         }
     }, [castVotes, dispatch])
+
+    useEffect(() => {
+        const newBypassChooser =
+            1 === electionIds.length &&
+            !errorCastVote &&
+            !isUndefined(castVotes) &&
+            !!electionEvent &&
+            !!dataElections
+        if (newBypassChooser && !bypassChooser) {
+            dispatch(setBypassChooser(newBypassChooser))
+        }
+    }, [castVotes, electionIds, errorCastVote, castVotes, electionEvent, dataElections])
 
     return (
         <PageLimit maxWidth="lg">
@@ -318,7 +332,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                         <ElectionWrapper
                             electionId={electionId}
                             key={electionId}
-                            bypassChooser={bypassElectionChooser}
+                            bypassChooser={bypassChooser}
                         />
                     ))
                 ) : (

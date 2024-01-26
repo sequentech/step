@@ -1,9 +1,11 @@
 import React, {useEffect} from "react"
 import {BreadCrumbSteps} from "@sequentech/ui-essentials"
-import {useBypassElectionChooser} from "../hooks/bypass-election-chooser"
+import {selectBypassChooser} from "../store/extra/extraSlice"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 
 export default function Stepper({selected, warning}: {selected: number; warning?: boolean}) {
-    const bypassElectionChooser = useBypassElectionChooser()
+    const dispatch = useAppDispatch()
+    const bypassElectionChooser = useAppSelector(selectBypassChooser())
 
     const computedSelected = bypassElectionChooser ? (selected === 0 ? 0 : selected - 1) : selected
     const list = [
