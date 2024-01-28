@@ -667,7 +667,7 @@ pub(crate) fn get_configurable_contest(
         presentation: Some(ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
+            invalid_vote_policy: InvalidVotePolicy::NOT_ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_all_options: true,
