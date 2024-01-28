@@ -150,6 +150,7 @@ fn get_contest_plurality() -> Contest {
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }),
     }
 }
@@ -319,6 +320,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 show_points: false,
                 enable_checkable_lists: None,
                 candidates_order: None,
+                candidates_selection_policy: None,
             }),
         }],
     }
@@ -498,6 +500,7 @@ pub fn get_test_contest() -> Contest {
             show_points: false,
             enable_checkable_lists: None,
             candidates_order:None,
+            candidates_selection_policy: None,
         }),
     }
 }
@@ -672,6 +675,7 @@ pub(crate) fn get_configurable_contest(
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }),
     };
 
@@ -898,6 +902,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+                    candidates_selection_policy: None,
         candidates_order: None,
                 }),
             },
@@ -1040,6 +1045,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+                    candidates_selection_policy: None,
         candidates_order: None,
                 }),
             },
@@ -1172,7 +1178,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
-        candidates_order: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1296,7 +1303,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
-        candidates_order: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1420,7 +1428,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
-        candidates_order: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
                 }),
             },
             raw_ballot: RawBallotContest {

@@ -274,6 +274,28 @@ pub enum InvalidVotePolicy {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum CandidatesSelectionPolicy {
+    #[strum(serialize = "radio")]
+    #[serde(rename = "radio")]
+    RADIO, // if you select one, the previously selected one gets unselected
+    #[strum(serialize = "cumulative")]
+    #[serde(rename = "cumulative")]
+    CUMULATIVE, // default behaviour
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -295,6 +317,7 @@ pub struct ContestPresentation {
     pub show_points: bool,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
+    pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
 }
 
 impl ContestPresentation {
@@ -310,6 +333,7 @@ impl ContestPresentation {
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }
     }
 }

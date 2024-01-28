@@ -25,7 +25,7 @@ export interface AnswersListProps {
     questionIndex: number
     isReview: boolean
     isInvalidWriteIns?: boolean
-    isUniqChecked?: boolean
+    isRadioSelection?: boolean
     contest: IContest
 }
 
@@ -54,7 +54,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     questionIndex,
     isReview,
     isInvalidWriteIns,
-    isUniqChecked,
+    isRadioSelection,
     contest,
 }) => {
     const categoryAnswerId = category.header?.id || ""
@@ -67,7 +67,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const dispatch = useAppDispatch()
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) => {
-        if (isUniqChecked) {
+        if (isRadioSelection) {
             dispatch(
                 resetBallotSelection({
                     ballotStyle,

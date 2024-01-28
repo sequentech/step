@@ -1,7 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {CandidatesOrder, ICandidate, IContest} from "@sequentech/ui-essentials"
+import {
+    CandidatesOrder,
+    ICandidate,
+    IContest,
+    ECandidatesSelectionPolicy,
+} from "@sequentech/ui-essentials"
 
 export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
     answer.presentation?.urls?.find((url) => urlTitle === url.title)?.url
@@ -52,4 +57,11 @@ export const getCheckableOptions = (
         default:
             return {checkableLists: false, checkableCandidates: false}
     }
+}
+
+export const checkIsRadioSelection = (contest: IContest): boolean => {
+    return (
+        1 === contest.max_votes &&
+        ECandidatesSelectionPolicy.RADIO === contest.presentation?.candidates_selection_policy
+    )
 }

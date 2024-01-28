@@ -44,6 +44,11 @@ export enum EInvalidVotePolicy {
     NOT_ALLOWED = "not-allowed",
 }
 
+export enum ECandidatesSelectionPolicy {
+    RADIO = "radio", // if you select one, the previously selected one gets unselected
+    CUMULATIVE = "cumulative", // default behaviour
+}
+
 export interface IContestPresentation {
     allow_writeins: boolean
     base32_writeins: boolean
@@ -55,6 +60,7 @@ export interface IContestPresentation {
     show_points: boolean
     enable_checkable_lists?: string
     candidates_order?: CandidatesOrder
+    candidates_selection_policy?: ECandidatesSelectionPolicy
 }
 
 export interface IContest {
