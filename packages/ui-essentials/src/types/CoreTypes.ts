@@ -37,6 +37,13 @@ export interface IElectionStatistics {
     num_sms_sent: number
 }
 
+export enum EInvalidVotePolicy {
+    ALLOWED = "allowed",
+    WARN = "warn",
+    WARN_INVALID_IMPLICIT_AND_EXPLICIT = "warn-invalid-implicit-and-explicit",
+    NOT_ALLOWED = "not-allowed",
+}
+
 export interface IContestPresentation {
     allow_writeins: boolean
     base32_writeins: boolean

@@ -246,6 +246,34 @@ pub enum CandidatesOrder {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum InvalidVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "warn-invalid-implicit-and-explicit")]
+    #[serde(rename = "warn-invalid-implicit-and-explicit")]
+    WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -259,7 +287,7 @@ pub enum CandidatesOrder {
 pub struct ContestPresentation {
     pub allow_writeins: bool,
     pub base32_writeins: bool,
-    pub invalid_vote_policy: String, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub invalid_vote_policy: InvalidVotePolicy, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: bool,
     pub shuffle_all_options: bool,
@@ -274,7 +302,7 @@ impl ContestPresentation {
         ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: false,
             shuffle_all_options: false,
@@ -346,9 +374,9 @@ impl Contest {
             .as_ref()
             .map(|presentation| {
                 [
-                    "allowed".to_string(),
-                    "warn".to_string(),
-                    "warn-invalid-implicit-and-explicit".to_string(),
+                    InvalidVotePolicy::ALLOWED,
+                    InvalidVotePolicy::WARN,
+                    InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
                 ]
                 .contains(&presentation.invalid_vote_policy)
             })

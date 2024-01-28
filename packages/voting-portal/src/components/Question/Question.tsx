@@ -54,7 +54,6 @@ export interface IQuestionProps {
     questionIndex: number
     isReview: boolean
     setDisableNext?: (value: boolean) => void
-    isUniqChecked?: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -63,7 +62,6 @@ export const Question: React.FC<IQuestionProps> = ({
     questionIndex,
     isReview,
     setDisableNext,
-    isUniqChecked,
 }) => {
     const {i18n} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
@@ -113,6 +111,11 @@ export const Question: React.FC<IQuestionProps> = ({
         setIsInvalidWriteIns(value)
         setDisableNext?.(value)
     }
+
+    const allowInvalidMaxVotes = false
+    // when isUniqChecked is true, clicking on another option works as a radio button:
+    // it deselects the previously selected option to select the new one
+    const isUniqChecked = 1 === question.max_votes && !allowInvalidMaxVotes
 
     return (
         <Box>

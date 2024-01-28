@@ -255,7 +255,6 @@ const VotingScreen: React.FC = () => {
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
-                    isUniqChecked={true} // TODO: make it configurable
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />

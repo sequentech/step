@@ -142,7 +142,7 @@ fn get_contest_plurality() -> Contest {
         presentation: Some(ContestPresentation {
             allow_writeins: false,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_all_options: true,
@@ -311,7 +311,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             presentation: Some(ContestPresentation {
                 allow_writeins: true,
                 base32_writeins: true,
-                invalid_vote_policy: "allowed".into(),
+                invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                 cumulative_number_of_checkboxes: None,
                 shuffle_categories: true,
                 shuffle_all_options: true,
@@ -490,7 +490,7 @@ pub fn get_test_contest() -> Contest {
         presentation: Some(ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allow".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_all_options: true,
@@ -664,7 +664,7 @@ pub(crate) fn get_configurable_contest(
         presentation: Some(ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allow".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_all_options: true,
@@ -891,7 +891,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_all_options: true,
@@ -1033,7 +1033,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_all_options: true,
@@ -1165,7 +1165,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_all_options: true,
@@ -1289,7 +1289,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_all_options: true,
@@ -1413,7 +1413,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_all_options: true,
