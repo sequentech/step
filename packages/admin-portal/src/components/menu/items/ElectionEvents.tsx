@@ -7,7 +7,14 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {
+    IconButton,
+    adminTheme,
+    CandidatesOrder,
+    ICandidatePresentation,
+    IContestPresentation,
+    IElectionEventPresentation,
+} from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
@@ -22,6 +29,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
+import {cloneDeep} from "lodash"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -55,18 +63,20 @@ const ENTITY_FIELD_NAMES: Array<EntityFieldName> = [
     "candidates",
 ]
 
-type BaseType = {__typename: ResourceName; id: string; name: string}
+type BaseType = {__typename: ResourceName; id: string; name: string; alias?: string}
 
 export type CandidateType = BaseType & {
     __typename: "sequent_backend_candidate"
     election_event_id: string
     contest_id: string
+    presentation: ICandidatePresentation
 }
 
 export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
     election_event_id: string
     election_id: string
+    presentation: IContestPresentation
     candidates: Array<CandidateType>
 }
 
@@ -74,7 +84,6 @@ export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
     election_event_id: string
     image_document_id: string
-
     contests: Array<ContestType>
 }
 
@@ -82,6 +91,7 @@ export type ElectionEventType = BaseType & {
     __typename: "sequent_backend_election_event"
     is_archived: boolean
     elections: Array<ElectionType>
+    presentation: IElectionEventPresentation
 }
 
 export type DynEntityType = {
@@ -127,7 +137,7 @@ export default function ElectionEvents() {
         tenantId,
         IPermissions.ELECTION_EVENT_CREATE
     )
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
@@ -149,6 +159,34 @@ export default function ElectionEvents() {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 
+    resultData = {
+        electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+            (electionEvent: ElectionEventType) => {
+                return {
+                    ...electionEvent,
+                    elections: electionEvent.elections.map((election) => {
+                        return {
+                            ...election,
+                            contests: election.contests.map((contest) => {
+                                let orderType = contest.presentation?.candidates_order
+
+                                if (orderType === CandidatesOrder.CUSTOM) {
+                                    contest.candidates.sort(
+                                        (a, b) =>
+                                            a.presentation?.sort_order! -
+                                            b.presentation?.sort_order!
+                                    )
+                                }
+
+                                return contest
+                            }),
+                        }
+                    }),
+                }
+            }
+        ),
+    }
+
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
@@ -162,15 +200,28 @@ export default function ElectionEvents() {
 
     return (
         <>
-            <div className={cn(isElectionEventActive && "bg-green-light")}>
-                <HorizontalBox sx={{alignItems: "center"}}>
+            <div
+                className={cn(isElectionEventActive && "bg-green-light")}
+                style={{overflowX: "hidden"}}
+            >
+                <HorizontalBox
+                    sx={{
+                        alignItems: "center",
+                        paddingRight: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
+                        paddingLeft: i18n.dir(i18n.language) === "rtl" ? "32px" : 0,
+                    }}
+                >
                     <MenuItem
                         to="/sequent_backend_election_event"
                         primaryText={isOpenSidebar && t("sideMenu.electionEvents")}
                         leftIcon={<WebIcon sx={{color: adminTheme.palette.brandColor}} />}
-                        sx={{flexGrow: 2}}
+                        sx={{
+                            flexGrow: 2,
+                            paddingLeft: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
+                            paddingRight: i18n.dir(i18n.language) === "rtl" ? "16px" : 0,
+                        }}
                     />
-                    {showAddElectionEvent ? (
+                    {isOpenSidebar && showAddElectionEvent ? (
                         <Link to="/sequent_backend_election_event/create">
                             <StyledIconButton
                                 className="election-event-create-button"
@@ -180,10 +231,15 @@ export default function ElectionEvents() {
                         </Link>
                     ) : null}
                 </HorizontalBox>
+
                 {isOpenSidebar && (
                     <>
-                        <div className="flex items-center space-x-4 bg-white px-4">
+                        <div
+                            className="flex items-center space-x-4 bg-white px-4"
+                            dir={i18n.dir(i18n.language)}
+                        >
                             <TextField
+                                dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
                                 size="small"
                                 value={searchInput}
@@ -213,7 +269,6 @@ const StyledIconButton = styled(IconButton)`
     &:hover {
         padding: unset !important;
     }
-    margin-right: 16px;
     font-size: 1rem;
     line-height: 1.5rem;
 `

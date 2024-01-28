@@ -8,7 +8,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
     PageLimit,
-    BreadCrumbSteps,
     Icon,
     IconButton,
     theme,
@@ -24,9 +23,9 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
-    resetBallotSelection,
     selectBallotSelectionByElectionId,
     setBallotSelection,
+    resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -35,6 +34,7 @@ import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import Stepper from "../components/Stepper"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -46,6 +46,8 @@ const StyledTitle = styled(Typography)`
     display: flex;
     flex-direction: row;
     gap: 16px;
+    font-size: 36px;
+    justify-content: center;
 `
 
 const ActionsContainer = styled(Box)`
@@ -79,25 +81,64 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
+    const {electionId} = useParams<{electionId?: string}>()
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const dispatch = useAppDispatch()
+
+    function handleClearSelection() {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                })
+            )
+        }
+    }
 
     return (
-        <ActionsContainer>
-            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Icon icon={faAngleLeft} size="sm" />
-                    <Box>{t("votingScreen.backButton")}</Box>
-                </StyledButton>
-            </StyledLink>
+        <>
             <StyledButton
-                className="next-button"
-                sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={() => handleNext()}
-                disabled={disableNext}
+                sx={{
+                    display: {sm: "none"},
+                    width: "100%",
+                }}
+                variant="secondary"
+                onClick={() => handleClearSelection()}
             >
-                <Box>{t("votingScreen.reviewButton")}</Box>
-                <Icon icon={faAngleRight} size="sm" />
+                <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
-        </ActionsContainer>
+
+            <ActionsContainer>
+                <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box>{t("votingScreen.backButton")}</Box>
+                    </StyledButton>
+                </StyledLink>
+
+                <StyledButton
+                    sx={{
+                        display: {xs: "none", sm: "block"},
+                        width: {xs: "100%", sm: "200px"},
+                    }}
+                    variant="secondary"
+                    onClick={() => handleClearSelection()}
+                >
+                    <Box>{t("votingScreen.clearButton")}</Box>
+                </StyledButton>
+
+                <StyledButton
+                    className="next-button"
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                    onClick={() => handleNext()}
+                    disabled={disableNext}
+                >
+                    <Box>{t("votingScreen.reviewButton")}</Box>
+                    <Icon icon={faAngleRight} size="sm" />
+                </StyledButton>
+            </ActionsContainer>
+        </>
     )
 }
 
@@ -179,19 +220,11 @@ const VotingScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={1}
-                />
+                <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h4">
                 <Box className="selected-election-title">
-                    {translateElection(election, "name", i18n.language) || ""}
+                    {translateElection(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
                     icon={faCircleQuestion}
@@ -211,17 +244,18 @@ const VotingScreen: React.FC = () => {
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language))}
+                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {ballotStyle.ballot_eml.contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
-                    question={question}
+                    question={contest}
                     questionIndex={index}
                     key={index}
                     isReview={false}
-                    setDisableNext={onSetDisableNext(question.id)}
+                    setDisableNext={onSetDisableNext(contest.id)}
+                    isUniqChecked={true} // TODO: make it configurable
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />

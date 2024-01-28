@@ -12,6 +12,7 @@ pub mod compress;
 pub mod database;
 pub mod date;
 pub mod documents;
+pub mod election;
 pub mod election_event_board;
 pub mod election_event_statistics;
 pub mod election_event_status;

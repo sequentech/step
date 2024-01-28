@@ -7,6 +7,7 @@ export const getUsers = (fields: any) => {
     let electionEventId = fields.filter?.election_event_id
         ? `"${fields.filter?.election_event_id}"`
         : "null"
+    let showVotesInfo = fields.filter?.election_event_id ? "true" : "false"
     let electionId = fields.filter?.election_id ? `"${fields.filter?.election_id}"` : "null"
     let email = fields.filter?.email ? `"${fields.filter?.email}"` : "null"
     let username = fields.filter?.username ? `"${fields.filter?.username}"` : "null"
@@ -28,6 +29,7 @@ export const getUsers = (fields: any) => {
             $last_name: String = ${last_name}
             $limit: Int = ${limit}
             $offset: Int = ${offset}
+            $showVotesInfo: Boolean = ${showVotesInfo}
         ) {
             get_users(body: {
                 tenant_id: $tenant_id,
@@ -38,7 +40,8 @@ export const getUsers = (fields: any) => {
                 first_name: $first_name,
                 last_name: $last_name,
                 limit: $limit,
-                offset: $offset
+                offset: $offset,
+                show_votes_info: $showVotesInfo
             }) {
                 items {
                     id
@@ -53,6 +56,11 @@ export const getUsers = (fields: any) => {
                     area {
                         id
                         name
+                    }
+                    votes_info {
+                        election_id
+                        num_votes
+                        last_voted_at
                     }
                 }
                 total {

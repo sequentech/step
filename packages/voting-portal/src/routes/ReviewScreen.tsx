@@ -8,7 +8,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
     PageLimit,
-    BreadCrumbSteps,
     Icon,
     IconButton,
     theme,
@@ -41,6 +40,7 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import Stepper from "../components/Stepper"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -78,9 +78,10 @@ const StyledButton = styled(Button)`
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: string
+    hideAudit: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot, hideAudit}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
@@ -150,7 +151,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
             <StyledButton
-                sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                sx={{display: {xs: "none", sm: "none"}, marginBottom: "2px", width: "100%"}}
                 variant="warning"
                 onClick={() => setAuditBallotHelp(true)}
             >
@@ -177,14 +178,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                <StyledButton
-                    sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
+                {hideAudit ? null : (
+                    <StyledButton
+                        sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
+                        variant="warning"
+                        onClick={() => setAuditBallotHelp(true)}
+                    >
+                        <Icon icon={faFire} size="sm" />
+                        <Box>{t("reviewScreen.auditButton")}</Box>
+                    </StyledButton>
+                )}
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -211,6 +214,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+    const hideAudit = true
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -238,7 +242,9 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg">
-            <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            {hideAudit ? null : (
+                <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            )}
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
@@ -250,15 +256,7 @@ export const ReviewScreen: React.FC = () => {
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={2}
-                />
+                <Stepper selected={2} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
                 <Box>{t("reviewScreen.title")}</Box>
@@ -279,7 +277,9 @@ export const ReviewScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("reviewScreen.description"))}
+                {stringToHtml(
+                    t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
+                )}
             </Typography>
             {ballotStyle.ballot_eml.contests.map((question, index) => (
                 <Question
@@ -290,7 +290,11 @@ export const ReviewScreen: React.FC = () => {
                     isReview={true}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
+            <ActionButtons
+                ballotStyle={ballotStyle}
+                auditableBallot={auditableBallot}
+                hideAudit={hideAudit}
+            />
         </PageLimit>
     )
 }

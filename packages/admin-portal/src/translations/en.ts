@@ -374,6 +374,7 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Username",
                     first_name: "First Name",
                     last_name: "Last Name",
@@ -503,6 +504,12 @@ const englishTranslation = {
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "tally-sheet-create": "Create Tally Sheet",
+                "trustee-ceremony": "Trustee Ceremony",
+                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-view": "View Tally Sheet",
+                "admin-ceremony": "Admin Ceremony",
+                "tally-sheet-delete": "Delete Tally Sheet",
             },
         },
         common: {
@@ -660,7 +667,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-answers": "Random Answers",
+                "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },

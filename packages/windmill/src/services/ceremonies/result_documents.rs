@@ -9,8 +9,7 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::{compress_folder, read_file_to_bytes},
-        documents::upload_and_return_document,
+        compress::compress_folder, documents::upload_and_return_document, temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -40,11 +39,12 @@ async fn generic_save_documents(
 
     // PDF
     if let Some(pdf_path) = document_paths.pdf.clone() {
-        let bytes = read_file_to_bytes(&PathBuf::from(pdf_path))?;
+        let pdf_size = get_file_size(pdf_path.as_str())?;
 
         // upload binary data into a document (s3 and hasura)
         let document = upload_and_return_document(
-            bytes,
+            pdf_path,
+            pdf_size,
             MIME_PDF.to_string(),
             auth_headers.clone(),
             tenant_id.to_string(),
@@ -57,11 +57,12 @@ async fn generic_save_documents(
 
     // json
     if let Some(json_path) = document_paths.json.clone() {
-        let bytes = read_file_to_bytes(&PathBuf::from(json_path))?;
+        let json_size = get_file_size(json_path.as_str())?;
 
         // upload binary data into a document (s3 and hasura)
         let document = upload_and_return_document(
-            bytes,
+            json_path,
+            json_size,
             MIME_JSON.to_string(),
             auth_headers.clone(),
             tenant_id.to_string(),
@@ -74,11 +75,12 @@ async fn generic_save_documents(
 
     // HTML
     if let Some(html_path) = document_paths.html.clone() {
-        let bytes = read_file_to_bytes(&PathBuf::from(html_path))?;
+        let html_size = get_file_size(html_path.as_str())?;
 
         // upload binary data into a document (s3 and hasura)
         let document = upload_and_return_document(
-            bytes,
+            html_path,
+            html_size,
             MIME_HTML.to_string(),
             auth_headers.clone(),
             tenant_id.to_string(),
@@ -129,13 +131,14 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             let path = Path::new(&tar_gz_path);
             // compressed file with the tally
-            let data = compress_folder(path)?;
+            let (_tarfile_temp_path, tarfile_path, tarfile_size) = compress_folder(path)?;
 
             let contest = &self[0].reports[0].contest;
 
             // upload binary data into a document (s3 and hasura)
             let document = upload_and_return_document(
-                data,
+                tarfile_path.clone(),
+                tarfile_size,
                 "application/gzip".to_string(),
                 auth_headers.clone(),
                 contest.tenant_id.clone(),

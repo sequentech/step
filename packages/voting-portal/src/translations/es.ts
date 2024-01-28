@@ -18,6 +18,7 @@ const spanishTranslation: TranslationType = {
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguente",
+            clearButton: "Limpiar selección",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
                 content:
@@ -43,6 +44,8 @@ const spanishTranslation: TranslationType = {
             title: "Revisa tu voto",
             description:
                 "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar la papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+            descriptionNoAudit:
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
             backButton: "Editar tu voto",
             castBallotButton: "Enviar tu voto",
             auditButton: "Auditar papeleta",

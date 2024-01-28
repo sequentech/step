@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    BooleanInput,
     SelectInput,
     TextInput,
     useRecordContext,
     SimpleForm,
     useGetOne,
-    NumberInput,
     Toolbar,
     SaveButton,
     FormDataConsumer,
@@ -20,6 +18,8 @@ import {
     RaRecord,
     Identifier,
     RecordContext,
+    BooleanInput,
+    NumberInput,
 } from "react-admin"
 import {
     Accordion,
@@ -29,30 +29,28 @@ import {
     Tab,
     Typography,
     Grid,
+    Box,
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
-    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
 
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
-import {DropFile} from "@sequentech/ui-essentials"
-import {ICountingAlgorithm, IOrderAnswer, IVotingType} from "./constants"
+import {CandidatesOrder, DropFile} from "@sequentech/ui-essentials"
+import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
-import {DndProvider} from "react-dnd"
-import {HTML5Backend} from "react-dnd-html5-backend"
-import {CandidateRowItem} from "../../components/CandidateRowItem"
 import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
+import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 
 export type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -69,8 +67,6 @@ export const ContestDataForm: React.FC = () => {
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
-    const [candidate, setCandidate] = useState<any>(null)
-    const [candidatesList, setCandidatesList] = useState<Sequent_Backend_Candidate[] | undefined>()
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -86,22 +82,9 @@ export const ContestDataForm: React.FC = () => {
 
     const [updateImage] = useUpdate()
 
-    const {data: candidates, refetch} = useGetList("sequent_backend_candidate", {
+    const {data: candidates} = useGetList("sequent_backend_candidate", {
         filter: {contest_id: record.id},
     })
-
-    const [update] = useUpdate(
-        "sequent_backend_candidate",
-        {id: candidate?.id, data: candidate},
-        {onSuccess: () => refetch()}
-    )
-
-    useEffect(() => {
-        if (candidates) {
-            console.log("candidates :>> ", candidates)
-            setCandidatesList(candidates)
-        }
-    }, [candidates])
 
     const votingTypesChoices = () => {
         return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
@@ -118,11 +101,12 @@ export const ContestDataForm: React.FC = () => {
     }
 
     const orderAnswerChoices = () => {
-        return (Object.values(IOrderAnswer) as IOrderAnswer[]).map((value) => ({
+        return (Object.values(CandidatesOrder) as CandidatesOrder[]).map((value) => ({
             id: value,
             name: t(`contestScreen.options.${value.toLowerCase()}`),
         }))
     }
+
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
         const temp = []
@@ -142,13 +126,12 @@ export const ContestDataForm: React.FC = () => {
             const temp: Sequent_Backend_Contest_Extended = {...incoming}
 
             let languageSettings
-            // const languageSettings = buildLanguageSettings()
+
             const votingSettings = data?.voting_channels
 
             // languages
             temp.enabled_languages = {}
 
-            // if (languageSettings) {
             if (
                 incoming?.presentation?.language_conf?.enabled_language_codes &&
                 incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
@@ -190,7 +173,6 @@ export const ContestDataForm: React.FC = () => {
                 }
                 temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
             }
-            // }
 
             // set english first lang always
             if (temp.enabled_languages) {
@@ -224,36 +206,42 @@ export const ContestDataForm: React.FC = () => {
             temp.counting_algorithm =
                 temp.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
             temp.min_votes = temp.min_votes || 0
-            temp.max_votes = temp.max_votes // || 1
-            temp.winning_candidates_num = temp.winning_candidates_num // || 1
-            temp.order_answers = temp.order_answers || IOrderAnswer.ALPHABETICAL
+            // temp.max_votes = temp.max_votes // || 1
+            // temp.winning_candidates_num = temp.winning_candidates_num // || 1
+
+            temp.contest_candidates_order =
+                temp.presentation?.candidates_order || CandidatesOrder.ALPHABETICAL
+
+            let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
+            if (temp.contest_candidates_order === CandidatesOrder.CUSTOM) {
+                tempCandidates.sort(
+                    (a, b) => a.presentation?.sort_order - b.presentation?.sort_order
+                )
+            }
+            temp.candidatesOrder = tempCandidates
 
             return temp
         },
-        [data]
+        [data, candidates, buildLanguageSettings]
     )
 
-    // const parseValues = useCallback(
-    //     (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended) => {
-
-    // },
-    //     [data]
-    // )
-
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
+
         if (values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         }
+
         return errors
     }
 
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
+
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
                 tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
@@ -306,25 +294,6 @@ export const ContestDataForm: React.FC = () => {
         padding: 1rem;
     `
 
-    const moveCard = useCallback((dragIndex: number, hoverIndex: number) => {
-        console.log("dragIndex :>> ", dragIndex)
-        console.log("hoverIndex :>> ", hoverIndex)
-
-        setCandidatesList((prevState) => {
-            const newState = [...(prevState || [])]
-            newState.splice(dragIndex, 1)
-            newState.splice(hoverIndex, 0, newState[dragIndex] as any)
-            return newState
-        })
-    }, [])
-
-    useEffect(() => {
-        if (candidate) {
-            console.log("candidate UPDATE :: >> ", candidate)
-            // update()
-        }
-    }, [candidate])
-
     const handleFiles = async (files: FileList | null) => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
@@ -371,9 +340,10 @@ export const ContestDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
-                console.log("parsedValue :>> ", parsedValue)
+
                 return (
                     <SimpleForm
+                        defaultValues={{candidatesOrder: candidates ?? []}}
                         validate={formValidator}
                         record={parsedValue}
                         toolbar={
@@ -446,19 +416,21 @@ export const ContestDataForm: React.FC = () => {
                                     </ContestStyles.Title>
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
+                            {/* <AccordionDetails sx={{maxHeight: "800px", overflowY: "scroll"}}> */}
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
-                                    source="order_answers"
+                                    source="contest_candidates_order"
                                     choices={orderAnswerChoices()}
                                     validate={required()}
                                 />
+
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        return formData?.order_answers === "custom" ? (
+                                        return formData?.contest_candidates_order === "custom" ? (
                                             <CandidateRows>
                                                 <Typography
                                                     variant="body1"
@@ -472,21 +444,8 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <DndProvider backend={HTML5Backend}>
-                                                    {candidatesList?.map(
-                                                        (candidate: any, index: number) => {
-                                                            return (
-                                                                <CandidateRowItem
-                                                                    key={candidate.id}
-                                                                    index={index}
-                                                                    id={candidate.id}
-                                                                    candidate={candidate}
-                                                                    moveCard={moveCard}
-                                                                />
-                                                            )
-                                                        }
-                                                    )}
-                                                </DndProvider>
+                                                <CandidatesInput source="candidatesOrder"></CandidatesInput>
+                                                <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </CandidateRows>
                                         ) : null
                                     }}
@@ -496,11 +455,11 @@ export const ContestDataForm: React.FC = () => {
 
                         <Accordion
                             sx={{width: "100%"}}
-                            expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
+                            expanded={expanded === "contest-data-image"}
+                            onChange={() => setExpanded("contest-data-image")}
                         >
                             <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
+                                expandIcon={<ExpandMoreIcon id="contest-data-image" />}
                             >
                                 <CandidateStyles.Wrapper>
                                     <CandidateStyles.Title>

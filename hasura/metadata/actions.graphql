@@ -93,6 +93,14 @@ type Mutation {
   ): KeycloakUser!
 }
 
+type Mutation {
+  export_users (
+    tenant_id: String!
+    election_event_id: String
+    election_id: String
+  ): ExportUsersOutput
+}
+
 type Query {
   fetchDocument (
     election_event_id: String!
@@ -371,6 +379,7 @@ input GetUsersInput {
   username : String
   limit : Int
   offset : Int
+  show_votes_info : Boolean
 }
 
 input CreateKeysCeremonyInput {
@@ -605,6 +614,12 @@ type KeycloakUserArea {
   name : String
 }
 
+type VotesInfo {
+  election_id : String!
+  num_votes : Int!
+  last_voted_at : String!
+}
+
 type KeycloakUser {
   id : String
   attributes : jsonb
@@ -616,6 +631,7 @@ type KeycloakUser {
   last_name : String
   username : String
   area : KeycloakUserArea
+  votes_info : [VotesInfo!]
 }
 
 type GetUsersOutput {
@@ -669,6 +685,11 @@ type SetRolePermissionOutput {
 
 type OptionalId {
   id : String
+}
+
+type ExportUsersOutput {
+  task_id : String!
+  document_id : String!
 }
 
 type SetUserRoleOutput {

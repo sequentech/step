@@ -1,7 +1,13 @@
+use std::str::FromStr;
+
+use serde_json::Value;
+
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot;
+use crate::ballot::{
+    self, CandidatePresentation, CandidatesOrder, ContestPresentation,
+};
 use crate::types::hasura_types;
 
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
@@ -44,6 +50,7 @@ pub fn create_ballot_style(
                     .into_iter()
                     .filter(|c| c.contest_id == Some(contest.id.clone()))
                     .collect::<Vec<hasura_types::Candidate>>();
+
                 create_contest(contest, election_candidates)
             })
             .collect(),
@@ -56,6 +63,18 @@ fn create_contest(
 ) -> ballot::Contest {
     let mut sorted_candidates = candidates.clone();
     sorted_candidates.sort_by_key(|k| k.id.clone());
+
+    let mut cp = ContestPresentation::new();
+
+    if let Some(incoming_cp) = contest.presentation {
+        if let Some(val) =
+            incoming_cp.get("candidates_order").and_then(Value::as_str)
+        {
+            if let Ok(val) = CandidatesOrder::from_str(val) {
+                cp.candidates_order = Some(val)
+            }
+        }
+    }
 
     ballot::Contest {
         id: contest.id.clone(),
@@ -73,22 +92,30 @@ fn create_contest(
         candidates: sorted_candidates
             .iter()
             .enumerate()
-            .map(|(_i, candidate)| ballot::Candidate {
-                id: candidate.id.clone(),
-                tenant_id: candidate.tenant_id.clone(),
-                election_event_id: candidate.election_event_id.clone(),
-                election_id: contest.election_id.clone(),
-                contest_id: contest.id.clone(),
-                name: candidate.name.clone(),
-                description: candidate.description.clone(),
-                candidate_type: candidate.r#type.clone(),
-                presentation: candidate.presentation.clone().and_then(
-                    |presentation_js| {
-                        serde_json::from_value(presentation_js).ok()
-                    },
-                ),
+            .map(|(_i, candidate)| {
+                let mut cp = CandidatePresentation::new();
+
+                if let Some(incoming_cp) = candidate.presentation.clone() {
+                    if let Some(val) =
+                        incoming_cp.get("sort_order").and_then(Value::as_i64)
+                    {
+                        cp.sort_order = Some(val);
+                    }
+                }
+
+                ballot::Candidate {
+                    id: candidate.id.clone(),
+                    tenant_id: candidate.tenant_id.clone(),
+                    election_event_id: candidate.election_event_id.clone(),
+                    election_id: contest.election_id.clone(),
+                    contest_id: contest.id.clone(),
+                    name: candidate.name.clone(),
+                    description: candidate.description.clone(),
+                    candidate_type: candidate.r#type.clone(),
+                    presentation: Some(cp),
+                }
             })
             .collect(),
-        presentation: None,
+        presentation: Some(cp),
     }
 }

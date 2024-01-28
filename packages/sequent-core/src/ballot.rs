@@ -11,8 +11,7 @@ use std::default::Default;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
-use strum_macros::Display;
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -142,6 +141,25 @@ pub struct CandidatePresentation {
     pub urls: Option<Vec<CandidateUrl>>,
 }
 
+impl CandidatePresentation {
+    pub fn new() -> CandidatePresentation {
+        CandidatePresentation {
+            is_explicit_invalid: false,
+            is_category_list: false,
+            invalid_vote_position: None,
+            is_write_in: false,
+            sort_order: None,
+            urls: None,
+        }
+    }
+}
+
+impl Default for CandidatePresentation {
+    fn default() -> Self {
+        CandidatePresentation::new()
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -203,6 +221,31 @@ impl Candidate {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum CandidatesOrder {
+    #[strum(serialize = "random")]
+    #[serde(rename = "random")]
+    Random,
+    #[strum(serialize = "custom")]
+    #[serde(rename = "custom")]
+    Custom,
+    #[strum(serialize = "alphabetical")]
+    #[serde(rename = "alphabetical")]
+    Alphabetical,
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -223,6 +266,7 @@ pub struct ContestPresentation {
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
+    pub candidates_order: Option<CandidatesOrder>,
 }
 
 impl ContestPresentation {
@@ -232,12 +276,19 @@ impl ContestPresentation {
             base32_writeins: true,
             invalid_vote_policy: "allowed".into(),
             cumulative_number_of_checkboxes: None,
-            shuffle_categories: true,
-            shuffle_all_options: true,
+            shuffle_categories: false,
+            shuffle_all_options: false,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }
+    }
+}
+
+impl Default for ContestPresentation {
+    fn default() -> Self {
+        ContestPresentation::new()
     }
 }
 

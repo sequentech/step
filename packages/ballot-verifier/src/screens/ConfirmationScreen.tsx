@@ -11,7 +11,7 @@ import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {IDecodedVoteContest, IContest} from "sequent-core"
+import {IDecodedVoteContest} from "sequent-core"
 import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
@@ -29,9 +29,10 @@ import {
     Dialog,
     theme,
     translate,
+    ICandidate,
+    IContest,
 } from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
-import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 

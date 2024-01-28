@@ -37,6 +37,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }),
     }
 }
@@ -81,6 +82,7 @@ pub fn get_contest_min_max_votes(
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }),
     }
 }

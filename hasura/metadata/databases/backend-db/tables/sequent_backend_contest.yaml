@@ -32,9 +32,9 @@ insert_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id
@@ -60,9 +60,9 @@ insert_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id
@@ -89,9 +89,9 @@ select_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id
@@ -118,9 +118,9 @@ select_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id
@@ -146,9 +146,9 @@ select_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id
@@ -178,9 +178,9 @@ update_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id
@@ -207,9 +207,9 @@ update_permissions:
     - labels
     - presentation
     - tally_configuration
+    - alias
     - description
     - image_document_id
-    - order_answers
     - created_at
     - last_updated_at
     - election_event_id

@@ -8,7 +8,6 @@ import MenuItem from "@mui/material/MenuItem"
 import {useTranslation} from "react-i18next"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
-import {getLanguages} from "../../services/i18n"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 
@@ -25,22 +24,25 @@ const StyledButton = styled(Button)<ButtonProps>(
 `
 )
 
-const LanguageMenu: React.FC = () => {
+const LanguageMenu: React.FC<{languagesList?: Array<string>; label?: string}> = ({
+    languagesList = ["en"],
+}) => {
     const {t, i18n} = useTranslation()
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
+
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget)
     }
+
     const handleClose = () => {
         setAnchorEl(null)
     }
+
     const changeLanguage = async (lang: string) => {
         handleClose()
         await i18n.changeLanguage(lang)
     }
-
-    const languagesList = getLanguages(i18n)
 
     return (
         <Box>

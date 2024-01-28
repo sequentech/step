@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
+use tracing::{event, instrument, Level};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -29,13 +30,20 @@ pub struct JwtHasuraClaims {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum StringOrVec {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
     pub exp: i64,
     pub iat: i64,
     pub auth_time: i64,
     pub jti: String,
     pub iss: String,
-    pub aud: String,
+    pub aud: StringOrVec,
     pub sub: String,
     pub typ: String,
     pub azp: String,
@@ -60,9 +68,15 @@ pub struct JwtClaims {
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
-    let bytes = general_purpose::STANDARD_NO_PAD.decode(part)?;
-    let json = String::from_utf8(bytes)?;
-    let claims: JwtClaims = serde_json::from_str(&json)?;
+    let bytes = general_purpose::STANDARD_NO_PAD
+        .decode(part)
+        .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
+    let json = String::from_utf8(bytes)
+        .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
+
+    let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
+        anyhow!("Error decoding string into formatted json: {:?}", err)
+    })?;
     Ok(claims)
 }
 

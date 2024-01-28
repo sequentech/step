@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useContext} from "react"
-import {Outlet, useLocation, useParams} from "react-router-dom"
+import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, IElectionEventPresentation, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -14,15 +14,26 @@ import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
+import {GET_ELECTION_EVENT} from "./queries/GetElectionEvent"
+import {useQuery} from "@apollo/client"
+import {GetElectionEventQuery} from "./gql/graphql"
+import {useAppSelector} from "./store/hooks"
+import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
-//
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
+    const {eventId} = useParams<TenantEventType>()
+
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+
+    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+
+    let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
 
     return (
         <Header
@@ -32,7 +43,9 @@ const HeaderWithContext: React.FC = () => {
                 email: authContext.email,
                 openLink: authContext.openProfileLink,
             }}
+            languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
+            logoUrl="https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"
         />
     )
 }
@@ -69,13 +82,14 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     return (
-        <StyledApp>
-            {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-            <PageBanner marginBottom="auto">
-                <ApolloWrapper>
+        <StyledApp className="app-root">
+            <ScrollRestoration />
+            <ApolloWrapper>
+                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                <PageBanner marginBottom="auto">
                     <Outlet />
-                </ApolloWrapper>
-            </PageBanner>
+                </PageBanner>
+            </ApolloWrapper>
             <Footer />
         </StyledApp>
     )

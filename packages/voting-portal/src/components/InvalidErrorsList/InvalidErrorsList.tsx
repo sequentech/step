@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {WarnBox} from "@sequentech/ui-essentials"
-import {IContest} from "sequent-core"
+import {WarnBox, IContest} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"

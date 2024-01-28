@@ -5186,9 +5186,9 @@ dependencies = [
 
 [[package]]
 name = "rug"
-version = "1.22.0"
+version = "1.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a118f8296241f6952511e8f9ab5b8a759c0d9ed902159b0aeed82d902e84ca6"
+checksum = "eaf1855d294a2bd8f38c5a3a6dc456144aeaf15827beeb880300296923100d49"
 dependencies = [
  "az",
  "gmp-mpfr-sys",
@@ -7380,11 +7380,13 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "reqwest",
+ "ring 0.17.7",
  "rocket",
  "rust-s3",
  "sequent-core",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "strand",
  "structopt",
  "strum 0.25.0",
