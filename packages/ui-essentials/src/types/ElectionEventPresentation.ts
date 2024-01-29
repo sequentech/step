@@ -13,5 +13,7 @@ export interface IElectionEventLanguageConf {
 export interface IElectionEventPresentation {
     i18n?: Record<string, string>
     materials?: IElectionEventMaterials
-    language_conf: IElectionEventLanguageConf
+    language_conf?: IElectionEventLanguageConf
+    logo_url?: string
+    redirect_finish_url?: string
 }

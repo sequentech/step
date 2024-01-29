@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useEffect} from "react"
+import React, {useState, useEffect, useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -12,6 +12,7 @@ import {
     theme,
     QRCode,
     Dialog,
+    IElectionEventPresentation,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -27,6 +28,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import Stepper from "../components/Stepper"
+import {AuthContext} from "../providers/AuthContextProvider"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -106,17 +109,17 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
+    const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
 
-    const onClickToScreen = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-    }
+    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
     useEffect(() => {
         if (ballotStyle) {
@@ -129,6 +132,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         }
     }, [ballotStyle, dispatch])
 
+    const onClickToScreen = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+    }
+
+    const onClickRedirect = () => {
+        logout(presentation?.redirect_finish_url)
+    }
+
     return (
         <ActionsContainer>
             <StyledButton
@@ -140,11 +151,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
             {!canVote ? (
-                <ActionLink
-                    href="https://google.com"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    <StyledButton className="finish-button" sx={{width: {xs: "100%", sm: "200px"}}}>
+                <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton
+                        onClick={onClickRedirect}
+                        className="finish-button"
+                        sx={{width: {xs: "100%", sm: "200px"}}}
+                    >
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
                 </ActionLink>

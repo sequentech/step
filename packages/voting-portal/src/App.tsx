@@ -45,7 +45,7 @@ const HeaderWithContext: React.FC = () => {
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-            logoUrl="https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"
+            logoUrl={presentation?.logo_url}
         />
     )
 }
