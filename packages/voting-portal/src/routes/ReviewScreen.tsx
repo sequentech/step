@@ -41,6 +41,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
+import {cloneDeep} from "lodash"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -244,6 +245,15 @@ export const ReviewScreen: React.FC = () => {
         return <CircularProgress />
     }
 
+    const contests = cloneDeep(ballotStyle.ballot_eml.contests)
+
+    contests.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
+
+        return dateA.getTime() - dateB.getTime()
+    })
+
     return (
         <PageLimit maxWidth="lg">
             {hideAudit ? null : (
@@ -285,7 +295,7 @@ export const ReviewScreen: React.FC = () => {
                     t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
                 )}
             </Typography>
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {contests.map((question, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={question}
