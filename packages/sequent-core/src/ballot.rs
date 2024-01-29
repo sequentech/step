@@ -318,6 +318,7 @@ pub struct Contest {
     pub is_encrypted: bool,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
+    pub created_at: Option<String>,
 }
 
 impl Contest {

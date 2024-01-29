@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
+import {cloneDeep} from "lodash"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -35,6 +36,7 @@ import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
+import {sortContestByCreationDate} from "../lib/utils"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -217,6 +219,8 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
+    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
+
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
@@ -247,7 +251,7 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((contest, index) => (
+            {contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
