@@ -4,6 +4,7 @@
 
 use crate::hasura::election_event::get_election_event;
 use crate::postgres::area::get_areas_by_name;
+use crate::postgres::document::get_document;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::s3;
@@ -12,6 +13,7 @@ use anyhow::{anyhow, Context};
 use base64::prelude::*;
 use celery::error::TaskError;
 use csv::StringRecord;
+use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use futures::pin_mut;
 use rand::prelude::*;
@@ -19,13 +21,15 @@ use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
 use rocket::futures::SinkExt as _;
+use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
-use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
+use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Seek;
 use std::num::NonZeroU32;
+use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument};
@@ -36,10 +40,13 @@ lazy_static! {
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
     static ref PASSWORD_COL_NAME: String = String::from("password");
+    static ref GROUP_COL_NAME: String = String::from("group_name");
+    static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
         HASHED_PASSWORD_COL_NAME.clone(),
         SALT_COL_NAME.clone(),
         PASSWORD_COL_NAME.clone(),
+        GROUP_COL_NAME.clone(),
     ];
 }
 
@@ -78,15 +85,35 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
 }
 
 impl ImportUsersBody {
-    #[instrument(err)]
-    async fn get_s3_document_as_temp_file(&self) -> anyhow::Result<File> {
+    #[instrument(ret)]
+    async fn get_s3_document_as_temp_file(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> anyhow::Result<NamedTempFile> {
+        let document = get_document(
+            hasura_transaction,
+            self.tenant_id.as_str(),
+            None,
+            self.document_id.as_str(),
+        )
+        .await
+        .with_context(|| "Error obtaining the document")?
+        .ok_or(anyhow!("document not found"))?;
+
         let s3_bucket = s3::get_private_bucket()?;
         let document_s3_key = s3::get_document_key(
-            self.tenant_id.clone(),
-            Default::default(),
-            self.document_id.clone(),
+            &self.tenant_id,
+            &Default::default(),
+            &self.document_id,
+            &document.name.clone().unwrap_or_default(),
         );
-        s3::get_object_into_temp_file(s3_bucket, document_s3_key).await
+        s3::get_object_into_temp_file(
+            s3_bucket.as_str(),
+            document_s3_key.as_str(),
+            "import-users-",
+            ".tsv",
+        )
+        .await
     }
 
     /*
@@ -114,7 +141,8 @@ impl ImportUsersBody {
      *  - last_name: string. Example: "Doe"
      *  - username: string. Example: "johndoe"
      *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
-     *  - area-name: string. Example "Area 52"
+     *  - area_name: string. Example "Area 52"
+     *  - group_name: string. Example "voter"
      *  - password: string: Example "secret-password"
      */
     #[instrument(ret)]
@@ -130,7 +158,7 @@ impl ImportUsersBody {
         let input_column_names = headers_vec
             .iter()
             .map(|column_name| match column_name.as_str() {
-                "area-name" => "area-id".to_string(),
+                column_name if column_name == *AREA_NAME_COL_NAME => AREA_ID_ATTR_NAME.to_string(),
                 _ => column_name.clone(),
             })
             .collect::<Vec<String>>();
@@ -138,8 +166,10 @@ impl ImportUsersBody {
         let processed_column_names = headers_vec
             .iter()
             .filter_map(|column_name| match column_name.as_str() {
-                "area-name" => Some("area-id".to_string()),
-                password if password == PASSWORD_COL_NAME.as_str() => None,
+                column_name if column_name == *AREA_NAME_COL_NAME => {
+                    Some(AREA_ID_ATTR_NAME.to_string())
+                }
+                column_name if column_name == *PASSWORD_COL_NAME => None,
                 _ => Some(column_name.clone()),
             })
             .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
@@ -215,11 +245,13 @@ impl ImportUsersBody {
             r#"INSERT INTO user_entity (
                     realm_id,
                     email_verified,
+                    created_timestamp,
                     {}
                 )
                 SELECT
                     '{realm_id}',
                     true,
+                    (extract(epoch from now()) * 1000)::bigint,
                     {}
                 FROM
                     {}
@@ -264,7 +296,7 @@ impl ImportUsersBody {
 
             format!(
                 r#"
-                INSERT 
+                INSERT
                 INTO user_attribute (id, user_id, name, value)
                 {values_subquery}
                 UNION ALL
@@ -277,6 +309,41 @@ impl ImportUsersBody {
                     new_user nu
                 "#,
                 self.tenant_id,
+            )
+        } else {
+            String::new()
+        };
+
+        let group_col_name = &*GROUP_COL_NAME;
+        let group_query = if voters_table_columns.contains(group_col_name) {
+            format!(
+                r#",
+                pre_user_group AS (
+                    SELECT
+                        kg.id AS group_id,
+                        nu.id AS user_id
+                    FROM
+                        {voters_table} v
+                    JOIN
+                        new_user nu ON
+                            nu.username = v.username
+                    JOIN
+                        keycloak_group kg ON
+                            kg.name = v.{group_col_name}
+                            AND kg.realm_id = '{realm_id}'
+                ),
+                user_group AS (
+                    INSERT 
+                    INTO user_group_membership (
+                        group_id,
+                        user_id
+                    )
+                    SELECT
+                        pug.group_id,
+                        pug.user_id
+                    FROM pre_user_group pug
+                )
+                "#
             )
         } else {
             String::new()
@@ -336,16 +403,19 @@ impl ImportUsersBody {
             String::new()
         };
 
-        Ok(format!(
+        let ret = format!(
             r#"
             WITH 
                 new_user AS (
                     {user_entity_query}
                 )
                 {credentials_query}
+                {group_query}
             {user_attribute_query};
             "#
-        ))
+        );
+        info!("ret = {ret}");
+        Ok(ret)
     }
 }
 
@@ -423,7 +493,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
     };
 
     let mut voters_file = body
-        .get_s3_document_as_temp_file()
+        .get_s3_document_as_temp_file(&hasura_transaction)
         .await
         .with_context(|| "Error obtaining voters file from S3 as temp file")?;
     voters_file.rewind()?;
@@ -500,7 +570,7 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         let mut hashed_password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let processed_data = match column_name.as_str() {
-                "area-id" => areas_map
+                column_name if column_name == AREA_ID_ATTR_NAME => areas_map
                     .as_ref()
                     .ok_or_else(|| anyhow!("Using area-id without providing election-event-id"))?
                     .get(data)

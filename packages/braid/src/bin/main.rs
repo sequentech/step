@@ -132,8 +132,8 @@ async fn main() -> Result<()> {
 
             let session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
-            let session_result = session.step().await;
-            match session_result {
+            let (session, result) = session.step().await;
+            match result {
                 Ok(_) => (),
                 Err(error) => {
                     // FIXME should handle a bulletin board refusing messages maliciously

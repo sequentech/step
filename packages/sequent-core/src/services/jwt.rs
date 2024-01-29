@@ -23,6 +23,8 @@ pub struct JwtHasuraClaims {
     pub tenant_id: String,
     #[serde(rename = "x-hasura-user-id")]
     pub user_id: String,
+    #[serde(rename = "x-hasura-area-id")]
+    pub area_id: Option<String>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
 }
@@ -65,13 +67,13 @@ pub struct JwtClaims {
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
+    let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
     let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(parts[1])
+        .decode(part)
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
 
-    event!(Level::INFO, "json: {:?}", json);
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
         anyhow!("Error decoding string into formatted json: {:?}", err)
     })?;

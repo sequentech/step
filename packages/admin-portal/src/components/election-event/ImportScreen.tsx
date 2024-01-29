@@ -65,7 +65,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
                         headers: {
-                            "Content-Type": "text/csv",
+                            "Content-Type": theFile.type,
                         },
                         body: theFile,
                     })

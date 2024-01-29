@@ -9,8 +9,9 @@ import {
     isUndefined,
     normalizeWriteInText,
     translate,
+    ICandidate,
+    IContest,
 } from "@sequentech/ui-essentials"
-import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {
     resetBallotSelection,
@@ -39,6 +40,7 @@ export interface IAnswerProps {
     isInvalidVote?: boolean
     isInvalidWriteIns?: boolean
     isUniqChecked?: boolean
+    contest: IContest
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -51,6 +53,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     isInvalidVote,
     isInvalidWriteIns,
     isUniqChecked,
+    contest,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
@@ -97,6 +100,7 @@ export const Answer: React.FC<IAnswerProps> = ({
                 resetBallotSelection({
                     ballotStyle,
                     force: true,
+                    contestId: contest.id,
                 })
             )
         }
