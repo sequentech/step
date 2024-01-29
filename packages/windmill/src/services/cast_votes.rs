@@ -78,7 +78,8 @@ pub async fn find_area_ballots(
                         content,
                         cast_ballot_signature,
                         voter_id_string,
-                        election_event_id
+                        election_event_id,
+                        ballot_id
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = $1 AND
