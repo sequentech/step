@@ -36,6 +36,7 @@ import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
+import {sortContestByCreationDate} from "../lib/utils"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -218,14 +219,7 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = cloneDeep(ballotStyle.ballot_eml.contests)
-
-    contests.sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
-        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
-
-        return dateA.getTime() - dateB.getTime()
-    })
+    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
         <PageLimit maxWidth="lg">

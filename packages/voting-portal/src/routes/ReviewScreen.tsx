@@ -42,6 +42,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {cloneDeep} from "lodash"
+import {sortContestByCreationDate} from "../lib/utils"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -244,15 +245,8 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return <CircularProgress />
     }
-
-    const contests = cloneDeep(ballotStyle.ballot_eml.contests)
-
-    contests.sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
-        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
-
-        return dateA.getTime() - dateB.getTime()
-    })
+  
+    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
         <PageLimit maxWidth="lg">
