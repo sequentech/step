@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export enum EElectionScreenStep {
-    START = "start-screen",
+    START = "start",
     VOTING = "voting",
     REVIEW = "review",
     SUCCESS = "success",

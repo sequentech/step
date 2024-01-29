@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    IBallotStyle,
+    selectBallotStyleByElectionId,
+    selectScreenBackgroundImage,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -16,6 +20,7 @@ import {
     Dialog,
     EVotingStatus,
     IElectionEventStatus,
+    EElectionScreenStep,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -41,6 +46,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
+import {BackgroundImage} from "../components/BackgroundImage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -209,6 +215,9 @@ export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const backgroundImg = useAppSelector(
+        selectScreenBackgroundImage(String(electionId), EElectionScreenStep.REVIEW)
+    )
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
@@ -245,7 +254,10 @@ export const ReviewScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="review-screen screen">
+            {backgroundImg ? (
+                <BackgroundImage className="background-img" imgurl={backgroundImg} />
+            ) : null}
             {hideAudit ? null : (
                 <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}

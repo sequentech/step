@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectScreenBackgroundImage,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -15,6 +18,7 @@ import {
     isUndefined,
     Dialog,
     translateElection,
+    EElectionScreenStep,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -35,6 +39,7 @@ import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
+import {BackgroundImage} from "../components/BackgroundImage"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -153,6 +158,9 @@ const VotingScreen: React.FC = () => {
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const backgroundImg = useAppSelector(
+        selectScreenBackgroundImage(String(electionId), EElectionScreenStep.VOTING)
+    )
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
@@ -218,7 +226,10 @@ const VotingScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="voting-screen screen">
+            {backgroundImg ? (
+                <BackgroundImage className="background-img" imgurl={backgroundImg} />
+            ) : null}
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>

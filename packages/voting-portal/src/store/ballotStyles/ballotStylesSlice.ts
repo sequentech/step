@@ -4,6 +4,7 @@
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-essentials"
+import {EElectionScreenStep} from "@sequentech/ui-essentials/dist/types/ElectionPresentation"
 
 export interface IBallotStyle {
     id: string
@@ -57,5 +58,14 @@ export const selectBallotStyleByElectionId = (electionId: string) => (state: Roo
     state.ballotStyles[electionId]
 
 export const selectBallotStyleElectionIds = (state: RootState) => Object.keys(state.ballotStyles)
+
+export const selectScreenBackgroundImage =
+    (electionId: string, step: EElectionScreenStep) =>
+    (state: RootState): string | undefined => {
+        let ballotStyle = state.ballotStyles[electionId]
+        return ballotStyle?.ballot_eml.election_presentation?.screens_background?.find(
+            (background) => step === background.step
+        )?.image_url
+    }
 
 export default ballotStylesSlice.reducer

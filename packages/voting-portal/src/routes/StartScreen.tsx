@@ -14,6 +14,9 @@ import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
+import {selectScreenBackgroundImage} from "../store/ballotStyles/ballotStylesSlice"
+import {BackgroundImage} from "../components/BackgroundImage"
+import {EElectionScreenStep} from "@sequentech/ui-essentials"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -78,6 +81,9 @@ export const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
+    const backgroundImg = useAppSelector(
+        selectScreenBackgroundImage(String(electionId), EElectionScreenStep.START)
+    )
     const backLink = useRootBackLink()
     const navigate = useNavigate()
 
@@ -92,7 +98,10 @@ export const StartScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="start-screen">
+        <PageLimit maxWidth="lg" className="start-screen screen">
+            {backgroundImg ? (
+                <BackgroundImage className="background-img" imgurl={backgroundImg} />
+            ) : null}
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>

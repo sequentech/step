@@ -15,9 +15,7 @@ code {
     monospace;
 }
 
-.app-root:has(div > .start-screen) {
-  background-image: linear-gradient(1deg, #ffffff, transparent),url('https://www.alliedpilots.org/-/media/AlliedPilots/BackgroundBanners/13.jpg')!important;
-
+.app-root:has(div > .screen > .background-img) {
   .header-class, .footer-class {
     background-color: unset;
   }

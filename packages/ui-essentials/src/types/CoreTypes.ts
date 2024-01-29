@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IElectionPresentation} from "./ElectionPresentation"
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
@@ -112,6 +113,7 @@ export interface IBallotStyle {
     tenant_id: string
     election_event_id: string
     election_id: string
+    election_presentation?: IElectionPresentation
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string
