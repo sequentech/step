@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
+import {cloneDeep} from "lodash"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -217,6 +218,15 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
+    const contests = cloneDeep(ballotStyle.ballot_eml.contests)
+
+    contests.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
+
+        return dateA.getTime() - dateB.getTime()
+    })
+
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
@@ -247,7 +257,7 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((contest, index) => (
+            {contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
