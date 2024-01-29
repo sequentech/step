@@ -30,7 +30,10 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 impl Client {
     #[instrument(skip(password))]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<Client> {
-        let client = ImmuServiceClient::connect(String::from(server_url)).await?;
+        let mut client = ImmuServiceClient::connect(String::from(server_url)).await?;
+        client = client.max_encoding_message_size(134217728);
+        client = client.max_decoding_message_size(134217728);
+
         Ok(Client {
             client: client,
             username: username.to_string(),
@@ -136,7 +139,7 @@ impl Client {
     }
 
     /// Commits a transaction, returning the transaction results
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn commit(&mut self, transaction_id: &String) -> Result<CommittedSqlTx> {
         let mut commit_request = self.get_request(())?;
         let tx_id: MetadataValue<_> = transaction_id.parse()?;
@@ -146,8 +149,8 @@ impl Client {
         Ok(commit_response.get_ref().clone())
     }
 
-    /// Rollsback a transaction
-    #[instrument]
+    /// Rolls back a transaction
+    #[instrument(skip(self))]
     pub async fn rollback(&mut self, transaction_id: &String) -> Result<()> {
         let mut rollback_request = self.get_request(())?;
         let tx_id: MetadataValue<_> = transaction_id.parse()?;

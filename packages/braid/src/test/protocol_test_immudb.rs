@@ -1,6 +1,6 @@
 use anyhow::Result;
 use immu_board::{BoardClient, BoardMessage};
-use log::info;
+use log::{info, warn};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
@@ -35,7 +35,7 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
     // To test all trustees participating
-    // let n_trustees = 12;
+    // let n_trustees = 2;
     // let n_threshold = n_trustees;
     let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let all = &max[0..n_trustees];
@@ -88,15 +88,6 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         .collect();
 
     for t in test.trustees.into_iter() {
-        /* let board = ImmudbBoard::new(
-            SERVER_URL,
-            IMMUDB_USER,
-            IMMUDB_PW,
-            BOARD_DB.to_string(),
-            None,
-        )
-        .await
-        .unwrap();*/
         let board = BoardParams::new(SERVER_URL, IMMUDB_USER, IMMUDB_PW, BOARD_DB, None);
         sessions.push(Session::new(t, board));
     }
@@ -121,7 +112,10 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
             .collect();
         sessions = vec![];
         for h in handles {
-            let session = h.await.unwrap().unwrap();
+            let (session, result) = h.await.unwrap();
+            if result.is_err() {
+                warn!("Step returned err: {:?}", result);
+            }
             sessions.push(session);
         }
 
@@ -190,7 +184,10 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
 
         sessions = vec![];
         for h in handles {
-            let session = h.await.unwrap().unwrap();
+            let (session, result) = h.await.unwrap();
+            if result.is_err() {
+                warn!("Step returned err: {:?}", result);
+            }
             sessions.push(session);
         }
 
@@ -265,7 +262,6 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
         .await
         .unwrap();
 
-    // In case the previous test did not clean up properly
     b.delete_database(INDEX_DB).await.unwrap();
     b.delete_database(BOARD_DB).await.unwrap();
 

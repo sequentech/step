@@ -131,18 +131,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
-                    id: uuidv4(),
-                    ballotId,
                     electionId: ballotStyle.election_id,
-                    electionEventId: ballotStyle.election_event_id,
-                    tenantId: ballotStyle.tenant_id,
-                    areaId: ballotStyle.area_id,
+                    ballotId,
                     content: hashableBallot,
                 },
             })
-            let newCastVote = result.data?.insert_sequent_backend_cast_vote?.returning
+            let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
-                dispatch(addCastVotes(newCastVote))
+                dispatch(addCastVotes([newCastVote]))
             }
 
             return submit(null, {method: "post"})

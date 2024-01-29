@@ -3,12 +3,31 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::keycloak::UserArea;
+use sequent_core::types::{hasura_types::Area, keycloak::UserArea};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+pub struct AreaWrapper(pub Area);
+
+impl TryFrom<Row> for AreaWrapper {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(AreaWrapper(Area {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            created_at: item.get("created_at"),
+            last_updated_at: item.get("last_updated_at"),
+            labels: item.try_get("labels")?,
+            annotations: item.try_get("annotations")?,
+            name: item.try_get("name")?,
+            description: item.try_get("description")?,
+            r#type: item.try_get("type")?,
+        }))
+    }
+}
 /**
  * Returns a vector of areas per election event, with the posibility of
  * filtering by area_id
@@ -230,4 +249,52 @@ pub async fn get_elections_by_area(
     }
 
     Ok(areas_to_elections)
+}
+
+/**
+ * Returns a vector of areas per election event, with the posibility of
+ * filtering by area_id
+ */
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_area_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    area_id: &str,
+) -> Result<Option<Area>> {
+    let total_areas_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                id,
+                tenant_id,
+                election_event_id,
+                created_at,
+                last_updated_at,
+                labels,
+                annotations,
+                name,
+                description,
+                type
+            FROM
+                sequent_backend.area
+            WHERE
+                tenant_id = $1 AND
+                id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &total_areas_statement,
+            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(area_id)?],
+        )
+        .await?;
+
+    let areas: Vec<Area> = rows
+        .into_iter()
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
+        .collect::<Result<Vec<Area>>>()?;
+
+    Ok(areas.get(0).map(|area| area.clone()))
 }
