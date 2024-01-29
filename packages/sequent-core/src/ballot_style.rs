@@ -21,12 +21,7 @@ pub fn create_ballot_style(
     candidates: Vec<hasura_types::Candidate>,    // Candidate
 ) -> ballot::BallotStyle {
     let mut sorted_contests = contests.clone();
-    sorted_contests.sort_by(|a, b| match (&a.created_at, &b.created_at) {
-        (Some(a_date), Some(b_date)) => a_date.cmp(b_date),
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, None) => std::cmp::Ordering::Equal,
-    });
+    sorted_contests.sort_by_key(|k| k.id.clone());
 
     ballot::BallotStyle {
         id,
