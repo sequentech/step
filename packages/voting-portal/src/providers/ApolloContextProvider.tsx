@@ -13,14 +13,9 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
     const {keycloakAccessToken, isAuthContextInitialized} = useContext(AuthContext)
     const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
-    const [initClient, setInitClient] = useState<boolean>(false)
 
     useEffect(() => {
         if (!isAuthContextInitialized) {
-            return
-        }
-
-        if (initClient) {
             return
         }
 
@@ -49,8 +44,7 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
         })
 
         setClient(apolloClient)
-        setInitClient(true)
-    }, [initClient, isAuthContextInitialized, keycloakAccessToken, globalSettings.HASURA_URL])
+    }, [isAuthContextInitialized, keycloakAccessToken, globalSettings.HASURA_URL])
 
     return client === null ? (
         <Box sx={{marginTop: "25px"}}>
