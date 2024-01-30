@@ -6,8 +6,12 @@ import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
 import {
     Sequent_Backend_Area_Contest,
+    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Results_Area_Contest,
+    Sequent_Backend_Results_Area_Contest_Candidate,
+    Sequent_Backend_Results_Contest,
+    Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
 import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
@@ -16,9 +20,17 @@ import {TallyResultsCandidates} from "./TallyResultsCandidates"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
+import {Sequent_Backend_Candidate_Extended} from "./types"
+import {useAtom} from "jotai"
+import tallyCandidates, {
+    tallyAreas,
+    tallyCandidatesList,
+    tallyGlobalAreas,
+    tallySelectedTab,
+} from "@/atoms/tally-candidates"
 
 interface TallyResultsContestAreasProps {
-    areas: RaRecord<Identifier>[] | undefined
+    areas?: RaRecord<Identifier>[] | undefined
     contestId: string | null
     electionId: string | null
     electionEventId: string | null
@@ -27,14 +39,13 @@ interface TallyResultsContestAreasProps {
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {areas, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = reactI18next.useTranslation()
-
-    const [value, setValue] = React.useState<number | null>(null)
-    const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
-    const [areaContestId, setAreaContestId] = useState<string | null>()
-    const [selectedArea, setSelectedArea] = useState<string | null>()
     const {globalSettings} = useContext(SettingsContext)
+
+    // const [value, setValue] = React.useState<number | null>(0)
+    const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
+    const [selectedArea, setSelectedArea] = useState<string | null>()
 
     const {data: resultsContests} = useGetList<Sequent_Backend_Results_Area_Contest>(
         "sequent_backend_results_area_contest",
@@ -50,22 +61,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             },
         },
         {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: contestAreas} = useGetList<Sequent_Backend_Area_Contest>(
-        "sequent_backend_area_contest",
-        {
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                contest_id: contestId,
-            },
-        },
-        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -85,45 +81,138 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         }
     )
 
-    useEffect(() => {
-        tabGlobalClicked()
-    }, [])
-
-    useEffect(() => {
-        if (contestId) {
-            setAreasData(contestAreas || [])
+    const {data: general} = useGetList<Sequent_Backend_Results_Contest>(
+        "sequent_backend_results_contest",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                contest_id: contestId,
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                election_id: electionId,
+                results_event_id: resultsEventId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
-    }, [contestId, contestAreas])
+    )
 
-    interface TabPanelProps {
-        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
-        index: number
-        value: number | null
-    }
+    const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
+        "sequent_backend_results_contest_candidate",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                contest_id: contestId,
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                election_id: electionId,
+                results_event_id: resultsEventId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
-    function CustomTabPanel(props: TabPanelProps) {
-        const {children, value, index, ...other} = props
+    // const {data: general} = useGetList<Sequent_Backend_Results_Area_Contest>(
+    //     "sequent_backend_results_area_contest",
+    //     {
+    //         pagination: {page: 1, perPage: 1},
+    //         filter: {
+    //             contest_id: contestId,
+    //             tenant_id: tenantId,
+    //             election_event_id: electionEventId,
+    //             election_id: electionId,
+    //             results_event_id: resultsEventId,
+    //             area_id: areaId,
+    //         },
+    //     },
+    //     {
+    //         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    //         refetchOnWindowFocus: false,
+    //         refetchOnReconnect: false,
+    //         refetchOnMount: false,
+    //     }
+    // )
 
-        return (
-            <div role="tabpanel" hidden={value !== index} {...other}>
-                {value === index && <Box>{children}</Box>}
-            </div>
-        )
-    }
+    const {data: areaResults} = useGetList<Sequent_Backend_Results_Area_Contest_Candidate>(
+        "sequent_backend_results_area_contest_candidate",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                contest_id: contestId,
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                election_id: electionId,
+                area_id: selectedArea,
+                results_event_id: resultsEventId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const [_, setResultsData] = useAtom(tallyCandidates)
+    const [candidatesList] = useAtom(tallyCandidatesList)
+    const [areas] = useAtom(tallyGlobalAreas)
+    const [contestAreas] = useAtom(tallyAreas)
+    const [value, setValue] = useAtom(tallySelectedTab)
+
+    useEffect(() => {
+        if (results && candidatesList.length) {
+            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidatesList?.map(
+                (candidate, index) => {
+                    let candidateResult = results.find((r) => r.candidate_id === candidate.id)
+
+                    return {
+                        ...candidate,
+                        rowId: index,
+                        id: candidate.id || "",
+                        name: candidate.name,
+                        status: candidate.status || "",
+                        cast_votes: candidateResult?.cast_votes,
+                        cast_votes_percent: candidateResult?.cast_votes_percent,
+                        winning_position: candidateResult?.winning_position,
+                    }
+                }
+            )
+
+            setResultsData(temp)
+        }
+    }, [results, candidatesList])
+
+    // useEffect(() => {
+    //     // tabGlobalClicked()
+    // }, [])
+
+    useEffect(() => {
+        if (contestAreas) {
+            console.log("results contestAreas", contestAreas)
+            setAreasData(contestAreas)
+        }
+    }, [contestAreas])
 
     const tabClicked = (area: Sequent_Backend_Area_Contest, index: number) => {
+        console.log("results tabClicked", index)
+
         setValue(index + 1)
-        setAreaContestId(area.id)
         setSelectedArea(area.area_id)
     }
 
     const tabGlobalClicked = () => {
         setValue(0)
     }
-
-    useEffect(() => {
-        console.log("TallyResultsContestAreas :: ", value)
-    }, [value])
 
     let documents: IResultDocuments | null = useMemo(
         () =>
@@ -160,6 +249,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                 </Typography>
                 <Tabs value={value} sx={{flex: 1}}>
                     <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
+
                     {areasData?.map((area, index) => {
                         return (
                             <Tab
@@ -180,13 +270,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             </Box>
 
             <CustomTabPanel index={0} value={value}>
-                <TallyResultsGlobalCandidates
-                    electionEventId={contest?.election_event_id}
-                    tenantId={contest?.tenant_id}
-                    electionId={contest?.election_id}
-                    contestId={contest?.id}
-                    resultsEventId={resultsEventId}
-                />
+                <TallyResultsGlobalCandidates general={general} />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
                 <CustomTabPanel key={index} index={index + 1} value={value}>
@@ -197,9 +281,26 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         contestId={contest?.id}
                         areaId={selectedArea}
                         resultsEventId={resultsEventId}
+                        general={resultsContests}
                     />
                 </CustomTabPanel>
             ))}
         </>
+    )
+}
+
+interface TabPanelProps {
+    children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+    index: number
+    value: number | null
+}
+
+export function CustomTabPanel(props: TabPanelProps) {
+    const {children, value, index, ...other} = props
+
+    return (
+        <div role="tabpanel" hidden={value !== index} {...other}>
+            {value === index && <Box>{children}</Box>}
+        </div>
     )
 }

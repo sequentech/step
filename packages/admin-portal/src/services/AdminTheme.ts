@@ -76,6 +76,7 @@ export const fullAdminTheme = {
                         flexGrow: 2,
                         paddingBotton: 0,
                         marginBottom: "4px",
+                        width: "55px !important",
                     },
                     "& .RaSidebar-fixed": {
                         display: "flex",
@@ -179,6 +180,13 @@ export const fullAdminTheme = {
                         color: "#0F054C",
                         opacity: 1,
                     },
+                },
+            },
+        },
+        MuiPaper: {
+            styleOverrides: {
+                root: {
+                    position: "relative !important",
                 },
             },
         },

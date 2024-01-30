@@ -60,7 +60,7 @@ interface IExpanded {
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
@@ -160,7 +160,6 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            // if (tally?.last_updated_at !== data.last_updated_at) {
             setPage(
                 !tallyId
                     ? WizardSteps.Start
@@ -174,7 +173,6 @@ export const TallyCeremony: React.FC = () => {
                     : WizardSteps.Start
             )
             setTally(data)
-            // }
         }
     }, [data])
 
@@ -526,7 +524,14 @@ export const TallyCeremony: React.FC = () => {
                                     : page === WizardSteps.Tally
                                     ? t("tally.common.results")
                                     : t("tally.common.next")}
-                                <ChevronRightIcon />
+                                <ChevronRightIcon
+                                    style={{
+                                        transform:
+                                            i18n.dir(i18n.language) === "rtl"
+                                                ? "rotate(180deg)"
+                                                : "rotate(0)",
+                                    }}
+                                />
                             </>
                         </NextButton>
                     )}

@@ -4,13 +4,24 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Identifier, RaRecord, useGetList} from "react-admin"
 
-import {Sequent_Backend_Contest, Sequent_Backend_Results_Contest} from "../../gql/graphql"
+import {
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Results_Contest,
+} from "../../gql/graphql"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
+import {Sequent_Backend_Candidate_Extended} from "./types"
+import {useAtom} from "jotai"
+import tallyCandidates, {
+    tallyAreas,
+    tallyCandidatesList,
+    tallyGlobalAreas,
+} from "@/atoms/tally-candidates"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -21,7 +32,7 @@ interface TallyResultsContestProps {
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {areas, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {electionId, electionEventId, tenantId, resultsEventId} = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
@@ -31,9 +42,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [electionData, setElectionData] = useState<string | null>(null)
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
-    const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
-
-    // console.log("TallyResultsContest :: contestsData", contestsData)
+    const [areasGlobal, setAreasGlobal] = useState<RaRecord<Identifier>[]>()
 
     const {data: resultsContests} = useGetList<Sequent_Backend_Results_Contest>(
         "sequent_backend_results_contest",
@@ -70,6 +79,83 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         }
     )
 
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate_Extended>(
+        "sequent_backend_candidate",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                contest_id: contestId,
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        }
+    )
+
+    const [_, setCandidateData] = useAtom(tallyCandidates)
+    const [___, setTallyCandidatesList] = useAtom(tallyCandidatesList)
+
+    useEffect(() => {
+        const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
+            (candidate, index) => {
+                return {
+                    ...candidate,
+                    rowId: index,
+                    id: candidate.id || "",
+                    name: candidate.name,
+                    status: candidate.status || "",
+                    cast_votes: 0,
+                    cast_votes_percent: 0,
+                    winning_position: 0,
+                }
+            }
+        )
+        setCandidateData(temp || [])
+        setTallyCandidatesList(candidates || [])
+    }, [candidates])
+
+    const {data: areas} = useGetList<Sequent_Backend_Area_Contest>(
+        "sequent_backend_area",
+        {
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+    const [____, setTallyGlobalAreas] = useAtom(tallyGlobalAreas)
+    useEffect(() => {
+        if (areas) {
+            setAreasData(areas)
+        }
+    }, [areas, setTallyGlobalAreas])
+
+    const {data: contestAreas} = useGetList<Sequent_Backend_Area_Contest>(
+        "sequent_backend_area_contest",
+        {
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                contest_id: contestId,
+            },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+    const [__, setAreasData] = useAtom(tallyAreas)
+    useEffect(() => {
+        if (contestAreas) {
+            setAreasData(contestAreas)
+        }
+    }, [contestAreas, setAreasData])
+
     useEffect(() => {
         if (electionId) {
             setElectionData(electionId)
@@ -88,11 +174,12 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         }
     }, [tenantId])
 
-    useEffect(() => {
-        if (areas) {
-            setAreasData(areas)
-        }
-    }, [areas])
+    // useEffect(() => {
+    //     if (areas) {
+    //         console.log("results SET areas", areas)
+    //         setAreasGlobal(areas)
+    //     }
+    // }, [areas])
 
     useEffect(() => {
         if (electionData) {
@@ -177,7 +264,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
                     <TallyResultsContestAreas
-                        areas={areasData}
+                        // areas={areas}
                         contestId={contestId || null}
                         electionId={contest?.election_id}
                         electionEventId={contest?.election_event_id}

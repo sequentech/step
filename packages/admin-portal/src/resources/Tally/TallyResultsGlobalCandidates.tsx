@@ -1,15 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
-import {useGetList, useGetOne} from "react-admin"
+import React from "react"
 
-import {
-    Sequent_Backend_Candidate,
-    Sequent_Backend_Election,
-    Sequent_Backend_Results_Contest,
-    Sequent_Backend_Results_Contest_Candidate,
-} from "../../gql/graphql"
+import {Sequent_Backend_Results_Contest} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
@@ -23,111 +17,21 @@ import {
     TableCell,
     TableHead,
 } from "@mui/material"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
+import {useAtom} from "jotai"
+import tallyCandidates from "@/atoms/tally-candidates"
 
 interface TallyResultsGlobalCandidatesProps {
-    contestId: string
-    electionId: string
-    electionEventId: string
-    tenantId: string
-    resultsEventId: string | null
+    general: Sequent_Backend_Results_Contest[] | undefined
 }
 
 export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
     props
 ) => {
-    const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {general} = props
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
 
-    const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
-
-    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
-        id: electionId,
-        meta: {
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-            election_id: electionId,
-        },
-    })
-
-    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {
-            contest_id: contestId,
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-        },
-    })
-
-    const {data: general} = useGetList<Sequent_Backend_Results_Contest>(
-        "sequent_backend_results_contest",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    console.log("TallyResultsGlobalCandidates :: general", general)
-
-    const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
-        "sequent_backend_results_contest_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    useEffect(() => {
-        if (results && candidates) {
-            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
-                (candidate, index): Sequent_Backend_Candidate_Extended => {
-                    let candidateResult = results.find((r) => r.candidate_id === candidate.id)
-
-                    return {
-                        ...candidate,
-                        rowId: index,
-                        id: candidate.id || "",
-                        name: candidate.name,
-                        status: "",
-                        cast_votes: candidateResult?.cast_votes,
-                        cast_votes_percent: candidateResult?.cast_votes_percent,
-                        winning_position: candidateResult?.winning_position,
-                    }
-                }
-            )
-
-            console.log("TallyResultsGlobalCandidates :: temp", temp)
-
-            setResultsData(temp)
-        }
-    }, [results, candidates])
+    const [resultsData] = useAtom(tallyCandidates)
 
     const columns: GridColDef[] = [
         {
@@ -286,7 +190,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 {t("tally.table.candidates")}
             </Typography>
 
-            {resultsData.length ? (
+            {resultsData ? (
                 <DataGrid
                     rows={resultsData}
                     columns={columns}

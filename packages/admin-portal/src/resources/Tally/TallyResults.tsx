@@ -1,20 +1,18 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, memo, useContext, useMemo} from "react"
+import React, {useEffect, useState, memo, useMemo} from "react"
 import {useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
 
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Results_Election,
-    Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 
 interface TallyResultsProps {
@@ -27,7 +25,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const {tally, resultsEventId} = props
 
         const {t} = useTranslation()
-        const {globalSettings} = useContext(SettingsContext)
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
