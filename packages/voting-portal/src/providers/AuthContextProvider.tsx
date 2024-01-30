@@ -139,9 +139,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     realm: `tenant-${tenantId}-event-${eventId}`,
                     url: keycloakUrl,
                     clientId: clientId,
-                    onTokenExpired() {
-                        console.log("dsafsd")
-                    },
                 }
             }
             const keycloakConfig = createKeycloakConfig(
@@ -153,6 +150,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             // Create the Keycloak client instance
             const newKeycloak = new Keycloak(keycloakConfig)
+
+            newKeycloak.onTokenExpired = async () => {
+                const refreshed = await newKeycloak.updateToken(0)
+
+                if (refreshed) {
+                    setKeycloakAccessToken(newKeycloak.token)
+                } else {
+                    newKeycloak.logout()
+                }
+            }
 
             setKeycloak(newKeycloak)
         }
@@ -172,11 +179,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     useEffect(() => {
         async function updateTokenPeriodically() {
-            const sleepSecs = 5
-            const bufferSecs = 0
-            // const sleepSecs = 50
-            // const bufferSecs = 10
-
+            const sleepSecs = 50
+            const bufferSecs = 10
             const minValidity = sleepSecs + bufferSecs
 
             if (keycloak) {
