@@ -6,11 +6,11 @@ import {Box} from "@mui/material"
 import {
     theme,
     stringToHtml,
-    shuffle,
     splitList,
     keyBy,
     translate,
     IContest,
+    sortCandidatesInContest,
     CandidatesOrder,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -18,9 +18,7 @@ import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
-    checkCustomCandidatesOrder,
     checkPositionIsTop,
-    checkShuffleAllOptions,
     checkShuffleCategories,
     checkShuffleCategoryList,
     getCheckableOptions,
@@ -66,6 +64,7 @@ export const Question: React.FC<IQuestionProps> = ({
     isUniqChecked,
 }) => {
     const {i18n} = useTranslation()
+
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
@@ -77,15 +76,14 @@ export const Question: React.FC<IQuestionProps> = ({
     )
 
     // do the shuffling
-    const checkCustomSort = checkCustomCandidatesOrder(question)
-    const shuffleAllOptions = checkShuffleAllOptions(question)
+    const candidatesOrderType = question.presentation?.candidates_order
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
     if (null === categoriesMapOrder) {
         setCategoriesMapOrder(
             getShuffledCategories(
                 categoriesMap,
-                shuffleAllOptions,
+                candidatesOrderType === CandidatesOrder.RANDOM,
                 shuffleCategories,
                 shuffleCategoryList
             )
@@ -93,20 +91,13 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        if (checkCustomSort) {
-            let candidates = [...noCategoryCandidates]
-            candidates.sort((a, b) => a.presentation!.sort_order! - b.presentation!.sort_order!)
-            setCandidatesOrder(candidates.map((c) => c.id))
-        } else if (shuffleAllOptions) {
-            setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
-        } else {
-            setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
-        }
+        setCandidatesOrder(
+            sortCandidatesInContest(noCategoryCandidates, candidatesOrderType, true).map(
+                (c) => c.id
+            )
+        )
     }
 
-    if (shuffleAllOptions && null === candidatesOrder) {
-        setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
-    }
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
 
     const onSetIsInvalidWriteIns = (value: boolean) => {

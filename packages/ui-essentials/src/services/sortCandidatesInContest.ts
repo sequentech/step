@@ -1,12 +1,13 @@
 import {CandidatesOrder, ICandidate} from "@root/types/CoreTypes"
 import {cloneDeep} from "lodash"
+import {shuffle} from "moderndash"
 
 export function sortCandidatesInContest(
     candidates: ICandidate[],
     order?: CandidatesOrder,
     applyRandom?: boolean
 ): ICandidate[] {
-    const res = cloneDeep(candidates)
+    let res = cloneDeep(candidates)
 
     switch (order) {
         case CandidatesOrder.ALPHABETICAL:
@@ -29,10 +30,7 @@ export function sortCandidatesInContest(
             break
         case CandidatesOrder.RANDOM:
             if (applyRandom) {
-                for (let i = res.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1))
-                    ;[res[i], res[j]] = [res[j], res[i]]
-                }
+                res = shuffle(res)
             }
             break
     }
