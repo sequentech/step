@@ -50,7 +50,7 @@ export interface AuthContextValues {
     /**
      * Keycloak access token
      */
-    keycloakAccessToken: string | null
+    keycloakAccessToken: string | undefined
 
     setTenantEvent: (tenantId: string, eventId: string) => void
 
@@ -78,7 +78,7 @@ const defaultAuthContextValues: AuthContextValues = {
     username: "",
     email: "",
     firstName: "",
-    keycloakAccessToken: null,
+    keycloakAccessToken: undefined,
     logout: () => {},
     setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
@@ -109,7 +109,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const {loaded, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
-    const [keycloakAccessToken, setKeycloakAccessToken] = useState<string | null>(null)
+    const [keycloakAccessToken, setKeycloakAccessToken] = useState<string | undefined>()
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
@@ -183,7 +183,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const refreshed = await keycloak.updateToken(minValidity)
 
                 if (refreshed) {
-                    setKeycloakAccessToken(keycloak.token ?? null)
+                    setKeycloakAccessToken(keycloak.token)
                 }
             }
 
@@ -216,16 +216,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 }
 
                 if (!keycloak.token) {
-                    // TODO: handle error
-                    console.log("error authenticating user")
-                    console.log("error initializing Keycloak")
                     setAuthenticated(false)
                     return
                 }
 
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
-
+                setKeycloakAccessToken(keycloak.token)
                 setTimeout(updateTokenPeriodically, 4e3)
             } catch (error) {
                 console.log("error initializing Keycloak")
