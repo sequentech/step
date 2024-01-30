@@ -24,6 +24,7 @@ import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     IBallotStyle,
+    selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
@@ -84,6 +85,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
 
     const {tenantId, eventId} = useParams<TenantEventType>()
     const election = useAppSelector(selectElectionById(electionId))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
@@ -94,7 +96,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
     const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
-    const canVote = () => castVotes.length < (election?.num_allowed_revotes ?? 1) && isVotingOpen
+    let minAllowedRevotes = Math.min(
+        ...(ballotStyle?.ballot_eml.contests.map((contest) => contest.max_votes) ?? [1])
+    )
+    const canVote = () => castVotes.length < minAllowedRevotes && isVotingOpen
 
     const onClickToVote = () => {
         if (!canVote()) {
@@ -111,11 +116,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
         if (visitedBypassChooser) {
             return
         }
-        if (bypassChooser) {
+        if (bypassChooser && ballotStyle) {
             setVisitedBypassChooser(true)
             onClickToVote()
         }
-    }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser])
+    }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
     return (
         <SelectElection
