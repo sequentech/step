@@ -227,7 +227,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
                 setKeycloakAccessToken(keycloak.token)
-                setTimeout(updateTokenPeriodically, 4e3)
+                updateTokenPeriodically()
             } catch (error) {
                 console.log("error initializing Keycloak")
                 console.log(error)
