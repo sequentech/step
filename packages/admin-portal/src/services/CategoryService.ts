@@ -50,27 +50,3 @@ export const categorizeCandidates = (question: IContest): ICategorizedCandidates
         categoriesMap: categoriesMap,
     }
 }
-
-export const getShuffledCategories = (
-    categories: CategoriesMap,
-    shuffleAllOptions: boolean,
-    shuffleCategories: boolean,
-    shuffleCategoryList: Array<string>
-): CategoriesMap => {
-    const shuffledCategories: CategoriesMap = {}
-
-    let categoryKeys = shuffleCategories
-        ? shuffle(Object.keys(categories))
-        : Object.keys(categories)
-    for (let categoryKey of categoryKeys) {
-        let category = categories[categoryKey]
-
-        if (shuffleAllOptions || shuffleCategoryList.includes(categoryKey)) {
-            category.candidates = shuffle(category.candidates)
-        }
-
-        shuffledCategories[categoryKey] = category
-    }
-
-    return shuffledCategories
-}
