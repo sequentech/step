@@ -43,7 +43,7 @@ pub struct JwtClaims {
     pub auth_time: i64,
     pub jti: String,
     pub iss: String,
-    pub aud: StringOrVec,
+    pub aud: Option<StringOrVec>,
     pub sub: String,
     pub typ: String,
     pub azp: String,
@@ -53,7 +53,7 @@ pub struct JwtClaims {
     #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
     pub realm_access: JwtRolesAccess,
-    pub resource_access: HashMap<String, JwtRolesAccess>,
+    pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
     pub scope: String,
     pub sid: String,
     pub email_verified: bool,
