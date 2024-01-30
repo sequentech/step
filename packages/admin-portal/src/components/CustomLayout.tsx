@@ -9,7 +9,7 @@ import {CustomSidebar} from "./menu/CustomSidebar"
 
 const SequentSidebar = (props: any) => {
     return (
-        <CustomSidebar {...props}>
+        <CustomSidebar {...props} closedSize={"55px"}>
             <CustomMenu {...props} classes={SidebarClasses} />
         </CustomSidebar>
     )

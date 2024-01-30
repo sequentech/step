@@ -60,7 +60,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onPublish = () => null,
     onGenerate = () => null,
 }): React.JSX.Element => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [currentState, setCurrentState] = useState<null | any>(null)
     const [previousState, setPreviouseState] = useState<null | any>(null)
 
@@ -105,7 +105,14 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                             color: "#0f054c",
                         }}
                     >
-                        <ArrowBackIosNew />
+                        <ArrowBackIosNew
+                            style={{
+                                transform:
+                                    i18n.dir(i18n.language) === "rtl"
+                                        ? "rotate(180deg)"
+                                        : "rotate(0)",
+                            }}
+                        />
                     </Button>
 
                     {!readOnly && (

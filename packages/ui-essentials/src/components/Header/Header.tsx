@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useRef, useState} from "react"
 
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
@@ -16,6 +16,7 @@ import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
+import ProfileMenu from "../ProfileMenu/ProfileMenu"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -48,7 +49,7 @@ type ApplicationVersion = {
     main: string
 }
 
-type UserProfile = {
+export type UserProfile = {
     username: string
     email?: string
     openLink: Function
@@ -61,6 +62,7 @@ export interface HeaderProps {
     userProfile?: UserProfile
     logoUrl?: string
     languagesList?: Array<string>
+    dir?: "ltr" | "rtl"
 }
 
 export default function Header({
@@ -70,22 +72,23 @@ export default function Header({
     logoLink = "//sequentech.io/",
     logoUrl,
     languagesList,
+    dir,
 }: HeaderProps) {
     const {t} = useTranslation()
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    // const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState<boolean>(false)
 
     function handleCloseModal(value: boolean) {
         return value && logoutFn ? logoutFn() : setOpenModal(false)
     }
 
-    function handleMenu(event: React.MouseEvent<HTMLElement>) {
-        setAnchorEl(event.currentTarget)
-    }
+    // function handleMenu(event: React.MouseEvent<HTMLElement>) {
+    //     setAnchorEl(event.currentTarget)
+    // }
 
-    function handleClose() {
-        setAnchorEl(null)
-    }
+    // function handleClose() {
+    //     setAnchorEl(null)
+    // }
 
     return (
         <>
@@ -105,77 +108,14 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
-                            {userProfile && (
-                                <div>
-                                    <IconButton
-                                        className="profile-menu-button"
-                                        size="large"
-                                        aria-label="account of current user"
-                                        aria-controls="menu-appbar"
-                                        aria-haspopup="true"
-                                        onClick={handleMenu}
-                                        color="inherit"
-                                    >
-                                        <AccountCircle sx={{fontSize: 40}} />
-                                    </IconButton>
-
-                                    <Menu
-                                        id="menu-appbar"
-                                        anchorEl={anchorEl}
-                                        anchorOrigin={{
-                                            vertical: "bottom",
-                                            horizontal: "right",
-                                        }}
-                                        keepMounted
-                                        transformOrigin={{
-                                            vertical: "top",
-                                            horizontal: "right",
-                                        }}
-                                        sx={{maxWidth: 220}}
-                                        open={Boolean(anchorEl)}
-                                        onClose={handleClose}
-                                    >
-                                        <MenuItem>
-                                            <Box
-                                                sx={{
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                }}
-                                            >
-                                                <span title={userProfile?.username}>
-                                                    {userProfile?.username}
-                                                </span>
-                                                <br />
-                                                <Span title={userProfile?.email}>
-                                                    {userProfile?.email}
-                                                </Span>
-                                            </Box>
-                                        </MenuItem>
-                                        <MenuItem
-                                            onClick={() => {
-                                                handleClose()
-                                                userProfile?.openLink()
-                                            }}
-                                        >
-                                            <AccountCircle sx={{marginRight: "14px"}} />
-                                            {t("header.profile")}
-                                        </MenuItem>
-                                        {logoutFn && (
-                                            <MenuItem
-                                                className="logout-button"
-                                                onClick={() => {
-                                                    setOpenModal(true)
-                                                    handleClose()
-                                                }}
-                                            >
-                                                <LogoutIcon sx={{marginRight: "14px"}} />
-                                                {t("logout.buttonText")}
-                                            </MenuItem>
-                                        )}
-                                    </Menu>
-                                </div>
-                            )}
+                            {userProfile ? (
+                                <ProfileMenu
+                                    userProfile={userProfile}
+                                    openModalFn={setOpenModal}
+                                    logoutFn={logoutFn}
+                                    dir={dir}
+                                />
+                            ) : null}
                         </Box>
                     </PageBanner>
                 </PageLimit>

@@ -32,7 +32,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     goNext,
     goBack,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
     const [downloaded, setDownloaded] = useState<boolean>(false)
     const [downloading, setDownloading] = useState<boolean>(false)
@@ -101,7 +101,12 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     {t("keysGeneration.downloadStep.title")}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
-                    <Typography variant="body1">
+                    <Typography
+                        variant="body1"
+                        sx={{
+                            textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                        }}
+                    >
                         <Trans
                             i18nKey="keysGeneration.downloadStep.subtitle"
                             values={{name: authContext.username}}
@@ -124,15 +129,26 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
 
             <WizardStyles.Toolbar>
                 <WizardStyles.BackButton color="info" onClick={goBack}>
-                    <ArrowBackIosIcon />
+                    <ArrowBackIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
+                <div style={{flex: 1}}> </div>
                 <WizardStyles.NextButton
                     disabled={!downloaded}
                     color="info"
                     onClick={() => setOpenConfirmationModal(true)}
                 >
-                    <ArrowForwardIosIcon />
+                    <ArrowForwardIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>
             </WizardStyles.Toolbar>

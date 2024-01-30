@@ -27,7 +27,7 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {translate, translateElection} from "@sequentech/ui-essentials"
+import { translate, translateElection } from '@sequentech/ui-essentials'
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -95,7 +95,7 @@ function TreeLeaves({
         <div className="bg-white">
             <div className="flex flex-col ml-3">
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
-                    (resource: DataTreeMenuType) => {
+                    (resource: DataTreeMenuType) => {                        
                         return (
                             <TreeMenuItem
                                 key={resource.id}

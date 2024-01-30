@@ -5,7 +5,7 @@ import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 
 import {Typography} from "@mui/material"
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
@@ -20,7 +20,12 @@ export const Logs: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const [tab, setTab] = useState(0)
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     const logsRead = authContext.isAuthorized(true, tenantId, IPermissions.LOGS_READ)
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {

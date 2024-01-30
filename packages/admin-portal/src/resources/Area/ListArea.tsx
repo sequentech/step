@@ -15,6 +15,7 @@ import {
     FunctionField,
     useRefresh,
     useNotify,
+    useLocaleState,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Button, Drawer, Typography} from "@mui/material"
@@ -49,12 +50,12 @@ export interface ListAreaProps {
 }
 
 export const ListArea: React.FC<ListAreaProps> = (props) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {id} = useParams()
-    const refresh = useRefresh()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
+    const refresh = useRefresh()
 
     const [tenantId] = useTenantStore()
     const [deleteOne] = useDelete()
@@ -65,16 +66,17 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [locale, setLocale] = useLocaleState()
 
     const authContext = useContext(AuthContext)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
 
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
+    useEffect(() => {
+        console.log("i18n.language changed", i18n.language)
+        setLocale(i18n.language)
+        refresh()
+    }, [i18n.language])
 
     useEffect(() => {
         if (recordId) {
@@ -184,7 +186,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                         render={(record: any) => <AreaContestItems record={record} />}
                     />
 
-                    <WrapperField source="actions" label="Actions">
+                    <WrapperField source="actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>

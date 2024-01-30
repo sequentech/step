@@ -8,4 +8,5 @@ import {Box} from "@mui/material"
 export const HorizontalBox = styled(Box)`
     display: flex;
     flex-direction: row;
+    justify-content: ${({dir}) => (dir === "rtl" ? "flex-end" : "flex-start")};
 `

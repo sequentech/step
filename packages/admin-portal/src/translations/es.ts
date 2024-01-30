@@ -165,6 +165,7 @@ const spanishTranslation: TranslationType = {
                 mail: "Mails",
                 spanish: "Spanish",
                 english: "English",
+                hebrew: "עִברִית",
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
@@ -185,6 +186,12 @@ const spanishTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
+            channel: {
+                Online: "Online",
+                Paper: "Papel",
+                Telephone: "Teléfono",
+                Postal: "Correo",
+            },
         },
         electionEventScreen: {
             common: {
@@ -323,6 +330,7 @@ const spanishTranslation: TranslationType = {
                 receipts: "Comprobantes",
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
+                defaultLanguage: "Idioma por defecto",
             },
             field: {
                 name: "Nombre",
@@ -363,6 +371,12 @@ const spanishTranslation: TranslationType = {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
                 mobileNumber: "Móvil",
+                // mail: "Correo electrónico",
+                // emailVerified: "Correo electrónico verificado",
+                // enabled: "Habilitado",
+                // firstName: "Nombre",
+                // lastName: "Apellido",
+                // username: "Nombre de usuario",
             },
             users: {
                 title: "Usuarios",
@@ -554,6 +568,7 @@ const spanishTranslation: TranslationType = {
             language: {
                 es: "Español",
                 en: "Inglés",
+                he: "Hebreo",
             },
             channel: {
                 online: "En línea",
@@ -653,6 +668,10 @@ const spanishTranslation: TranslationType = {
             common: {
                 subtitle: "Configuración de pregunta.",
             },
+            tab: {
+                data: "Datos",
+                tallySheet: "Hoja de Recuento",
+            },
             edit: {
                 general: "General",
                 type: "Tipo",
@@ -665,6 +684,13 @@ const spanishTranslation: TranslationType = {
                 name: "Nombre",
                 alias: "Alias",
                 description: "Descripción",
+                isAcclaimed: "Aclamado",
+                votingType: "Tipo de Votación",
+                countingAlgorithm: "Algoritmo de Recuento",
+                minVotes: "Votos Mínimos",
+                maxVotes: "Votos Máximos",
+                winningCandidatesNum: "Número de Candidatos Ganadores",
+                candidatesOrder: "Orden de los Candidatos",
             },
             options: {
                 "non-preferential": "Sin Preferencia",

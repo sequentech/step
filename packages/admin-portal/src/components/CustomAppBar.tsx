@@ -7,10 +7,12 @@ import {AppBar} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useTranslation} from "react-i18next"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
+    const {i18n} = useTranslation()
 
     return (
         <AppBar
@@ -26,6 +28,7 @@ export const CustomAppBar: React.FC = () => {
             }}
         >
             <Header
+                dir={i18n.dir(i18n.language)}
                 appVersion={{main: globalSettings.APP_VERSION}}
                 userProfile={{
                     username: authContext.username,

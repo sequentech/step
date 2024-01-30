@@ -138,11 +138,11 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                             marginRight: "16px",
                         }}
                     >
-                        <Typography variant="body2" sx={{margin: 0}}>
+                        <Typography variant="body2" sx={{margin: 0, textAlign: "start"}}>
                             {keysImported}/{trusteesData.length}
                             {t("tally.common.imported")}
                         </Typography>
-                        <Typography variant="body2" sx={{margin: 0}}>
+                        <Typography variant="body2" sx={{margin: 0, textAlign: "start"}}>
                             {tally?.threshold ?? "-"}
                             {t("tally.common.needed")}
                         </Typography>

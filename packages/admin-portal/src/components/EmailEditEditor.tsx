@@ -12,6 +12,7 @@ type EmailEditEditorProps = {
 const CustomRichTextEditor: React.FC<{source: string; label?: string}> = ({source}) => {
     const {field} = useInput({source})
     const editorRef = useRef<any>(null)
+    const {i18n} = useTranslation()
 
     function handleHtmlChange() {
         if (editorRef.current) {
@@ -19,11 +20,18 @@ const CustomRichTextEditor: React.FC<{source: string; label?: string}> = ({sourc
         }
     }
 
-    return <Editor editorRef={editorRef} value={field.value} onEditorChange={handleHtmlChange} />
+    return (
+        <Editor
+            editorRef={editorRef}
+            value={field.value}
+            onEditorChange={handleHtmlChange}
+            dir={i18n.dir(i18n.language)}
+        />
+    )
 }
 
 export default function EmailEditEditor({record}: EmailEditEditorProps) {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const [tab, setTab] = useState<number>(0)
 

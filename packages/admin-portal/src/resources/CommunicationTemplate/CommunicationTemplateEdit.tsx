@@ -218,6 +218,7 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
                                     >
                                         <SelectInput
                                             source="communication_type"
+                                            label={t("communicationTemplate.form.communicationType")}
                                             validate={required()}
                                             choices={communicationTypeChoices()}
                                         />
@@ -240,6 +241,9 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
                                         <AccordionDetails>
                                             <SelectInput
                                                 source="communication_method"
+                                                label={t(
+                                                    "communicationTemplate.form.communicationMethod"
+                                                )}
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />

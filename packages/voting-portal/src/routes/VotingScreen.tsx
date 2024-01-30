@@ -61,9 +61,11 @@ const ActionsContainer = styled(Box)`
     gap: 2px;
 `
 
-const StyledButton = styled(Button)`
+const StyledButton = styled(Button)<{dir: string}>`
     display flex;
     padding: 5px;
+
+    justify-content: ${({dir}) => (dir === "rtl" ? "flex-start" : "flex-end")};
 
     span {
         white-space: nowrap;
@@ -79,7 +81,7 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
@@ -97,11 +99,19 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
     }
 
     return (
-        <>
+        <ActionsContainer>
+            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} dir={i18n.dir(i18n.language)}>
+                    <Icon icon={faAngleLeft} size="sm" dir={i18n.dir(i18n.language)} />
+                    <Box>{t("votingScreen.backButton")}</Box>
+                </StyledButton>
+            </StyledLink>
+
             <StyledButton
+                dir={i18n.dir(i18n.language)}
                 sx={{
-                    display: {sm: "none"},
-                    width: "100%",
+                    display: {xs: "none", sm: "block"},
+                    width: {xs: "100%", sm: "200px"},
                 }}
                 variant="secondary"
                 onClick={() => handleClearSelection()}
@@ -109,36 +119,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                 <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
-            <ActionsContainer>
-                <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("votingScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
-
-                <StyledButton
-                    sx={{
-                        display: {xs: "none", sm: "block"},
-                        width: {xs: "100%", sm: "200px"},
-                    }}
-                    variant="secondary"
-                    onClick={() => handleClearSelection()}
-                >
-                    <Box>{t("votingScreen.clearButton")}</Box>
-                </StyledButton>
-
-                <StyledButton
-                    className="next-button"
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => handleNext()}
-                    disabled={disableNext}
-                >
-                    <Box>{t("votingScreen.reviewButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
-                </StyledButton>
-            </ActionsContainer>
-        </>
+            <StyledButton
+                className="next-button"
+                sx={{width: {xs: "100%", sm: "200px"}}}
+                onClick={() => handleNext()}
+                disabled={disableNext}
+                dir={i18n.dir(i18n.language)}
+            >
+                <Box>{t("votingScreen.reviewButton")}</Box>
+                <Icon icon={faAngleRight} size="sm" dir={i18n.dir(i18n.language)} />
+            </StyledButton>
+        </ActionsContainer>
     )
 }
 
@@ -162,6 +153,11 @@ const VotingScreen: React.FC = () => {
     const dispatch = useAppDispatch()
 
     const submit = useSubmit()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({

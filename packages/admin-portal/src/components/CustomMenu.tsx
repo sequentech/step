@@ -15,6 +15,7 @@ import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
 import MailIcon from "@mui/icons-material/Mail"
 import ChecklistIcon from "@mui/icons-material/Checklist"
+import {i18n} from "react-admin-import-csv"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -49,6 +50,7 @@ const DrawerContainer = styled(Box)`
     border-top: 2px solid ${adminTheme.palette.customGrey.light};
     display: flex;
     margin-top: auto;
+    justify-content: ${({dir}) => (dir === "rtl" ? "flex-end" : "flex-start")};
 `
 
 const MenuWrapper = styled(Box)`
@@ -57,7 +59,7 @@ const MenuWrapper = styled(Box)`
 
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     return (
         <StyledMenu>
@@ -88,8 +90,9 @@ export const CustomMenu = () => {
                 />
             </MenuWrapper>
 
-            <DrawerContainer>
+            <DrawerContainer dir={i18n.dir(i18n.language)}>
                 <IconButton
+                    dir={i18n.dir(i18n.language)}
                     icon={open ? faAngleDoubleLeft : faAngleDoubleRight}
                     fontSize="24px"
                     onClick={() => setOpen(!open)}

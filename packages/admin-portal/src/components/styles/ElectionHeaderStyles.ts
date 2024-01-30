@@ -8,6 +8,7 @@ export const ElectionHeaderStyles = {
         flex-direction: column;
         padding: var(--2, 16px);
         align-items: left;
+        justify-content: ${({dir}) => (dir === "rtl" ? "flex-end" : "flex-start")};
     `,
     Title: styled.div`
         color: rgba(0, 0, 0, 0.87);
@@ -16,6 +17,7 @@ export const ElectionHeaderStyles = {
         font-weight: 700;
         line-height: 32.02px;
         word-wrap: break-word;
+        text-align: ${({dir}) => (dir === "rtl" ? "right" : "left")};
     `,
     SubTitle: styled.div`
         color: rgba(0, 0, 0, 0.6);
@@ -25,5 +27,6 @@ export const ElectionHeaderStyles = {
         line-height: 20.02px;
         letter-spacing: 0.17px;
         word-wrap: break-word;
+        text-align: ${({dir}) => (dir === "rtl" ? "right" : "left")};
     `,
 }

@@ -6,9 +6,10 @@ type Props = {
     value?: string
     editorRef: any
     onEditorChange?: () => void
+    dir?: "ltr" | "rtl"
 }
 
-export default function MyEditor({value, initialValue, editorRef, onEditorChange}: Props) {
+export default function MyEditor({value, initialValue, editorRef, onEditorChange, dir}: Props) {
     return (
         <>
             <Editor
@@ -17,6 +18,7 @@ export default function MyEditor({value, initialValue, editorRef, onEditorChange
                 initialValue={initialValue}
                 value={value}
                 init={{
+                    directionality: dir ?? "ltr",
                     promotion: false,
                     branding: false,
                     height: 500,

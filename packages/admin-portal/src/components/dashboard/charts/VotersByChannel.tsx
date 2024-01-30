@@ -22,11 +22,11 @@ interface VotersByChannelProps {
 }
 
 export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, height}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const state: Props = {
         options: {
-            labels: data.map((item) => item.channel.toString()),
+            labels: data.map((item) => t(`dashboard.channel.${item.channel.toString()}`)),
             plotOptions: {
                 pie: {
                     donut: {

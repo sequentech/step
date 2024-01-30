@@ -31,7 +31,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
     goNext,
     goBack,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
@@ -95,7 +95,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                     {t("keysGeneration.checkStep.title")}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
-                    <Typography variant="body1">
+                    <Typography variant="body1" sx={{textAlign: "start"}}>
                         <Trans
                             i18nKey="keysGeneration.checkStep.subtitle"
                             values={{name: authContext.username}}
@@ -121,11 +121,22 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
 
             <WizardStyles.Toolbar>
                 <WizardStyles.BackButton color="info" onClick={goBack}>
-                    <ArrowBackIosIcon />
+                    <ArrowBackIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
+                <div style={{flex: 1}}> </div>
                 <WizardStyles.NextButton disabled={!verified} color="info" onClick={goNext}>
-                    <ArrowForwardIosIcon />
+                    <ArrowForwardIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>
             </WizardStyles.Toolbar>

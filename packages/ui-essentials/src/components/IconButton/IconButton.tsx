@@ -21,6 +21,7 @@ export interface IIconButtonProps
         Pick<IconButtonProps, "onClick"> {
     variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success"
     sx?: SxProps<Theme>
+    dir?: string
 }
 
 const ColorMap = {
@@ -32,13 +33,18 @@ const ColorMap = {
     inherit: "inherit",
 }
 
-const IconButton: React.FC<IIconButtonProps> = ({variant, sx, onClick, ...props}) => (
+const IconButton: React.FC<IIconButtonProps> = ({variant, sx, dir, onClick, ...props}) => (
     <StyledButton
         aria-label="close"
         sx={{color: ColorMap[variant || "inherit"], ...sx}}
         onClick={onClick}
     >
-        <FontAwesomeIcon {...props} />
+        <FontAwesomeIcon
+            style={{
+                transform: dir && dir === "rtl" ? "rotate(180deg)" : "rotate(0)",
+            }}
+            {...props}
+        />
     </StyledButton>
 )
 

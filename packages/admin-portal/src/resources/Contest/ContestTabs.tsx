@@ -5,10 +5,13 @@ import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
+import { useTranslation } from 'react-i18next'
+import { translateElection } from '@sequentech/ui-essentials'
 
 export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
-
+    const {t, i18n} = useTranslation()
+    
     const [action, setAction] = useState<number>(WizardSteps.List)
     const [refresh, setRefresh] = useState<string | null>(null)
     const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
@@ -24,15 +27,15 @@ export const ContestTabs: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={record?.name || ""}
+                title={translateElection(record, "name", i18n.language) ?? ""}
                 subtitle="electionEventScreen.common.subtitle"
             />
             <TabbedShowLayout>
-                <TabbedShowLayout.Tab label="Data">
+                <TabbedShowLayout.Tab label={t("contestScreen.tab.data")}>
                     <EditContestData />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab
-                    label="Tally Sheets"
+                    label={t("contestScreen.tab.tallySheet")}
                     onClick={() => {
                         setAction(WizardSteps.List)
                     }}

@@ -15,7 +15,7 @@ export interface ConfigureStepProps {
 }
 
 export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
     return (
         <>
@@ -25,7 +25,11 @@ export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
                     <Typography variant="body1">
-                        <p>
+                        <p
+                            style={{
+                                textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                            }}
+                        >
                             <Trans
                                 i18nKey="keysGeneration.startStep.subtitle"
                                 values={{name: authContext.username}}
@@ -48,11 +52,22 @@ export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
 
             <WizardStyles.Toolbar>
                 <WizardStyles.BackButton color="info" onClick={goBack}>
-                    <ArrowBackIosIcon />
+                    <ArrowBackIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
+                <div style={{flex: 1}}> </div>
                 <WizardStyles.NextButton color="info" onClick={goNext}>
-                    <ArrowForwardIosIcon />
+                    <ArrowForwardIosIcon
+                        style={{
+                            transform:
+                                i18n.dir(i18n.language) === "rtl" ? "rotate(180deg)" : "rotate(0)",
+                        }}
+                    />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>
             </WizardStyles.Toolbar>

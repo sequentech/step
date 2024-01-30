@@ -163,6 +163,7 @@ const englishTranslation = {
                 mail: "Mails",
                 spanish: "Spanish",
                 english: "English",
+                hebrew: "עִברִית",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
@@ -183,6 +184,12 @@ const englishTranslation = {
         dashboard: {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
+            channel: {
+                Online: "Online",
+                Paper: "Paper",
+                Telephone: "Telephone",
+                Postal: "Postal",
+            },
         },
         electionEventScreen: {
             common: {
@@ -321,6 +328,7 @@ const englishTranslation = {
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
+                defaultLanguage: "Default Language",
             },
             field: {
                 name: "Name",
@@ -361,6 +369,12 @@ const englishTranslation = {
                 title: "Users and Roles",
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
+                // mail: "Email",
+                // emailVerified: "Email Verified",
+                // enabled: "Enabled",
+                // firstName: "First Name",
+                // lastName: "Last Name",
+                // username: "Username",
             },
             users: {
                 title: "Users",
@@ -552,6 +566,7 @@ const englishTranslation = {
             language: {
                 es: "Spanish",
                 en: "English",
+                he: "Hebrew",
             },
             channel: {
                 online: "Online",
@@ -651,6 +666,10 @@ const englishTranslation = {
             common: {
                 subtitle: "Contest configuration.",
             },
+            tab: {
+                data: "Data",
+                tallySheet: "Tally Sheets",
+            },
             edit: {
                 general: "General",
                 type: "Type",
@@ -663,6 +682,13 @@ const englishTranslation = {
                 name: "Name",
                 alias: "Alias",
                 description: "Description",
+                isAcclaimed: "Is Acclaimed",
+                votingType: "Voting Type",
+                countingAlgorithm: "Counting Algorithm",
+                minVotes: "Minimum Votes",
+                maxVotes: "Maximum Votes",
+                winningCandidatesNum: "Winning Candidates Number",
+                candidatesOrder: "Candidates Order",
             },
             options: {
                 "non-preferential": "No Preferential",

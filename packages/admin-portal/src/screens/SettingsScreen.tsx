@@ -1,4 +1,4 @@
-import React from "react"
+import React, {useEffect} from "react"
 import {Box} from "@mui/system"
 import {Resource} from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -12,7 +12,12 @@ import {SettingsElectionsTypes} from "../resources/Settings/SettingsElectionsTyp
 import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
 
 export const SettingsScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     return (
         <Box>

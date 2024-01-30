@@ -75,9 +75,14 @@ const Step1Container = styled(Box)`
 `
 
 const ActionButtons: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const triggerPrint = () => window.print()
     const backLink = useRootBackLink()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language])
 
     return (
         <ActionsContainer>
@@ -86,13 +91,13 @@ const ActionButtons: React.FC = () => {
                 variant="secondary"
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
             >
-                <Icon icon={faPrint} size="sm" />
+                <Icon icon={faPrint} size="sm" dir={i18n.dir(i18n.language)} />
                 <Box>{t("auditScreen.printButton")}</Box>
             </StyledButton>
             <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Box>{t("auditScreen.restartButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
+                    <Icon icon={faAngleRight} size="sm" dir={i18n.dir(i18n.language)} />
                 </StyledButton>
             </StyledLink>
         </ActionsContainer>

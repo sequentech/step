@@ -25,7 +25,7 @@ const StyledButton = styled(Button)<ButtonProps>(
 )
 
 const LanguageMenu: React.FC<{languagesList?: Array<string>; label?: string}> = ({
-    languagesList = ["en"],
+    languagesList = ["en", "he"],
 }) => {
     const {t, i18n} = useTranslation()
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)

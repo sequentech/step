@@ -19,6 +19,7 @@ import {useQuery} from "@apollo/client"
 import {GetElectionEventQuery} from "./gql/graphql"
 import {useAppSelector} from "./store/hooks"
 import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
+import { useTranslation } from 'react-i18next'
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -56,6 +57,12 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const {i18n} = useTranslation()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [])
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {

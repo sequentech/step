@@ -7,6 +7,7 @@ import {theme} from "../../services/theme"
 
 export interface IconProps extends FontAwesomeIconProps {
     variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success" | "form"
+    dir?: string
 }
 
 const ColorMap = {
@@ -19,8 +20,14 @@ const ColorMap = {
     inherit: undefined,
 }
 
-const Icon: React.FC<IconProps> = ({variant, ...props}) => (
-    <FontAwesomeIcon color={ColorMap[variant || "inherit"]} {...props} />
+const Icon: React.FC<IconProps> = ({variant, dir, ...props}) => (
+    <FontAwesomeIcon
+        style={{
+            transform: dir && dir === "rtl" ? "rotate(180deg)" : "rotate(0)",
+        }}
+        color={ColorMap[variant || "inherit"]}
+        {...props}
+    />
 )
 
 export default Icon

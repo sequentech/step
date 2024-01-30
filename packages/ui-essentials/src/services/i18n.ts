@@ -7,11 +7,13 @@ import LanguageDetector from "i18next-browser-languagedetector"
 import {initReactI18next} from "react-i18next"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
+import hebrewTranslation from "../translations/he"
 
 export const initializeLanguages = (externalTranslations: Resource) => {
     const libTranslations: Resource = {
         en: englishTranslation,
         es: spanishTranslation,
+        he: hebrewTranslation,
     }
     const mergedTranslations = deepmerge(libTranslations, externalTranslations)
 

@@ -21,11 +21,11 @@ export const WizardStyles = {
         margin: auto;
     `,
     Toolbar: styled(Toolbar)`
+        width: 100%;
         flex-direction: row;
         justify-content: space-between;
     `,
-    BackButton: styled(Button)`
-        margin-right: auto;
+    BackButton: styled(Button)<{dir?: string}>`
         background-color: ${({theme}) => theme.palette.grey[100]};
         color: ${({theme}) => theme.palette.brandColor};
     `,
@@ -98,6 +98,7 @@ export const WizardStyles = {
     ListItem: styled.li`
         padding: 1em;
         display: list-item;
+        text-align: start;
     `,
 
     // TODO: use this later when we support multiple ceremonies per election event

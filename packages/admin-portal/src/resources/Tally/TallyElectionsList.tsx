@@ -10,6 +10,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import { translateElection } from '@sequentech/ui-essentials'
 
 interface TallyElectionsListProps {
     electionEventId: string
@@ -28,7 +29,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
@@ -79,6 +80,9 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
+            renderCell: (props: GridRenderCellParams<any, boolean>) => {
+                return <div>{translateElection(props.row, "name", i18n.language)}</div>
+            },
         },
         {
             field: "active",
