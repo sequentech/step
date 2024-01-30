@@ -13,7 +13,6 @@ import {
     QRCode,
     Dialog,
     IElectionEventPresentation,
-    EElectionScreenStep,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -29,12 +28,10 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
     selectBallotStyleByElectionId,
-    selectScreenBackgroundImage,
 } from "../store/ballotStyles/ballotStylesSlice"
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import {BackgroundImage} from "../components/BackgroundImage"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -182,9 +179,6 @@ export const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const backgroundImg = useAppSelector(
-        selectScreenBackgroundImage(String(electionId), EElectionScreenStep.SUCCESS)
-    )
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const {t} = useTranslation()
@@ -204,9 +198,6 @@ export const ConfirmationScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
-            {backgroundImg ? (
-                <BackgroundImage className="background-img" imgurl={backgroundImg} />
-            ) : null}
             <Box marginTop="24px">
                 <Stepper selected={3} />
             </Box>

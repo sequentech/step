@@ -120,7 +120,7 @@ export const BallotLocator: React.FC = () => {
 
     return (
         <>
-            <PageLimit maxWidth="lg">
+            <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
                 <Box marginTop="48px">
                     <BreadCrumbSteps
                         labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}

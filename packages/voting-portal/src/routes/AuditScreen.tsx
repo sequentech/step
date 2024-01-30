@@ -16,7 +16,6 @@ import {
     isUndefined,
     downloadBlob,
     InfoDataBox,
-    EElectionScreenStep,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
@@ -110,9 +109,6 @@ export const AuditScreen: React.FC = () => {
     }>()
     const {globalSettings} = useContext(SettingsContext)
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const backgroundImg = useAppSelector(
-        selectScreenBackgroundImage(String(electionId), EElectionScreenStep.SUCCESS)
-    )
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
@@ -138,9 +134,6 @@ export const AuditScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="audit-screen screen">
-            {backgroundImg ? (
-                <BackgroundImage className="background-img" imgurl={backgroundImg} />
-            ) : null}
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             <Box marginTop="24px">
                 <Dialog

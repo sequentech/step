@@ -293,7 +293,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [castVotes, electionIds, errorCastVote, castVotes, electionEvent, dataElections])
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="election-selection-screen screen">
             <Box marginTop="48px">
                 <Stepper selected={0} />
             </Box>

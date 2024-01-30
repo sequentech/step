@@ -16,4 +16,5 @@ export interface IElectionEventPresentation {
     language_conf?: IElectionEventLanguageConf
     logo_url?: string
     redirect_finish_url?: string
+    css?: string
 }

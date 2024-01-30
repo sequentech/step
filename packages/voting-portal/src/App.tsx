@@ -20,8 +20,9 @@ import {GetElectionEventQuery} from "./gql/graphql"
 import {useAppSelector} from "./store/hooks"
 import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
 
-const StyledApp = styled(Stack)`
+const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
+    ${({css}) => css}
 `
 
 const HeaderWithContext: React.FC = () => {
@@ -56,6 +57,19 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const css = `
+        &:has(div > .start-screen) {
+            background-image: linear-gradient(1deg, #ffffff, transparent),url('https://www.alliedpilots.org/-/media/AlliedPilots/BackgroundBanners/13.jpg')!important;
+        
+            .header-class, .footer-class {
+            background-color: unset;
+            }
+        
+            .app-version {
+            background: unset;
+            }
+        }
+    `
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -82,7 +96,7 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     return (
-        <StyledApp className="app-root">
+        <StyledApp className="app-root" css={css}>
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}

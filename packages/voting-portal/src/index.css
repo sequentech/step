@@ -14,7 +14,7 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
-
+/*
 .app-root:has(div > .screen > .background-img) {
   .header-class, .footer-class {
     background-color: unset;
@@ -24,3 +24,4 @@ code {
     background: unset;
   }
 }
+*/
