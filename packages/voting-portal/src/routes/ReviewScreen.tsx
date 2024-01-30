@@ -245,7 +245,7 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return <CircularProgress />
     }
-  
+
     const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
