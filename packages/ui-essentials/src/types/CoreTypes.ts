@@ -90,6 +90,7 @@ export interface ICandidate {
     election_id: string
     contest_id: string
     name?: string
+    alias?: string
     description?: string
     candidate_type?: string
     presentation?: ICandidatePresentation
