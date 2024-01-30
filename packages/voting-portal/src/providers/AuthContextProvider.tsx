@@ -179,9 +179,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     useEffect(() => {
         async function updateTokenPeriodically() {
-            const sleepSecs = 50
+            const tokenLifespan = globalSettings.KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS
             const bufferSecs = 10
-            const minValidity = sleepSecs + bufferSecs
+            const minValidity = tokenLifespan + bufferSecs
 
             if (keycloak) {
                 const refreshed = await keycloak.updateToken(minValidity)
@@ -191,7 +191,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 }
             }
 
-            await sleep(sleepSecs * 1e3)
+            await sleep(tokenLifespan * 1e3)
 
             updateTokenPeriodically()
         }
