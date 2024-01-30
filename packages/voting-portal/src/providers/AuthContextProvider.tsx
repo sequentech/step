@@ -36,18 +36,21 @@ export interface AuthContextValues {
      * The first name of the authenticated user
      */
     firstName: string
+
     /**
      * Function to initiate the logout
      */
     logout: () => void
+
     /**
      * Check if the user has the given role
      */
     hasRole: (role: string) => boolean
+
     /**
-     * Get Access Token
+     * Keycloak access token
      */
-    getAccessToken: () => string | undefined
+    keycloakAccessToken: string | null
 
     setTenantEvent: (tenantId: string, eventId: string) => void
 
@@ -75,10 +78,10 @@ const defaultAuthContextValues: AuthContextValues = {
     username: "",
     email: "",
     firstName: "",
+    keycloakAccessToken: null,
     logout: () => {},
     setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
-    getAccessToken: () => undefined,
     openProfileLink: () => new Promise(() => undefined),
 }
 
@@ -106,6 +109,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const {loaded, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>()
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
+    const [keycloakAccessToken, setKeycloakAccessToken] = useState<string | null>(null)
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
@@ -135,6 +139,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     realm: `tenant-${tenantId}-event-${eventId}`,
                     url: keycloakUrl,
                     clientId: clientId,
+                    onTokenExpired() {
+                        console.log("dsafsd")
+                    },
                 }
             }
             const keycloakConfig = createKeycloakConfig(
@@ -146,6 +153,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             // Create the Keycloak client instance
             const newKeycloak = new Keycloak(keycloakConfig)
+
             setKeycloak(newKeycloak)
         }
 
@@ -164,15 +172,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     useEffect(() => {
         async function updateTokenPeriodically() {
-            const sleepSecs = 50
-            const bufferSecs = 10
+            const sleepSecs = 5
+            const bufferSecs = 0
+            // const sleepSecs = 50
+            // const bufferSecs = 10
+
+            const minValidity = sleepSecs + bufferSecs
 
             if (keycloak) {
-                const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
+                const refreshed = await keycloak.updateToken(minValidity)
 
-                if (!keycloak.token) {
-                    // TODO: handle error
-                    return
+                if (refreshed) {
+                    setKeycloakAccessToken(keycloak.token ?? null)
                 }
             }
 
@@ -294,8 +305,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return keycloak.hasRealmRole(role)
     }
 
-    const getAccessToken = () => keycloak?.token
-
     const openProfileLink = async () => {
         if (!keycloak) {
             return
@@ -317,8 +326,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setTenantEvent,
                 logout,
                 hasRole,
-                getAccessToken,
                 openProfileLink,
+                keycloakAccessToken,
             }}
         >
             {props.children}
