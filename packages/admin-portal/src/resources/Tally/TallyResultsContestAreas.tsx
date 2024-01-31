@@ -24,6 +24,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAtom} from "jotai"
 import tallyCandidates, {
     tallyAreas,
+    tallyAreasContest,
     tallyCandidatesList,
     tallyGlobalAreas,
     tallySelectedTab,
@@ -166,7 +167,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     const [_, setResultsData] = useAtom(tallyCandidates)
     const [candidatesList] = useAtom(tallyCandidatesList)
     const [areas] = useAtom(tallyGlobalAreas)
-    const [contestAreas] = useAtom(tallyAreas)
+    const [contestAreas] = useAtom(tallyAreasContest)
     const [value, setValue] = useAtom(tallySelectedTab)
 
     useEffect(() => {

@@ -5,6 +5,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Identifier, RaRecord, useGetList} from "react-admin"
 
 import {
+    Sequent_Backend_Area,
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Contest,
     Sequent_Backend_Results_Contest,
@@ -19,6 +20,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAtom} from "jotai"
 import tallyCandidates, {
     tallyAreas,
+    tallyAreasContest,
     tallyCandidatesList,
     tallyGlobalAreas,
 } from "@/atoms/tally-candidates"
@@ -113,7 +115,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         setTallyCandidatesList(candidates || [])
     }, [candidates])
 
-    const {data: areas} = useGetList<Sequent_Backend_Area_Contest>(
+    const {data: areas} = useGetList<Sequent_Backend_Area>(
         "sequent_backend_area",
         {
             filter: {
@@ -130,7 +132,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [____, setTallyGlobalAreas] = useAtom(tallyGlobalAreas)
     useEffect(() => {
         if (areas) {
-            setAreasData(areas)
+            setTallyGlobalAreas(areas)
         }
     }, [areas, setTallyGlobalAreas])
 
@@ -149,12 +151,12 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             refetchOnMount: false,
         }
     )
-    const [__, setAreasData] = useAtom(tallyAreas)
+    const [__, setAreasContestData] = useAtom(tallyAreasContest)
     useEffect(() => {
         if (contestAreas) {
-            setAreasData(contestAreas)
+            setAreasContestData(contestAreas)
         }
-    }, [contestAreas, setAreasData])
+    }, [contestAreas, setAreasContestData])
 
     useEffect(() => {
         if (electionId) {
