@@ -45,6 +45,7 @@ import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
+import { ResultsDataLoader } from "./ResultsDataLoader"
 
 const WizardSteps = {
     Start: 0,
@@ -280,6 +281,11 @@ export const TallyCeremony: React.FC = () => {
                     />
                 </TallyStyles.StyledHeader>
 
+                {
+                    (resultsEventId && record?.id)
+                    ? <ResultsDataLoader resultsEventId={resultsEventId} electionEventId={record?.id}/>
+                    : null
+                }
                 {page === WizardSteps.Start && (
                     <>
                         <ElectionHeader

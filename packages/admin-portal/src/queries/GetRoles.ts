@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const getRoles = (fields: any) => {
+export const getRoles = (fields: {tenant_id: string}) => {
     return gql`
         query getRoles(
             $tenant_id: String! = "${fields.tenant_id}"
