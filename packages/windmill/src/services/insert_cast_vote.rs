@@ -57,10 +57,10 @@ pub async fn try_insert_cast_vote(
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
     let hasura_transaction = hasura_db_client.transaction().await?;
     // TODO performance of serializable
-    hasura_transaction
-        .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
-        .await
-        .with_context(|| "Cannot set transaction isolation level")?;
+    /*hasura_transaction
+    .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
+    .await
+    .with_context(|| "Cannot set transaction isolation level")?;*/
 
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
