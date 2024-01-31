@@ -96,10 +96,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
     const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
-    let minAllowedRevotes = Math.min(
-        ...(ballotStyle?.ballot_eml.contests.map((contest) => contest.max_votes) ?? [1])
-    )
-    const canVote = () => castVotes.length < minAllowedRevotes && isVotingOpen
+    const canVote = () =>
+        castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
 
     const onClickToVote = () => {
         if (!canVote()) {

@@ -28,6 +28,7 @@ pub fn create_ballot_style(
         tenant_id: election.tenant_id,
         election_event_id: election.election_event_id,
         election_id: election.id,
+        num_allowed_revotes: election.num_allowed_revotes,
         description: election.description,
         public_key: Some(
             election_event
