@@ -216,7 +216,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = true
+    const hideAudit = false
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
