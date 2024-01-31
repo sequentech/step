@@ -183,9 +183,9 @@ export const fullAdminTheme = {
             },
         },
         MuiAccordion: {
-            "&.MuiPaper": {
-                styleOverrides: {
-                    root: {
+            styleOverrides: {
+                root: {
+                    "&.MuiPaper-root": {
                         position: "relative !important",
                     },
                 },
