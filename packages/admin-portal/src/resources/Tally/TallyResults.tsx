@@ -14,6 +14,8 @@ import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {IResultDocuments} from "@/types/results"
+import {useAtom} from "jotai"
+import {tallyResultsEventId} from "@/atoms/tally-candidates"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -166,7 +168,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             electionId={electionId}
                             electionEventId={election.election_event_id}
                             tenantId={election.tenant_id}
-                            resultsEventId={resultsEventId}
                         />
                     </CustomTabPanel>
                 ))}

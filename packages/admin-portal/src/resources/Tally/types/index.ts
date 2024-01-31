@@ -8,3 +8,8 @@ export interface Sequent_Backend_Candidate_Extended extends Sequent_Backend_Cand
     cast_votes?: number | null
     cast_votes_percent: number | null
 }
+
+export interface IAreasContestTabs {
+    id: string
+    name?: string | null
+}

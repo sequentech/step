@@ -27,26 +27,28 @@ import tallyCandidates, {
     tallyAreasContest,
     tallyCandidatesList,
     tallyGlobalAreas,
+    tallyResultsEventId,
     tallySelectedTab,
 } from "@/atoms/tally-candidates"
 
 interface TallyResultsContestAreasProps {
-    areas?: RaRecord<Identifier>[] | undefined
     contestId: string | null
     electionId: string | null
     electionEventId: string | null
     tenantId: string | null
-    resultsEventId: string | null
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {contestId, electionId, electionEventId, tenantId} = props
     const {t} = reactI18next.useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    // const [value, setValue] = React.useState<number | null>(0)
-    const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
+    console.log("results contestId", contestId);
+    
+
     const [selectedArea, setSelectedArea] = useState<string | null>()
+
+    const [resultsEventId] = useAtom(tallyResultsEventId)
 
     const {data: resultsContests} = useGetList<Sequent_Backend_Results_Area_Contest>(
         "sequent_backend_results_area_contest",
@@ -143,30 +145,29 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     //     }
     // )
 
-    const {data: areaResults} = useGetList<Sequent_Backend_Results_Area_Contest_Candidate>(
-        "sequent_backend_results_area_contest_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-                area_id: selectedArea,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+    // const {data: areaResults} = useGetList<Sequent_Backend_Results_Area_Contest_Candidate>(
+    //     "sequent_backend_results_area_contest_candidate",
+    //     {
+    //         pagination: {page: 1, perPage: 9999},
+    //         filter: {
+    //             contest_id: contestId,
+    //             tenant_id: tenantId,
+    //             election_event_id: electionEventId,
+    //             election_id: electionId,
+    //             area_id: selectedArea,
+    //             results_event_id: resultsEventId,
+    //         },
+    //     },
+    //     {
+    //         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    //         refetchOnWindowFocus: false,
+    //         refetchOnReconnect: false,
+    //         refetchOnMount: false,
+    //     }
+    // )
 
     const [_, setResultsData] = useAtom(tallyCandidates)
     const [candidatesList] = useAtom(tallyCandidatesList)
-    const [areas] = useAtom(tallyGlobalAreas)
     const [contestAreas] = useAtom(tallyAreasContest)
     const [value, setValue] = useAtom(tallySelectedTab)
 
@@ -197,16 +198,20 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     //     // tabGlobalClicked()
     // }, [])
 
-    useEffect(() => {
-        if (contestAreas) {
-            console.log("results contestAreas", contestAreas)
-            setAreasData(contestAreas)
-        }
-    }, [contestAreas])
+    // useEffect(() => {
+    //     if (contestAreas) {
+    //         const areasContestDataStr = JSON.stringify(contestAreas)
+    //         const areasTempStr = JSON.stringify(areasData)
+    //         console.log("results contestAreas jot", areasContestDataStr)
+    //         console.log("results contestAreas loc", areasTempStr)
+    //         if (areasContestDataStr !== areasTempStr) {
+    //             console.log("results contestAreas", contestAreas)
+    //             setAreasData(contestAreas)
+    //         }
+    //     }
+    // }, [contestAreas])
 
     const tabClicked = (area: Sequent_Backend_Area_Contest, index: number) => {
-        console.log("results tabClicked", index)
-
         setValue(index + 1)
         setSelectedArea(area.area_id)
     }
@@ -251,11 +256,11 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                 <Tabs value={value} sx={{flex: 1}}>
                     <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
 
-                    {areasData?.map((area, index) => {
+                    {contestAreas?.map((area, index) => {
                         return (
                             <Tab
                                 key={index}
-                                label={areas?.find((item) => item.id === area.area_id)?.name}
+                                label={area.name}
                                 onClick={() => tabClicked(area, index)}
                             />
                         )
@@ -273,7 +278,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             <CustomTabPanel index={0} value={value}>
                 <TallyResultsGlobalCandidates general={general} />
             </CustomTabPanel>
-            {areasData?.map((area, index) => (
+            {contestAreas?.map((area, index) => (
                 <CustomTabPanel key={index} index={index + 1} value={value}>
                     <TallyResultsCandidates
                         electionEventId={contest?.election_event_id}
