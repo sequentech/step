@@ -6,6 +6,7 @@ use super::candidates;
 pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &Uuid) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
+        created_at: None,
         id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
@@ -14,6 +15,10 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         description: Some(
             "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
         ),
+        name_i18n: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         max_votes: 1,
         min_votes: 0,
         winning_candidates_num: 1,
@@ -51,6 +56,7 @@ pub fn get_contest_min_max_votes(
 ) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
+        created_at: None,
         id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
@@ -59,6 +65,10 @@ pub fn get_contest_min_max_votes(
         description: Some(
             "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
         ),
+        name_i18n: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         max_votes: max_votes as i64,
         min_votes: min_votes as i64,
         winning_candidates_num: 1,
