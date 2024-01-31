@@ -11,9 +11,9 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
-        name: Some("Secretario General".into()),
+        name: Some("Secretario <strong><em>General</em></strong>".into()),
         description: Some(
-            "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
+            "<strong>Elige</strong> quien quieres que sea tu Secretario General en tu municipio".into(),
         ),
         name_i18n: None,
         description_i18n: None,
