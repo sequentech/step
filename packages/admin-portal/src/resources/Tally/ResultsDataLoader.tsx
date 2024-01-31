@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { tallyAreas } from "@/atoms/tally-candidates"
+import { tallyAreas, tallyQueryData } from "@/atoms/tally-candidates"
 import { GetTallyDataQuery, Sequent_Backend_Area, Sequent_Backend_Area_Contest } from "@/gql/graphql"
 import { useTenantStore } from "@/providers/TenantContextProvider"
 import { GET_TALLY_DATA } from "@/queries/GetTallyData"
@@ -18,7 +18,7 @@ export interface ResultsDataLoaderProps {
 
 export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({resultsEventId, electionEventId}) => {
     const [tenantId] = useTenantStore()
-    const setAreasData = useSetAtom(tallyAreas)
+    const setTallyQueryData = useSetAtom(tallyQueryData)
 
     const {data: tallyData} = useQuery<GetTallyDataQuery>(GET_TALLY_DATA, {
         variables: {
@@ -27,6 +27,10 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({resultsEven
             tenantId,
         },
     })
+
+    useEffect(() => {
+        setTallyQueryData(tallyData ?? null)
+    }, [tallyData])
 
     return <></>
 }

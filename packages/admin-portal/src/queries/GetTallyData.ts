@@ -42,6 +42,32 @@ export const GET_TALLY_DATA = gql`
             area_id
             annotations
         }
+        sequent_backend_election (
+            where: {
+                election_event_id: {_eq: $electionEventId},
+                tenant_id: {_eq: $tenantId}
+            }
+        ) {
+          tenant_id
+          status
+          statistics
+          spoil_ballot_option
+          receipts
+          presentation
+          num_allowed_revotes
+          name
+          last_updated_at
+          labels
+          is_kiosk
+          is_consolidated_ballot_encoding
+          image_document_id
+          id
+          eml
+          election_event_id
+          description
+          dates
+          created_at
+        }
         sequent_backend_candidate (
             where: {
                 election_event_id: {_eq: $electionEventId},
