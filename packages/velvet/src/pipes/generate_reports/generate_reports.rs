@@ -19,16 +19,13 @@ use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
-};
-use crate::pipes::{
-    error::{Error, Result},
-    pipes,
 };
 
 pub const OUTPUT_PDF: &str = "report.pdf";
@@ -80,6 +77,7 @@ impl GenerateReports {
                     .map(|cr| CandidateResultForReport {
                         candidate: cr.candidate.clone(),
                         total_count: cr.total_count,
+                        percentage_votes: cr.percentage_votes,
                         winning_position: map_winners.get(&cr.candidate.id).cloned(),
                     })
                     .collect();
@@ -372,5 +370,6 @@ pub struct ReportDataComputed {
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
+    pub percentage_votes: f64,
     pub winning_position: Option<usize>,
 }

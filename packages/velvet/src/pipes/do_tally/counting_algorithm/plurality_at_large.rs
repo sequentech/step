@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::plaintext::InvalidPlaintextErrorType;
 use std::collections::HashMap;
 use tracing::instrument;
 
@@ -63,6 +62,8 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         }
 
+        let count_total_votes = count_valid + count_invalid;
+
         let result: Result<Vec<CandidateResult>> = vote_count
             .into_iter()
             .map(|(id, total_count)| {
@@ -77,6 +78,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 
                 Ok(CandidateResult {
                     candidate,
+                    percentage_votes: (total_count as f64 / count_total_votes as f64) * 100.0,
                     total_count,
                 })
             })
@@ -103,6 +105,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                     if let Some(candidate) = candidate {
                         return Ok(CandidateResult {
                             candidate,
+                            percentage_votes: 0.0,
                             total_count: 0,
                         });
                     }
@@ -115,7 +118,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
-            total_votes: count_valid + count_invalid,
+            total_votes: count_total_votes,
             total_valid_votes: count_valid,
             total_invalid_votes: count_invalid,
             total_blank_votes: count_blank,

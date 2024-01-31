@@ -135,6 +135,7 @@ pub struct ContestResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateResult {
     pub candidate: Candidate,
+    pub percentage_votes: f64,
     pub total_count: u64,
 }
 

@@ -22,9 +22,9 @@ pub fn get_ballot_style_1(
         }),
         area_id: area_id.to_string(),
         contests: vec![contests::get_contest_1(
-            &tenant_id,
-            &election_event_id,
-            &election_id,
+            tenant_id,
+            election_event_id,
+            election_id,
         )],
     }
 }
