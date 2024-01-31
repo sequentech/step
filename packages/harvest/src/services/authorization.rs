@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
+use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
 use std::env;
 use tracing::instrument;
@@ -41,5 +41,30 @@ pub fn authorize(
         Err((Status::Unauthorized, "".into()))
     } else {
         Ok(())
+    }
+}
+
+// returns area_id
+#[instrument(skip(claims))]
+pub fn authorize_voter(
+    claims: &JwtClaims,
+    permissions: Vec<VoterPermissions>,
+) -> Result<String, (Status, String)> {
+    let perms_str: Vec<String> = permissions
+        .into_iter()
+        .map(|permission| permission.to_string())
+        .collect();
+    let permissions_set: HashSet<_> =
+        claims.hasura_claims.allowed_roles.iter().collect();
+    let all_contained =
+        perms_str.iter().all(|item| permissions_set.contains(&item));
+
+    if !all_contained {
+        return Err((Status::Unauthorized, "".into()));
+    }
+    if let Some(area_id) = claims.hasura_claims.area_id.clone() {
+        Ok(area_id)
+    } else {
+        Err((Status::Unauthorized, "Missing area_id".into()))
     }
 }

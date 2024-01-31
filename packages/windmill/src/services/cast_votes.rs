@@ -26,6 +26,7 @@ pub struct CastVote {
     pub cast_ballot_signature: Option<Vec<u8>>,
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
+    pub ballot_id: Option<String>,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -46,6 +47,7 @@ impl TryFrom<Row> for CastVote {
             cast_ballot_signature: item.try_get("cast_ballot_signature")?,
             voter_id_string: item.try_get("voter_id_string")?,
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            ballot_id: item.try_get("ballot_id")?,
         })
     }
 }
@@ -76,7 +78,8 @@ pub async fn find_area_ballots(
                         content,
                         cast_ballot_signature,
                         voter_id_string,
-                        election_event_id
+                        election_event_id,
+                        ballot_id
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = $1 AND

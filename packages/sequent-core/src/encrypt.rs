@@ -23,6 +23,12 @@ use crate::util::date::get_current_date;
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
 
+// Labels are used to make the proof of knowledge unique.
+// This is a constant for now but when we implement voter signatures this will
+// be unique to the voter, and it will include the public key of the voter,
+// election event id, election id, contest id etc.
+pub const DEFAULT_PLAINTEXT_LABEL: [u8; 0] = [];
+
 pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     let pk_str: String = DEFAULT_PUBLIC_KEY_RISTRETTO_STR.to_string();
     let pk_bytes = general_purpose::STANDARD_NO_PAD
@@ -32,11 +38,11 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     (pk_str, pk)
 }
 
-//pub fn encrypt_plaintext_candidate<C: Ctx<P = [u8; 30]>>(
 pub fn encrypt_plaintext_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: <C>::E,
     plaintext: <C>::P,
+    label: &[u8],
 ) -> Result<(ReplicationChoice<C>, Schnorr<C>), BallotError> {
     // Possible contexts:
     // let ctx = RistrettoCtx;
@@ -49,16 +55,11 @@ pub fn encrypt_plaintext_candidate<C: Ctx>(
 
     // encrypt and prove knowledge of plaintext (enc + pok)
     let (ciphertext, proof, randomness) =
-        pk.encrypt_and_pok(&encoded, &vec![]).unwrap();
+        pk.encrypt_and_pok(&encoded, label).unwrap();
     // verify
     let zkp = Zkp::new(ctx);
     let proof_ok = zkp
-        .encryption_popk_verify(
-            &ciphertext.mhr,
-            &ciphertext.gr,
-            &proof,
-            &vec![],
-        )
+        .encryption_popk_verify(&ciphertext.mhr, &ciphertext.gr, &proof, label)
         .unwrap();
     assert!(proof_ok);
 
@@ -167,8 +168,12 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
                     err
                 ))
             })?;
-        let (choice, proof) =
-            encrypt_plaintext_candidate(ctx, public_key.clone(), plaintext)?;
+        let (choice, proof) = encrypt_plaintext_candidate(
+            ctx,
+            public_key.clone(),
+            plaintext,
+            &DEFAULT_PLAINTEXT_LABEL,
+        )?;
         contests.push(AuditableBallotContest::<C> {
             contest_id: contest.id.clone(),
             choice: choice,
@@ -227,8 +232,13 @@ mod tests {
 
         let plaintext = ctx.rnd_plaintext(&mut csprng);
 
-        encrypt::encrypt_plaintext_candidate(&ctx, pk_element, plaintext)
-            .unwrap();
+        encrypt::encrypt_plaintext_candidate(
+            &ctx,
+            pk_element,
+            plaintext,
+            &encrypt::DEFAULT_PLAINTEXT_LABEL,
+        )
+        .unwrap();
         assert_eq!(
             pk_string.as_str(),
             encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR

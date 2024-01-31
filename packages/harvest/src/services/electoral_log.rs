@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::routes::immudb_log_audit::{create_named_param, get_immudb_client};
-use crate::services::authorization::authorize;
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
@@ -13,8 +12,6 @@ use board_messages::electoral_log::message::Message;
 use immu_board::assign_value;
 use immu_board::util::get_event_board;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use rocket::serde::json::Json;
-use rocket::{http::Status, response::Debug};
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;

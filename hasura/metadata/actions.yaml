@@ -413,6 +413,20 @@ actions:
   permissions:
   - role: admin-user
   comment: insertTenant
+- name: insert_cast_vote
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/insert-cast-vote
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: user
+  comment: insert_cast_vote
 - name: listElectoralLog
   definition:
     kind: ""
@@ -674,4 +688,5 @@ custom_types:
   - name: GetBallotPublicationChangesOutput
   - name: RestorePrivateKeyOutput
   - name: PublishTallyOutput
+  - name: InsertCastVoteOutput
   scalars: []

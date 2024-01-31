@@ -11,22 +11,15 @@ import {Box, CircularProgress} from "@mui/material"
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
-    const {getAccessToken, isAuthContextInitialized} = useContext(AuthContext)
+    const {keycloakAccessToken, isAuthContextInitialized} = useContext(AuthContext)
     const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
-    const [initClient, setInitClient] = useState<boolean>(false)
 
     useEffect(() => {
         if (!isAuthContextInitialized) {
             return
         }
 
-        if (initClient) {
-            return
-        }
-
-        const token = getAccessToken()
-
-        if (!token) {
+        if (!keycloakAccessToken) {
             return
         }
 
@@ -40,7 +33,7 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             return {
                 headers: {
                     ...headers,
-                    authorization: token ? `Bearer ${token}` : "",
+                    authorization: keycloakAccessToken ? `Bearer ${keycloakAccessToken}` : "",
                 },
             }
         })
@@ -51,8 +44,7 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
         })
 
         setClient(apolloClient)
-        setInitClient(true)
-    }, [initClient, isAuthContextInitialized, getAccessToken, globalSettings.HASURA_URL])
+    }, [isAuthContextInitialized, keycloakAccessToken, globalSettings.HASURA_URL])
 
     return client === null ? (
         <Box sx={{marginTop: "25px"}}>

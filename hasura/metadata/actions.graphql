@@ -195,6 +195,14 @@ type Mutation {
   ): InsertTenantOutput
 }
 
+type Mutation {
+  insert_cast_vote (
+    election_id: uuid!
+    ballot_id: String!
+    content: String!
+  ): InsertCastVoteOutput
+}
+
 type Query {
   listElectoralLog (
     limit: Int
@@ -724,5 +732,21 @@ type RestorePrivateKeyOutput {
 
 type PublishTallyOutput {
   tally_sheet_id : uuid
+}
+
+type InsertCastVoteOutput {
+  id : uuid!
+  tenant_id : uuid!
+  election_id : uuid!
+  area_id : uuid!
+  created_at : timestamptz
+  last_updated_at : timestamptz
+  labels : jsonb
+  annotations : jsonb
+  content : String
+  cast_ballot_signature : bytea!
+  voter_id_string : String
+  election_event_id : uuid!
+  ballot_id : String
 }
 
