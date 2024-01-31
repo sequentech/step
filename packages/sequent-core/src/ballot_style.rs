@@ -157,5 +157,6 @@ fn create_contest(
             })
             .collect(),
         presentation: Some(cp),
+        created_at: contest.created_at.map(|date| date.to_rfc3339()),
     }
 }

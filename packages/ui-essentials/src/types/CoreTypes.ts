@@ -64,6 +64,7 @@ export interface IContest {
     is_encrypted: boolean
     candidates: Array<ICandidate>
     presentation?: IContestPresentation
+    created_at?: string
 }
 
 export interface ICandidateUrl {

@@ -6,6 +6,7 @@ use super::candidates;
 pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &Uuid) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
+        created_at: None,
         id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
@@ -55,6 +56,7 @@ pub fn get_contest_min_max_votes(
 ) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
+        created_at: None,
         id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
