@@ -31,8 +31,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {general} = props
     const {t} = useTranslation()
 
-    console.log("results general", general);
-    
+    console.log("results general", general)
 
     const [resultsData] = useAtom(tallyCandidates)
 

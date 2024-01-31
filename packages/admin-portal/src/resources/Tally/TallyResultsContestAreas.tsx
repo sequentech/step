@@ -43,8 +43,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     const {t} = reactI18next.useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    console.log("results contestId", contestId);
-    
+    console.log("results contestId", contestId)
 
     const [selectedArea, setSelectedArea] = useState<string | null>()
 
