@@ -1,7 +1,10 @@
 import {IContest} from "@sequentech/ui-essentials"
-import {cloneDeep} from "lodash"
 
-export function sortContestByCreationDate(contests: IContest[]): IContest[] {
+export interface IContestWithIndex extends IContest {
+    originalIndex: number
+}
+
+export function sortContestByCreationDate(contests: IContest[]): IContestWithIndex[] {
     // contests = cloneDeep(contests)
     //
     // contests.sort((a, b) => {
