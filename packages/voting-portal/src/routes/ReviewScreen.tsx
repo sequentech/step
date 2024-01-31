@@ -294,7 +294,7 @@ export const ReviewScreen: React.FC = () => {
                     ballotStyle={ballotStyle}
                     question={question}
                     key={index}
-                    questionIndex={index}
+                    questionIndex={question.originalIndex}
                     isReview={true}
                 />
             ))}

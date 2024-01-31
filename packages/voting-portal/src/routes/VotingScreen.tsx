@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {cloneDeep} from "lodash"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -255,7 +254,7 @@ const VotingScreen: React.FC = () => {
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
-                    questionIndex={index}
+                    questionIndex={contest.originalIndex}
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}

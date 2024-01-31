@@ -11,7 +11,6 @@ import {
     keyBy,
     translate,
     IContest,
-    CandidatesOrder,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
