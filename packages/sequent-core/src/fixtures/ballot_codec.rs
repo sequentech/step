@@ -192,6 +192,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        num_allowed_revotes: Some(1),
         description: Some("Write-ins simple".into()),
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),

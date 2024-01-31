@@ -99,6 +99,7 @@ export interface IBallotStyle {
     tenant_id: string
     election_event_id: string
     election_id: string
+    num_allowed_revotes?: number
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string

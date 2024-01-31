@@ -501,6 +501,7 @@ pub struct BallotStyle {
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
+    pub num_allowed_revotes: Option<i64>,
     pub description: Option<String>,
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,
