@@ -1,14 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {LegacyRef, useContext, useEffect, useState} from "react"
-import {useGetList} from "react-admin"
+import React from "react"
 
-import {
-    Sequent_Backend_Candidate,
-    Sequent_Backend_Results_Area_Contest,
-    Sequent_Backend_Results_Area_Contest_Candidate,
-} from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {NoItem} from "@/components/NoItem"
@@ -22,112 +16,16 @@ import {
     TableBody,
     Typography,
 } from "@mui/material"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
 import {useAtom} from "jotai"
-import {tallyCandidatesList} from "@/atoms/tally-candidates"
+import {tallyAreaCandidates, tallyAreaData} from "@/atoms/tally-candidates"
 
-interface TallyResultsCandidatesProps {
-    areaId: string | null | undefined
-    contestId: string
-    electionId: string
-    electionEventId: string
-    tenantId: string
-    resultsEventId: string | null
-    general: Sequent_Backend_Results_Area_Contest[] | undefined
-}
 
-export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId, general} =
-        props
-    const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
+export const TallyResultsCandidates: React.FC = () => {
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
 
-    const [candidates] = useAtom(tallyCandidatesList)
-
-    // const {data: candidates} = useGetList<Sequent_Backend_Candidate_Extended>(
-    //     "sequent_backend_candidate",
-    //     {
-    //         pagination: {page: 1, perPage: 9999},
-    //         filter: {
-    //             tenant_id: tenantId,
-    //             election_event_id: electionEventId,
-    //             contest_id: contestId,
-    //         },
-    //     },
-    //     {
-    //         refetchOnWindowFocus: false,
-    //         refetchOnReconnect: false,
-    //         refetchOnMount: false,
-    //     }
-    // )
-
-    // const {data: general} = useGetList<Sequent_Backend_Results_Area_Contest>(
-    //     "sequent_backend_results_area_contest",
-    //     {
-    //         pagination: {page: 1, perPage: 1},
-    //         filter: {
-    //             contest_id: contestId,
-    //             tenant_id: tenantId,
-    //             election_event_id: electionEventId,
-    //             election_id: electionId,
-    //             results_event_id: resultsEventId,
-    //             area_id: areaId,
-    //         },
-    //     },
-    //     {
-    //         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    //         refetchOnWindowFocus: false,
-    //         refetchOnReconnect: false,
-    //         refetchOnMount: false,
-    //     }
-    // )
-
-    const {data: results} = useGetList<Sequent_Backend_Results_Area_Contest_Candidate>(
-        "sequent_backend_results_area_contest_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-                area_id: areaId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    useEffect(() => {
-        if (results && candidates) {
-            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
-                (candidate, index) => {
-                    let candidateResult = results.find((r) => r.candidate_id === candidate.id)
-
-                    return {
-                        ...candidate,
-                        rowId: index,
-                        id: candidate.id || "",
-                        name: candidate.name,
-                        status: candidate.status || "",
-                        cast_votes: candidateResult?.cast_votes,
-                        cast_votes_percent: candidateResult?.cast_votes_percent,
-                        winning_position: candidateResult?.winning_position,
-                    }
-                }
-            )
-
-            setResultsData(temp)
-        }
-    }, [results, candidates])
+    const [areaData] = useAtom(tallyAreaData)
+    const [resultsData] = useAtom(tallyAreaCandidates)
 
     const columns: GridColDef[] = [
         {
@@ -173,7 +71,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 {t("tally.table.global")}
             </Typography>
 
-            {general && general.length ? (
+            {areaData ? (
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableHead>
@@ -189,7 +87,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.elegible_census")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].elegible_census ?? "-"}
+                                    {areaData.elegible_census ?? "-"}
                                 </TableCell>
                                 <TableCell align="right"></TableCell>
                             </TableRow>
@@ -198,11 +96,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.total_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].total_votes ?? "-"}
+                                    {areaData.total_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {isNumber(general?.[0].total_votes_percent)
-                                        ? formatPercentOne(general[0].total_votes_percent)
+                                    {isNumber(areaData.total_votes_percent)
+                                        ? formatPercentOne(areaData.total_votes_percent)
                                         : "-"}
                                 </TableCell>
                             </TableRow>
@@ -211,11 +109,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.total_valid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].total_valid_votes ?? "-"}
+                                    {areaData.total_valid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {isNumber(general?.[0].total_valid_votes_percent)
-                                        ? formatPercentOne(general[0].total_valid_votes_percent)
+                                    {isNumber(areaData.total_valid_votes_percent)
+                                        ? formatPercentOne(areaData.total_valid_votes_percent)
                                         : "-"}
                                 </TableCell>
                             </TableRow>
@@ -224,11 +122,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.total_invalid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].total_invalid_votes ?? "-"}
+                                    {areaData.total_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {isNumber(general?.[0].total_invalid_votes_percent)
-                                        ? formatPercentOne(general[0].total_invalid_votes_percent)
+                                    {isNumber(areaData.total_invalid_votes_percent)
+                                        ? formatPercentOne(areaData.total_invalid_votes_percent)
                                         : "-"}
                                 </TableCell>
                             </TableRow>
@@ -237,12 +135,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.explicit_invalid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].explicit_invalid_votes ?? "-"}
+                                    {areaData.explicit_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {isNumber(general?.[0].explicit_invalid_votes_percent)
+                                    {isNumber(areaData.explicit_invalid_votes_percent)
                                         ? formatPercentOne(
-                                              general[0].explicit_invalid_votes_percent
+                                              areaData.explicit_invalid_votes_percent
                                           )
                                         : "-"}
                                 </TableCell>
@@ -252,12 +150,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.implicit_invalid_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].implicit_invalid_votes ?? "-"}
+                                    {areaData.implicit_invalid_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {isNumber(general?.[0].implicit_invalid_votes_percent)
+                                    {isNumber(areaData.implicit_invalid_votes_percent)
                                         ? formatPercentOne(
-                                              general[0].implicit_invalid_votes_percent
+                                              areaData.implicit_invalid_votes_percent
                                           )
                                         : "-"}
                                 </TableCell>
@@ -267,11 +165,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].blank_votes ?? "-"}
+                                    {areaData.blank_votes ?? "-"}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {isNumber(general?.[0].blank_votes_percent)
-                                        ? formatPercentOne(general[0].blank_votes_percent)
+                                    {isNumber(areaData.blank_votes_percent)
+                                        ? formatPercentOne(areaData.blank_votes_percent)
                                         : "-"}
                                 </TableCell>
                             </TableRow>

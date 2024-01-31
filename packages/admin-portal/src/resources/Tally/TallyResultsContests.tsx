@@ -154,7 +154,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         }
     )
     const [areasContestData, setAreasContestData] = useAtom(tallyAreasContest)
-    useEffect(() => {
+    useMemo(() => {
         if (areas) {
             if (contestAreas) {
                 const areasTemp: IAreasContestTabs[] = contestAreas.map((area) => {
@@ -166,7 +166,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                 const areasContestDataStr = JSON.stringify(areasContestData)
                 const areasTempStr = JSON.stringify(areasTemp)
                 if (areasContestDataStr !== areasTempStr) {
-                    console.log("results contest", areasContestData)
                     setAreasContestData(areasTemp)
                 }
             }
@@ -191,12 +190,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         }
     }, [tenantId])
 
-    // useEffect(() => {
-    //     if (areas) {
-    //         console.log("results SET areas", areas)
-    //         setAreasGlobal(areas)
-    //     }
-    // }, [areas])
 
     useEffect(() => {
         if (electionData) {

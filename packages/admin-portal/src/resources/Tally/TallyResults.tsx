@@ -26,6 +26,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId} = props
 
+        const [__, setResultsEventId] = useAtom(tallyResultsEventId)
+
         const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
@@ -82,6 +84,12 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 setData(tally)
             }
         }, [tally])
+
+        useEffect(() => {
+            if (resultsEventId) {
+                setResultsEventId(resultsEventId)
+            }
+        }, [resultsEventId])
 
         useEffect(() => {
             if (areas) {
