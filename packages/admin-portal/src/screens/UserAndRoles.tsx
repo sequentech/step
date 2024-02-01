@@ -1,17 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import React, {useContext, useState} from "react"
 import {ListUsers} from "../resources/User/ListUsers"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useTenantStore} from "../providers/TenantContextProvider"
-import {CustomTabPanel} from "../components/CustomTabPanel"
 import ElectionHeader from "../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
 import {ListRoles} from "../resources/Roles/ListRoles"
 import {IPermissions} from "../types/keycloak"
+import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
 
 export const UserAndRoles: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -31,16 +30,20 @@ export const UserAndRoles: React.FC = () => {
                 title={t("usersAndRolesScreen.common.title")}
                 subtitle="usersAndRolesScreen.common.subtitle"
             />
-            <Tabs value={value} onChange={handleChange} aria-label="Users and Roles tabs">
+            <SidebarScreenStyles.Tabs
+                value={value}
+                onChange={handleChange}
+                aria-label="Users and Roles tabs"
+            >
                 {showUsers ? <Tab label={t("usersAndRolesScreen.users.title")} /> : null}
                 {showRoles ? <Tab label={t("usersAndRolesScreen.roles.title")} /> : null}
-            </Tabs>
-            <CustomTabPanel value={value} index={0}>
+            </SidebarScreenStyles.Tabs>
+            <SidebarScreenStyles.CustomTabPanel value={value} index={0}>
                 <ListUsers />
-            </CustomTabPanel>
-            <CustomTabPanel value={value} index={1}>
+            </SidebarScreenStyles.CustomTabPanel>
+            <SidebarScreenStyles.CustomTabPanel value={value} index={1}>
                 <ListRoles />
-            </CustomTabPanel>
+            </SidebarScreenStyles.CustomTabPanel>
         </>
     )
 }
