@@ -86,7 +86,7 @@ impl GenerateReports {
                     a.winning_position
                         .unwrap_or(usize::MAX)
                         .cmp(&b.winning_position.unwrap_or(usize::MAX))
-                        .then_with(|| a.total_count.cmp(&b.total_count))
+                        .then_with(|| b.total_count.cmp(&a.total_count))
                         .then_with(|| a.candidate.name.cmp(&b.candidate.name))
                 });
 
