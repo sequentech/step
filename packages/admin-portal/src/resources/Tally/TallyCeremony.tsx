@@ -45,6 +45,7 @@ import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
+import {ResultsDataLoader} from "./ResultsDataLoader"
 
 const WizardSteps = {
     Start: 0,
@@ -60,7 +61,7 @@ interface IExpanded {
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
@@ -282,6 +283,12 @@ export const TallyCeremony: React.FC = () => {
                     />
                 </TallyStyles.StyledHeader>
 
+                {resultsEventId && record?.id ? (
+                    <ResultsDataLoader
+                        resultsEventId={resultsEventId}
+                        electionEventId={record?.id}
+                    />
+                ) : null}
                 {page === WizardSteps.Start && (
                     <>
                         <ElectionHeader
@@ -526,6 +533,14 @@ export const TallyCeremony: React.FC = () => {
                                     : page === WizardSteps.Tally
                                     ? t("tally.common.results")
                                     : t("tally.common.next")}
+                                <ChevronRightIcon
+                                    style={{
+                                        transform:
+                                            i18n.dir(i18n.language) === "rtl"
+                                                ? "rotate(180deg)"
+                                                : "rotate(0)",
+                                    }}
+                                />
                                 <ChevronRightIcon />
                             </>
                         </NextButton>
