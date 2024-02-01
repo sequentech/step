@@ -133,7 +133,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                     className="next-button"
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handleNext()}
-                    disabled={disableNext}
+                    // disabled={disableNext}
                 >
                     <Box>{t("votingScreen.reviewButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
@@ -213,6 +213,28 @@ const VotingScreen: React.FC = () => {
             navigate(backLink)
         }
     }, [navigate, backLink, election, ballotStyle])
+
+    useEffect(() => {
+        let hasVoted = []
+        for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
+            let votos = 0
+            let selection = selectionState?.find((s) => s.contest_id === contest.id)
+            for (let choice of selection?.choices ?? []) {
+                if (choice.selected > -1) {
+                    votos = choice.selected + 1
+                }
+            }
+            if (contest.min_votes >= votos && contest.max_votes <= votos) {
+                hasVoted.push(true)
+            } else {
+                hasVoted.push(false)
+            }
+        }
+        setDisableNext({
+            ...disableNext,
+            global: hasVoted.some((v) => !v),
+        })
+    }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {
         return <CircularProgress />

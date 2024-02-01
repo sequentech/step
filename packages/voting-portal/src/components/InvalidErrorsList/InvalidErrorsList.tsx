@@ -29,6 +29,9 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     )
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
+
+    console.log("vote contestSelection", contestSelection)
+    
     useEffect(() => {
         if (isTouched || !contestSelection) {
             return
@@ -42,6 +45,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const decodedContestSelection =
         contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
 
+    console.log("vote decodedContestSelection", decodedContestSelection)
+
     if (!isTouched && decodedContestSelection) {
         decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
             (error) => error.message !== "errors.implicit.selectedMin"
@@ -53,6 +58,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         : 0
 
     useEffect(() => {
+        console.log("vote numAvailableChars", numAvailableChars)
         let newInvalid = numAvailableChars < 0
         if (newInvalid !== isInvalidWriteIns) {
             setIsInvalidWriteIns(newInvalid)

@@ -32,13 +32,13 @@ const spanishTranslation: TranslationType = {
             instructionsDescription: "Seguirá estos pasos al emitir tu voto:",
             step1Title: "1. Seleccione su opción de voto",
             step1Description:
-                "Seleccione sus opciones de voto que se presentan una a una. Configurará así las preferencias de su papeleta.",
+                "Seleccione sus candidatos preferidos y responda las preguntas de la elección una por una a medida que aparezcan. Puede editar su papeleta hasta que esté listo para continuar.",
             step2Title: "2. Revise su papeleta",
             step2Description:
-                "Una vez ha elegido sus preferencias, procederemos a cifrarlas y obtendrá un localizador. Le mostraremos el contenido de su papeleta para que pueda revisarla.",
+                "Una vez que esté satisfecho con sus selecciones, encriptaremos su papeleta y le mostraremos una revisión final de sus elecciones. También recibirá un ID de seguimiento único para su papeleta.",
             step3Title: "3. Envíe su voto",
             step3Description:
-                "Puede enviar su voto a la urna electrónica para que sea debidamente registrado.",
+                "Envía tu papeleta: Finalmente, puedes enviar tu papeleta para que se registre correctamente. Alternativamente, puedes optar por auditar y confirmar que tu papeleta fue capturada y cifrada correctamente.",
         },
         reviewScreen: {
             title: "Revisa tu voto",

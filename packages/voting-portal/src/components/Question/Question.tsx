@@ -108,7 +108,10 @@ export const Question: React.FC<IQuestionProps> = ({
     }
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
 
+    console.log("vote noCategoryCandidatesMap", noCategoryCandidatesMap)
+
     const onSetIsInvalidWriteIns = (value: boolean) => {
+        console.log("vote onSetIsInvalidWriteIns", value)
         setIsInvalidWriteIns(value)
         setDisableNext?.(value)
     }
