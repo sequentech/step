@@ -4,7 +4,6 @@
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {IBallotStyle as IElectionDTO} from "@sequentech/ui-essentials"
-import {EElectionScreenStep} from "@sequentech/ui-essentials/dist/types/ElectionPresentation"
 
 export interface IBallotStyle {
     id: string

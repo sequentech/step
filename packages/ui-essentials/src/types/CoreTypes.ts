@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {IElectionEventPresentation} from "./ElectionEventPresentation"
+
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
@@ -116,6 +118,7 @@ export interface IBallotStyle {
     public_key?: IPublicKeyConfig
     area_id: string
     contests: Array<IContest>
+    election_event_presentation?: IElectionEventPresentation
 }
 
 export interface IPublicKeyConfig {

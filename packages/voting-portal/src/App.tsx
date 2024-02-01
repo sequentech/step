@@ -14,11 +14,10 @@ import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
-import {GET_ELECTION_EVENT} from "./queries/GetElectionEvent"
-import {useQuery} from "@apollo/client"
-import {GetElectionEventQuery} from "./gql/graphql"
 import {useAppSelector} from "./store/hooks"
 import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
+import {selectElectionIds} from "./store/elections/electionsSlice"
+import {selectBallotStyleByElectionId} from "./store/ballotStyles/ballotStylesSlice"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -57,19 +56,23 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
-    const css = `
-        &:has(div > .start-screen) {
-            background-image: linear-gradient(1deg, #ffffff, transparent),url('https://www.alliedpilots.org/-/media/AlliedPilots/BackgroundBanners/13.jpg')!important;
-        
-            .header-class, .footer-class {
-            background-color: unset;
-            }
-        
-            .app-version {
-            background: unset;
-            }
-        }
-    `
+
+    const electionIds = useAppSelector(selectElectionIds)
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+
+    // const css = `
+    //     &:has(div > .start-screen) {
+    //         background-image: linear-gradient(1deg, #ffffff, transparent),url('https://www.alliedpilots.org/-/media/AlliedPilots/BackgroundBanners/13.jpg')!important;
+    //
+    //         .header-class, .footer-class {
+    //         background-color: unset;
+    //         }
+    //
+    //         .app-version {
+    //         background: unset;
+    //         }
+    //     }
+    // `
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -96,7 +99,10 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     return (
-        <StyledApp className="app-root" css={css}>
+        <StyledApp
+            className="app-root"
+            css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+        >
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
