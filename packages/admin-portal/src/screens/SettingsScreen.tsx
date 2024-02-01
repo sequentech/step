@@ -1,4 +1,4 @@
-import React, { useContext } from "react"
+import React, {useContext} from "react"
 import {Box} from "@mui/system"
 import {Resource} from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -10,10 +10,10 @@ import {SettingsComunications} from "@/resources/Settings/SettingsComunications"
 import {SettingsVotingChannels} from "@/resources/Settings/SettingsVotingChannel"
 import {SettingsElectionsTypes} from "@/resources/Settings/SettingsElectionsTypes"
 import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
-import { IPermissions } from "@/types/keycloak"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { ResourceListStyles } from "@/components/styles/ResourceListStyles"
-import { Typography } from "@mui/material"
+import {IPermissions} from "@/types/keycloak"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Typography} from "@mui/material"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()

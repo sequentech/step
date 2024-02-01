@@ -11,8 +11,8 @@ import {useTranslation} from "react-i18next"
 import {ListRoles} from "../resources/Roles/ListRoles"
 import {IPermissions} from "../types/keycloak"
 import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
-import { ResourceListStyles } from "@/components/styles/ResourceListStyles"
-import { Typography } from "@mui/material"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Typography} from "@mui/material"
 
 export const UserAndRoles: React.FC = () => {
     const authContext = useContext(AuthContext)

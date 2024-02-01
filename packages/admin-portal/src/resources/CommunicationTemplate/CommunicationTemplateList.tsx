@@ -28,7 +28,7 @@ import {CommunicationTemplateCreate} from "./CommunicationTemplateCreate"
 import {CommunicationTemplateEdit} from "./CommunicationTemplateEdit"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
-import { ResourceListStyles } from "@/components/styles/ResourceListStyles"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 
 const CommunicationTemplateEmpty = styled(Box)`
     display: flex;
@@ -59,7 +59,11 @@ export const CommunicationTemplateList: React.FC = () => {
     const {canWriteTenant} = useActionPermissions()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const templateRead = authContext.isAuthorized(true, tenantId, IPermissions.COMMUNICATION_TEMPLATE_READ)
+    const templateRead = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.COMMUNICATION_TEMPLATE_READ
+    )
 
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
