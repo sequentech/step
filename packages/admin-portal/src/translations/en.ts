@@ -152,6 +152,7 @@ const englishTranslation = {
             },
         },
         electionTypeScreen: {
+            noPermissions: "You don't have permission to access settings.",
             common: {
                 title: "Election Type",
                 subtitle: "Election type configuration",
@@ -357,6 +358,7 @@ const englishTranslation = {
             createError: "Error creating customer",
         },
         usersAndRolesScreen: {
+            noPermissions: "You don't have permission to access users or roles.",
             common: {
                 title: "Users and Roles",
                 subtitle: "General configuration",
@@ -1002,6 +1004,7 @@ const englishTranslation = {
             },
         },
         communicationTemplate: {
+            noPermissions: "You don't have permission to access communication templates.",
             title: "Communication Templates",
             subtitle: "List of communication templates",
             empty: {

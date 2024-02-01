@@ -8,6 +8,11 @@ const TabStyles = {
         display: flex;
         flex-direction: column;
         align-items: left;
+
+        .MuiTabs-scroller {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+            margin-bottom: 10px;
+        }
     `,
     Content: styled.div`
         padding: 2rem var(--2, 16px);
