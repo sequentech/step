@@ -1,0 +1,19 @@
+:root {
+    --pf-global--primary-color--100: #0F054C;
+    --pf-c-button--m-primary--BackgroundColor: #0F054C;
+}
+
+.login-pf body {
+    background-image: linear-gradient(1deg, #ffffff, transparent), url('https://www.alliedpilots.org/-/media/AlliedPilots/BackgroundBanners/13.jpg') !important;
+}
+
+#kc-header-wrapper {
+    color: #363636;
+}
+
+@media (max-width: 767px) {
+    #kc-header-wrapper {
+        padding: 20px;
+        text-align: center;
+    }
+}

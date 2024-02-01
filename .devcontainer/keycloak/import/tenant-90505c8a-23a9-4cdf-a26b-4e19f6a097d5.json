@@ -1,7 +1,7 @@
 {
   "id" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-  "displayName" : "Sequent Platform Admin",
+  "displayName" : "Sequent Admin Portal",
   "displayNameHtml" : "",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
@@ -35,7 +35,7 @@
   "verifyEmail" : false,
   "loginWithEmailAllowed" : true,
   "duplicateEmailsAllowed" : false,
-  "resetPasswordAllowed" : true,
+  "resetPasswordAllowed" : false,
   "editUsernameAllowed" : false,
   "bruteForceProtected" : true,
   "permanentLockout" : false,
@@ -97,6 +97,14 @@
     }, {
       "id" : "9be831cf-8a1b-43a1-80eb-d47a2c0698bf",
       "name" : "user-permission-write",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "5e160701-19cc-478b-8eb8-ae4e35492ced",
+      "name" : "tally-sheet-create",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -199,16 +207,16 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
-      "id" : "3faa50d7-352d-4440-9228-6bfa8fed04d4",
-      "name" : "document-upload",
+      "id" : "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
+      "name" : "tally-sheet-publish",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
-      "id" : "4134de6a-f322-43ed-b424-f8419fda98a1",
-      "name" : "document-download",
+      "id" : "3faa50d7-352d-4440-9228-6bfa8fed04d4",
+      "name" : "document-upload",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -335,6 +343,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
+      "name" : "tally-sheet-view",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "b0ad7f25-9e22-4c13-87c7-f32a5486d306",
       "name" : "voting-channel-write",
       "description" : "",
@@ -399,6 +415,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "7c279e73-acd2-4b14-946e-800e99915a86",
+      "name" : "tally-sheet-delete",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "f5ed990d-fa72-4490-be14-f7edaa5566ca",
       "name" : "user-create",
       "description" : "",
@@ -454,6 +478,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "4134de6a-f322-43ed-b424-f8419fda98a1",
+      "name" : "document-download",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "576e4f9b-d534-472d-b237-f9e9f3e7b237",
       "name" : "default-roles-electoral-process",
       "description" : "${role_default-roles}",
@@ -470,38 +502,6 @@
     }, {
       "id" : "dc06038b-81d0-49f5-8a62-7bd2f55440a1",
       "name" : "election-type-create",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-    }, {
-      "id" : "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
-      "name" : "tally-sheet-view",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-    }, {
-      "id" : "5e160701-19cc-478b-8eb8-ae4e35492ced",
-      "name" : "tally-sheet-create",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-    }, {
-      "id" : "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
-      "name" : "tally-sheet-publish",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-    }, {
-      "id" : "7c279e73-acd2-4b14-946e-800e99915a86",
-      "name" : "tally-sheet-delete",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -806,7 +806,7 @@
     "name" : "admin",
     "path" : "/admin",
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "document-upload", "document-download", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "election-type-create", "publish-read", "tally-sheet-view", "tally-sheet-create", "tally-sheet-publish", "tally-sheet-delete" ],
+    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "document-download", "election-type-create", "publish-read" ],
     "clientRoles" : { },
     "subGroups" : [ ]
   }, {
@@ -827,7 +827,6 @@
     "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a"
   },
   "requiredCredentials" : [ "password" ],
-  "passwordPolicy" : "upperCase(1) and lowerCase(1) and digits(1) and specialChars(1)",
   "otpPolicyType" : "totp",
   "otpPolicyAlgorithm" : "HmacSHA1",
   "otpPolicyInitialCounter" : 0,
@@ -835,7 +834,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName" ],
+  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -879,9 +878,9 @@
       "secretData" : "{\"value\":\"6tsEUpgrt96ja9CgPLooGWOGhzE4Xta/+Rev7ttuuKk=\",\"salt\":\"qb0VTldIRry2BkBQz66aBQ==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
     }, {
-      "id" : "df95bbdf-bca6-4943-b451-b1576172b8c7",
+      "id" : "8bbc3ef0-6fe8-43e4-800f-2bedb8d9878d",
       "type" : "message-otp",
-      "createdDate" : 1702058818192,
+      "createdDate" : 1706262684353,
       "secretData" : "{\"nothing\":\"nothing\"}",
       "credentialData" : "{\"setup\":true}"
     } ],
@@ -2034,7 +2033,7 @@
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
   "smtpServer" : { },
-  "loginTheme" : "sequent",
+  "loginTheme" : "sequent.admin-portal",
   "accountTheme" : "",
   "adminTheme" : "",
   "emailTheme" : "",
@@ -2061,7 +2060,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-full-name-mapper", "oidc-address-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper" ]
       }
     }, {
       "id" : "563febd2-5ea9-4258-bc2d-a4e9f2fcac38",
@@ -2114,7 +2113,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "saml-user-property-mapper", "oidc-address-mapper", "saml-user-attribute-mapper", "oidc-usermodel-property-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper" ]
       }
     } ],
     "org.keycloak.userprofile.UserProfileProvider" : [ {
@@ -2122,8 +2121,8 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "config-pieces-count" : [ "1" ],
-        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"admin\",\"user\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ]
+        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"admin\",\"user\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ],
+        "config-pieces-count" : [ "1" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -2171,8 +2170,8 @@
     } ]
   },
   "internationalizationEnabled" : true,
-  "supportedLocales" : [ "en", "es" ],
-  "defaultLocale" : "es",
+  "supportedLocales" : [ "en" ],
+  "defaultLocale" : "en",
   "authenticationFlows" : [ {
     "id" : "97f3a497-e031-4a98-8e78-114df12fce08",
     "alias" : "Account verification options",
@@ -2877,14 +2876,14 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
+      "requirement" : "DISABLED",
       "priority" : 23,
       "autheticatorFlow" : true,
       "flowAlias" : "Message OTP Subflow",
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
+      "requirement" : "DISABLED",
       "priority" : 24,
       "autheticatorFlow" : true,
       "flowAlias" : "Normal OTP Subflow",
@@ -2981,7 +2980,7 @@
     "config" : {
       "userClientLimit" : "0",
       "behavior" : "Deny new session",
-      "userRealmLimit" : "1"
+      "userRealmLimit" : "10"
     }
   }, {
     "id" : "37595d2a-40b3-4273-a8bb-3a874141f435",
@@ -3032,7 +3031,7 @@
     "alias" : "CONFIGURE_TOTP",
     "name" : "Configure OTP",
     "providerId" : "CONFIGURE_TOTP",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 10,
     "config" : { }
@@ -3048,7 +3047,7 @@
     "alias" : "UPDATE_PASSWORD",
     "name" : "Update Password",
     "providerId" : "UPDATE_PASSWORD",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 30,
     "config" : { }
@@ -3096,7 +3095,7 @@
     "alias" : "webauthn-register",
     "name" : "Webauthn Register",
     "providerId" : "webauthn-register",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 70,
     "config" : { }
@@ -3104,7 +3103,7 @@
     "alias" : "webauthn-register-passwordless",
     "name" : "Webauthn Register Passwordless",
     "providerId" : "webauthn-register-passwordless",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 80,
     "config" : { }
@@ -3112,7 +3111,7 @@
     "alias" : "update_user_locale",
     "name" : "Update User Locale",
     "providerId" : "update_user_locale",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1000,
     "config" : { }
@@ -3120,7 +3119,7 @@
     "alias" : "security-question-ra",
     "name" : "Security Question",
     "providerId" : "security-question-ra",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1001,
     "config" : { }
@@ -3128,7 +3127,7 @@
     "alias" : "mfa-method-selector",
     "name" : "Configure MFA method to use",
     "providerId" : "mfa-method-selector",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1002,
     "config" : { }
@@ -3136,7 +3135,7 @@
     "alias" : "message-otp-ra",
     "name" : "Reset Message OTP",
     "providerId" : "message-otp-ra",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1003,
     "config" : { }

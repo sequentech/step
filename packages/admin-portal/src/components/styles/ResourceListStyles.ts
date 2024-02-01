@@ -15,6 +15,11 @@ export const ResourceListStyles = {
         text-align: center;
         width: 100%;
     `,
+    EmptyButtonList: styled.div`
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+    `,
     CreateIcon: styled(IconButton)`
         font-size: 24px;
         margin-right: 0.5em;
