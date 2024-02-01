@@ -19,11 +19,9 @@ export const ballotSelectionsSlice = createSlice({
     name: "ballotSelections",
     initialState,
     reducers: {
-        clearBallot: (
-            state,
-        ): BallotSelectionsState => {
-            state = initialState;
-            return initialState;
+        clearBallot: (state): BallotSelectionsState => {
+            state = initialState
+            return initialState
         },
         setBallotSelection: (
             state,

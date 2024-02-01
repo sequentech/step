@@ -36,7 +36,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {sortContestByCreationDate} from "../lib/utils"
-import { AuthContext } from '../providers/AuthContextProvider'
+import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 
 const StyledLink = styled(RouterLink)`
