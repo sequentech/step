@@ -25,8 +25,8 @@ import {
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
-import { useAtomValue } from "jotai"
-import { tallyQueryData } from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -45,21 +45,30 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const tallyData = useAtomValue(tallyQueryData)
 
     const candidates: Array<Sequent_Backend_Candidate_Extended> | undefined = useMemo(
-        () => tallyData?.sequent_backend_candidate
-        ?.filter(candidate => contestId === candidate.contest_id)
-        ?.map((candidate): Sequent_Backend_Candidate_Extended => candidate as any),
+        () =>
+            tallyData?.sequent_backend_candidate
+                ?.filter((candidate) => contestId === candidate.contest_id)
+                ?.map((candidate): Sequent_Backend_Candidate_Extended => candidate as any),
         [tallyData?.sequent_backend_candidate, contestId]
     )
 
     const general: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_area_contest
-        ?.filter(areaContest => contestId === areaContest.contest_id && electionId === areaContest.election_id),
+        () =>
+            tallyData?.sequent_backend_results_area_contest?.filter(
+                (areaContest) =>
+                    contestId === areaContest.contest_id && electionId === areaContest.election_id
+            ),
         [tallyData?.sequent_backend_results_area_contest, contestId, electionId]
     )
 
     const results: Array<Sequent_Backend_Results_Area_Contest_Candidate> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_area_contest_candidate
-        ?.filter(areaContestCandidate => contestId === areaContestCandidate.contest_id && electionId === areaContestCandidate.election_id && areaId === areaContestCandidate.area_id),
+        () =>
+            tallyData?.sequent_backend_results_area_contest_candidate?.filter(
+                (areaContestCandidate) =>
+                    contestId === areaContestCandidate.contest_id &&
+                    electionId === areaContestCandidate.election_id &&
+                    areaId === areaContestCandidate.area_id
+            ),
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 

@@ -283,11 +283,12 @@ export const TallyCeremony: React.FC = () => {
                     />
                 </TallyStyles.StyledHeader>
 
-                {
-                    (resultsEventId && record?.id)
-                    ? <ResultsDataLoader resultsEventId={resultsEventId} electionEventId={record?.id}/>
-                    : null
-                }
+                {resultsEventId && record?.id ? (
+                    <ResultsDataLoader
+                        resultsEventId={resultsEventId}
+                        electionEventId={record?.id}
+                    />
+                ) : null}
                 {page === WizardSteps.Start && (
                     <>
                         <ElectionHeader

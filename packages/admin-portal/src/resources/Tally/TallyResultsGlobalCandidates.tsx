@@ -26,8 +26,8 @@ import {
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
-import { useAtomValue } from "jotai"
-import { tallyQueryData } from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -48,23 +48,32 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
-        () => tallyData?.sequent_backend_candidate
-        ?.filter(candidate => contestId === candidate.contest_id),
+        () =>
+            tallyData?.sequent_backend_candidate?.filter(
+                (candidate) => contestId === candidate.contest_id
+            ),
         [tallyData?.sequent_backend_candidate, contestId]
     )
 
     const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_contest
-        ?.filter(resultsContest => contestId === resultsContest.contest_id && electionId === resultsContest.election_id),
+        () =>
+            tallyData?.sequent_backend_results_contest?.filter(
+                (resultsContest) =>
+                    contestId === resultsContest.contest_id &&
+                    electionId === resultsContest.election_id
+            ),
         [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
     console.log("TallyResultsGlobalCandidates :: general", general)
 
-
     const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_contest_candidate
-        ?.filter(resultsContestCandidate => contestId === resultsContestCandidate.contest_id && electionId === resultsContestCandidate.election_id),
+        () =>
+            tallyData?.sequent_backend_results_contest_candidate?.filter(
+                (resultsContestCandidate) =>
+                    contestId === resultsContestCandidate.contest_id &&
+                    electionId === resultsContestCandidate.election_id
+            ),
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 

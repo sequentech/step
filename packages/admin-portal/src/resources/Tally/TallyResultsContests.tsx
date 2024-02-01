@@ -11,8 +11,8 @@ import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
-import { tallyQueryData } from "@/atoms/tally-candidates"
-import { useAtomValue } from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -39,15 +39,19 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     // console.log("TallyResultsContest :: contestsData", contestsData)
 
     const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_contest
-        ?.filter(areaContest => contestId === areaContest.contest_id && electionId === areaContest.election_id),
+        () =>
+            tallyData?.sequent_backend_results_contest?.filter(
+                (areaContest) =>
+                    contestId === areaContest.contest_id && electionId === areaContest.election_id
+            ),
         [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
     const contests: Array<Sequent_Backend_Contest> | undefined = useMemo(
-        () => tallyData?.sequent_backend_contest
-        ?.map((contest): Sequent_Backend_Contest => contest as any)
-        ?.filter(contest => electionData === contest.election_id),
+        () =>
+            tallyData?.sequent_backend_contest
+                ?.map((contest): Sequent_Backend_Contest => contest as any)
+                ?.filter((contest) => electionData === contest.election_id),
         [tallyData?.sequent_backend_contest, electionData]
     )
 

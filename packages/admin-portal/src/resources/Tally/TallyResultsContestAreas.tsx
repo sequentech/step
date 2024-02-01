@@ -16,8 +16,8 @@ import {TallyResultsCandidates} from "./TallyResultsCandidates"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
-import { useAtomValue } from "jotai"
-import { tallyQueryData } from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -40,21 +40,29 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     const tallyData = useAtomValue(tallyQueryData)
 
     const resultsContests: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_area_contest
-        ?.filter(areaContest => contestId === areaContest.contest_id && electionId === areaContest.election_id && selectedArea === areaContest.area_id),
+        () =>
+            tallyData?.sequent_backend_results_area_contest?.filter(
+                (areaContest) =>
+                    contestId === areaContest.contest_id &&
+                    electionId === areaContest.election_id &&
+                    selectedArea === areaContest.area_id
+            ),
         [tallyData?.sequent_backend_results_area_contest, contestId, electionId, selectedArea]
     )
 
     const contestAreas: Array<Sequent_Backend_Area_Contest> | undefined = useMemo(
-        () => tallyData?.sequent_backend_area_contest
-        ?.filter(areaContest => contestId === areaContest.contest_id),
+        () =>
+            tallyData?.sequent_backend_area_contest?.filter(
+                (areaContest) => contestId === areaContest.contest_id
+            ),
         [tallyData?.sequent_backend_area_contest, contestId]
     )
 
     const contest: Sequent_Backend_Contest | undefined = useMemo(
-        () => tallyData?.sequent_backend_contest
-        ?.map((contest): Sequent_Backend_Contest => contest as any)
-        ?.find(contest => contestId === contest.id),
+        () =>
+            tallyData?.sequent_backend_contest
+                ?.map((contest): Sequent_Backend_Contest => contest as any)
+                ?.find((contest) => contestId === contest.id),
         [tallyData?.sequent_backend_contest, contestId]
     )
 

@@ -10,8 +10,8 @@ import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
-import { useAtomValue } from "jotai"
-import { tallyQueryData } from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -37,9 +37,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const tallyData = useAtomValue(tallyQueryData)
 
     const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
-        () => tallyData?.sequent_backend_election
-        ?.filter(election => electionIds?.includes(election.id))
-        ?.map((election): Sequent_Backend_Election => election as any),
+        () =>
+            tallyData?.sequent_backend_election
+                ?.filter((election) => electionIds?.includes(election.id))
+                ?.map((election): Sequent_Backend_Election => election as any),
         [tallyData?.sequent_backend_election, electionIds]
     )
 

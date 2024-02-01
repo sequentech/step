@@ -16,8 +16,8 @@ import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
-import { useAtomValue } from "jotai"
-import { tallyQueryData } from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -38,22 +38,24 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const tallyData = useAtomValue(tallyQueryData)
 
         const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
-            () => tallyData?.sequent_backend_area
-            ?.map((area): RaRecord<Identifier> => area),
+            () => tallyData?.sequent_backend_area?.map((area): RaRecord<Identifier> => area),
             [tallyData?.sequent_backend_area]
         )
-        
+
         const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-            () => tallyData?.sequent_backend_results_election
-            ?.filter(election => election.id === electionId),
+            () =>
+                tallyData?.sequent_backend_results_election?.filter(
+                    (election) => election.id === electionId
+                ),
             [tallyData?.sequent_backend_results_election]
         )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
-            () => tallyData?.sequent_backend_election
-            ?.filter(election => data?.election_ids ?.includes(election.id))
-            ?.map((election): Sequent_Backend_Election => election as any),
-            [tallyData?.sequent_backend_election, data?.election_ids ]
+            () =>
+                tallyData?.sequent_backend_election
+                    ?.filter((election) => data?.election_ids?.includes(election.id))
+                    ?.map((election): Sequent_Backend_Election => election as any),
+            [tallyData?.sequent_backend_election, data?.election_ids]
         )
 
         useEffect(() => {
