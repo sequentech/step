@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
@@ -10,12 +10,14 @@ import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
+import { useAtomValue } from "jotai"
+import { tallyQueryData } from "@/atoms/tally-candidates"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
-    electionIds: any
+    electionIds?: string[] | null
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -32,27 +34,18 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
+    const tallyData = useAtomValue(tallyQueryData)
 
-    const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
-        ids: electionIds || [],
-    })
+    const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
+        () => tallyData?.sequent_backend_election
+        ?.filter(election => electionIds?.includes(election.id))
+        ?.map((election): Sequent_Backend_Election => election as any),
+        [tallyData?.sequent_backend_election, electionIds]
+    )
 
-    const {data: results} = useGetList<Sequent_Backend_Results_Election>(
-        "sequent_backend_results_election",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
+        () => tallyData?.sequent_backend_results_election,
+        [tallyData?.sequent_backend_results_election]
     )
 
     useEffect(() => {

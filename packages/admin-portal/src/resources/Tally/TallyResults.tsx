@@ -16,6 +16,8 @@ import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
+import { useAtomValue } from "jotai"
+import { tallyQueryData } from "@/atoms/tally-candidates"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -33,49 +35,25 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const [electionId, setElectionId] = useState<string | null>(null)
         const [data, setData] = useState<Sequent_Backend_Tally_Session | undefined>()
         const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
+        const tallyData = useAtomValue(tallyQueryData)
 
-        const {data: areas} = useGetList<RaRecord<Identifier>>(
-            "sequent_backend_area",
-            {
-                filter: {
-                    tenant_id: data?.tenant_id,
-                    election_event_id: data?.election_event_id,
-                },
-            },
-            {
-                refetchOnWindowFocus: false,
-                refetchOnReconnect: false,
-                refetchOnMount: false,
-            }
+        const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
+            () => tallyData?.sequent_backend_area
+            ?.map((area): RaRecord<Identifier> => area),
+            [tallyData?.sequent_backend_area]
         )
-        const {data: resultsElection} = useGetList<Sequent_Backend_Results_Election>(
-            "sequent_backend_results_election",
-            {
-                pagination: {page: 1, perPage: 1},
-                filter: {
-                    tenant_id: data?.tenant_id || null,
-                    election_event_id: data?.election_event_id || null,
-                    results_event_id: resultsEventId || null,
-                    election_id: electionId,
-                },
-            },
-            {
-                refetchOnWindowFocus: false,
-                refetchOnReconnect: false,
-                refetchOnMount: false,
-            }
+        
+        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
+            () => tallyData?.sequent_backend_results_election
+            ?.filter(election => election.id === electionId),
+            [tallyData?.sequent_backend_results_election]
         )
 
-        const {data: elections} = useGetMany<Sequent_Backend_Election>(
-            "sequent_backend_election",
-            {
-                ids: data?.election_ids || [],
-            },
-            {
-                refetchOnWindowFocus: false,
-                refetchOnReconnect: false,
-                refetchOnMount: false,
-            }
+        const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
+            () => tallyData?.sequent_backend_election
+            ?.filter(election => data?.election_ids ?.includes(election.id))
+            ?.map((election): Sequent_Backend_Election => election as any),
+            [tallyData?.sequent_backend_election, data?.election_ids ]
         )
 
         useEffect(() => {

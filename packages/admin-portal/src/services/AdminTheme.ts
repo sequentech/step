@@ -182,5 +182,14 @@ export const fullAdminTheme = {
                 },
             },
         },
+        MuiAccordion: {
+            styleOverrides: {
+                root: {
+                    "&.MuiPaper-root": {
+                        position: "relative !important",
+                    },
+                },
+            },
+        },
     },
 }
