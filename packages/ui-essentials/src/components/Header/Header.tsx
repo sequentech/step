@@ -67,7 +67,7 @@ export default function Header({
     userProfile,
     appVersion,
     logoutFn,
-    logoLink = "//sequentech.io/",
+    logoLink,
     logoUrl,
     languagesList,
 }: HeaderProps) {
