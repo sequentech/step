@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use super::contests;
 
+#[allow(unused)]
 pub fn get_ballot_style_1(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -29,6 +30,7 @@ pub fn get_ballot_style_1(
     }
 }
 
+#[allow(unused)]
 pub fn generate_ballot_style(
     tenant_id: &Uuid,
     election_event_id: &Uuid,

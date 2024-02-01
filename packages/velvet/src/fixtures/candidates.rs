@@ -1,6 +1,7 @@
 use sequent_core::ballot::{Candidate, CandidatePresentation};
 use uuid::Uuid;
 
+#[allow(unused)]
 pub fn get_candidate_0(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -31,6 +32,7 @@ pub fn get_candidate_0(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_1(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -61,6 +63,7 @@ pub fn get_candidate_1(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_2(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -91,6 +94,7 @@ pub fn get_candidate_2(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_3(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -121,6 +125,7 @@ pub fn get_candidate_3(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_4(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -151,6 +156,7 @@ pub fn get_candidate_4(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_5(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
