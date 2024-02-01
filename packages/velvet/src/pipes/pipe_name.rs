@@ -6,9 +6,9 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use strum_macros::{AsRefStr, EnumString, ToString};
+use strum_macros::{AsRefStr, EnumString, Display};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString, ToString, AsRefStr)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString, Display, AsRefStr)]
 pub enum PipeName {
     DecodeBallots,
     DoTally,

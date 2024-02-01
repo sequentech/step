@@ -1,11 +1,9 @@
-use std::str::FromStr;
-
-use anyhow::{anyhow, Result};
-use serde_json::Value;
-
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+use std::str::FromStr;
+use serde_json::Value;
 use crate::ballot::{
     self, CandidatePresentation, CandidatesOrder, ContestPresentation,
     I18nContent,
