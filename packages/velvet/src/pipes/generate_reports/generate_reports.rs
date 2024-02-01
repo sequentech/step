@@ -113,30 +113,36 @@ impl GenerateReports {
         let mut template_map = HashMap::new();
         let html = include_str!("../../resources/report_base.hbs");
         template_map.insert("report_base".to_string(), html.to_string());
+        let html = include_str!("../../resources/report_base_pdf.hbs");
+        template_map.insert("report_base_pdf".to_string(), html.to_string());
         let html = include_str!("../../resources/report_content.hbs");
         template_map.insert("report_content".to_string(), html.to_string());
 
-        let render = reports::render_template("report_base", template_map, map).map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during render_template_text from report.hbs template file: {}",
-                e
-            ))
-        })?;
+        let render_html =
+            reports::render_template("report_base", template_map.clone(), map.clone()).map_err(
+                |e| {
+                    Error::UnexpectedError(format!(
+                        "Error during render_template_text from report.hbs template file: {}",
+                        e
+                    ))
+                },
+            )?;
 
-        // let render = reports::render_template_text(html, map).map_err(|e| {
-        //     Error::UnexpectedError(format!(
-        //         "Error during render_template_text from report.hbs template file: {}",
-        //         e
-        //     ))
-        // })?;
+        let render_pdf =
+            reports::render_template("report_base_pdf", template_map, map).map_err(|e| {
+                Error::UnexpectedError(format!(
+                    "Error during render_template_text from report.hbs template file: {}",
+                    e
+                ))
+            })?;
 
-        let bytes_pdf = pdf::html_to_pdf(render.clone()).map_err(|e| {
+        let bytes_pdf = pdf::html_to_pdf(render_pdf.clone()).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
         Ok((
             bytes_pdf,
-            render.as_bytes().to_vec(),
+            render_html.as_bytes().to_vec(),
             reports.to_string().as_bytes().to_vec(),
         ))
     }
