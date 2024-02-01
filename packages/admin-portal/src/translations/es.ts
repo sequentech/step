@@ -154,6 +154,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         electionTypeScreen: {
+            noPermissions: "No tienes permiso para acceder a la configuración.",
             common: {
                 title: "Tipo de Elección",
                 subtitle: "Configuración del Tipo de Elección",
@@ -359,6 +360,7 @@ const spanishTranslation: TranslationType = {
             createError: "Error creando cliente",
         },
         usersAndRolesScreen: {
+            noPermissions: "No tienes permiso para acceder a los usuarios o roles.",
             common: {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
@@ -1005,6 +1007,7 @@ const spanishTranslation: TranslationType = {
         },
 
         communicationTemplate: {
+            noPermissions: "No tienes permisos para acceder a las Plantillas de Comunicación.",
             title: "Plantillas de Comunicación",
             subtitle: "Listado de plantillas de comunicación",
             empty: {

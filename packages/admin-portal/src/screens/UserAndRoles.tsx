@@ -11,6 +11,8 @@ import {useTranslation} from "react-i18next"
 import {ListRoles} from "../resources/Roles/ListRoles"
 import {IPermissions} from "../types/keycloak"
 import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
+import { ResourceListStyles } from "@/components/styles/ResourceListStyles"
+import { Typography } from "@mui/material"
 
 export const UserAndRoles: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -22,6 +24,16 @@ export const UserAndRoles: React.FC = () => {
     const showRoles = authContext.isAuthorized(true, tenantId, IPermissions.ROLE_READ)
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
+    }
+
+    if (!showUsers && !showRoles) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {t("usersAndRolesScreen.noPermissions")}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
     }
 
     return (
