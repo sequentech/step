@@ -8,10 +8,11 @@ export interface IElectionEventMaterials {
 
 export interface IElectionEventLanguageConf {
     enabled_language_codes?: Array<string>
+    default_language_code: string
 }
 
 export interface IElectionEventPresentation {
-    i18n?: Record<string, string>
+    i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
     language_conf?: IElectionEventLanguageConf
     logo_url?: string
