@@ -330,7 +330,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <FormStyles.PasswordInput
                         label={t("usersAndRolesScreen.users.fields.password")}
                         source="password"
-                        validate={validatePassword}
                         onChange={handleChange}
                     />
                     <FormStyles.PasswordInput
