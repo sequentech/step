@@ -36,7 +36,7 @@ fn sanitize_html(
         .unwrap_or("");
 
     let tags: HashSet<&str> =
-        ["strong", "em", "b", "i"].iter().cloned().collect();
+        ["strong", "em", "b", "i", "br"].iter().cloned().collect();
 
     let mut builder = ammonia::Builder::default();
     let builder = builder.tags(tags);
