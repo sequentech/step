@@ -244,6 +244,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const validatePassword = (value: any) => {
+        /*TODO: we should validate only to the extent that these policies are 
+        in place in keycloak
         if (!value || value.length == 0) {
             return
         }
@@ -272,7 +274,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         if (!hasSpecialChar) {
             return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
-        }
+        }*/
     }
 
     const equalToPassword = (value: any, allValues: any) => {
