@@ -49,22 +49,6 @@ export enum ECandidatesSelectionPolicy {
     CUMULATIVE = "cumulative", // default behaviour
 }
 
-export interface IElectionEventPresentation {
-    i18n: Record<string, Record<string, string>>
-    // {
-    //
-    //       [key: string]: {
-    //           name: string
-    //           alias: string
-    //           description: string
-    //       }
-    //   }
-    language_conf: {
-        enabled_language_codes: Array<string>
-        default_language_code: string
-    }
-}
-
 export interface IContestPresentation {
     allow_writeins: boolean
     base32_writeins: boolean

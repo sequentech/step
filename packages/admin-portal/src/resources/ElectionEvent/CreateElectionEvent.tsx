@@ -22,7 +22,7 @@ import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {isNull} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation, isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
@@ -50,19 +50,7 @@ interface IElectionEventSubmit {
     encryption_protocol: string
     id: string
     tenant_id: string
-    presentation: {
-        i18n: {
-            [key: string]: {
-                name: string
-                alias: string
-                description: string
-            }
-        }
-        language_conf: {
-            enabled_language_codes: Array<string>
-            default_language_code: string
-        }
-    }
+    presentation: IElectionEventPresentation
 }
 
 export const CreateElectionList: React.FC = () => {
@@ -88,9 +76,7 @@ export const CreateElectionList: React.FC = () => {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
-    const {
-        data: tenant,
-    } = useGetOne("sequent_backend_tenant", {
+    const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
 
