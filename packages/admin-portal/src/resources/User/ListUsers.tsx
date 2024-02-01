@@ -328,10 +328,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }.create.subtitle`
                             )}
                         </Button>
-                        <ReactAdminButton 
-                            onClick={handleImport}
-                            label={t("common.label.import")}
-                        >
+                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
                             <UploadIcon />
                         </ReactAdminButton>
                     </ResourceListStyles.EmptyButtonList>
