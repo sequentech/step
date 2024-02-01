@@ -4,26 +4,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Report</title>
     <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
-    <script>
-      // Function to initialize Paged.js
-      function initPagedJS() {
-        // Check if Paged.js has already been initialized to avoid re-initializing
-        if (!window.PagedPolyfill) {
-          // Initialize Paged.js
-          PagedPolyfill.preview();
-        }
-      }
-
-      // Listen for the "beforeprint" event to initialize Paged.js before printing
-      window.addEventListener('beforeprint', initPagedJS);
-
-      // For browsers that don't support the "beforeprint" event, you can use a matchMedia listener
-      window.matchMedia('print').addListener(function(mql) {
-        if (mql.matches) {
-          initPagedJS();
-        }
-      });
-    </script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -95,6 +75,7 @@
   </head>
 
   <body>
+    <div class="logo"></div>
     {{> report_content }}
   </body>
 </html>

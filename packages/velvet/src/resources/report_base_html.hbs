@@ -6,6 +6,14 @@
     <style>
       body {
         font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 768px;
+      }
+      
+      .logo {
+        content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
+        text-align:center;
+        margin: 16px auto;
       }
       
       .header,
@@ -62,6 +70,7 @@
   </head>
 
   <body>
+    <div class="logo"></div>
     {{> report_content }}
   </body>
 </html>
