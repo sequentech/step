@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -36,6 +36,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {sortContestByCreationDate} from "../lib/utils"
+import { AuthContext } from '../providers/AuthContextProvider'
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -145,6 +147,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
 
 const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
+    const {logout} = useContext(AuthContext)
+    const canVote = useAppSelector(canVoteSomeElection())
 
     const {electionId} = useParams<{electionId?: string}>()
 
@@ -220,8 +224,10 @@ const VotingScreen: React.FC = () => {
     useEffect(() => {
         if (!election || !ballotStyle) {
             navigate(backLink)
+        } else if (!selectionState || !canVote) {
+            logout()
         }
-    }, [navigate, backLink, election, ballotStyle])
+    }, [navigate, backLink, election, ballotStyle, selectionState, canVote, logout])
 
     useEffect(() => {
         let hasVoted = []

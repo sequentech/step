@@ -24,7 +24,7 @@ import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import Stepper from "../components/Stepper"
 
@@ -120,12 +120,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
 
     useEffect(() => {
         if (ballotStyle) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                })
-            )
+            dispatch(clearBallot())
         }
     }, [ballotStyle, dispatch])
 
