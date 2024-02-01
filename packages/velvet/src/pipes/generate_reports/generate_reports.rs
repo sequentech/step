@@ -110,14 +110,25 @@ impl GenerateReports {
 
         map.insert("reports".to_owned(), reports.clone());
 
-        let html = include_str!("../../resources/report.hbs");
+        let mut template_map = HashMap::new();
+        let html = include_str!("../../resources/report_base.hbs");
+        template_map.insert("report_base".to_string(), html.to_string());
+        let html = include_str!("../../resources/report_content.hbs");
+        template_map.insert("report_content".to_string(), html.to_string());
 
-        let render = reports::render_template_text(html, map).map_err(|e| {
+        let render = reports::render_template("report_base", template_map, map).map_err(|e| {
             Error::UnexpectedError(format!(
                 "Error during render_template_text from report.hbs template file: {}",
                 e
             ))
         })?;
+
+        // let render = reports::render_template_text(html, map).map_err(|e| {
+        //     Error::UnexpectedError(format!(
+        //         "Error during render_template_text from report.hbs template file: {}",
+        //         e
+        //     ))
+        // })?;
 
         let bytes_pdf = pdf::html_to_pdf(render.clone()).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))

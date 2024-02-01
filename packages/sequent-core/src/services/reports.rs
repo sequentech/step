@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
@@ -23,7 +23,25 @@ pub fn render_template_text(
     reg.render_template(template, &json!(variables_map))
 }
 
-fn sanitize_html(
+#[instrument(skip_all, err)]
+pub fn render_template(
+    template_name: &str,
+    template_map: HashMap<String, String>,
+    variables_map: Map<String, Value>,
+) -> Result<String, RenderError> {
+    let mut reg = Handlebars::new();
+
+    reg.register_helper("sanitize_html", Box::new(sanitize_html));
+
+    for (name, file) in template_map {
+        reg.register_template_string(&name, &file)?;
+    }
+
+    // render handlebars template
+    reg.render(template_name, &json!(variables_map))
+}
+
+pub fn sanitize_html(
     helper: &Helper,
     _: &Handlebars,
     _: &Context,

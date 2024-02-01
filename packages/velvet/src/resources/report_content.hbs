@@ -1,80 +1,4 @@
-<html lang="en-US">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Report</title>
-    <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-      }
 
-      @page {
-        size: A4;
-
-        @top-center {
-          content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
-        }
-
-        @bottom-left {
-          content: counter(page) " of " counter(pages);
-        }
-      }
-
-      .header,
-      .header-space {
-        height: 100px;
-      }
-
-      .logo {
-        padding-top: 10px;
-      }
-
-      .footer,
-      .footer-space {
-        height: 100px;
-      }
-
-      .header {
-        position: fixed;
-        top: 0;
-        width: 100%;
-        text-align: center;
-      }
-
-      .footer {
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        text-align: right;
-      }
-
-      table {
-        width: 100%;
-      }
-
-      .content .title {
-        text-align: center;
-      }
-
-      .content table {
-        border-collapse: collapse;
-        margin: 20px 0;
-      }
-
-      .content th,
-      .content td {
-        border: 1px solid #dddddd;
-        padding: 8px;
-      }
-
-      .content th {
-        text-align: center;
-      }
-    </style>
-  </head>
-
-  <body>
   <div class="content">
       <h1 class="title">Results of the election</h1>
       
@@ -155,5 +79,3 @@
       {{/each}}
 
     </div>
-  </body>
-</html>
