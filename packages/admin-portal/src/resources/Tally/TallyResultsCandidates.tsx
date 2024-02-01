@@ -44,11 +44,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
 
-    const candidates: Array<Sequent_Backend_Candidate_Extended> | undefined = useMemo(
+    const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_candidate
                 ?.filter((candidate) => contestId === candidate.contest_id)
-                ?.map((candidate): Sequent_Backend_Candidate_Extended => candidate as any),
+                ?.map((candidate): Sequent_Backend_Candidate => candidate),
         [tallyData?.sequent_backend_candidate, contestId]
     )
 
@@ -83,7 +83,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         rowId: index,
                         id: candidate.id || "",
                         name: candidate.name,
-                        status: candidate.status || "",
+                        status: "",
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
                         winning_position: candidateResult?.winning_position,

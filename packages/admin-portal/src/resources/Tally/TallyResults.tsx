@@ -54,7 +54,13 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             () =>
                 tallyData?.sequent_backend_election
                     ?.filter((election) => data?.election_ids?.includes(election.id))
-                    ?.map((election): Sequent_Backend_Election => election as any),
+                    ?.map(
+                        (election): Sequent_Backend_Election => ({
+                            ...election,
+                            contests: [],
+                            contests_aggregate: {nodes: []},
+                        })
+                    ),
             [tallyData?.sequent_backend_election, data?.election_ids]
         )
 

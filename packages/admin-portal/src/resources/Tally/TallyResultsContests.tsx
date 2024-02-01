@@ -50,7 +50,13 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const contests: Array<Sequent_Backend_Contest> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_contest
-                ?.map((contest): Sequent_Backend_Contest => contest as any)
+                ?.map(
+                    (contest): Sequent_Backend_Contest => ({
+                        ...contest,
+                        candidates: [],
+                        candidates_aggregate: {nodes: []},
+                    })
+                )
                 ?.filter((contest) => electionData === contest.election_id),
         [tallyData?.sequent_backend_contest, electionData]
     )

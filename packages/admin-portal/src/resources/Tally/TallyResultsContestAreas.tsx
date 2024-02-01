@@ -61,7 +61,13 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     const contest: Sequent_Backend_Contest | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_contest
-                ?.map((contest): Sequent_Backend_Contest => contest as any)
+                ?.map(
+                    (contest): Sequent_Backend_Contest => ({
+                        ...contest,
+                        candidates: [],
+                        candidates_aggregate: {nodes: []},
+                    })
+                )
                 ?.find((contest) => contestId === contest.id),
         [tallyData?.sequent_backend_contest, contestId]
     )
