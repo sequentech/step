@@ -71,11 +71,11 @@ export const CustomMenu = () => {
                     primaryText={open ? t("sideMenu.usersAndRoles") : null}
                     leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
-                <StyledItem
+                {/*<StyledItem
                     to="/logs"
                     primaryText={open ? t("sideMenu.logs") : null}
                     leftIcon={<ChecklistIcon sx={{color: adminTheme.palette.brandColor}} />}
-                />
+                />*/}
                 <StyledItem
                     to="/settings"
                     primaryText={open ? t("sideMenu.settings") : null}
