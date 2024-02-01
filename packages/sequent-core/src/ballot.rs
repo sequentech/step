@@ -306,6 +306,37 @@ pub enum CandidatesSelectionPolicy {
     Debug,
     Clone,
 )]
+pub struct ElectionEventPresentation {
+    logo_url: Option<String>,
+    css: Option<String>,
+}
+
+impl ElectionEventPresentation {
+    pub fn new() -> Self {
+        Self {
+            logo_url: None,
+            css: None,
+        }
+    }
+}
+
+impl Default for ElectionEventPresentation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
 pub struct ContestPresentation {
     pub allow_writeins: bool,
     pub base32_writeins: bool,
@@ -557,4 +588,5 @@ pub struct BallotStyle {
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,
     pub contests: Vec<Contest>,
+    pub election_event_presentation: Option<ElectionEventPresentation>,
 }

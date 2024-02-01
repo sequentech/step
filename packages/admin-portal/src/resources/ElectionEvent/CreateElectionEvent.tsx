@@ -4,11 +4,7 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {
-    CreateElectionEventMutation,
-    Sequent_Backend_Area,
-    Sequent_Backend_Tenant,
-} from "@/gql/graphql"
+import {CreateElectionEventMutation} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -94,8 +90,6 @@ export const CreateElectionList: React.FC = () => {
     )
     const {
         data: tenant,
-        isLoading: isOneTenantLoading,
-        error: isTenantError,
     } = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })

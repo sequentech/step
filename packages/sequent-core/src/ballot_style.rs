@@ -54,6 +54,7 @@ pub fn create_ballot_style(
                 create_contest(contest, election_candidates)
             })
             .collect(),
+        election_event_presentation: None,
     }
 }
 
