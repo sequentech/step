@@ -62,8 +62,6 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         }
 
-        let count_total_votes = count_valid + count_invalid;
-
         let result: Result<Vec<CandidateResult>> = vote_count
             .into_iter()
             .map(|(id, total_count)| {
@@ -76,9 +74,12 @@ impl CountingAlgorithm for PluralityAtLarge {
                     .cloned()
                     .ok_or(Error::CandidateNotFound(id))?;
 
+                let percentage_votes =
+                    (total_count as f64 / (count_valid - count_blank) as f64) * 100.0;
+
                 Ok(CandidateResult {
                     candidate,
-                    percentage_votes: (total_count as f64 / count_total_votes as f64) * 100.0,
+                    percentage_votes,
                     total_count,
                 })
             })
@@ -118,7 +119,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
-            total_votes: count_total_votes,
+            total_votes: count_valid + count_invalid,
             total_valid_votes: count_valid,
             total_invalid_votes: count_invalid,
             total_blank_votes: count_blank,
