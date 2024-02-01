@@ -25,6 +25,12 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra la votación en la que usted es elegible para votar. Puede seleccionar su sección activando la casilla de la derecha Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Borrar selección</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
                 ok: "OK",
             },
+            nonVotedDialog: {
+                title: "Voto inválido o en blanco",
+                content:
+                    "Algunas de sus respuestas podrían hacer que la papeleta en una o más preguntas sea inválida o en blanco.",
+                ok: "Volver y revisar",
+            },
         },
         startScreen: {
             startButton: "Empezar a votar",

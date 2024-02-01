@@ -23,7 +23,7 @@ export interface DialogProps extends PropsWithChildren {
     cancel?: string
     ok: string
     okEnabled?: () => boolean
-    variant?: "warning" | "info" | "action"
+    variant?: "warning" | "info" | "action" | "softwarning"
     fullWidth?: boolean
 }
 
@@ -38,9 +38,11 @@ const Dialog: React.FC<DialogProps> = ({
     variant,
     fullWidth = false,
 }) => {
-    const okVariant = "info" === variant ? "primary" : "solidWarning"
+    const okVariant =
+        "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
     const faIcon = "info" === variant ? faInfoCircle : faExclamationTriangle
-    const infoVariant = "action" === variant ? "error" : variant
+    const infoVariant =
+        "action" === variant ? "error" : "softwarning" === variant ? "warning" : variant
     const cancelVariant = "cancel"
     const closeDialog = () => handleClose(false)
     const clickOk = () => handleClose(true)

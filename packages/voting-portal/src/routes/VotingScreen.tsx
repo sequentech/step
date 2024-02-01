@@ -150,6 +150,7 @@ const VotingScreen: React.FC = () => {
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+    const [openNotVoted, setOpenNonVoted] = useState(false)
 
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -174,15 +175,23 @@ const VotingScreen: React.FC = () => {
     const skipNextButton = Object.values(disableNext).some((v) => v)
 
     const encryptAndReview = () => {
-        if (isUndefined(selectionState) || skipNextButton || !ballotStyle) {
+        if (isUndefined(selectionState) || !ballotStyle) {
+            return
+        } else if (skipNextButton) {
+            setOpenNonVoted(true)
+        } else {
+            finallyEncryptAndReview()
+        }
+    }
+
+    const finallyEncryptAndReview = () => {
+        if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
-
         try {
             const startMs = Date.now()
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
             const endMs = Date.now()
-            console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
 
             dispatch(
                 setAuditableBallot({
@@ -284,6 +293,16 @@ const VotingScreen: React.FC = () => {
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
+
+            <Dialog
+                handleClose={() => setOpenNonVoted(false)}
+                open={openNotVoted}
+                title={t("votingScreen.nonVotedDialog.title")}
+                ok={t("votingScreen.nonVotedDialog.ok")}
+                variant="softwarning"
+            >
+                {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+            </Dialog>
         </PageLimit>
     )
 }

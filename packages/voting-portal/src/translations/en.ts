@@ -23,6 +23,12 @@ const englishTranslation = {
                     "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
                 ok: "OK",
             },
+            nonVotedDialog: {
+                title: "Invalid or blank vote",
+                content:
+                    "Some of your answers might render the ballot in one or more questions invalid or blank.",
+                ok: "Back and review",
+            },
         },
         startScreen: {
             startButton: "Start Voting",

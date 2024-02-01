@@ -6,13 +6,22 @@ import {FontAwesomeIcon, FontAwesomeIconProps} from "@fortawesome/react-fontawes
 import {theme} from "../../services/theme"
 
 export interface IconProps extends FontAwesomeIconProps {
-    variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success" | "form"
+    variant?:
+        | "inherit"
+        | "primary"
+        | "info"
+        | "warning"
+        | "error"
+        | "success"
+        | "form"
+        | "softwarning"
 }
 
 const ColorMap = {
     primary: theme.palette.black,
     info: theme.palette.brandColor,
     warning: theme.palette.yellow?.main,
+    softwarning: theme.palette.yellow?.main,
     error: theme.palette.errorColor,
     success: theme.palette.green?.main,
     form: theme.palette.customGrey?.dark,
