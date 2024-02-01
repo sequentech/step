@@ -41,7 +41,7 @@ pub struct DecodedVoteChoice {
 }
 
 pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
-    ballot: &AuditableBallot<C>,
+    ballot: &AuditableBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_contests = vec![];
     if ballot.config.contests.len() != ballot.contests.len() {

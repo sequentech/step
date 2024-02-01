@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+use crate::error::BallotError;
+use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, default::Default};
-use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
@@ -55,13 +57,44 @@ pub struct RawAuditableBallot<C: Ctx> {
     pub ballot_hash: String,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct AuditableBallot<C: Ctx> {
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct AuditableBallot {
     pub version: u32,
     pub issue_date: String,
     pub config: BallotStyle,
-    pub contests: Vec<AuditableBallotContest<C>>,
+    pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
+}
+
+impl AuditableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        self,
+    ) -> Result<Vec<AuditableBallotContest<C>>, BallotError> {
+        self.contests
+            .clone()
+            .into_iter()
+            .map(|auditable_ballot_contest_serialized| {
+                Base64Deserialize::deserialize(
+                    auditable_ballot_contest_serialized.clone(),
+                )
+                .map_err(|err| BallotError::Serialization(err.to_string()))
+            })
+            .collect()
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contests: &Vec<AuditableBallotContest<C>>,
+    ) -> Result<Vec<String>, BallotError> {
+        contests
+            .clone()
+            .into_iter()
+            .map(|auditable_ballot_contest| {
+                Base64Serialize::serialize(&auditable_ballot_contest)
+            })
+            .collect::<Vec<Result<String, BallotError>>>()
+            .into_iter()
+            .collect()
+    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -71,12 +104,43 @@ pub struct HashableBallotContest<C: Ctx> {
     pub proof: Schnorr<C>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct HashableBallot<C: Ctx> {
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct HashableBallot {
     pub version: u32,
     pub issue_date: String,
-    pub contests: Vec<HashableBallotContest<C>>,
+    pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
     pub config: BallotStyle,
+}
+
+impl HashableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        self,
+    ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
+        self.contests
+            .clone()
+            .into_iter()
+            .map(|hashable_ballot_contest_serialized| {
+                Base64Deserialize::deserialize(
+                    hashable_ballot_contest_serialized.clone(),
+                )
+                .map_err(|err| BallotError::Serialization(err.to_string()))
+            })
+            .collect()
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contests: &Vec<HashableBallotContest<C>>,
+    ) -> Result<Vec<String>, BallotError> {
+        contests
+            .clone()
+            .into_iter()
+            .map(|hashable_ballot_contest| {
+                Base64Serialize::serialize(&hashable_ballot_contest)
+            })
+            .collect::<Vec<Result<String, BallotError>>>()
+            .into_iter()
+            .collect()
+    }
 }
 
 impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
@@ -89,19 +153,33 @@ impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
     }
 }
 
-impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
-    fn from(value: &AuditableBallot<C>) -> HashableBallot<C> {
+impl TryFrom<&AuditableBallot> for HashableBallot {
+    type Error = BallotError;
+
+    fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
         assert!(TYPES_VERSION == value.version);
-        HashableBallot {
+
+        let contests = value.deserialize_contests::<RistrettoCtx>()?;
+        let hashable_ballot_contest: Vec<HashableBallotContest<RistrettoCtx>> =
+            contests
+                .iter()
+                .map(|auditable_ballot_contest| {
+                    let hashable_ballot_contest =
+                        HashableBallotContest::<RistrettoCtx>::from(
+                            auditable_ballot_contest,
+                        );
+                    hashable_ballot_contest
+                })
+                .collect();
+
+        Ok(HashableBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
-            contests: value
-                .contests
-                .iter()
-                .map(|contest| HashableBallotContest::<C>::from(contest))
-                .collect(),
+            contests: HashableBallot::serialize_contests::<RistrettoCtx>(
+                &hashable_ballot_contest,
+            )?,
             config: value.config.clone(),
-        }
+        })
     }
 }
 

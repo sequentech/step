@@ -87,7 +87,7 @@ pub fn parse_public_key<C: Ctx>(
 
 pub fn recreate_encrypt_cyphertext<C: Ctx>(
     ctx: &C,
-    ballot: &AuditableBallot<C>,
+    ballot: &AuditableBallot,
 ) -> Result<Vec<ReplicationChoice<C>>, BallotError> {
     let public_key = parse_public_key::<C>(&ballot.config)?;
     // check ballot version
@@ -98,8 +98,10 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
         )));
     }
 
-    ballot
-        .contests
+    let contests: Vec<AuditableBallotContest<C>> =
+        ballot.deserialize_contests::<C>()?;
+
+    contests
         .clone()
         .into_iter()
         .map(|contests| {
@@ -136,7 +138,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
-) -> Result<AuditableBallot<C>, BallotError> {
+) -> Result<AuditableBallot, BallotError> {
     if config.contests.len() != decoded_contests.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded contests {} != {}",
@@ -184,13 +186,13 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     let mut auditable_ballot = AuditableBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
-        contests: contests,
+        contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
     };
 
-    let hashable_ballot = HashableBallot::from(&auditable_ballot);
-    auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
+    let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
+    auditable_ballot.ballot_hash = hash_ballot::<C>(&hashable_ballot)?;
 
     Ok(auditable_ballot)
 }
@@ -199,9 +201,10 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
 // serialize ballot into string, then hash to sha512, truncate to
 // 256 bits and serialize to hexadecimal
 pub fn hash_ballot<C: Ctx>(
-    hashable_ballot: &HashableBallot<C>,
+    hashable_ballot: &HashableBallot,
 ) -> Result<String, BallotError> {
-    let bytes = hashable_ballot
+    let contests = hashable_ballot.deserialize_contests::<C>()?;
+    let bytes = contests
         .strand_serialize()
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let hash_bytes = hash::hash(bytes.as_slice())
