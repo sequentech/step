@@ -17,14 +17,12 @@ import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {IAreasContestTabs, Sequent_Backend_Candidate_Extended} from "./types"
-import {useAtom} from "jotai"
-import tallyCandidates, {
-    tallyAreas,
-    tallyAreasContest,
-    tallyCandidatesList,
-    tallyGlobalAreas,
-    tallyResultsEventId,
+import {useAtom, useAtomValue} from "jotai"
+import {
+    tallyQueryData,
+    tallyResultsEventId
 } from "@/atoms/tally-candidates"
+import {GetTallyDataQuery} from "@/gql/graphql"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -46,53 +44,19 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
 
-    const [resultsEventId] = useAtom(tallyResultsEventId)
+    const resultsEventId = useAtomValue(tallyResultsEventId)
+    const tallyData = useAtomValue<GetTallyDataQuery>(tallyQueryData)
 
-    const {data: resultsContests} = useGetList<Sequent_Backend_Results_Contest>(
-        "sequent_backend_results_contest",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                results_event_id: resultsEventId,
-                election_id: electionId,
-                contest_id: contestId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = tallyData?.sequent_backend_results_contest?.filter(contest =>
+        contest.election_id === electionId && contest.contest_id === contestId
     )
 
-    const {data: contests} = useGetList<Sequent_Backend_Contest>(
-        "sequent_backend_contest",
-        {
-            filter: {
-                election_id: electionData,
-                tenant_id: tenantData,
-                election_event_id: electionEventData,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const contests: Array<Sequent_Backend_Contest> | undefined = tallyData?.sequent_backend_results_contest?.filter(contest =>
+        contest.election_id === electionId
     )
 
-    const {data: candidates} = useGetList<Sequent_Backend_Candidate_Extended>(
-        "sequent_backend_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-            },
-        }
+    const candidates: Array<Sequent_Backend_Candidate_Extended> | undefined = tallyData?.sequent_backend_candidate?.filter(candidate =>
+        candidate.contest_id === contestId
     )
 
     const [_, setCandidateData] = useAtom(tallyCandidates)

@@ -273,7 +273,14 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             </CustomTabPanel>
             {contestAreas?.map((area, index) => (
                 <CustomTabPanel key={index} index={index + 1} value={value}>
-                    <TallyResultsCandidates />
+                    <TallyResultsCandidates
+                        electionEventId={contest?.election_event_id}
+                        tenantId={contest?.tenant_id}
+                        electionId={contest?.election_id}
+                        contestId={contest?.id}
+                        areaId={selectedArea}
+                        resultsEventId={resultsEventId}
+                    />
                 </CustomTabPanel>
             ))}
         </>

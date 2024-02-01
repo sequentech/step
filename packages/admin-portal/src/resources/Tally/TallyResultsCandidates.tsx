@@ -17,15 +17,24 @@ import {
     Typography,
 } from "@mui/material"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
-import {useAtom} from "jotai"
-import {tallyAreaCandidates, tallyAreaData} from "@/atoms/tally-candidates"
+import {useAtom, useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
+import { IAreasContestTabs } from "./types"
 
+interface TallyResultsCandidatesProps {
+    areaId: string | null | undefined
+    contestId: string
+    electionId: string
+    electionEventId: string
+    tenantId: string
+    resultsEventId: string | null
+}
 
-export const TallyResultsCandidates: React.FC = () => {
+export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
+    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = useTranslation()
 
-    const [areaData] = useAtom(tallyAreaData)
-    const [resultsData] = useAtom(tallyAreaCandidates)
+    const tallyData = useAtomValue(tallyQueryData)
 
     const columns: GridColDef[] = [
         {

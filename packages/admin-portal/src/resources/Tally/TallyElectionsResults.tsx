@@ -10,12 +10,14 @@ import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
+import { tallyQueryData } from "@/atoms/tally-candidates"
+import { useAtomValue } from "jotai"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
-    electionIds: any
+    electionIds?: string[] | null
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -32,30 +34,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
-
-    const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
-        ids: electionIds || [],
-    })
-
-    const {data: results} = useGetList<Sequent_Backend_Results_Election>(
-        "sequent_backend_results_election",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
+    const tallyData = useAtomValue(tallyQueryData)
 
     useEffect(() => {
+        let elections: Array<Sequent_Backend_Election> | undefined = tallyData?.sequent_backend_election?.filter(election => electionIds?.includes(election.id)) as any
+        let results: Array<Sequent_Backend_Results_Election> | undefined = tallyData?.sequent_backend_results_election
         if (elections && results) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
@@ -76,7 +59,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
             setResultsData(temp)
         }
-    }, [results, elections])
+    }, [tallyData])
 
     const columns: GridColDef[] = [
         {
