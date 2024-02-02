@@ -34,6 +34,7 @@ pub fn render_template(
     let mut reg = Handlebars::new();
 
     reg.register_escape_fn(escape_html);
+    reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
 
     for (name, file) in template_map {
@@ -44,15 +45,38 @@ pub fn render_template(
     reg.render(template_name, &json!(variables_map))
 }
 
+pub fn sanitize_html(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let param = helper
+        .param(0)
+        .and_then(|v| v.value().as_str())
+        .unwrap_or("");
+
+    let tags: HashSet<&str> =
+        ["strong", "em", "b", "i", "br"].iter().cloned().collect();
+
+    let mut builder = ammonia::Builder::default();
+    let builder = builder.tags(tags);
+    let cleaned = builder.clean(param).to_string();
+
+    out.write(&cleaned)?;
+
+    Ok(())
+}
+
 pub fn escape_html(input: &str) -> String {
     let tags: HashSet<&str> =
         ["strong", "em", "b", "i", "br"].iter().cloned().collect();
 
     let mut builder = ammonia::Builder::default();
     let builder = builder.tags(tags);
-    let escaped_input = builder.clean(input).to_string();
 
-    escaped_input
+    builder.clean(input).to_string()
 }
 
 pub fn format_u64(

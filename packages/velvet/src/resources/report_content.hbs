@@ -1,8 +1,8 @@
   <div class="content">
       <h1 class="title">Results of the election</h1>
       {{ #each reports as |report| }}
-        <h2>Contest: {{{ report.contest.name }}}</h2>
-        <p class="contest-desc">{{{ report.contest.description }}}</p>
+        <h2>Contest: {{ sanitize_html report.contest.name }}</h2>
+        <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
 
         <table>
           <tr>
