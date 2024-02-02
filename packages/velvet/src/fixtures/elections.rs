@@ -2,6 +2,7 @@ use super::ballot_styles;
 use crate::pipes::pipe_inputs::ElectionConfig;
 use uuid::Uuid;
 
+#[allow(unused)]
 pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
     let tenant_id = Uuid::new_v4();
     let election_id = Uuid::new_v4();
@@ -13,13 +14,14 @@ pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
     ElectionConfig {
         id: election_id,
         tenant_id,
-        election_event_id: election_event_id.clone(),
+        election_event_id: *election_event_id,
         census: 0,
         total_votes: 0,
         ballot_styles: vec![ballot_style],
     }
 }
 
+#[allow(unused)]
 pub fn get_election_config_2() -> ElectionConfig {
     let tenant_id = Uuid::new_v4();
     let election_event_id = Uuid::new_v4();
