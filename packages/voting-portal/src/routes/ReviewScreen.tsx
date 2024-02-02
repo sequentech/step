@@ -43,7 +43,10 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {cloneDeep} from "lodash"
 import {sortContestByCreationDate} from "../lib/utils"
-import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
+    clearBallot,
+    selectBallotSelectionByElectionId,
+} from "../store/ballotSelections/ballotSelectionsSlice"
 import AuthContextProvider, {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(RouterLink)`
@@ -132,6 +135,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
+            dispatch(clearBallot())
+
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
@@ -148,6 +153,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             return submit(null, {method: "post"})
         } catch (error) {
             console.log(`error casting vote: ${error}`)
+            console.log(`error casting vote: ${ballotStyle.election_id}`)
             return submit({error: errorType}, {method: "post"})
         }
     }
