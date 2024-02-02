@@ -19,6 +19,7 @@ use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as 
 use aws_sdk_sesv2::Client as AwsSesClient;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
+use handlebars::RenderError;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
@@ -273,7 +274,8 @@ async fn send_communication_sms(
     sender: &SmsSender,
 ) -> Result<()> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
-        let message = reports::render_template_text(config.message.as_str(), variables.clone())?;
+        let message = reports::render_template_text(config.message.as_str(), variables.clone())
+            .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message).await?;
     } else {
@@ -290,11 +292,13 @@ async fn send_communication_email(
     sender: &EmailSender,
 ) -> Result<()> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
-        let subject = reports::render_template_text(config.subject.as_str(), variables.clone())?;
+        let subject = reports::render_template_text(config.subject.as_str(), variables.clone())
+            .map_err(|err| anyhow!("{}", err))?;
         let plaintext_body =
-            reports::render_template_text(config.plaintext_body.as_str(), variables.clone())?;
-        let html_body =
-            reports::render_template_text(config.html_body.as_str(), variables.clone())?;
+            reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
+                .map_err(|err| anyhow!("{}", err))?;
+        let html_body = reports::render_template_text(config.html_body.as_str(), variables.clone())
+            .map_err(|err| anyhow!("{}", err))?;
 
         sender
             .send(receiver.to_string(), subject, plaintext_body, html_body)
