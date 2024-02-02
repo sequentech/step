@@ -6,7 +6,6 @@ import {
     decode_auditable_ballot_js,
     get_layout_properties_from_contest_js,
     get_candidate_points_js,
-    get_ballot_style_from_auditable_ballot_js,
     generate_sample_auditable_ballot_js,
     IDecodedVoteContest,
     IContestLayoutProperties,
@@ -26,8 +25,7 @@ export interface IBallotService {
     decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
-    getBallotStyleFromAuditableBallot: (auditableBallot: IAuditableBallot) => IBallotStyle | null
-    generateSampleAuditableBallot: () => string | null
+    generateSampleAuditableBallot: () => IAuditableBallot | null
 }
 
 export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
@@ -45,18 +43,6 @@ export const decodeAuditableBallot = (
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
         return decodedBallot as Array<IDecodedVoteContest>
-    } catch (error) {
-        console.log(error)
-        return null
-    }
-}
-
-export const getBallotStyleFromAuditableBallot = (
-    auditableBallot: IAuditableBallot
-): IBallotStyle | null => {
-    try {
-        let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IBallotStyle
-        return ballotStyle
     } catch (error) {
         console.log(error)
         return null
@@ -83,9 +69,9 @@ export const getPoints = (question: IContest, answer: IDecodedVoteChoice): numbe
     }
 }
 
-export const generateSampleAuditableBallot = (): string | null => {
+export const generateSampleAuditableBallot = (): IAuditableBallot | null => {
     try {
-        let auditableBallot: string = generate_sample_auditable_ballot_js()
+        let auditableBallot: IAuditableBallot = generate_sample_auditable_ballot_js()
         return auditableBallot
     } catch (error) {
         console.log(error)
@@ -98,6 +84,5 @@ export const provideBallotService = (): IBallotService => ({
     decodeAuditableBallot,
     getLayoutProperties,
     getPoints,
-    getBallotStyleFromAuditableBallot,
     generateSampleAuditableBallot,
 })

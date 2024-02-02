@@ -46,16 +46,10 @@ pub fn to_hashable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse input
-    let auditable_ballot_string: String =
-        serde_wasm_bindgen::from_value(auditable_ballot_json)
-            .map_err(|err| format!("Error reading javascript string: {}", err))
-            .into_json()?;
     let auditable_ballot: AuditableBallot =
-        serde_json::from_str(&auditable_ballot_string)
-            .map_err(|err| {
-                format!("Error deserializing auditable ballot: {:?}", err)
-            })
-            .into_json()?;
+        serde_wasm_bindgen::from_value(auditable_ballot_json).map_err(
+            |err| format!("Error reading javascript auditable ballot: {}", err),
+        )?;
     // test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_ballot
         .deserialize_contests::<RistrettoCtx>()
@@ -89,14 +83,10 @@ pub fn hash_auditable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse input
-    let auditable_ballot_string: String =
-        serde_wasm_bindgen::from_value(auditable_ballot_json)
-            .map_err(|err| format!("Error reading javascript string: {}", err))
-            .into_json()?;
     let auditable_ballot: AuditableBallot =
-        serde_json::from_str(&auditable_ballot_string)
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
             .map_err(|err| {
-                format!("Error deserializing auditable ballot: {:?}", err)
+                format!("Error deserializing auditable ballot: {}", err)
             })
             .into_json()?;
     let hashable_ballot =
@@ -142,15 +132,8 @@ pub fn encrypt_decoded_contest_js(
     .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
     .into_json()?;
 
-    let auditable_ballot_serialized: String =
-        serde_json::to_string(&auditable_ballot)
-            .map_err(|err| {
-                format!("Error serializing auditable ballot {:?}", err)
-            })
-            .into_json()?;
-
     // convert to json output
-    serde_wasm_bindgen::to_value(&auditable_ballot_serialized)
+    serde_wasm_bindgen::to_value(&auditable_ballot)
         .map_err(|err| {
             format!("Error converting auditable ballot to json {:?}", err)
         })
@@ -163,7 +146,7 @@ pub fn encrypt_decoded_contest_js(
 pub fn decode_auditable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let auditable_ballot_string: String =
+    let auditable_ballot: AuditableBallot =
         serde_wasm_bindgen::from_value(auditable_ballot_json)
             .map_err(|err| {
                 format!(
@@ -171,39 +154,11 @@ pub fn decode_auditable_ballot_js(
                     err
                 )
             })
-            .into_json()?;
-    let auditable_ballot: AuditableBallot =
-        serde_json::from_str(&auditable_ballot_string)
-            .map_err(|err| format!("Error parsing auditable ballot: {:?}", err))
             .into_json()?;
     let plaintext = map_to_decoded_contest::<RistrettoCtx>(&auditable_ballot)
         .into_json()?;
     // https://crates.io/crates/serde-wasm-bindgen
     serde_wasm_bindgen::to_value(&plaintext)
-        .map_err(|err| {
-            format!("Error converting decoded ballot to json {:?}", err)
-        })
-        .into_json()
-}
-
-#[wasm_bindgen]
-pub fn get_ballot_style_from_auditable_ballot_js(
-    auditable_ballot_json: JsValue,
-) -> Result<JsValue, JsValue> {
-    let auditable_ballot_string: String =
-        serde_wasm_bindgen::from_value(auditable_ballot_json)
-            .map_err(|err| {
-                format!(
-                    "Error parsing auditable ballot javascript string: {}",
-                    err
-                )
-            })
-            .into_json()?;
-    let auditable_ballot: AuditableBallot =
-        serde_json::from_str(&auditable_ballot_string)
-            .map_err(|err| format!("Error parsing auditable ballot: {:?}", err))
-            .into_json()?;
-    serde_wasm_bindgen::to_value(&auditable_ballot.config)
         .map_err(|err| {
             format!("Error converting decoded ballot to json {:?}", err)
         })
@@ -352,14 +307,7 @@ pub fn generate_sample_auditable_ballot_js() -> Result<JsValue, JsValue> {
     )
     .unwrap();
 
-    let auditable_ballot_serialized: String =
-        serde_json::to_string(&auditable_ballot)
-            .map_err(|err| {
-                format!("Error serializing auditable ballot {:?}", err)
-            })
-            .into_json()?;
-
-    serde_wasm_bindgen::to_value(&auditable_ballot_serialized)
+    serde_wasm_bindgen::to_value(&auditable_ballot)
         .map_err(|err| {
             format!("Error converting auditable ballot to json {:?}", err)
         })

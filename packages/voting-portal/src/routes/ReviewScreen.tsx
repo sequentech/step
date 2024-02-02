@@ -218,13 +218,12 @@ export const ReviewScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
-    const {hashBallot} = provideBallotService()
     const ballotHash = auditableBallot?.ballot_hash
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = true
+    const hideAudit = false
     const {logout} = useContext(AuthContext)
 
     const selectionState = useAppSelector(
