@@ -117,14 +117,29 @@ impl CountingAlgorithm for PluralityAtLarge {
             .collect();
         let result = result?;
 
+        let census = self.tally.census;
+
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
-            total_votes: count_valid + count_invalid,
-            total_valid_votes: count_valid,
-            total_invalid_votes: count_invalid,
-            total_blank_votes: count_blank,
-            invalid_votes: count_invalid_votes,
             census: self.tally.census,
+            percentage_census: 100.0,
+            total_votes: count_valid + count_invalid,
+            percentage_total_votes: (census as f64 / (count_valid + count_invalid) as f64) * 100.0,
+            total_valid_votes: count_valid,
+            percentage_total_valid_votes: (census as f64 / (count_valid) as f64) * 100.0,
+            total_invalid_votes: count_invalid,
+            percentage_total_invalid_votes: (census as f64 / count_invalid as f64) * 100.0,
+            total_blank_votes: count_blank,
+            percentage_total_blank_votes: (census as f64 / count_blank as f64) * 100.0,
+            percentage_invalid_votes_explicit: (census as f64 / 2_f64) * 100.0,
+            percentage_invalid_votes_implicit: (census as f64 / 2_f64) * 100.0,
+            // percentage_invalid_votes_explicit: (census as f64
+            //     / count_invalid_votes.explicit as f64)
+            //     * 100.0,
+            // percentage_invalid_votes_implicit: (census as f64
+            //     / count_invalid_votes.implicit as f64)
+            //     * 100.0,
+            invalid_votes: count_invalid_votes,
             candidate_result: result,
         };
 
