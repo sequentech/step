@@ -23,20 +23,26 @@ const englishTranslation = {
                     "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
                 ok: "OK",
             },
+            nonVotedDialog: {
+                title: "Invalid or blank vote",
+                content:
+                    "Some of your answers might render the ballot in one or more questions invalid or blank.",
+                ok: "Back and review",
+            },
         },
         startScreen: {
             startButton: "Start Voting",
             instructionsTitle: "Instructions",
-            instructionsDescription: "You need to follow these steps to cast your ballot:",
+            instructionsDescription: "Please follow these steps to cast your ballot:",
             step1Title: "1. Select your options",
             step1Description:
-                "Answer to the election questions one by one as they are shown. This way you will configure your preferences in your ballot.",
+                "Choose your preferred candidates and answer the election questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
             step2Title: "2. Review your ballot",
             step2Description:
-                "Once you have chosen your preferences, we will proceed to encrypt them and you'll be shown the ballot's tracker id. You'll also be shown a summary with the content of your ballot for review.",
+                "Once you are satisfied with your selections, we will encrypt your ballot and show you a final review of your choices. You will also receive a unique tracker ID for your ballot.",
             step3Title: "3. Cast your ballot",
             step3Description:
-                "You can cast it so that it's properly registered. Alternatively, you can audit that your ballot was correctly encrypted.",
+                "Cast your ballot: Finally, you can cast your ballot so it is properly registered. Alternatively, you can opt to audit and confirm that your ballot was correctly captured and encrypted.",
         },
         reviewScreen: {
             title: "Review your ballot",

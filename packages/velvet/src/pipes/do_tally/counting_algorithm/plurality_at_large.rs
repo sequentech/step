@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::plaintext::InvalidPlaintextErrorType;
 use std::collections::HashMap;
 use tracing::instrument;
 
@@ -75,8 +74,12 @@ impl CountingAlgorithm for PluralityAtLarge {
                     .cloned()
                     .ok_or(Error::CandidateNotFound(id))?;
 
+                let percentage_votes =
+                    (total_count as f64 / (count_valid - count_blank) as f64) * 100.0;
+
                 Ok(CandidateResult {
                     candidate,
+                    percentage_votes,
                     total_count,
                 })
             })
@@ -103,6 +106,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                     if let Some(candidate) = candidate {
                         return Ok(CandidateResult {
                             candidate,
+                            percentage_votes: 0.0,
                             total_count: 0,
                         });
                     }

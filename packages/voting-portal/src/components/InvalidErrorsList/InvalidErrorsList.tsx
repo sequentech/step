@@ -29,6 +29,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     )
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
+
     useEffect(() => {
         if (isTouched || !contestSelection) {
             return

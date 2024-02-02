@@ -9,7 +9,7 @@ use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct State {

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -44,6 +44,11 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {cloneDeep} from "lodash"
 import {sortContestByCreationDate} from "../lib/utils"
+import {
+    clearBallot,
+    selectBallotSelectionByElectionId,
+} from "../store/ballotSelections/ballotSelectionsSlice"
+import AuthContextProvider, {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -146,7 +151,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
 
             return submit(null, {method: "post"})
         } catch (error) {
+            // dispatch(clearBallot())
             console.log(`error casting vote: ${error}`)
+            console.log(`error casting vote: ${ballotStyle.election_id}`)
             return submit({error: errorType}, {method: "post"})
         }
     }
@@ -217,7 +224,12 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = false
+    const hideAudit = true
+    const {logout} = useContext(AuthContext)
+
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -236,6 +248,8 @@ export const ReviewScreen: React.FC = () => {
     useEffect(() => {
         if (!ballotStyle || !auditableBallot) {
             navigate(backLink)
+        } else if (!selectionState) {
+            logout()
         }
     })
 
@@ -283,7 +297,7 @@ export const ReviewScreen: React.FC = () => {
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
+                    t(!hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use chrono::{DateTime, Local};
-use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
 pub type Uuid = String;
