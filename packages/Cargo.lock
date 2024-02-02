@@ -223,6 +223,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+
+[[package]]
 name = "ascii"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2949,6 +2955,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "handlebars"
+version = "5.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab283476b99e66691dee3f1640fea91487a8d81f50fb5ecc75538f8f8879a1e4"
+dependencies = [
+ "log",
+ "pest",
+ "pest_derive",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "harvest"
 version = "0.1.0"
 dependencies = [
@@ -2963,7 +2983,7 @@ dependencies = [
  "dotenv",
  "either",
  "graphql_client",
- "handlebars",
+ "handlebars 4.5.0",
  "headless_chrome 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "immu-board",
  "immudb-rs",
@@ -3944,6 +3964,16 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "num-format"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a652d9771a63711fd3c3deb670acfbe5c30a4072e664d7a3bf5a9e1056ac72c3"
+dependencies = [
+ "arrayvec 0.7.4",
+ "itoa",
 ]
 
 [[package]]
@@ -5633,12 +5663,13 @@ dependencies = [
  "chrono",
  "console_error_panic_hook",
  "ed25519-dalek 1.0.1",
- "handlebars",
+ "handlebars 5.1.0",
  "headless_chrome 1.0.8 (git+https://github.com/rust-headless-chrome/rust-headless-chrome?branch=main)",
  "hex",
  "jsonwebtoken",
  "keycloak",
  "num-bigint",
+ "num-format",
  "num-traits",
  "openid",
  "phf 0.11.2",
@@ -7221,7 +7252,7 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6cbce692ab4ca2f1f3047fcf732430249c0e971bfdd2b234cf2c47ad93af5983"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.5.2",
  "utf8parse",
  "vte_generate_state_changes",
 ]
@@ -7519,7 +7550,7 @@ dependencies = [
  "flate2",
  "futures",
  "graphql_client",
- "handlebars",
+ "handlebars 4.5.0",
  "headless_chrome 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "immu-board",
  "keycloak",

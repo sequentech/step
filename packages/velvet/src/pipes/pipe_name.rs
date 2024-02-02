@@ -6,7 +6,7 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use strum_macros::{AsRefStr, EnumString, Display};
+use strum_macros::{AsRefStr, Display, EnumString};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString, Display, AsRefStr)]
 pub enum PipeName {
