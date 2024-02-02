@@ -239,7 +239,7 @@ const VotingScreen: React.FC = () => {
                     votos = choice.selected + 1
                 }
             }
-            if (contest.min_votes >= votos && contest.max_votes <= votos) {
+            if (contest.min_votes <= votos && votos <= contest.max_votes) {
                 hasVoted.push(true)
             } else {
                 hasVoted.push(false)
