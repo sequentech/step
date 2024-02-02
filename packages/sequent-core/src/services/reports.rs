@@ -20,6 +20,7 @@ pub fn render_template_text(
 
     reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
+    reg.register_helper("format_percentage", Box::new(format_percentage));
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -35,6 +36,7 @@ pub fn render_template(
 
     reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
+    reg.register_helper("format_percentage", Box::new(format_percentage));
 
     for (name, file) in template_map {
         reg.register_template_string(&name, &file)?;
@@ -81,7 +83,34 @@ pub fn format_u64(
         .value()
         .as_u64()
         .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
+
     let formatted_number = unformatted_number.to_formatted_string(&Locale::en);
+
     out.write(&formatted_number)?;
+
+    Ok(())
+}
+
+pub fn format_percentage(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let val: f64 = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
+            "format_percentage",
+            0,
+        ))?
+        .value()
+        .as_f64()
+        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as f64"))?;
+
+    let formatted_number = format!("{:.2}", val);
+
+    out.write(&formatted_number)?;
+
     Ok(())
 }
