@@ -37,6 +37,7 @@ import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
+import {sortContestByCreationDate} from "../lib/utils"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -219,6 +220,8 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
+    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
+
     return (
         <PageLimit maxWidth="lg" className="voting-screen screen">
             <Box marginTop="48px">
@@ -249,11 +252,11 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.contests.map((contest, index) => (
+            {contests.map((contest, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
-                    questionIndex={index}
+                    questionIndex={contest.originalIndex}
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}

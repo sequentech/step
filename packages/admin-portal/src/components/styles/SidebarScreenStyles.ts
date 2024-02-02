@@ -1,0 +1,15 @@
+import styled from "@emotion/styled"
+import {styled as muiStyled} from "@mui/material/styles"
+import {Box, Drawer, Button} from "@mui/material"
+import {CustomTabPanel} from "../CustomTabPanel"
+import Tabs from "@mui/material/Tabs"
+
+export const SidebarScreenStyles = {
+    CustomTabPanel: muiStyled(CustomTabPanel)`
+        padding: 10px;
+    `,
+    Tabs: muiStyled(Tabs)`
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        margin-bottom: 10px
+    `,
+}

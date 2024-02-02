@@ -45,6 +45,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
+import {cloneDeep} from "lodash"
+import {sortContestByCreationDate} from "../lib/utils"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -135,18 +137,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
-                    id: uuidv4(),
-                    ballotId,
                     electionId: ballotStyle.election_id,
-                    electionEventId: ballotStyle.election_event_id,
-                    tenantId: ballotStyle.tenant_id,
-                    areaId: ballotStyle.area_id,
+                    ballotId,
                     content: hashableBallot,
                 },
             })
-            let newCastVote = result.data?.insert_sequent_backend_cast_vote?.returning
+            let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
-                dispatch(addCastVotes(newCastVote))
+                dispatch(addCastVotes([newCastVote]))
             }
 
             return submit(null, {method: "post"})
@@ -222,7 +220,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = true
+    const hideAudit = false
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -247,6 +245,8 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return <CircularProgress />
     }
+
+    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
@@ -289,12 +289,12 @@ export const ReviewScreen: React.FC = () => {
                     t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
                 )}
             </Typography>
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {contests.map((question, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={question}
                     key={index}
-                    questionIndex={index}
+                    questionIndex={question.originalIndex}
                     isReview={true}
                 />
             ))}

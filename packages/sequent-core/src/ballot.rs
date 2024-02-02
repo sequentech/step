@@ -7,13 +7,15 @@ use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::default::Default;
+use std::{collections::HashMap, default::Default};
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
+
+pub type I18nContent = HashMap<String, String>;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
@@ -178,7 +180,11 @@ pub struct Candidate {
     pub election_id: Uuid,
     pub contest_id: Uuid,
     pub name: Option<String>,
+    pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
+    pub description_i18n: Option<I18nContent>,
+    pub alias: Option<String>,
+    pub alias_i18n: Option<I18nContent>,
     pub candidate_type: Option<String>,
     pub presentation: Option<CandidatePresentation>,
 }
@@ -392,7 +398,11 @@ pub struct Contest {
     pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub name: Option<String>,
+    pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
+    pub description_i18n: Option<I18nContent>,
+    pub alias: Option<String>,
+    pub alias_i18n: Option<I18nContent>,
     pub max_votes: i64,
     pub min_votes: i64,
     pub winning_candidates_num: i64,
@@ -401,6 +411,7 @@ pub struct Contest {
     pub is_encrypted: bool,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
+    pub created_at: Option<String>,
 }
 
 impl Contest {
@@ -584,6 +595,7 @@ pub struct BallotStyle {
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
+    pub num_allowed_revotes: Option<i64>,
     pub description: Option<String>,
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,

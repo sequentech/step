@@ -79,6 +79,7 @@ export interface IContest {
     is_encrypted: boolean
     candidates: Array<ICandidate>
     presentation?: IContestPresentation
+    created_at?: string
 }
 
 export interface ICandidateUrl {
@@ -114,6 +115,7 @@ export interface IBallotStyle {
     tenant_id: string
     election_event_id: string
     election_id: string
+    num_allowed_revotes?: number
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string

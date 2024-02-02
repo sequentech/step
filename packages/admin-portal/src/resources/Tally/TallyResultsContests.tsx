@@ -11,6 +11,8 @@ import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
+import {tallyQueryData} from "@/atoms/tally-candidates"
+import {useAtomValue} from "jotai"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -32,42 +34,31 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
     const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
+    const tallyData = useAtomValue(tallyQueryData)
 
     // console.log("TallyResultsContest :: contestsData", contestsData)
 
-    const {data: resultsContests} = useGetList<Sequent_Backend_Results_Contest>(
-        "sequent_backend_results_contest",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                results_event_id: resultsEventId,
-                election_id: electionId,
-                contest_id: contestId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_contest?.filter(
+                (areaContest) =>
+                    contestId === areaContest.contest_id && electionId === areaContest.election_id
+            ),
+        [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
-    const {data: contests} = useGetList<Sequent_Backend_Contest>(
-        "sequent_backend_contest",
-        {
-            filter: {
-                election_id: electionData,
-                tenant_id: tenantData,
-                election_event_id: electionEventData,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const contests: Array<Sequent_Backend_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_contest
+                ?.map(
+                    (contest): Sequent_Backend_Contest => ({
+                        ...contest,
+                        candidates: [],
+                        candidates_aggregate: {nodes: []},
+                    })
+                )
+                ?.filter((contest) => electionData === contest.election_id),
+        [tallyData?.sequent_backend_contest, electionData]
     )
 
     useEffect(() => {
