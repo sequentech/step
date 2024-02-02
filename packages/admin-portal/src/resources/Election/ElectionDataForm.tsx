@@ -588,7 +588,12 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <NumberInput source="num_allowed_revotes" min={0} />
+                                <NumberInput
+                                    source="num_allowed_revotes"
+                                    name="Number of allowed votes"
+                                    label="Number of allowed votes"
+                                    min={0}
+                                />
 
                                 <FileJsonInput
                                     parsedValue={parsedValue}

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -36,6 +36,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {sortContestByCreationDate} from "../lib/utils"
+import {AuthContext} from "../providers/AuthContextProvider"
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -133,7 +135,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                     className="next-button"
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handleNext()}
-                    disabled={disableNext}
+                    // disabled={disableNext}
                 >
                     <Box>{t("votingScreen.reviewButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
@@ -145,11 +147,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
 
 const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
+    const {logout} = useContext(AuthContext)
+    const canVote = useAppSelector(canVoteSomeElection())
 
     const {electionId} = useParams<{electionId?: string}>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+    const [openNotVoted, setOpenNonVoted] = useState(false)
 
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -174,15 +179,23 @@ const VotingScreen: React.FC = () => {
     const skipNextButton = Object.values(disableNext).some((v) => v)
 
     const encryptAndReview = () => {
-        if (isUndefined(selectionState) || skipNextButton || !ballotStyle) {
+        if (isUndefined(selectionState) || !ballotStyle) {
+            return
+        } else if (skipNextButton) {
+            setOpenNonVoted(true)
+        } else {
+            finallyEncryptAndReview()
+        }
+    }
+
+    const finallyEncryptAndReview = () => {
+        if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
-
         try {
             const startMs = Date.now()
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
             const endMs = Date.now()
-            console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
 
             dispatch(
                 setAuditableBallot({
@@ -211,8 +224,32 @@ const VotingScreen: React.FC = () => {
     useEffect(() => {
         if (!election || !ballotStyle) {
             navigate(backLink)
+        } else if (!selectionState || !canVote) {
+            logout()
         }
-    }, [navigate, backLink, election, ballotStyle])
+    }, [navigate, backLink, election, ballotStyle, selectionState, canVote, logout])
+
+    useEffect(() => {
+        let hasVoted = []
+        for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
+            let votos = 0
+            let selection = selectionState?.find((s) => s.contest_id === contest.id)
+            for (let choice of selection?.choices ?? []) {
+                if (choice.selected > -1) {
+                    votos = choice.selected + 1
+                }
+            }
+            if (contest.min_votes >= votos && contest.max_votes <= votos) {
+                hasVoted.push(true)
+            } else {
+                hasVoted.push(false)
+            }
+        }
+        setDisableNext({
+            ...disableNext,
+            global: hasVoted.some((v) => !v),
+        })
+    }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
@@ -262,6 +299,16 @@ const VotingScreen: React.FC = () => {
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
+
+            <Dialog
+                handleClose={() => setOpenNonVoted(false)}
+                open={openNotVoted}
+                title={t("votingScreen.nonVotedDialog.title")}
+                ok={t("votingScreen.nonVotedDialog.ok")}
+                variant="softwarning"
+            >
+                {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+            </Dialog>
         </PageLimit>
     )
 }

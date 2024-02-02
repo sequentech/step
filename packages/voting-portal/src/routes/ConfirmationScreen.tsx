@@ -24,9 +24,11 @@ import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import Stepper from "../components/Stepper"
+import {useContext} from "react"
+import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -113,19 +115,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
+    const {logout} = useContext(AuthContext)
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
 
+    const onClickRedirect = () => {
+        logout("https://google.com")
+    }
+
     useEffect(() => {
         if (ballotStyle) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                })
-            )
+            dispatch(clearBallot())
         }
     }, [ballotStyle, dispatch])
 
@@ -140,11 +142,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
             {!canVote ? (
-                <ActionLink
-                    href="https://google.com"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    <StyledButton className="finish-button" sx={{width: {xs: "100%", sm: "200px"}}}>
+                <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton
+                        onClick={onClickRedirect}
+                        className="finish-button"
+                        sx={{width: {xs: "100%", sm: "200px"}}}
+                    >
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
                 </ActionLink>
