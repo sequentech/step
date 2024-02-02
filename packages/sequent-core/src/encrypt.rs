@@ -265,7 +265,10 @@ mod tests {
                 &ballot_style,
             )
             .unwrap();
-        let plaintext = auditable_ballot.contests[0].choice.plaintext.clone();
+        let contests = auditable_ballot
+            .deserialize_contests::<RistrettoCtx>()
+            .unwrap();
+        let plaintext = contests[0].choice.plaintext.clone();
         let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
