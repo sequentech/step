@@ -35,7 +35,7 @@ const spanishTranslation: TranslationType = {
         startScreen: {
             startButton: "Empezar a votar",
             instructionsTitle: "Instrucciones",
-            instructionsDescription: "Seguirá estos pasos al emitir tu voto:",
+            instructionsDescription: "Por favor, siga estos pasos para emitir su voto:",
             step1Title: "1. Seleccione su opción de voto",
             step1Description:
                 "Seleccione sus candidatos preferidos y responda las preguntas de la elección una por una a medida que aparezcan. Puede editar su papeleta hasta que esté listo para continuar.",

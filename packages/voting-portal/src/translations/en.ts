@@ -33,7 +33,7 @@ const englishTranslation = {
         startScreen: {
             startButton: "Start Voting",
             instructionsTitle: "Instructions",
-            instructionsDescription: "You need to follow these steps to cast your ballot:",
+            instructionsDescription: "Please follow these steps to cast your ballot:",
             step1Title: "1. Select your options",
             step1Description:
                 "Choose your preferred candidates and answer the election questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
