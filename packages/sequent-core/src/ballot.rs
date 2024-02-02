@@ -313,8 +313,8 @@ pub enum CandidatesSelectionPolicy {
     Clone,
 )]
 pub struct ElectionEventPresentation {
-    logo_url: Option<String>,
-    css: Option<String>,
+    pub logo_url: Option<String>,
+    pub css: Option<String>,
 }
 
 impl ElectionEventPresentation {
