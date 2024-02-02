@@ -135,7 +135,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
-            
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
@@ -148,7 +147,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
             }
-            
+
             return submit(null, {method: "post"})
         } catch (error) {
             // dispatch(clearBallot())
@@ -224,7 +223,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = false
+    const hideAudit = true
     const {logout} = useContext(AuthContext)
 
     const selectionState = useAppSelector(
