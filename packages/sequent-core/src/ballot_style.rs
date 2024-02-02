@@ -8,7 +8,7 @@ use serde_json::Value;
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::{
     self, CandidatePresentation, CandidatesOrder, ContestPresentation,
-    I18nContent,
+    ElectionEventPresentation, I18nContent,
 };
 use crate::types::hasura_types;
 
@@ -39,6 +39,24 @@ pub fn create_ballot_style(
 ) -> ballot::BallotStyle {
     let mut sorted_contests = contests.clone();
     sorted_contests.sort_by_key(|k| k.id.clone());
+
+    let mut election_event_css = None;
+    let mut election_event_logo_url = None;
+    if let Some(election_event_presentation) = election_event.presentation {
+        if let Some(val) = election_event_presentation
+            .get("css")
+            .and_then(Value::as_str)
+        {
+            election_event_css = Some(val.to_string())
+        }
+
+        if let Some(val) = election_event_presentation
+            .get("logo_url")
+            .and_then(Value::as_str)
+        {
+            election_event_logo_url = Some(val.to_string())
+        }
+    }
 
     ballot::BallotStyle {
         id,
@@ -72,7 +90,11 @@ pub fn create_ballot_style(
                 create_contest(contest, election_candidates)
             })
             .collect(),
-        election_event_presentation: None,
+        election_event_presentation: Some(ElectionEventPresentation {
+            css: election_event_css,
+            logo_url: election_event_logo_url,
+            ..Default::default()
+        }),
     }
 }
 
