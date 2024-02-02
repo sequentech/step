@@ -135,8 +135,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
-            dispatch(clearBallot())
-
+            
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
@@ -149,9 +148,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
             }
-
+            
             return submit(null, {method: "post"})
         } catch (error) {
+            // dispatch(clearBallot())
             console.log(`error casting vote: ${error}`)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
             return submit({error: errorType}, {method: "post"})
