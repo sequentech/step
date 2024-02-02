@@ -68,7 +68,7 @@ pub struct AuditableBallot {
 
 impl AuditableBallot {
     pub fn deserialize_contests<C: Ctx>(
-        self,
+        &self,
     ) -> Result<Vec<AuditableBallotContest<C>>, BallotError> {
         self.contests
             .clone()
@@ -114,7 +114,7 @@ pub struct HashableBallot {
 
 impl HashableBallot {
     pub fn deserialize_contests<C: Ctx>(
-        self,
+        &self,
     ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
         self.contests
             .clone()

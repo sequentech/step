@@ -51,7 +51,11 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
             ballot.contests.len()
         ));
     }
-    for contest in &ballot.contests {
+
+    let ballot_contests = ballot.deserialize_contests().map_err(|err| {
+        format!("Error deserializing auditable ballot contest {:?}", err)
+    })?;
+    for contest in &ballot_contests {
         let found_contest = ballot
             .config
             .contests

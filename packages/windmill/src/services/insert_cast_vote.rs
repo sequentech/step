@@ -28,6 +28,7 @@ use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use serde_json::Value;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
@@ -73,17 +74,18 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id = area.election_event_id.as_str();
 
-    let hashable_ballot: HashableBallot<RistrettoCtx> =
-        Base64Deserialize::deserialize(input.content.clone())
-            .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
+    let hashable_ballot: HashableBallot = serde_json::from_str(&input.content)
+        .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
 
     let pseudonym_h =
         hash_voter_id(voter_id).map_err(|err| anyhow!("Error hashing voter id: {:?}", err))?;
     let vote_h = hash_ballot(hashable_ballot.clone())
         .map_err(|err| anyhow!("Error hashing ballot: {:?}", err))?;
 
-    hashable_ballot
-        .contests
+    let hashable_ballot_contests = hashable_ballot
+        .deserialize_contests()
+        .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
+    hashable_ballot_contests
         .iter()
         .map(|contest| check_popk(contest))
         .collect::<Result<Vec<()>>>()?;
@@ -192,8 +194,11 @@ fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     hash_to_array(&bytes)
 }
 
-fn hash_ballot(ballot: HashableBallot<RistrettoCtx>) -> Result<Hash, StrandError> {
-    let bytes = ballot.strand_serialize()?;
+fn hash_ballot(ballot: HashableBallot) -> Result<Hash, StrandError> {
+    let contests = ballot
+        .deserialize_contests::<RistrettoCtx>()
+        .map_err(|err| StrandError::Generic(format!("{:?}", err)))?;
+    let bytes = contests.strand_serialize()?;
     hash_to_array(&bytes)
 }
 
