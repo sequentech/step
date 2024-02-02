@@ -12,7 +12,7 @@ import {
     IContestLayoutProperties,
     IDecodedVoteChoice,
 } from "sequent-core"
-import {IBallotStyle, IContest} from "@sequentech/ui-essentials"
+import {IBallotStyle, IContest, IAuditableBallot, IHashableBallot} from "@sequentech/ui-essentials"
 //import PlaintextVote from "../fixtures/plaintext_vote.json"
 
 export interface IConfirmationBallot {
@@ -22,15 +22,15 @@ export interface IConfirmationBallot {
 }
 
 export interface IBallotService {
-    hashBallot512: (auditableBallot: string) => string
-    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
+    hashBallot512: (auditableBallot: IAuditableBallot) => string
+    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
-    getBallotStyleFromAuditableBallot: (auditableBallot: string) => IBallotStyle | null
+    getBallotStyleFromAuditableBallot: (auditableBallot: IAuditableBallot) => IBallotStyle | null
     generateSampleAuditableBallot: () => string | null
 }
 
-export const hashBallot512 = (auditableBallot: string): string => {
+export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
     } catch (e) {
@@ -40,7 +40,7 @@ export const hashBallot512 = (auditableBallot: string): string => {
 }
 
 export const decodeAuditableBallot = (
-    auditableBallot: string
+    auditableBallot: IAuditableBallot
 ): Array<IDecodedVoteContest> | null => {
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
@@ -51,7 +51,9 @@ export const decodeAuditableBallot = (
     }
 }
 
-export const getBallotStyleFromAuditableBallot = (auditableBallot: string): IBallotStyle | null => {
+export const getBallotStyleFromAuditableBallot = (
+    auditableBallot: IAuditableBallot
+): IBallotStyle | null => {
     try {
         let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IBallotStyle
         return ballotStyle

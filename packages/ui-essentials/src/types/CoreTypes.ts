@@ -111,3 +111,18 @@ export interface IPublicKeyConfig {
     public_key: string
     is_demo: boolean
 }
+
+export interface IAuditableBallot {
+    version: number
+    issue_date: string
+    config: IBallotStyle
+    contests: Array<string>
+    ballot_hash: string
+}
+
+export interface IHashableBallot {
+    version: number
+    issue_date: string
+    contests: Array<string>
+    config: IBallotStyle
+}
