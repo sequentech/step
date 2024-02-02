@@ -19,16 +19,13 @@ use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
-};
-use crate::pipes::{
-    error::{Error, Result},
-    pipes,
 };
 
 pub const OUTPUT_PDF: &str = "report.pdf";
@@ -80,6 +77,7 @@ impl GenerateReports {
                     .map(|cr| CandidateResultForReport {
                         candidate: cr.candidate.clone(),
                         total_count: cr.total_count,
+                        percentage_votes: format!("{:.2}", cr.percentage_votes),
                         winning_position: map_winners.get(&cr.candidate.id).cloned(),
                     })
                     .collect();
@@ -88,7 +86,7 @@ impl GenerateReports {
                     a.winning_position
                         .unwrap_or(usize::MAX)
                         .cmp(&b.winning_position.unwrap_or(usize::MAX))
-                        .then_with(|| a.total_count.cmp(&b.total_count))
+                        .then_with(|| b.total_count.cmp(&a.total_count))
                         .then_with(|| a.candidate.name.cmp(&b.candidate.name))
                 });
 
@@ -112,22 +110,38 @@ impl GenerateReports {
 
         map.insert("reports".to_owned(), reports.clone());
 
-        let html = include_str!("../../resources/report.hbs");
+        let mut template_map = HashMap::new();
+        let html = include_str!("../../resources/report_base_html.hbs");
+        template_map.insert("report_base_html".to_string(), html.to_string());
+        let html = include_str!("../../resources/report_base_pdf.hbs");
+        template_map.insert("report_base_pdf".to_string(), html.to_string());
+        let html = include_str!("../../resources/report_content.hbs");
+        template_map.insert("report_content".to_string(), html.to_string());
 
-        let render = reports::render_template_text(html, map).map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during render_template_text from report.hbs template file: {}",
-                e
-            ))
-        })?;
+        let render_html =
+            reports::render_template("report_base_html", template_map.clone(), map.clone())
+                .map_err(|e| {
+                    Error::UnexpectedError(format!(
+                        "Error during render_template_text from report.hbs template file: {}",
+                        e
+                    ))
+                })?;
 
-        let bytes_pdf = pdf::html_to_pdf(render.clone()).map_err(|e| {
+        let render_pdf =
+            reports::render_template("report_base_pdf", template_map, map).map_err(|e| {
+                Error::UnexpectedError(format!(
+                    "Error during render_template_text from report.hbs template file: {}",
+                    e
+                ))
+            })?;
+
+        let bytes_pdf = pdf::html_to_pdf(render_pdf.clone()).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
         Ok((
             bytes_pdf,
-            render.as_bytes().to_vec(),
+            render_html.as_bytes().to_vec(),
             reports.to_string().as_bytes().to_vec(),
         ))
     }
@@ -372,5 +386,6 @@ pub struct ReportDataComputed {
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
+    pub percentage_votes: String,
     pub winning_position: Option<usize>,
 }

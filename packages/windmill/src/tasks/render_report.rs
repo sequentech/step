@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
@@ -54,7 +54,8 @@ pub async fn render_report(
     }
 
     // render handlebars template
-    let render = reports::render_template_text(input.template.as_str(), variables_map)?;
+    let render = reports::render_template_text(input.template.as_str(), variables_map)
+        .map_err(|err| anyhow!("{}", err))?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {

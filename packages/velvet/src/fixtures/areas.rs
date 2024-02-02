@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use crate::pipes::pipe_inputs::AreaConfig;
 
+#[allow(unused)]
 pub fn get_area_config(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
