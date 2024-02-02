@@ -18,7 +18,7 @@ pub fn render_template_text(
 ) -> Result<String, RenderError> {
     let mut reg = Handlebars::new();
 
-    reg.register_escape_fn(escape_html);
+    reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
 
     // render handlebars template
@@ -33,7 +33,6 @@ pub fn render_template(
 ) -> Result<String, RenderError> {
     let mut reg = Handlebars::new();
 
-    reg.register_escape_fn(escape_html);
     reg.register_helper("sanitize_html", Box::new(sanitize_html));
     reg.register_helper("format_u64", Box::new(format_u64));
 
@@ -67,16 +66,6 @@ pub fn sanitize_html(
     out.write(&cleaned)?;
 
     Ok(())
-}
-
-pub fn escape_html(input: &str) -> String {
-    let tags: HashSet<&str> =
-        ["strong", "em", "b", "i", "br"].iter().cloned().collect();
-
-    let mut builder = ammonia::Builder::default();
-    let builder = builder.tags(tags);
-
-    builder.clean(input).to_string()
 }
 
 pub fn format_u64(
