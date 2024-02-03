@@ -214,6 +214,7 @@ const spanishTranslation: TranslationType = {
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
+                skipElectionList: "Saltar pantalla para escoger elección",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -1069,6 +1070,7 @@ const spanishTranslation: TranslationType = {
             },
             fields: {
                 isHidden: "Oculto",
+                publicUrl: "Enlace público",
             },
         },
     },

@@ -57,6 +57,7 @@ interface GetPublicURLProps {
 const GetPublicURL: React.FC<GetPublicURLProps> = ({electionEventId}) => {
     const record = useRecordContext<Sequent_Backend_Support_Material>()
     const {globalSettings} = useContext(SettingsContext)
+    const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {data} = useGetList<Sequent_Backend_Document>("sequent_backend_document", {
         pagination: {page: 1, perPage: 1},
@@ -75,7 +76,11 @@ const GetPublicURL: React.FC<GetPublicURLProps> = ({electionEventId}) => {
 
     return (
         <>
-            <TextField contentEditable={false} value={url} label="Public URL" />
+            <TextField
+                contentEditable={false}
+                value={url}
+                label={t("materials.fields.publicUrl")}
+            />
         </>
     )
 }

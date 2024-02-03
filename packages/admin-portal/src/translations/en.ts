@@ -212,6 +212,7 @@ const englishTranslation = {
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
+                skipElectionList: "Skip Election List screen",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -1066,6 +1067,7 @@ const englishTranslation = {
             },
             fields: {
                 isHidden: "Is Hidden",
+                publicUrl: "Public URL",
             },
         },
     },

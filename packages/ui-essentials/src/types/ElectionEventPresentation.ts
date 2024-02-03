@@ -19,4 +19,5 @@ export interface IElectionEventPresentation {
     redirect_finish_url?: string
     css?: string
     hide_audit?: boolean
+    skip_election_list?: boolean
 }

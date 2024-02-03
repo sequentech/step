@@ -331,7 +331,7 @@ pub struct ElectionEventMaterials {
 )]
 pub struct ElectionEventLanguageConf {
     pub enabled_language_codes: Option<Vec<String>>,
-    pub default_language_code: String,
+    pub default_language_code: Option<String>,
 }
 
 #[derive(
@@ -354,6 +354,7 @@ pub struct ElectionEventPresentation {
     pub redirect_finish_url: Option<String>,
     pub css: Option<String>,
     pub hide_audit: Option<bool>,
+    pub skip_election_list: Option<bool>,
 }
 
 #[derive(

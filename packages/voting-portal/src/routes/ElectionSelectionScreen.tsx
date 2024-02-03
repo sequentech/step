@@ -209,6 +209,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const oneBallotStyle = useAppSelector(selectBallotStyleByElectionId(electionIds?.[0] ?? ""))
     const dispatch = useAppDispatch()
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
@@ -284,7 +285,10 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [castVotes, dispatch])
 
     useEffect(() => {
+        const skipPolicy =
+            oneBallotStyle?.ballot_eml.election_event_presentation?.skip_election_list ?? false
         const newBypassChooser =
+            skipPolicy &&
             1 === electionIds.length &&
             !errorCastVote &&
             !isUndefined(castVotes) &&
@@ -293,7 +297,15 @@ export const ElectionSelectionScreen: React.FC = () => {
         if (newBypassChooser && !bypassChooser) {
             dispatch(setBypassChooser(newBypassChooser))
         }
-    }, [castVotes, electionIds, errorCastVote, castVotes, electionEvent, dataElections])
+    }, [
+        castVotes,
+        electionIds,
+        errorCastVote,
+        castVotes,
+        electionEvent,
+        dataElections,
+        oneBallotStyle,
+    ])
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
