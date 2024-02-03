@@ -7,6 +7,7 @@ use crate::ballot::{
     ElectionEventPresentation, I18nContent,
 };
 use crate::types::hasura_types;
+use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::str::FromStr;
 
@@ -34,29 +35,21 @@ pub fn create_ballot_style(
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
-) -> ballot::BallotStyle {
+) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests.clone();
     sorted_contests.sort_by_key(|k| k.id.clone());
 
-    let mut election_event_css = None;
-    let mut election_event_logo_url = None;
-    if let Some(election_event_presentation) = election_event.presentation {
-        if let Some(val) = election_event_presentation
-            .get("css")
-            .and_then(Value::as_str)
-        {
-            election_event_css = Some(val.to_string())
-        }
+    let election_event_presentation: ElectionEventPresentation = election_event
+        .presentation
+        .clone()
+        .map(|presentation| serde_json::from_value(presentation))
+        .transpose()
+        .map_err(|err| {
+            anyhow!("Error parsing election Event presentation {:?}", err)
+        })?
+        .unwrap_or(Default::default());
 
-        if let Some(val) = election_event_presentation
-            .get("logo_url")
-            .and_then(Value::as_str)
-        {
-            election_event_logo_url = Some(val.to_string())
-        }
-    }
-
-    ballot::BallotStyle {
+    Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
         election_event_id: election.election_event_id,
@@ -88,12 +81,8 @@ pub fn create_ballot_style(
                 create_contest(contest, election_candidates)
             })
             .collect(),
-        election_event_presentation: Some(ElectionEventPresentation {
-            css: election_event_css,
-            logo_url: election_event_logo_url,
-            ..Default::default()
-        }),
-    }
+        election_event_presentation: Some(election_event_presentation.clone()),
+    })
 }
 
 fn create_contest(

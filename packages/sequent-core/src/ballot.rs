@@ -15,7 +15,7 @@ use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
-pub type I18nContent = HashMap<String, String>;
+pub type I18nContent<T = String> = HashMap<String, T>;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
@@ -347,7 +347,7 @@ pub struct ElectionEventLanguageConf {
     Default,
 )]
 pub struct ElectionEventPresentation {
-    //pub i18n: Option<Value>,
+    pub i18n: Option<I18nContent<I18nContent<String>>>,
     pub materials: Option<ElectionEventMaterials>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub logo_url: Option<String>,
