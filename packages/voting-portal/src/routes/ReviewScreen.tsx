@@ -223,7 +223,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = true
+    const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
 
     const selectionState = useAppSelector(
