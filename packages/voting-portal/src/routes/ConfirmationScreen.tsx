@@ -25,13 +25,11 @@ import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    selectBallotStyleByElectionId,
-} from "../store/ballotStyles/ballotStylesSlice"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -125,12 +123,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
 
     useEffect(() => {
         if (ballotStyle) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                })
-            )
+            dispatch(clearBallot())
         }
     }, [ballotStyle, dispatch])
 

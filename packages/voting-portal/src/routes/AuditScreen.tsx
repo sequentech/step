@@ -34,8 +34,6 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
 import Stepper from "../components/Stepper"
-import {selectScreenBackgroundImage} from "../store/ballotStyles/ballotStylesSlice"
-import {BackgroundImage} from "../components/BackgroundImage"
 
 const ActionsContainer = styled(Box)`
     display: flex;

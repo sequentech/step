@@ -16,12 +16,18 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
+    width: 100%;
     margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
+    margin-bottom: 10px;
+    display: block;
+    box-sizing: border-box;
     font-size: 36px;
-    justify-content: center;
+    font-weight: 700;
+    line-height: 40px;
+    word-break: keep-all;
+    text-align: center;
+    padding-left: 15px;
+    padding-right: 15px;
 `
 
 const ActionsContainer = styled(Box)`

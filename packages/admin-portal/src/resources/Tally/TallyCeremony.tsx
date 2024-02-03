@@ -541,7 +541,6 @@ export const TallyCeremony: React.FC = () => {
                                                 : "rotate(0)",
                                     }}
                                 />
-                                <ChevronRightIcon />
                             </>
                         </NextButton>
                     )}
