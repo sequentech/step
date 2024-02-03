@@ -41,7 +41,7 @@ export interface AuthContextValues {
      * Function to initiate the logout
      */
     logout: (redirectUrl?: string) => void
-  
+
     /**
      * Check if the user has the given role
      */
