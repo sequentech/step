@@ -195,6 +195,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
+                ballotDesign: "Ballot Design",
             },
             field: {
                 name: "Name",
@@ -207,6 +208,10 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
+                hideAudit: "Disable Audit",
+                logoUrl: "Logo URL",
+                redirectFinishUrl: "Redirect Finish URL",
+                css: "Custom CSS",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -322,6 +327,7 @@ const englishTranslation = {
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
+                numAllowedVotes: "Number of allowed votes",
             },
             field: {
                 name: "Name",

@@ -197,6 +197,7 @@ const spanishTranslation: TranslationType = {
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
+                ballotDesign: "Diseño de la Papeleta",
             },
             field: {
                 name: "Nombre",
@@ -209,6 +210,10 @@ const spanishTranslation: TranslationType = {
                 materialActivated: "Materiales de Soporte activados",
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
+                hideAudit: "Deshabilitar Auditoría",
+                logoUrl: "Logo URL",
+                redirectFinishUrl: "URL de redirección al finalizar",
+                css: "CSS personalizado",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -324,6 +329,7 @@ const spanishTranslation: TranslationType = {
                 receipts: "Comprobantes",
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
+                numAllowedVotes: "Número de votos permitidos",
             },
             field: {
                 name: "Nombre",
