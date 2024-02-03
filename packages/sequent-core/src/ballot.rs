@@ -311,25 +311,48 @@ pub enum CandidatesSelectionPolicy {
     Eq,
     Debug,
     Clone,
+    Default,
+)]
+pub struct ElectionEventMaterials {
+    pub activated: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventLanguageConf {
+    pub enabled_language_codes: Option<Vec<String>>,
+    pub default_language_code: String
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
 )]
 pub struct ElectionEventPresentation {
+    //pub i18n: Option<Value>,
+    pub materials: Option<ElectionEventMaterials>,
+    pub language_conf: Option<ElectionEventLanguageConf>,
     pub logo_url: Option<String>,
+    pub redirect_finish_url: Option<String>,
     pub css: Option<String>,
-}
-
-impl ElectionEventPresentation {
-    pub fn new() -> Self {
-        Self {
-            logo_url: None,
-            css: None,
-        }
-    }
-}
-
-impl Default for ElectionEventPresentation {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 #[derive(
