@@ -1067,6 +1067,9 @@ const spanishTranslation: TranslationType = {
                 title: "El título es obligatorio",
                 document: "El documento es obligatorio",
             },
+            fields: {
+                isHidden: "Oculto",
+            },
         },
     },
 }

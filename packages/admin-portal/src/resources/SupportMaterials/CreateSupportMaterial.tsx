@@ -13,6 +13,7 @@ import {
     SaveButton,
     useUpdate,
     useGetOne,
+    BooleanInput,
 } from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -152,6 +153,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
+                    election_event_id: record?.id,
                 },
             })
             if (data?.get_upload_url?.document_id) {
@@ -215,6 +217,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                         {t("materials.common.subtitle")}
                     </PageHeaderStyles.SubTitle>
                     <Tabs elements={renderTabs(record)} />
+                    <BooleanInput source={"is_hidden"} label={t("materials.fields.isHidden")} />
                     <DropFile handleFiles={handleFiles} />
                     {imageType ? (
                         <Box

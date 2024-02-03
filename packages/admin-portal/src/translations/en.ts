@@ -1064,6 +1064,9 @@ const englishTranslation = {
                 title: "Title is required",
                 document: "Document is required",
             },
+            fields: {
+                isHidden: "Is Hidden",
+            },
         },
     },
 }

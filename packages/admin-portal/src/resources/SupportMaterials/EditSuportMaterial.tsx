@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {
     SimpleForm,
     useRefresh,
@@ -13,6 +13,9 @@ import {
     EditBase,
     RecordContext,
     useGetOne,
+    BooleanInput,
+    useRecordContext,
+    useGetList,
 } from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -20,7 +23,12 @@ import {Tabs} from "@/components/Tabs"
 import {DropFile} from "@sequentech/ui-essentials"
 import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
-import {GetUploadUrlMutation} from "@/gql/graphql"
+import {
+    GetUploadUrlMutation,
+    Sequent_Backend_Document,
+    Sequent_Backend_Election,
+    Sequent_Backend_Support_Material,
+} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
@@ -28,10 +36,11 @@ import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface EditSupportMaterialProps {
-    id: Identifier | undefined
-    electionEventId: Identifier | undefined
+    id?: string
+    electionEventId?: string
     close?: () => void
 }
 
@@ -41,9 +50,34 @@ interface I18n {
     }
 }
 
-const BASE_DATA = {
-    title_i18n: {},
-    subtitle_i18n: {},
+interface GetPublicURLProps {
+    electionEventId: string
+}
+
+const GetPublicURL: React.FC<GetPublicURLProps> = ({electionEventId}) => {
+    const record = useRecordContext<Sequent_Backend_Support_Material>()
+    const {globalSettings} = useContext(SettingsContext)
+    const [tenantId] = useTenantStore()
+    const {data} = useGetList<Sequent_Backend_Document>("sequent_backend_document", {
+        pagination: {page: 1, perPage: 1},
+        filter: {
+            id: record?.document_id,
+            election_event_id: electionEventId,
+            tenant_id: tenantId,
+        },
+    })
+
+    if (!data) {
+        return null
+    }
+
+    const url = `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${record?.document_id}/${data[0]?.name}`
+
+    return (
+        <>
+            <TextField contentEditable={false} value={url} label="Public URL" />
+        </>
+    )
 }
 
 export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) => {
@@ -250,6 +284,13 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                                         {t("materials.common.subtitle")}
                                     </PageHeaderStyles.SubTitle>
                                     <Tabs elements={renderTabs(parsedValue)} />
+                                    <BooleanInput
+                                        source="is_hidden"
+                                        label={t("materials.fields.isHidden")}
+                                    />
+                                    {electionEventId ? (
+                                        <GetPublicURL electionEventId={electionEventId} />
+                                    ) : null}
                                     <DropFile handleFiles={handleFiles} />
                                     {parsedValue.document_id ? (
                                         <Box
