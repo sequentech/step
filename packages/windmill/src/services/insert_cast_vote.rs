@@ -23,6 +23,7 @@ use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
+use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::connection::AuthHeaders;
@@ -79,7 +80,7 @@ pub async fn try_insert_cast_vote(
 
     let pseudonym_h =
         hash_voter_id(voter_id).map_err(|err| anyhow!("Error hashing voter id: {:?}", err))?;
-    let vote_h = hash_ballot(hashable_ballot.clone())
+    let vote_h = hash_ballot_sha512(&hashable_ballot)
         .map_err(|err| anyhow!("Error hashing ballot: {:?}", err))?;
 
     let hashable_ballot_contests = hashable_ballot
@@ -191,14 +192,6 @@ pub async fn try_insert_cast_vote(
 
 fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     let bytes = voter_id.to_string().strand_serialize()?;
-    hash_to_array(&bytes)
-}
-
-fn hash_ballot(ballot: HashableBallot) -> Result<Hash, StrandError> {
-    let contests = ballot
-        .deserialize_contests::<RistrettoCtx>()
-        .map_err(|err| StrandError::Generic(format!("{:?}", err)))?;
-    let bytes = contests.strand_serialize()?;
     hash_to_array(&bytes)
 }
 

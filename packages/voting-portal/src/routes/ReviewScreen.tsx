@@ -223,7 +223,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = false
+    const hideAudit = true
     const {logout} = useContext(AuthContext)
 
     const selectionState = useAppSelector(

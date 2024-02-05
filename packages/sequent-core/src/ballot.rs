@@ -157,7 +157,13 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
-        assert!(TYPES_VERSION == value.version);
+        if TYPES_VERSION == value.version {
+            return Err(BallotError::Serialization(format!(
+                "Unexpected version {}, expected {}",
+                value.version.to_string(),
+                TYPES_VERSION
+            )));
+        }
 
         let contests = value.deserialize_contests::<RistrettoCtx>()?;
         let hashable_ballot_contest: Vec<HashableBallotContest<RistrettoCtx>> =

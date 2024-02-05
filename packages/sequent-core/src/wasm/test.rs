@@ -86,23 +86,22 @@ pub fn hash_auditable_ballot_js(
     let auditable_ballot: AuditableBallot =
         serde_wasm_bindgen::from_value(auditable_ballot_json)
             .map_err(|err| {
-                format!("Error deserializing auditable ballot: {}", err)
+                format!("Error deserializing auditable ballot: {err}",)
             })
             .into_json()?;
     let hashable_ballot =
         HashableBallot::try_from(&auditable_ballot).map_err(|err| {
             format!(
-                "Error converting auditable ballot into hashable ballot: {:?}",
-                err
+                "Error converting auditable ballot into hashable ballot: {err}",
             )
         })?;
 
     // return hash
     let hash_string: String = hash_ballot::<RistrettoCtx>(&hashable_ballot)
-        .map_err(|err| format!("Error hashing ballot: {:?}", err))
+        .map_err(|err| format!("Error hashing ballot: {err}",))
         .into_json()?;
     serde_wasm_bindgen::to_value(&hash_string)
-        .map_err(|err| format!("Error writing javascript string: {:?}", err))
+        .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }
 
