@@ -47,7 +47,7 @@
           <tr>
             <td style="width: 55%;">Total number of valid votes</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_invalid_votes }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.total_valid_votes }}</td>
           </tr>
           <tr>
             <td style="width: 55%;">Blank votes (total)</td>
@@ -57,13 +57,12 @@
           <tr>
             <td style="width: 55%;">Explicit invalid votes</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_invalid_votes }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}</td>
           </tr>
           <tr>
             <td style="width: 55%;">Implicit invalid votes</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.total_votes }}</td>
-          </tr>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}</td> </tr>
         </table>
 
         <table>
