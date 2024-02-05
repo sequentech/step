@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::Vault;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -32,9 +33,8 @@ pub struct HashiCorpVault;
 impl Vault for HashiCorpVault {
     #[instrument(skip(value), err)]
     async fn save_secret(&self, key: String, value: String) -> Result<()> {
-        let server_url =
-            env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
-        let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
+        let server_url = env::var("VAULT_SERVER_URL").context("VAULT_SERVER_URL must be set")?;
+        let token = env::var("VAULT_TOKEN").context("VAULT_TOKEN must be set")?;
         let client = reqwest::Client::new();
         let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
         let json_value = json!({"data": value});
@@ -50,9 +50,8 @@ impl Vault for HashiCorpVault {
 
     #[instrument(err)]
     async fn read_secret(&self, key: String) -> Result<Option<String>> {
-        let server_url =
-            env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
-        let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
+        let server_url = env::var("VAULT_SERVER_URL").context("VAULT_SERVER_URL must be set")?;
+        let token = env::var("VAULT_TOKEN").context("VAULT_TOKEN must be set")?;
         let client = reqwest::Client::new();
         let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
         let response = client.get(pm_endpoint).bearer_auth(token).send().await?;

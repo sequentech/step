@@ -1,12 +1,20 @@
 use super::Vault;
 use crate::util::aws::get_from_env_aws_config;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use aws_sdk_secretsmanager::Client;
+use std::env;
 use tracing::instrument;
 
 #[derive(Debug)]
 pub struct AwsSecretManager;
+
+impl AwsSecretManager {
+    fn get_prefixed_key(&self, key: String) -> Result<String> {
+        let key_prefix = env::var("AWS_SM_KEY_PREFIX").context("AWS_SM_KEY_PREFIX must be set")?;
+        Ok(key_prefix + key.as_str())
+    }
+}
 
 #[async_trait]
 impl Vault for AwsSecretManager {
@@ -17,7 +25,7 @@ impl Vault for AwsSecretManager {
 
         client
             .create_secret()
-            .name(key)
+            .name(self.get_prefixed_key(key)?)
             .secret_string(value)
             .send()
             .await?;
@@ -30,7 +38,11 @@ impl Vault for AwsSecretManager {
         let shared_config = get_from_env_aws_config().await?;
         let client = Client::new(&shared_config);
 
-        let resp = client.get_secret_value().secret_id(key).send().await?;
+        let resp = client
+            .get_secret_value()
+            .secret_id(self.get_prefixed_key(key)?)
+            .send()
+            .await?;
 
         Ok(resp.secret_string().map(|s| s.to_string()))
     }
