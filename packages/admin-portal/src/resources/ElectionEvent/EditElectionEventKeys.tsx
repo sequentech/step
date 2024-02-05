@@ -6,7 +6,7 @@
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {styled as MUIStiled} from "@mui/material/styles"
 import styled from "@emotion/styled"
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -103,7 +103,27 @@ const getActiveCeremony = (
     }
 }
 
-export const EditElectionEventKeys: React.FC = () => {
+interface EditElectionEventKeysProps {
+    isShowCeremony?: string | null
+    isShowTrusteeCeremony? : string | null
+}
+
+export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (props) => {
+
+    const {isShowCeremony, isShowTrusteeCeremony} = props;
+
+    useEffect(() => {
+        if (isShowCeremony) {
+            setShowCeremony(false)
+        }
+    },[isShowCeremony])
+
+    useEffect(() => {
+        if (isShowTrusteeCeremony) {
+            setShowTrusteeCeremony(false)
+        }
+    },[isShowTrusteeCeremony])
+
     const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
