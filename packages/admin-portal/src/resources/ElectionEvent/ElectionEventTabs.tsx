@@ -113,7 +113,10 @@ export const ElectionEventTabs: React.FC = () => {
                             setShowKeysList(Date.now().toString())
                         }}
                     >
-                        <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList}/>
+                        <EditElectionEventKeys
+                            isShowCeremony={showKeysList}
+                            isShowTrusteeCeremony={showKeysList}
+                        />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showTally ? (

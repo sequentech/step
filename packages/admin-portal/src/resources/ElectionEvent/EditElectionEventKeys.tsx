@@ -105,24 +105,23 @@ const getActiveCeremony = (
 
 interface EditElectionEventKeysProps {
     isShowCeremony?: string | null
-    isShowTrusteeCeremony? : string | null
+    isShowTrusteeCeremony?: string | null
 }
 
 export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (props) => {
-
-    const {isShowCeremony, isShowTrusteeCeremony} = props;
+    const {isShowCeremony, isShowTrusteeCeremony} = props
 
     useEffect(() => {
         if (isShowCeremony) {
             setShowCeremony(false)
         }
-    },[isShowCeremony])
+    }, [isShowCeremony])
 
     useEffect(() => {
         if (isShowTrusteeCeremony) {
             setShowTrusteeCeremony(false)
         }
-    },[isShowTrusteeCeremony])
+    }, [isShowTrusteeCeremony])
 
     const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
