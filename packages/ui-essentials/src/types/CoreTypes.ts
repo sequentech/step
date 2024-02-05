@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {TranslationDict} from "@root/services/translate"
+
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
@@ -56,9 +58,14 @@ export interface IContest {
     election_event_id: string
     election_id: string
     name?: string
+    name_i18n?: TranslationDict
     description?: string
+    description_i18n?: TranslationDict
+    alias?: string
+    alias_i18n?: TranslationDict
     max_votes: number
     min_votes: number
+    winning_candidates_num: number
     voting_type?: string
     counting_algorithm?: string
     is_encrypted: boolean
@@ -90,7 +97,11 @@ export interface ICandidate {
     election_id: string
     contest_id: string
     name?: string
+    name_i18n?: TranslationDict
     description?: string
+    description_i18n?: TranslationDict
+    alias?: string
+    alias_i18n?: TranslationDict
     candidate_type?: string
     presentation?: ICandidatePresentation
 }

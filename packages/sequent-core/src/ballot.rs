@@ -9,6 +9,7 @@ use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_wasm_bindgen::Serializer;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
@@ -157,7 +158,7 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION == value.version {
+        if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
                 "Unexpected version {}, expected {}",
                 value.version.to_string(),

@@ -11,7 +11,13 @@ import {
     IContestLayoutProperties,
     IDecodedVoteChoice,
 } from "sequent-core"
-import {IBallotStyle, IContest, IAuditableBallot, IHashableBallot} from "@sequentech/ui-essentials"
+import {
+    IBallotStyle,
+    IContest,
+    IAuditableBallot,
+    IHashableBallot,
+    CandidatesOrder,
+} from "@sequentech/ui-essentials"
 //import PlaintextVote from "../fixtures/plaintext_vote.json"
 
 export interface IConfirmationBallot {
