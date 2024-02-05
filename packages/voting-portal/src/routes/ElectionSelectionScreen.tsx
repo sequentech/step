@@ -26,6 +26,7 @@ import {
     IBallotStyle,
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
+    selectFirstBallotStyle,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -209,7 +210,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const oneBallotStyle = useAppSelector(selectBallotStyleByElectionId(electionIds?.[0] ?? ""))
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)

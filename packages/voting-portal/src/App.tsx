@@ -15,9 +15,11 @@ import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {useAppSelector} from "./store/hooks"
-import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
 import {selectElectionIds} from "./store/elections/electionsSlice"
-import {selectBallotStyleByElectionId} from "./store/ballotStyles/ballotStylesSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectFirstBallotStyle,
+} from "./store/ballotStyles/ballotStylesSlice"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -29,9 +31,10 @@ const HeaderWithContext: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
 
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
-    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+    let presentation: IElectionEventPresentation | undefined =
+        ballotStyle?.ballot_eml.election_event_presentation
 
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
 
