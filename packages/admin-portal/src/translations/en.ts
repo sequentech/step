@@ -754,9 +754,10 @@ const englishTranslation = {
                 title: "Check your Encrypted Private Key Backups",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
-                errorUploading: "Upload error: {{error}}",
+                errorUploading: "Invalid Encrypted Private Key file, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
+                downloaded: "Encripted Private Key generated successfully.",
             },
         },
         tally: {
