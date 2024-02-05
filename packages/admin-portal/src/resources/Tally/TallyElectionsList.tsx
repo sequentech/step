@@ -83,8 +83,8 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         {
             field: "active",
             headerName: t("tally.table.selected"),
-            flex: 1,
             editable: true,
+            width: 100,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox
                     checked={disabled ? true : props.value}
@@ -111,6 +111,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     return (
         <DataGrid
             rows={electionsData}
+            sx={{width: "100%"}}
             columns={columns}
             initialState={{
                 pagination: {
