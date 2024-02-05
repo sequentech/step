@@ -77,7 +77,7 @@ impl GenerateReports {
                     .map(|cr| CandidateResultForReport {
                         candidate: cr.candidate.clone(),
                         total_count: cr.total_count,
-                        percentage_votes: format!("{:.2}", cr.percentage_votes),
+                        percentage_votes: cr.percentage_votes,
                         winning_position: map_winners.get(&cr.candidate.id).cloned(),
                     })
                     .collect();
@@ -386,6 +386,6 @@ pub struct ReportDataComputed {
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
-    pub percentage_votes: String,
+    pub percentage_votes: f64,
     pub winning_position: Option<usize>,
 }
