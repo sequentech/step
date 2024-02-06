@@ -24,11 +24,14 @@ import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import Stepper from "../components/Stepper"
 import {useContext} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {useMutation} from "@apollo/client"
+import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
+import {CreateVoteReceiptMutation} from "../gql/graphql"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -117,6 +120,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const dispatch = useAppDispatch()
     const {logout} = useContext(AuthContext)
 
+    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const {hashBallot} = provideBallotService()
+    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
+    const [createVoteReceipt] = useMutation<CreateVoteReceiptMutation>(CREATE_VOTE_RECEIPT)
+
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
@@ -131,6 +139,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         }
     }, [ballotStyle, dispatch])
 
+    function printVoteReceipt() {
+        console.log("asdfasfasdfas")
+
+        createVoteReceipt({
+            variables: {
+                ballotId,
+            },
+        })
+    }
+
     return (
         <ActionsContainer>
             <StyledButton
@@ -140,6 +158,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
             >
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("confirmationScreen.printButton")}</Box>
+            </StyledButton>
+            <StyledButton
+                onClick={printVoteReceipt}
+                variant="secondary"
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            >
+                <Icon icon={faPrint} size="sm" />
+                <Box>Bonjour la vie</Box>
             </StyledButton>
             {!canVote ? (
                 <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
