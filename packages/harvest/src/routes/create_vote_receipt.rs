@@ -63,7 +63,10 @@ pub async fn create_vote_receipt(
         duration.as_millis()
     );
 
-    let toto = serde_json::from_value(json!({"id": "1"})).unwrap();
+    let toto = serde_json::from_value(
+        json!({"id": "1", "ballot_id": "1", "status": "pending"}),
+    )
+    .unwrap();
 
     Ok(Json(toto))
 }
