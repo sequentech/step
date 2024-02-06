@@ -8,17 +8,29 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Instant;
 use tracing::{event, instrument, Level};
-use windmill::services::insert_cast_vote::*;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreateVoteReceiptInput {
+    ballot_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreateVoteReceiptOutput {
+    id: String,
+    ballot_id: String,
+    status: String,
+}
 
 #[instrument(skip_all)]
 #[post("/create-vote-receipt", format = "json", data = "<body>")]
 pub async fn create_vote_receipt(
-    body: Json<InsertCastVoteInput>,
+    body: Json<CreateVoteReceiptInput>,
     claims: JwtClaims,
-) -> Result<Json<InsertCastVoteOutput>, (Status, String)> {
+) -> Result<Json<CreateVoteReceiptOutput>, (Status, String)> {
     let start = Instant::now();
     let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
     let input = body.into_inner();
