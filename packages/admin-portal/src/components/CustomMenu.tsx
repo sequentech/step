@@ -44,8 +44,8 @@ const StyledMenu = styled(Menu)<{open: boolean}>`
     left: 0;
     scrollbar-width: ${({open}) => (open ? "thin" : "none")};
 `
-    
-    const DrawerContainer = styled(Box)<{open: boolean}>`
+
+const DrawerContainer = styled(Box)<{open: boolean}>`
     position: fixed;
     bottom: 0;
     left: 0;
@@ -55,12 +55,12 @@ const StyledMenu = styled(Menu)<{open: boolean}>`
     border-top: 2px solid ${adminTheme.palette.customGrey.light};
     display: flex;
     margin-top: auto;
-    width: ${({open}) => open ? "300px" : "50px"};
-    `
-    
-    const MenuWrapper = styled(Box)`
-        border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
-    `
+    width: ${({open}) => (open ? "300px" : "50px")};
+`
+
+const MenuWrapper = styled(Box)`
+    border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
+`
 
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
@@ -98,7 +98,6 @@ export const CustomMenu = () => {
                         onClick={() => setOpen(!open)}
                     />
                 </DrawerContainer>
-
             </StyledMenu>
         </>
     )
