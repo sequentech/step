@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Instant;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
+use windmill::services::celery_app::get_celery_app;
+use windmill::tasks::create_vote_receipt::create_vote_receipt;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateVoteReceiptInput {
@@ -34,6 +37,16 @@ pub async fn create_vote_receipt(
     let start = Instant::now();
     let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
     let input = body.into_inner();
+
+    let celery_app = get_celery_app().await;
+    let element_id: String = Uuid::new_v4().to_string();
+
+    let task = celery_app
+        .send_task(create_vote_receipt::new(
+            "asdfas".to_string(),
+        ))
+        .await?;
+    event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
 
     // let result = try_insert_cast_vote(
     //     input,

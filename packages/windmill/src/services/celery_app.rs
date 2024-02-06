@@ -17,6 +17,7 @@ use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
+use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::set_public_key::set_public_key;
@@ -69,6 +70,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             review_boards,
             process_board,
             render_report,
+            create_vote_receipt,
             set_public_key,
             execute_tally_session,
             update_election_event_ballot_styles,
@@ -86,6 +88,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "review_boards" => "beat",
             "process_board" => "beat",
             "render_report" => "reports_queue",
+            "create_vote_receipt" => "reports_queue",
             "set_public_key" => "short_queue",
             "execute_tally_session" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
