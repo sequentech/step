@@ -190,6 +190,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             return t("keysGeneration.configureStep.errorMinTrustees", {
                 selected: length,
                 threshold: threshold,
+                count: length,
             })
         } else {
             return undefined
