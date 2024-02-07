@@ -37,47 +37,33 @@ pub async fn create_vote_receipt(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    dbg!(&tenant_id);
-    dbg!(&election_event_id);
-    // let auth_headers = keycloak::get_client_credentials().await?;
-    //
-    // dbg!(&element_id);
-    // dbg!(&ballot_id);
-    //
-    // let mut map = Map::new();
-    // map.insert(
-    //     "map".to_string(),
-    //     serde_json::from_str("{\"name\": \"Kevin le bg\"}").map_err(|err| anyhow!("{}", err))?,
-    // );
-    //
-    // // render handlebars template
-    // let render = reports::render_template_text("<h1>Bonjour, {{map.name}}</h1>", map)
-    //     .map_err(|err| anyhow!("{}", err))?;
-    //
-    // dbg!(&render);
-    //
-    // let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
-    //
-    // dbg!(&bytes_pdf);
-    //
-    // let (_temp_path, temp_path_string, file_size) =
-    //     write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".html")
-    //         .with_context(|| "Error writing to file")?;
-    //
-    // dbg!(&file_size);
-    // dbg!(&temp_path_string);
-    // dbg!(&_temp_path);
+    let auth_headers = keycloak::get_client_credentials().await?;
 
-    // let _document = upload_and_return_document(
-    //     temp_path_string,
-    //     file_size,
-    //     "application/pdf".to_string(),
-    //     auth_headers.clone(),
-    //     tenant_id,
-    //     election_event_id,
-    //     "vote-receipt".to_string(),
-    // )
-    // .await?;
+    let mut map = Map::new();
+    map.insert(
+        "map".to_string(),
+        serde_json::from_str("{\"name\": \"Kevin\"}").map_err(|err| anyhow!("{}", err))?,
+    );
+
+    let render = reports::render_template_text("<h1>Bonjour, {{map.name}}</h1>", map)
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
+
+    let (_temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".html")
+            .with_context(|| "Error writing to file")?;
+
+    let _document = upload_and_return_document(
+        temp_path_string,
+        file_size,
+        "application/pdf".to_string(),
+        auth_headers.clone(),
+        tenant_id,
+        election_event_id,
+        format!("vote-receipt-{ballot_id}"),
+    )
+    .await?;
 
     Ok(())
 }
