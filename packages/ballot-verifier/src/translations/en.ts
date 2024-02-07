@@ -70,6 +70,7 @@ const englishTranslation = {
             },
             markedInvalid: "Ballot explicitly marked invalid",
             points: "({{points}} Points)",
+            contestNotFound: "Contest not found: {{contestId}}",
         },
         poweredBy: "Powered by",
         errors: {
