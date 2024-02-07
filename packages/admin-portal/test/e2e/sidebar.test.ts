@@ -35,13 +35,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
             .pause(1000)
     })
 
-    after(function (this: ExtendDescribeThis<LoginThis>, browser) {
-        browser
-            .click("button.profile-menu-button")
-            .click("li.logout-button")
-            .click("button.ok-button")
-            .end()
-    })
+    // after(function (this: ExtendDescribeThis<LoginThis>, browser) {
+    //     browser
+    //         .click("button.profile-menu-button")
+    //         .click("li.logout-button")
+    //         .click("button.ok-button")
+    //         .end()
+    // })
 
     it("click on an election event", async (browser: NightwatchAPI) => {
         // browser.assert.urlContains("sequent_backend_election_event")
@@ -50,6 +50,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
             .click(`a.menu-item-${this.electionEventLink!}:nth-last-of-type(1)`)
             .assert.visible("a.election-event-area-tab")
             .click("a.election-event-area-tab")
+        const isNew = await browser.assert.visible("button.area-add-button")
+        if (isNew) {
+            browser.assert.visible(`"button.area-add-button"`).click("button.area-add-button")
+        } else {
+            browser.assert.visible(`"button.add-button"`).click("button.add-button")
+        }
+
         // .sendKeys("input[name=name]", "this is a test election event name")
         // .assert.visible("input[name=description]")
         // .sendKeys("input[name=description]", "this is a test election event description")
