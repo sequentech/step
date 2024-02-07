@@ -55,7 +55,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         if (isNew) {
             browser.assert.visible("button.area-add-button").click("button.area-add-button")
         } else {
-            browser.assert.visible("button.add-button").click("button.add-button")
+            browser.assert.visible(".add-button").click(".add-button")
         }
         browser.pause(15000)
         // browser
