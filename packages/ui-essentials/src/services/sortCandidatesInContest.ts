@@ -2,11 +2,11 @@ import {CandidatesOrder, ICandidate} from "@root/types/CoreTypes"
 import {cloneDeep} from "lodash"
 import {shuffle} from "moderndash"
 
-export function sortCandidatesInContest(
-    candidates: ICandidate[],
+export const sortCandidatesInContest = (
+    candidates: Array<ICandidate>,
     order?: CandidatesOrder,
     applyRandom?: boolean
-): ICandidate[] {
+): Array<ICandidate> => {
     let res = cloneDeep(candidates)
 
     switch (order) {

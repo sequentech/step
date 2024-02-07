@@ -16,6 +16,7 @@ import {
     Dialog,
     EVotingStatus,
     IElectionEventStatus,
+    sortContestByCreationDate,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -40,7 +41,6 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
-import {sortContestByCreationDate} from "../lib/utils"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 
@@ -299,7 +299,6 @@ export const ReviewScreen: React.FC = () => {
                     ballotStyle={ballotStyle}
                     question={question}
                     key={index}
-                    questionIndex={question.originalIndex}
                     isReview={true}
                 />
             ))}

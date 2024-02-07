@@ -49,7 +49,6 @@ const CandidatesWrapper = styled(Box)`
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
     question: IContest
-    questionIndex: number
     isReview: boolean
     setDisableNext?: (value: boolean) => void
     isUniqChecked?: boolean
@@ -58,7 +57,6 @@ export interface IQuestionProps {
 export const Question: React.FC<IQuestionProps> = ({
     ballotStyle,
     question,
-    questionIndex,
     isReview,
     setDisableNext,
     isUniqChecked,
@@ -126,7 +124,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     <Answer
                         ballotStyle={ballotStyle}
                         answer={answer}
-                        questionIndex={questionIndex}
+                        contestId={question.id}
                         key={answerIndex}
                         index={answerIndex}
                         isActive={!isReview}
@@ -147,7 +145,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 checkableCandidates={checkableCandidates}
                                 category={category}
                                 ballotStyle={ballotStyle}
-                                questionIndex={questionIndex}
+                                contestId={question.id}
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
                                 isUniqChecked={isUniqChecked}
@@ -162,7 +160,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             isInvalidWriteIns={isInvalidWriteIns}
                             ballotStyle={ballotStyle}
                             answer={answer}
-                            questionIndex={questionIndex}
+                            contestId={question.id}
                             index={answerIndex}
                             key={answerIndex}
                             isActive={!isReview}
@@ -175,7 +173,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     <Answer
                         ballotStyle={ballotStyle}
                         answer={answer}
-                        questionIndex={questionIndex}
+                        contestId={question.id}
                         index={answerIndex}
                         key={answerIndex}
                         isActive={!isReview}

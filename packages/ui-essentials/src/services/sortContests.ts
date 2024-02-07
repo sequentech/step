@@ -1,7 +1,7 @@
-import {IContest} from "@sequentech/ui-essentials"
 import {cloneDeep} from "lodash"
+import {IContest} from "@root/types/CoreTypes"
 
-export function sortContestByCreationDate(contests: IContest[]): IContest[] {
+export const sortContestByCreationDate = (contests: Array<IContest>): Array<IContest> => {
     contests = cloneDeep(contests)
 
     contests.sort((a, b) => {
