@@ -1,38 +1,39 @@
+import {Action, ActionsColumn} from "../../components/ActionButons"
+import {Button, Drawer, Typography} from "@mui/material"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    Identifier,
+    List,
+    RaRecord,
+    TextField,
+    TextInput,
+    WrapperField,
+    useDelete,
+    useNotify,
+    useRecordContext,
+    useRefresh,
+} from "react-admin"
+import {Dialog, IconButton} from "@sequentech/ui-essentials"
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useEffect} from "react"
-import {
-    DatagridConfigurable,
-    List,
-    TextField,
-    TextInput,
-    Identifier,
-    RaRecord,
-    useRecordContext,
-    useDelete,
-    WrapperField,
-    FunctionField,
-    useRefresh,
-    useNotify,
-} from "react-admin"
-import {ListActions} from "../../components/ListActions"
-import {Button, Drawer, Typography} from "@mui/material"
-import {EditArea} from "./EditArea"
-import {CreateArea} from "./CreateArea"
-import {Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {Dialog, IconButton} from "@sequentech/ui-essentials"
-import {Action, ActionsColumn} from "../../components/ActionButons"
-import EditIcon from "@mui/icons-material/Edit"
-import DeleteIcon from "@mui/icons-material/Delete"
-import {useTranslation} from "react-i18next"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import {useParams} from "react-router"
+
 import {AreaContestItems} from "@/components/AreaContestItems"
-import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {CreateArea} from "./CreateArea"
+import DeleteIcon from "@mui/icons-material/Delete"
+import {EditArea} from "./EditArea"
+import EditIcon from "@mui/icons-material/Edit"
+import {IPermissions} from "@/types/keycloak"
+import {ListActions} from "../../components/ListActions"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {useParams} from "react-router"
+import {useTenantStore} from "../../providers/TenantContextProvider"
+import {useTranslation} from "react-i18next"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -93,7 +94,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             </Typography>
             {canCreate && (
                 <>
-                    <Button onClick={createAction}>
+                    <Button onClick={createAction} className="area-add-button">
                         <IconButton icon={faPlus} fontSize="24px" />
                         {t("areas.empty.action")}
                     </Button>

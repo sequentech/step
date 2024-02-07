@@ -1,21 +1,22 @@
 import React, {useContext, useEffect} from "react"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import ElectionHeader from "@/components/ElectionHeader"
-import {EditElectionEventData} from "./EditElectionEventData"
-import DashboardElectionEvent from "@/components/dashboard/election-event/Dashboard"
-import {EditElectionEventAreas} from "./EditElectionEventAreas"
-import {EditElectionEventUsers} from "./EditElectionEventUsers"
+import {useLocation, useNavigate} from "react-router"
+
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
+import DashboardElectionEvent from "@/components/dashboard/election-event/Dashboard"
+import {EPublishType} from "../Publish/EPublishType"
+import {EditElectionEventAreas} from "./EditElectionEventAreas"
+import {EditElectionEventData} from "./EditElectionEventData"
 import {EditElectionEventKeys} from "./EditElectionEventKeys"
 import {EditElectionEventTally} from "./EditElectionEventTally"
-import {useTranslation} from "react-i18next"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {useLocation, useNavigate} from "react-router"
-import {Publish} from "@/resources/Publish/Publish"
-import {EPublishType} from "../Publish/EPublishType"
+import {EditElectionEventUsers} from "./EditElectionEventUsers"
+import ElectionHeader from "@/components/ElectionHeader"
 import {ElectoralLog} from "./ElectoralLog"
+import {IPermissions} from "@/types/keycloak"
+import {Publish} from "@/resources/Publish/Publish"
+import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useTranslation} from "react-i18next"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -101,7 +102,10 @@ export const ElectionEventTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showAreas ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.areas")}>
+                    <TabbedShowLayout.Tab 
+                        label={t("electionEventScreen.tabs.areas")}
+                        className="election-event-area-tab"    
+                    >
                         <EditElectionEventAreas />
                     </TabbedShowLayout.Tab>
                 ) : null}
