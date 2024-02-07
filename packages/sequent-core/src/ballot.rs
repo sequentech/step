@@ -268,7 +268,6 @@ pub struct ContestPresentation {
     pub invalid_vote_policy: String, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: bool,
-    pub shuffle_all_options: bool,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
@@ -283,7 +282,6 @@ impl ContestPresentation {
             invalid_vote_policy: "allowed".into(),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: false,
-            shuffle_all_options: false,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
