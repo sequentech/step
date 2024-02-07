@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use super::contests;
 
+#[allow(unused)]
 pub fn get_ballot_style_1(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -14,6 +15,7 @@ pub fn get_ballot_style_1(
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
+        num_allowed_revotes: Some(1),
         description: Some("Write-ins simple".into()),
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
@@ -21,13 +23,14 @@ pub fn get_ballot_style_1(
         }),
         area_id: area_id.to_string(),
         contests: vec![contests::get_contest_1(
-            &tenant_id,
-            &election_event_id,
-            &election_id,
+            tenant_id,
+            election_event_id,
+            election_id,
         )],
     }
 }
 
+#[allow(unused)]
 pub fn generate_ballot_style(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -40,6 +43,7 @@ pub fn generate_ballot_style(
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
+        num_allowed_revotes: Some(1),
         description: Some("Write-ins simple".into()),
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),

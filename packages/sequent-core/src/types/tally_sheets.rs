@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::default::Default;
 use strum_macros::{Display, EnumString};
 
 #[derive(

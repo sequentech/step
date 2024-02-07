@@ -10,7 +10,8 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
-use tracing::instrument;
+use std::time::Instant;
+use tracing::{event, instrument, Level};
 use windmill::services::insert_cast_vote::*;
 
 #[instrument(skip_all)]
@@ -19,6 +20,7 @@ pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
 ) -> Result<Json<InsertCastVoteOutput>, (Status, String)> {
+    let start = Instant::now();
     let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
     let input = body.into_inner();
 
@@ -30,10 +32,22 @@ pub async fn insert_cast_vote(
     )
     .await
     .map_err(|e| {
+        let duration = start.elapsed();
+        event!(
+            Level::INFO,
+            "insert-cast-vote took {} ms to complete but failed",
+            duration.as_millis()
+        );
         (
             Status::InternalServerError,
             format!("Error inserting vote: {:?}", e),
         )
     })?;
+    let duration = start.elapsed();
+    event!(
+        Level::INFO,
+        "insert-cast-vote took {} ms to complete",
+        duration.as_millis()
+    );
     Ok(Json(result))
 }

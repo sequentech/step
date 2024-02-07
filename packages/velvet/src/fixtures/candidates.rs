@@ -1,6 +1,7 @@
 use sequent_core::ballot::{Candidate, CandidatePresentation};
 use uuid::Uuid;
 
+#[allow(unused)]
 pub fn get_candidate_0(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -14,7 +15,11 @@ pub fn get_candidate_0(
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
         name: Some("José Rabano Pimiento".into()),
+        name_i18n: None,
         description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             is_explicit_invalid: false,
@@ -27,6 +32,7 @@ pub fn get_candidate_0(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_1(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -40,7 +46,11 @@ pub fn get_candidate_1(
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
         name: Some("Miguel Pimentel Inventado".into()),
+        name_i18n: None,
         description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             is_explicit_invalid: false,
@@ -53,6 +63,7 @@ pub fn get_candidate_1(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_2(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -66,7 +77,11 @@ pub fn get_candidate_2(
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
         name: Some("Juan Iglesias Torquemada".into()),
+        name_i18n: None,
         description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             is_explicit_invalid: false,
@@ -79,6 +94,7 @@ pub fn get_candidate_2(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_3(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -92,7 +108,11 @@ pub fn get_candidate_3(
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
         name: Some("Mari Pili Hernández Ordoñez".into()),
+        name_i18n: None,
         description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             is_explicit_invalid: false,
@@ -105,6 +125,7 @@ pub fn get_candidate_3(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_4(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -118,7 +139,11 @@ pub fn get_candidate_4(
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
         name: Some("Juan Y Medio".into()),
+        name_i18n: None,
         description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             is_explicit_invalid: false,
@@ -131,6 +156,7 @@ pub fn get_candidate_4(
     }
 }
 
+#[allow(unused)]
 pub fn get_candidate_5(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -144,7 +170,11 @@ pub fn get_candidate_5(
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
         name: Some("Spiderman".into()),
+        name_i18n: None,
         description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             is_explicit_invalid: false,

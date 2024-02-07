@@ -15,6 +15,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {PgAuditList} from "@/resources/PgAudit/PgAuditList"
 import {PgAuditTable} from "@/gql/graphql"
+import {SidebarScreenStyles} from "@/components/styles/SidebarScreenStyles"
 
 export const Logs: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -40,16 +41,16 @@ export const Logs: React.FC = () => {
     return (
         <>
             <ElectionHeader title={t("logsScreen.title")} subtitle="logsScreen.subtitle" />
-            <Tabs value={tab} onChange={handleChange} aria-label="Log tabs">
+            <SidebarScreenStyles.Tabs value={tab} onChange={handleChange} aria-label="Log tabs">
                 <Tab label={t("logsScreen.main.title")} />
                 <Tab label={t("logsScreen.iam.title")} />
-            </Tabs>
-            <CustomTabPanel value={tab} index={0}>
+            </SidebarScreenStyles.Tabs>
+            <SidebarScreenStyles.CustomTabPanel value={tab} index={0}>
                 <PgAuditList auditTable={PgAuditTable.PgauditHasura} />
-            </CustomTabPanel>
-            <CustomTabPanel value={tab} index={1}>
+            </SidebarScreenStyles.CustomTabPanel>
+            <SidebarScreenStyles.CustomTabPanel value={tab} index={1}>
                 <PgAuditList auditTable={PgAuditTable.PgauditKeycloak} />
-            </CustomTabPanel>
+            </SidebarScreenStyles.CustomTabPanel>
         </>
     )
 }

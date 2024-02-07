@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::plaintext::InvalidPlaintextErrorType;
 use std::collections::HashMap;
 use tracing::instrument;
 
@@ -75,8 +74,12 @@ impl CountingAlgorithm for PluralityAtLarge {
                     .cloned()
                     .ok_or(Error::CandidateNotFound(id))?;
 
+                let percentage_votes =
+                    (total_count as f64 / (count_valid - count_blank) as f64) * 100.0;
+
                 Ok(CandidateResult {
                     candidate,
+                    percentage_votes,
                     total_count,
                 })
             })
@@ -103,6 +106,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                     if let Some(candidate) = candidate {
                         return Ok(CandidateResult {
                             candidate,
+                            percentage_votes: 0.0,
                             total_count: 0,
                         });
                     }
@@ -113,14 +117,25 @@ impl CountingAlgorithm for PluralityAtLarge {
             .collect();
         let result = result?;
 
+        let census = self.tally.census;
+
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
-            total_votes: count_valid + count_invalid,
-            total_valid_votes: count_valid,
-            total_invalid_votes: count_invalid,
-            total_blank_votes: count_blank,
-            invalid_votes: count_invalid_votes,
             census: self.tally.census,
+            percentage_census: 100.0,
+            total_votes: count_valid + count_invalid,
+            percentage_total_votes: ((count_valid + count_invalid) as f64) * 100.0 / census as f64,
+            total_valid_votes: count_valid,
+            percentage_total_valid_votes: (count_valid as f64 * 100.0) / census as f64,
+            total_invalid_votes: count_invalid,
+            percentage_total_invalid_votes: (count_invalid as f64 * 100.0) / census as f64,
+            total_blank_votes: count_blank,
+            percentage_total_blank_votes: (count_blank as f64 * 100.0) / census as f64,
+            percentage_invalid_votes_explicit: (count_invalid_votes.explicit as f64 * 100.0)
+                / census as f64,
+            percentage_invalid_votes_implicit: (count_invalid_votes.implicit as f64 * 100.0)
+                / census as f64,
+            invalid_votes: count_invalid_votes,
             candidate_result: result,
         };
 

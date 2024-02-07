@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -36,6 +36,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {sortContestByCreationDate} from "../lib/utils"
+import {AuthContext} from "../providers/AuthContextProvider"
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -75,11 +77,10 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    disableNext: boolean
     handleNext: () => void
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
@@ -133,7 +134,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
                     className="next-button"
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handleNext()}
-                    disabled={disableNext}
+                    // disabled={disableNext}
                 >
                     <Box>{t("votingScreen.reviewButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
@@ -145,11 +146,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) =
 
 const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
+    const {logout} = useContext(AuthContext)
+    const canVote = useAppSelector(canVoteSomeElection())
 
     const {electionId} = useParams<{electionId?: string}>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+    const [openNotVoted, setOpenNonVoted] = useState(false)
 
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -171,18 +175,28 @@ const VotingScreen: React.FC = () => {
         })
     }
 
+    // if true, when the user clicks next, there will be a dialog
+    // that doesn't allow to continue and forces the user to fix the issues
     const skipNextButton = Object.values(disableNext).some((v) => v)
 
     const encryptAndReview = () => {
-        if (isUndefined(selectionState) || skipNextButton || !ballotStyle) {
+        if (isUndefined(selectionState) || !ballotStyle) {
+            return
+        } else if (skipNextButton) {
+            setOpenNonVoted(true)
+        } else {
+            finallyEncryptAndReview()
+        }
+    }
+
+    const finallyEncryptAndReview = () => {
+        if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
-
         try {
             const startMs = Date.now()
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
             const endMs = Date.now()
-            console.log(`Success encrypting ballot: ${endMs - startMs} ms`, auditableBallot)
 
             dispatch(
                 setAuditableBallot({
@@ -211,8 +225,29 @@ const VotingScreen: React.FC = () => {
     useEffect(() => {
         if (!election || !ballotStyle) {
             navigate(backLink)
+        } else if (!selectionState || !canVote) {
+            logout()
         }
-    }, [navigate, backLink, election, ballotStyle])
+    }, [navigate, backLink, election, ballotStyle, selectionState, canVote, logout])
+
+    useEffect(() => {
+        let minMaxGlobal = false
+        for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
+            let votes = 0
+            let selection = selectionState?.find((s) => s.contest_id === contest.id)
+            for (let choice of selection?.choices ?? []) {
+                if (choice.selected > -1) {
+                    votes = choice.selected + 1
+                }
+            }
+            let outOfRange = votes < contest.min_votes || votes > contest.max_votes
+            minMaxGlobal = minMaxGlobal || outOfRange
+        }
+        setDisableNext({
+            ...disableNext,
+            minmax_global: minMaxGlobal,
+        })
+    }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
@@ -254,14 +289,24 @@ const VotingScreen: React.FC = () => {
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
-                    questionIndex={index}
+                    questionIndex={contest.originalIndex}
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
                     isUniqChecked={true} // TODO: make it configurable
                 />
             ))}
-            <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
+            <ActionButtons handleNext={encryptAndReview} />
+
+            <Dialog
+                handleClose={() => setOpenNonVoted(false)}
+                open={openNotVoted}
+                title={t("votingScreen.nonVotedDialog.title")}
+                ok={t("votingScreen.nonVotedDialog.ok")}
+                variant="softwarning"
+            >
+                {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+            </Dialog>
         </PageLimit>
     )
 }

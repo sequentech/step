@@ -50,6 +50,7 @@ declare module "@mui/material/Button" {
         warning: true
         cancel: true
         solidWarning: true
+        softWarning: true
         actionbar: true
         listAction: true
     }
@@ -335,6 +336,35 @@ let MuiButton: Components["MuiButton"] = {
                     border: `2px solid ${palette.brandColor}`,
                     backgroundColor: palette.errorColor,
                     color: palette.white,
+                },
+                "&.Mui-disabled": {
+                    background: "rgba(239, 68, 68, 0.4)",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    color: palette.white,
+                },
+            },
+        },
+        {
+            props: {variant: "softWarning"},
+            style: {
+                "backgroundColor": palette.yellow.main,
+                "border": `1px solid ${palette.yellow.main}`,
+                "color": palette.black,
+                "&:hover": {
+                    backgroundColor: palette.yellow.dark,
+                    border: `1px solid ${palette.yellow.dark}`,
+                    color: palette.black,
+                    boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
+                },
+                "&:active": {
+                    backgroundColor: `${palette.yellow.main} !important`,
+                    border: `1px solid ${palette.yellow.main}`,
+                    color: `${palette.black} !important`,
+                },
+                "&:focus": {
+                    border: `2px solid ${palette.yellow.dark}`,
+                    backgroundColor: palette.yellow.dark,
+                    color: palette.black,
                 },
                 "&.Mui-disabled": {
                     background: "rgba(239, 68, 68, 0.4)",

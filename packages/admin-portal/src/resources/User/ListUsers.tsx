@@ -16,9 +16,11 @@ import {
     useNotify,
     useGetList,
     FunctionField,
+    Button as ReactAdminButton,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
 import {Button, Chip, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -45,7 +47,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
 
-const OMIT_FIELDS: Array<string> = []
+const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
 const Filters: Array<ReactElement> = [
     <TextInput key="email" source="email" />,
@@ -99,29 +101,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         true,
         tenantId,
         IPermissions.NOTIFICATION_SEND
-    )
-
-    const Empty = () => (
-        <ResourceListStyles.EmptyBox>
-            <Typography variant="h4" paragraph>
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
-            </Typography>
-            {canEditUsers ? (
-                <>
-                    <Typography variant="body1" paragraph>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
-                    </Typography>
-                    <Button onClick={() => setOpenNew(true)}>
-                        <ResourceListStyles.CreateIcon icon={faPlus} />
-                        {t(
-                            `usersAndRolesScreen.${
-                                electionEventId ? "voters" : "users"
-                            }.create.subtitle`
-                        )}
-                    </Button>
-                </>
-            ) : null}
-        </ResourceListStyles.EmptyBox>
     )
 
     const handleClose = () => {
@@ -329,6 +308,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         let documentId = exportUsersData.export_users?.document_id
         setExportDocumentId(documentId)
     }
+
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
+            </Typography>
+            {canEditUsers ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
+                    </Typography>
+                    <ResourceListStyles.EmptyButtonList>
+                        <Button onClick={() => setOpenNew(true)}>
+                            <ResourceListStyles.CreateIcon icon={faPlus} />
+                            {t(
+                                `usersAndRolesScreen.${
+                                    electionEventId ? "voters" : "users"
+                                }.create.subtitle`
+                            )}
+                        </Button>
+                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
+                            <UploadIcon />
+                        </ReactAdminButton>
+                    </ResourceListStyles.EmptyButtonList>
+                </>
+            ) : null}
+        </ResourceListStyles.EmptyBox>
+    )
 
     return (
         <>
