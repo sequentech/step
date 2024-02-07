@@ -51,7 +51,7 @@ export const fullAdminTheme = {
                 root: {
                     //marginTop: "4px",
                     //marginBottom: 0,
-                    "& #tenant-oelect": {
+                    "& #tenant-select": {
                         fontSize: "16px",
                         padding: "4px 12px",
                     },
@@ -78,7 +78,7 @@ export const fullAdminTheme = {
                         marginBottom: "4px",
                     },
                     "& .RaSidebar-fixed": {
-                        dioplay: "flex",
+                        display: "flex",
                         flexDirection: "column",
                         height: "100%",
                     },
