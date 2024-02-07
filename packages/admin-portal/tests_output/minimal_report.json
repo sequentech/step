@@ -1,1 +1,1 @@
-{"modules":{"e2e/create_election_event.test":{"modulePath":"/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/create_election_event.test.ts","status":"pass"}}}
+{"modules":{"e2e/sidebar.test":{"modulePath":"/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/sidebar.test.ts","status":"fail"}}}

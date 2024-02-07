@@ -47,7 +47,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         // browser.assert.urlContains("sequent_backend_election_event")
         browser.assert
             .visible(`a.menu-item-${this.electionEventLink!}`)
-            .click(`a.menu-item-${this.electionEventLink!}:last-child()`)
+            .click(`a.menu-item-${this.electionEventLink!}:last-child`)
             .assert.visible("a.election-event-area-tab")
             .click("a.election-event-area-tab")
         // .sendKeys("input[name=name]", "this is a test election event name")
