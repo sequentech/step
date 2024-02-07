@@ -35,13 +35,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
             .pause(1000)
     })
 
-    // after(function (this: ExtendDescribeThis<LoginThis>, browser) {
-    //     browser
-    //         .click("button.profile-menu-button")
-    //         .click("li.logout-button")
-    //         .click("button.ok-button")
-    //         .end()
-    // })
+    after(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser
+            .click("button.profile-menu-button")
+            .click("li.logout-button")
+            .click("button.ok-button")
+            .end()
+    })
 
     it("click on an election event", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
@@ -57,15 +57,12 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         } else {
             browser.assert.visible(`"button.add-button"`).click("button.add-button")
         }
-        browser.pause(5000)
-
-        // .sendKeys("input[name=name]", "this is a test election event name")
-        // .assert.visible("input[name=description]")
-        // .sendKeys("input[name=description]", "this is a test election event description")
-        // .assert.enabled(`button.election-event-save-button`)
-        // .click("button.election-event-save-button")
-        // .pause(5000)
-        // .assert.visible(`a[title='this is a test election event name']`)
+        browser
+            .sendKeys("input[name=name]", "this is an area name")
+            .assert.enabled(`button.election-event-save-button`)
+            .click("button[type=submit]")
+            .pause(5000)
+            .assert.visible(`a[title='this is a test election event name']`)
     })
 
     // it("create an election", async (browser: NightwatchAPI) => {

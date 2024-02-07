@@ -177,7 +177,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="name" />
+                    <TextField source="name" className="area-name" />
                     <TextField source="description" />
 
                     <FunctionField
