@@ -51,32 +51,28 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
 
         browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
 
-        await browser.debug()
+        // await browser.debug()
 
         browser.isPresent(
             {
                 selector: "button.area-add-button",
-                suppressNotFoundErrors: false,
+                suppressNotFoundErrors: true,
+                timeout: 1000,
             },
             (result) => {
-                console.log("is present result", result)
-                browser.assert.visible("button.area-add-button").click("button.area-add-button")
+                if (result.value) {
+                    browser.assert.visible("button.area-add-button").click("button.area-add-button")
+                } else {
+                    browser.assert.visible("button.add-button").click("button.add-button")
+                }
                 browser
                     .sendKeys("input[name=name]", "this is an area name")
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
-                    .pause(500)
+                    .pause(200)
                     .assert.textContains("span.area-name", "this is an area name")
-                    .end()
             }
         )
-        browser.assert.visible(".add-button").click(".add-button")
-        browser
-            .sendKeys("input[name=name]", "this is an area name")
-            .assert.enabled("button[type=submit]")
-            .click("button[type=submit]")
-            .pause(500)
-            .assert.textContains("span.area-name", "this is an area name")
     })
 
     // it("create an election", async (browser: NightwatchAPI) => {

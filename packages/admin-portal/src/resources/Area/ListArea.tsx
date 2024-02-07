@@ -151,8 +151,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <EditIcon className="edit-area-icon" />, action: editAction},
+        {icon: <DeleteIcon className="delete-area-icon" />, action: deleteAction},
     ]
 
     return (
