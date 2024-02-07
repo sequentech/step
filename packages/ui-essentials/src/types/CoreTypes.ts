@@ -43,7 +43,6 @@ export interface IContestPresentation {
     invalid_vote_policy: string
     cumulative_number_of_checkboxes?: number
     shuffle_categories: boolean
-    shuffle_all_options: boolean
     shuffle_category_list?: Array<string>
     show_points: boolean
     enable_checkable_lists?: string
@@ -90,6 +89,7 @@ export interface ICandidate {
     election_id: string
     contest_id: string
     name?: string
+    alias?: string
     description?: string
     candidate_type?: string
     presentation?: ICandidatePresentation

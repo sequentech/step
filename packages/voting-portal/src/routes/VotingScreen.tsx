@@ -15,6 +15,8 @@ import {
     isUndefined,
     Dialog,
     translateElection,
+    sortContestByCreationDate,
+    IContest,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -35,7 +37,6 @@ import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
-import {sortContestByCreationDate} from "../lib/utils"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 
@@ -289,7 +290,6 @@ const VotingScreen: React.FC = () => {
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
-                    questionIndex={contest.originalIndex}
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
