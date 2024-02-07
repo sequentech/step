@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize_voter;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -36,52 +36,60 @@ pub async fn create_vote_receipt(
     let start = Instant::now();
     let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
     let input = body.into_inner();
-
-    let celery_app = get_celery_app().await;
     let element_id: String = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
 
     let task = celery_app
         .send_task(
             windmill::tasks::create_vote_receipt::create_vote_receipt::new(
-                "asdfas".to_string(),
+                input.ballot_id.to_string(),
             ),
         )
         .await
-        .unwrap();
-    event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
+        .map_err(|e| {
+            let duration = start.elapsed();
+            event!(
+                Level::INFO,
+                "create-vote-receipt took {} ms to complete but failed",
+                duration.as_millis()
+            );
+            (
+                Status::InternalServerError,
+                format!("Error creating vote receipt: {:?}", e),
+            )
+        })?;
 
-    // let result = try_insert_cast_vote(
-    //     input,
-    //     &claims.hasura_claims.tenant_id,
-    //     &claims.hasura_claims.user_id,
-    //     &area_id,
-    // )
-    // .await
-    // .map_err(|e| {
-    //     let duration = start.elapsed();
-    //     event!(
-    //         Level::INFO,
-    //         "insert-cast-vote took {} ms to complete but failed",
-    //         duration.as_millis()
-    //     );
-    //     (
-    //         Status::InternalServerError,
-    //         format!("Error inserting vote: {:?}", e),
-    //     )
-    // })?;
+    event!(
+        Level::INFO,
+        "Sent CREATE_VOTE_RECEIPT task {}",
+        task.task_id
+    );
 
     let duration = start.elapsed();
 
     event!(
         Level::INFO,
-        "insert-cast-vote took {} ms to complete",
+        "create-vote-receipt took {} ms to complete",
         duration.as_millis()
     );
 
-    let toto = serde_json::from_value(
-        json!({"id": "1", "ballot_id": "1", "status": "pending"}),
-    )
-    .unwrap();
+    let out = serde_json::from_value(json!({
+        "id": element_id,
+        "ballot_id": input.ballot_id,
+        "status": "pending"
+    }))
+    .map_err(|e| {
+        let duration = start.elapsed();
+        event!(
+            Level::INFO,
+            "create-vote-receipt took {} ms to complete but failed",
+            duration.as_millis()
+        );
+        (
+            Status::InternalServerError,
+            format!("Error building serde_json::Value: {:?}", e),
+        )
+    })?;
 
-    Ok(Json(toto))
+    Ok(Json(out))
 }
