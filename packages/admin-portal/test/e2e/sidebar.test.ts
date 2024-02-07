@@ -44,18 +44,14 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     // })
 
     it("click on an election event", async (browser: NightwatchAPI) => {
-        // browser.assert.urlContains("sequent_backend_election_event")
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
         )
-        resultElement[1].click()
+        resultElement[resultElement.length - 1].click()
 
-        browser.assert
-            // .visible(`a.menu-item-${this.electionEventLink!}`)
-            // .click(`a.menu-item-${this.electionEventLink!}:nth-last-of-type(1)`)
-            .visible("a.election-event-area-tab")
-            .click("a.election-event-area-tab")
-        const isNew = await browser.assert.visible("button.area-add-button")
+        browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
+
+        const isNew = await browser.element.find("button.area-add-button")
         if (isNew) {
             browser.assert.visible("button.area-add-button").click("button.area-add-button")
         } else {
