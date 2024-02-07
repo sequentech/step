@@ -123,18 +123,26 @@ pub struct InvalidVotes {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContestResult {
     pub contest: Contest,
-    pub total_votes: u64,
-    pub total_valid_votes: u64,
-    pub total_invalid_votes: u64,
-    pub total_blank_votes: u64,
     pub census: u64,
+    pub percentage_census: f64,
+    pub total_votes: u64,
+    pub percentage_total_votes: f64,
+    pub total_valid_votes: u64,
+    pub percentage_total_valid_votes: f64,
+    pub total_invalid_votes: u64,
+    pub percentage_total_invalid_votes: f64,
+    pub total_blank_votes: u64,
+    pub percentage_total_blank_votes: f64,
     pub invalid_votes: InvalidVotes,
+    pub percentage_invalid_votes_explicit: f64,
+    pub percentage_invalid_votes_implicit: f64,
     pub candidate_result: Vec<CandidateResult>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateResult {
     pub candidate: Candidate,
+    pub percentage_votes: f64,
     pub total_count: u64,
 }
 

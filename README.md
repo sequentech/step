@@ -13,6 +13,7 @@ This is a mono-repo project encompasing the whole second generation of Sequent
 Voting Platform.
 
 Implemented using:
+
 - **Hasura** for GraphQL backend services API.
 - **Rust** with **Rocket** for implementing custom backend services API logic.
 - **Keycloak** as the IAM service.
@@ -24,7 +25,7 @@ Implemented using:
 
 ## Development environment setup
 
-Open the repository with devcontainers/codespaces within vscode. This will 
+Open the repository with devcontainers/codespaces within vscode. This will
 launch all the services in development mode, so that you are ready to start
 using them and continue development:
 
@@ -41,13 +42,13 @@ using them and continue development:
     - Configure an OTP method the first time
 - **Hasura console** at [http://127.0.0.1:8080].
   - This docker service has the `hasura/migrations` and `hasura/metadata`
-  services mounted, so that you can work transparently on that and it's synced
-  to and from the development environment.
+    services mounted, so that you can work transparently on that and it's synced
+    to and from the development environment.
 - **React Frontend** at [http://127.0.0.1:3000].
   - This has the `packages/test-app` directory mounted in the docker service,
-  and has been launched with the `yarn dev` command that will automatically
-  detect and rebuild changes in the code, and detect and install dependencies
-  when it detects changes in `package.json` and then relaunch the service.
+    and has been launched with the `yarn dev` command that will automatically
+    detect and rebuild changes in the code, and detect and install dependencies
+    when it detects changes in `package.json` and then relaunch the service.
 - **Immudb**:
   - gRPC service available at [http://127.0.0.1:3322]
   - Web console at [http://127.0.0.1:3325]
@@ -55,12 +56,13 @@ using them and continue development:
     - Username: `immudb`
     - Password: `immudb`
   - To create the index db, run:
-      `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
+    `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
 
 Additionally, this dev container comes with:
- - Relevant VS Code plugins installed
- - `cargo run` and `yarn install` pre-run so that you don't have to spend time
-   waiting for setting up the enviroment the first time.
+
+- Relevant VS Code plugins installed
+- `cargo run` and `yarn install` pre-run so that you don't have to spend time
+  waiting for setting up the enviroment the first time.
 
 ## Developing `admin-portal`
 
@@ -79,7 +81,7 @@ cd /workspaces/backend-services/packages/
 yarn start:admin-portal
 ```
 
-Then it should open the admin-portal in the web browser, or else enter 
+Then it should open the admin-portal in the web browser, or else enter
 in [http://127.0.0.1:3002/]
 
 ## Workspaces
@@ -100,7 +102,7 @@ The directory tree is structured as follows:
 
 ```bash
 .
-├── hasura                      <--- Hasura metadata and migrations in YAML 
+├── hasura                      <--- Hasura metadata and migrations in YAML
 │   ├── metadata
 │   └── migrations
 ├── packages                    <--- Main code of the application
@@ -122,10 +124,10 @@ The directory tree is structured as follows:
 
 The `packages/` directory contains both `Cargo` and `Yarn` managed packages:
 In that directory you can find both a `package.json` and a `Cargo.toml`. It's
-at the same time a [cargo workspace] and a [yarn workspace]. 
+at the same time a [cargo workspace] and a [yarn workspace].
 
 This superimposed workspaces structure allows us to build the same module both
-in yarn and cargo, depending on the use-case. For example, `sequent-core` is 
+in yarn and cargo, depending on the use-case. For example, `sequent-core` is
 both used in:
 a. Frontend code, compiled to WASM with Yarn.
 b. Backend code, compiled to native code with Cargo.
@@ -180,8 +182,8 @@ This should output something like:
 ## Docker services logs
 
 We have configured the use of [direnv] and [devenv] in this dev container, and
-doing so in the `devenv.nix` file we configured the 
-`COMPOSE_PROJECT_NAME=backend-services_devcontainer` env variable for 
+doing so in the `devenv.nix` file we configured the
+`COMPOSE_PROJECT_NAME=backend-services_devcontainer` env variable for
 convenience and some utility packages automatically installed like `ack` or
 `docker`.
 
@@ -193,7 +195,7 @@ compose service with:
 And do the same for the other services. You could also do anything
 docker-compose allows for example list running commands with`docker compose ps`.
 
-With regards to the logs, we have configured in `.vscode/tasks.json` to 
+With regards to the logs, we have configured in `.vscode/tasks.json` to
 automatically run docker compose logs on start up, for convenience.
 
 [direnv]: https://direnv.net/
@@ -208,7 +210,7 @@ You can enter the Immudb web console at http://localhost:3325 and the user/pass 
 The deployment has 2 default Keycloak realms created by default, one for the
 default tenant and another for the default election event inside that tenant.
 
-Those two realms are automatically imported into Keycloak in the Dev Containers 
+Those two realms are automatically imported into Keycloak in the Dev Containers
 from the `.devcontainer/keycloak/import/` directory.
 
 Additionally, each tenant and election event have an associated realm. In the
@@ -247,7 +249,7 @@ voting-booth might show some errors because this JWT verification fails.
 To fix that issue by updating the JWK serviced by minio, perform the following
 2 steps:
 
-1. Update the `.devcontainer/minio/certs.json` file: 
+1. Update the `.devcontainer/minio/certs.json` file:
 
 ```bash
 cd /workspaces/backend-services/.devcontainer
@@ -264,7 +266,7 @@ cp /tmp/combined.json minio/certs.json
 
 2. Rerun the `configure-minio` docker service to update the certificate serviced
    by `minio`:
-  
+
 ```bash
 cd /workspaces/backend-services/.devcontainer/
 docker compose build configure-minio && docker compose up -d --no-deps configure-minio && docker compose logs -f configure-minio
@@ -275,7 +277,7 @@ docker compose build configure-minio && docker compose up -d --no-deps configure
 If you want to make changes to hasura, or if you want the Hasura console to
 automatically add migrations to the code, first run this project in Codespaces
 and open it in VS Code Desktop (not from the web). Then, in your local machine
-ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in 
+ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in
 `/etc/hosts`, or else this won't work.
 
 Then run the following commands to run the console in port `9695`:
@@ -289,7 +291,7 @@ Then open `http://localhost:9695` on the browser and make the changes you need.
 Those changes will be tracked with file changes on the Github Codespaces, then
 commit the changes.
 
-Note that you can insert rows as a migration by clicking on the 
+Note that you can insert rows as a migration by clicking on the
 `This is a migration` option at the bottom of the `Insert Row` form.
 
 ## admin-portal
@@ -299,7 +301,7 @@ Note that you can insert rows as a migration by clicking on the
 The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura
 schema. If the schema changes you might need to update this file. In order to do
 so,
-[follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/) 
+[follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/)
 to export the json schema from Hasura, specifically you'll need to run something
 like:
 
@@ -320,7 +322,7 @@ cd /workspaces/backend-services/packages/
 yarn generate:admin-portal
 ```
 
-Additionally, the same graphql schema file is needed in `windmill` to generate 
+Additionally, the same graphql schema file is needed in `windmill` to generate
 the base types for Rust. To update them, execute the following:
 
 ```bash
@@ -365,8 +367,6 @@ Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhB
 
 ## Running Trustees
 
-
-
 ```bash
 # run windmill task generator
 cd /workspaces/backend-services/.devcontainer/
@@ -384,7 +384,9 @@ docker compose logs -f --tail 50 trustee1 trustee2
 
 ## Vault
 
-We use Hashicorp Vault to store secrets. We run it in production mode as otherwise
+### HashiCorp Vault
+
+We use HashiCorp Vault to store secrets. We run it in production mode as otherwise
 the data would only be stored in memory and it would be lost each time the container
 is restarted.
 
@@ -415,15 +417,33 @@ Finally you'll need to rebuild/restart harvest:
 
     docker compose stop harvest && docker compose build harvest && docker compose up -d --no-deps harvest
 
-## Update Sequent Core
+To configure project to use HashiCorpVault, setup the `VAULT_MANAGER` environment variable:
+
+```
+# .env
+VAULT_MANAGER=HashiCorpVault
+```
+
+### AWS Secret Manager
+
+To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` environment variable:
+
+```
+# .env
+VAULT_MANAGER=AWSSecretManager
+```
+
+## Update `sequent-core`
 
 ```bash
 cd /workspaces/backend-services/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
+```
+This returns a hash that you need to put in 3 different places in the  yarn.lock 
+of packages/ directory:
 
-# esto da un hash que hay que poner en 3 sitios en el yarn.lock de packages:
-
+```bash
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
@@ -435,22 +455,23 @@ wasm-pack -v pack .
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+```
 
-# luego ejecutar:
+Then you need to execute some further updates:
+
+```bash
 cd /workspaces/backend-services/packages/
-rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 
 rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
-# y luego:
-
 yarn && yarn build:ui-essentials
-
-# y luego ya funciona todo
 ```
+
+And then everything should work and be updated.
 
 ## Create election event
 
@@ -477,7 +498,7 @@ docker compose stop vault; docker compose up -d --no-deps vault
    `Continue to Unseal`. Put `Key 1` (`keys[0]` in the downloaded keys) in
    `Unseal Key Portion` and press `Unseal`. If it works, it will redirect to
    `Sign in to Vault`. You can stop there.
-  
+
 4. We'll generate an `.env` file for windmill. Start copying the example:
 
 ```bash
@@ -498,8 +519,7 @@ cd /workspaces/backend-services/packages/windmill
 cargo run --bin main consume -q short_queue tally_queue beat reports_queue beat
 ```
 
-7. Finally, we need to create the indexdb in immudb: 
-
+7. Finally, we need to create the indexdb in immudb:
 
 ```bash
 cd /workspaces/backend-services/packages/immu-board
@@ -532,7 +552,7 @@ proceeding. You can stop for example the frontend with
 ### I changed my `Dockerfile` or my `docker-compose.yml`. Can I relaunch it without rebuilding the whole Dev Container?
 
 Yes you can. For example, if you need to apply a new `DockerFile` o
-`docker-compose.yml` config just for the frontend service, you can do the 
+`docker-compose.yml` config just for the frontend service, you can do the
 following:
 
 ```bash
@@ -566,7 +586,7 @@ your branch and starting a new codespace.
 
 ## Tamper-evident logging
 
-Here are some helpful random commands for development of the tamper-evident 
+Here are some helpful random commands for development of the tamper-evident
 logging implemented using immudb:
 
 ```bash

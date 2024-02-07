@@ -6,9 +6,7 @@ use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
-    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
-};
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
@@ -20,10 +18,9 @@ use crate::services::ceremonies::tally_ceremony::find_last_tally_session_executi
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
-use crate::services::compress::compress_folder;
+use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
-use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
@@ -31,13 +28,13 @@ use crate::services::protocol_manager;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot::BallotStyle;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
@@ -48,16 +45,17 @@ use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
+use tokio::time::Duration as ChronoDuration;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-type AreaContestDataType = (
+/*type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
     Contest,
     BallotStyle,
     u64,
-);
+);*/
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
@@ -86,67 +84,58 @@ async fn process_plaintexts(
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
 ) -> Result<Vec<AreaContestDataType>> {
-    let almost_vec: Vec<AreaContestDataType> = relevant_plaintexts
+    let almost_vec: Vec<AreaContestDataType> = tally_session_data
+        .sequent_backend_tally_session_contest
         .iter()
-        .filter_map(|plaintexts_message| {
-            plaintexts_message.artifact.clone().map(|artifact| {
-                let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                    .ok()
-                    .map(|plaintexts| plaintexts.0 .0);
+        .filter_map(|session_contest| {
+            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+                ballot_style.area_id == session_contest.area_id
+                    && ballot_style.election_id == session_contest.election_id
+                    && ballot_style
+                        .contests
+                        .iter()
+                        .any(|contest| contest.id == session_contest.contest_id)
+            }) else {
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id);
+                return None;
+            };
 
-                let batch_num = plaintexts_message.statement.get_batch_number();
-
-                let tally_session_contest_opt = tally_session_data
-                    .sequent_backend_tally_session_contest
-                    .iter()
-                    .find(|tsc| tsc.session_id == batch_num as i64);
-
-                let ballot_style_opt =
-                    if let Some(tally_session_contest) = tally_session_contest_opt {
-                        ballot_styles.iter().find(|ballot_style| {
-                            ballot_style.area_id == tally_session_contest.area_id
-                                && ballot_style.election_id == tally_session_contest.election_id
-                                && ballot_style
-                                    .contests
-                                    .iter()
-                                    .any(|contest| contest.id == tally_session_contest.contest_id)
-                        })
-                    } else {
-                        None
-                    };
-
-                let contest = if let Some(tally_session_contest) = tally_session_contest_opt {
-                    ballot_style_opt
-                        .map(|ballot_style| {
-                            ballot_style
-                                .contests
-                                .iter()
-                                .find(|contest| contest.id == tally_session_contest.contest_id)
-                        })
-                        .flatten()
-                } else {
-                    None
+            let Some(contest) = ballot_style
+                .contests
+                .iter()
+                .find(|contest| contest.id == session_contest.contest_id) else {
+                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id);
+                    return None;
                 };
 
-                (
-                    plaintexts,
-                    tally_session_contest_opt,
-                    contest,
-                    ballot_style_opt,
+            let batch_num = session_contest.session_id;
+            let Some(plaintexts) = relevant_plaintexts
+                .iter()
+                .find(|plaintexts_message|
+                    batch_num == plaintexts_message.statement.get_batch_number() as i64
                 )
+                .map(|plaintexts_message| {
+                    plaintexts_message.artifact
+                        .clone()
+                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
+                            Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                                .ok()
+                                .map(|plaintexts| plaintexts.0 .0)
+                        })
+                        .flatten()
+                })
+                .flatten() else {
+                    event!(Level::INFO, "Expected: Plantexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
+                    return None;
+                };
+
+            Some(AreaContestDataType {
+                plaintexts,
+                last_tally_session_execution: session_contest.clone(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
             })
-        })
-        .filter_map(|s| match s {
-            (Some(plaintexts), Some(tally_session_contest), Some(contest), Some(ballots_style)) => {
-                Some((
-                    plaintexts,
-                    tally_session_contest.clone(),
-                    contest.clone(),
-                    ballots_style.clone(),
-                    0,
-                ))
-            }
-            _ => None,
         })
         .collect();
 
@@ -171,27 +160,22 @@ async fn process_plaintexts(
 
     let mut data: Vec<AreaContestDataType> = vec![];
 
+    // fill in the eligible voters data
     for almost in almost_vec {
-        let (_plaintexts, tally_session_contest, contest, _ballots_style, _count) = almost.clone();
-        let count = get_eligible_voters(
+        let mut area_contest = almost.clone();
+        let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
             &hasura_transaction,
             &keycloak_transaction,
-            &contest.tenant_id,
-            &contest.election_event_id,
-            &contest.election_id,
-            &tally_session_contest.area_id,
+            &area_contest.contest.tenant_id,
+            &area_contest.contest.election_event_id,
+            &area_contest.contest.election_id,
+            &area_contest.last_tally_session_execution.area_id,
         )
         .await?;
-
-        let mut with_count = almost.clone();
-        with_count.4 = count;
-        data.push(with_count);
+        area_contest.eligible_voters = eligible_voters;
+        data.push(area_contest);
     }
-    keycloak_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;
     Ok(data)
 }
 
@@ -227,7 +211,7 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
     Some(execution_status)
 }
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
     auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
@@ -263,10 +247,6 @@ pub async fn count_cast_votes_election_with_census(
         .await?;
         cast_vote.census = census as i64;
     }
-    //keycloak_transaction
-    //    .commit()
-    //    .await
-    //    .with_context(|| "error comitting transaction")?;
 
     Ok(cast_votes)
 }
@@ -540,7 +520,7 @@ async fn create_results_event(
     Ok(results_event.id.clone())
 }
 
-#[instrument(err, skip(auth_headers))]
+#[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
     election_event_id: String,
@@ -549,7 +529,7 @@ pub async fn execute_tally_session_wrapped(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
-    let (tally_session_execution, tally_session) = find_last_tally_session_execution(
+    let (tally_session_execution, _tally_session) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -568,18 +548,17 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
-    if plaintexts_data_opt.is_none() {
-        return Ok(());
-    }
-
-    let (
+    let Some((
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
         new_status,
         session_ids,
         cast_votes_count,
-    ) = plaintexts_data_opt.unwrap();
+    )) = plaintexts_data_opt
+    else {
+        return Ok(());
+    };
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
@@ -590,11 +569,15 @@ pub async fn execute_tally_session_wrapped(
     // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let status = run_velvet_tally(
-        base_tempdir.path().to_path_buf(),
-        &plaintexts_data,
-        &cast_votes_count,
-    )?;
+    let status = if plaintexts_data.len() > 0 {
+        Some(run_velvet_tally(
+            base_tempdir.path().to_path_buf(),
+            &plaintexts_data,
+            &cast_votes_count,
+        )?)
+    } else {
+        None
+    };
 
     let results_event_id = populate_results_tables(
         auth_headers.clone(),
@@ -654,29 +637,17 @@ pub async fn execute_tally_session_wrapped(
 }
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0)]
-pub async fn execute_tally_session(
+pub async fn transactions_wrapper(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let lock = PgLock::acquire(
-        auth_headers.clone(),
-        format!(
-            "execute_tally_session-{}-{}-{}",
-            tenant_id, election_event_id, tally_session_id
-        ),
-        Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(120)),
-    )
-    .await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
-        .with_context(|| "Error acquiring keycloak db client")?;
+        .with_context(|| "Error acquiring keycloak connection pool")?;
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
@@ -685,7 +656,7 @@ pub async fn execute_tally_session(
         .await
         .get()
         .await
-        .with_context(|| "Error acquiring hasura db client")?;
+        .with_context(|| "Error acquiring hasura connection pool")?;
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
@@ -699,12 +670,52 @@ pub async fn execute_tally_session(
         &hasura_transaction,
         &keycloak_transaction,
     )
-    .await;
+    .await
+    .with_context(|| "Error executing tally session")?;
+
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
-    lock.release(auth_headers.clone()).await?;
 
+    Ok(res)
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(time_limit = 1200000, max_retries = 0)]
+pub async fn execute_tally_session(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<()> {
+    let lock = PgLock::acquire(
+        format!(
+            "execute_tally_session-{}-{}-{}",
+            tenant_id, election_event_id, tally_session_id
+        ),
+        Uuid::new_v4().to_string(),
+        ISO8601::now() + Duration::seconds(120),
+    )
+    .await?;
+    let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
+    let mut current_task = tokio::spawn(transactions_wrapper(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    ));
+    let res = loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                // Execute the callback function here
+                lock.update_expiry().await?;
+            }
+            res = &mut current_task => {
+
+                break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+            }
+        }
+    };
+    lock.release().await?;
     res
 }

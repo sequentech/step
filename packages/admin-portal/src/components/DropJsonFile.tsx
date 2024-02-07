@@ -6,7 +6,6 @@ import Paper from "@mui/material/Paper"
 import {faCloudArrowUp} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import {Box, Typography} from "@mui/material"
-import {useInput} from "react-admin"
 import {CustomDropFile, Icon, theme} from "@sequentech/ui-essentials"
 
 interface DropJsonFileProps {

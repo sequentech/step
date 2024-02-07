@@ -50,14 +50,6 @@ type Mutation {
 }
 
 type Mutation {
-  import_users (
-    tenant_id: String!
-    election_event_id: String
-    document_id: String!
-  ): OptionalId
-}
-
-type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -99,6 +91,14 @@ type Mutation {
   edit_user (
     body: EditUsersInput!
   ): KeycloakUser!
+}
+
+type Mutation {
+  export_users (
+    tenant_id: String!
+    election_event_id: String
+    election_id: String
+  ): ExportUsersOutput
 }
 
 type Query {
@@ -176,6 +176,14 @@ type Query {
 }
 
 type Mutation {
+  import_users (
+    tenant_id: String!
+    election_event_id: String
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
   insertElectionEvent (
     object: CreateElectionEventInput!
   ): CreateElectionEventOutput
@@ -185,6 +193,14 @@ type Mutation {
   insertTenant (
     slug: String!
   ): InsertTenantOutput
+}
+
+type Mutation {
+  insert_cast_vote (
+    election_id: uuid!
+    ballot_id: String!
+    content: String!
+  ): InsertCastVoteOutput
 }
 
 type Query {
@@ -363,6 +379,7 @@ input GetUsersInput {
   username : String
   limit : Int
   offset : Int
+  show_votes_info : Boolean
 }
 
 input CreateKeysCeremonyInput {
@@ -597,6 +614,12 @@ type KeycloakUserArea {
   name : String
 }
 
+type VotesInfo {
+  election_id : String!
+  num_votes : Int!
+  last_voted_at : String!
+}
+
 type KeycloakUser {
   id : String
   attributes : jsonb
@@ -608,6 +631,7 @@ type KeycloakUser {
   last_name : String
   username : String
   area : KeycloakUserArea
+  votes_info : [VotesInfo!]
 }
 
 type GetUsersOutput {
@@ -663,6 +687,11 @@ type OptionalId {
   id : String
 }
 
+type ExportUsersOutput {
+  task_id : String!
+  document_id : String!
+}
+
 type SetUserRoleOutput {
   id : String
 }
@@ -703,5 +732,21 @@ type RestorePrivateKeyOutput {
 
 type PublishTallyOutput {
   tally_sheet_id : uuid
+}
+
+type InsertCastVoteOutput {
+  id : uuid!
+  tenant_id : uuid!
+  election_id : uuid!
+  area_id : uuid!
+  created_at : timestamptz
+  last_updated_at : timestamptz
+  labels : jsonb
+  annotations : jsonb
+  content : String
+  cast_ballot_signature : bytea!
+  voter_id_string : String
+  election_event_id : uuid!
+  ballot_id : String
 }
 

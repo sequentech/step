@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites errors="1"
+            failures="0"
+            tests="0">
+
+  <testsuite name="e2e.general.test"
+    errors="1" failures="0" hostname="" id="" package="e2e" skipped="2"
+    tests="0" time="0.001000" timestamp="">
+  
+
+  
+    <system-err>
+       An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127
+  Verify if ChromeDriver is configured correctly; using:
+  {
+     start_process: true,
+     server_path: &#39;&#39;,
+     port: 9515,
+     host: &#39;localhost&#39;,
+     ssl: false,
+     default_path_prefix: &#39;&#39;,
+     proxy: undefined,
+     cli_args: {}
+  }
+
+ 
+  More info might be available in the log file: /workspaces/backend-services/packages/admin-portal/logs/e2e/general.test_chromedriver.log
+    </system-err>
+  
+
+    
+    <error message="An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127"><![CDATA[
+      Error: An error occurred while creating a new ChromeDriver session: [Error] Server terminated early with status 127
+    at /workspaces/backend-services/packages/node_modules/selenium-webdriver/remote/index.js:259:24
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+      ]]></error>  
+
+  
+    
+    <testcase
+      name="create an election event" classname="e2e.general.test">
+      <skipped />
+    </testcase>
+    
+    <testcase
+      name="delete an election event" classname="e2e.general.test">
+      <skipped />
+    </testcase>
+    
+  
+  </testsuite>
+</testsuites>

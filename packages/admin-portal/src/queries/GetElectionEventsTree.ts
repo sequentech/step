@@ -11,22 +11,29 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
         ) {
             id
             name
+            alias
+            presentation
             is_archived
             elections {
                 id
                 name
+                alias
+                presentation
                 election_event_id
                 image_document_id
                 contests {
                     id
                     name
+                    presentation
                     election_event_id
                     election_id
                     candidates {
                         id
                         name
+                        alias
                         contest_id
                         election_event_id
+                        presentation
                     }
                 }
             }

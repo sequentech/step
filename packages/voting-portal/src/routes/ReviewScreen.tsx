@@ -1,46 +1,54 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
-import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {Box} from "@mui/material"
+import AuthContextProvider, {AuthContext} from "../providers/AuthContextProvider"
 import {
-    PageLimit,
-    BreadCrumbSteps,
-    Icon,
-    IconButton,
-    theme,
-    stringToHtml,
     BallotHash,
     Dialog,
     EVotingStatus,
     IElectionEventStatus,
+    Icon,
+    IconButton,
+    PageLimit,
+    stringToHtml,
+    theme,
 } from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
-import Typography from "@mui/material/Typography"
+import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
+import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {useContext, useEffect, useState} from "react"
+import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {
-    faCircleQuestion,
+    clearBallot,
+    selectBallotSelectionByElectionId,
+} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
     faAngleLeft,
     faAngleRight,
+    faCircleQuestion,
     faFire,
 } from "@fortawesome/free-solid-svg-icons"
-import {useTranslation} from "react-i18next"
-import Button from "@mui/material/Button"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
-import {useMutation, useQuery} from "@apollo/client"
-import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
-import {v4 as uuidv4} from "uuid"
-import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
-import {addCastVotes} from "../store/castVotes/castVotesSlice"
-import {TenantEventType} from ".."
-import {useRootBackLink} from "../hooks/root-back-link"
-import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {useMutation, useQuery} from "@apollo/client"
+
+import {Box} from "@mui/material"
+import Button from "@mui/material/Button"
+import {CircularProgress} from "@mui/material"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
+import {Question} from "../components/Question/Question"
+import Stepper from "../components/Stepper"
+import {TenantEventType} from ".."
+import Typography from "@mui/material/Typography"
+import {addCastVotes} from "../store/castVotes/castVotesSlice"
+import {cloneDeep} from "lodash"
+import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {sortContestByCreationDate} from "../lib/utils"
+import {styled} from "@mui/material/styles"
+import {useRootBackLink} from "../hooks/root-back-link"
+import {useTranslation} from "react-i18next"
+import {v4 as uuidv4} from "uuid"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -78,9 +86,10 @@ const StyledButton = styled(Button)`
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: string
+    hideAudit: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot, hideAudit}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
@@ -130,23 +139,21 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             const hashableBallot = toHashableBallot(auditableBallot)
             let result = await insertCastVote({
                 variables: {
-                    id: uuidv4(),
-                    ballotId,
                     electionId: ballotStyle.election_id,
-                    electionEventId: ballotStyle.election_event_id,
-                    tenantId: ballotStyle.tenant_id,
-                    areaId: ballotStyle.area_id,
+                    ballotId,
                     content: hashableBallot,
                 },
             })
-            let newCastVote = result.data?.insert_sequent_backend_cast_vote?.returning
+            let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
-                dispatch(addCastVotes(newCastVote))
+                dispatch(addCastVotes([newCastVote]))
             }
 
             return submit(null, {method: "post"})
         } catch (error) {
+            // dispatch(clearBallot())
             console.log(`error casting vote: ${error}`)
+            console.log(`error casting vote: ${ballotStyle.election_id}`)
             return submit({error: errorType}, {method: "post"})
         }
     }
@@ -154,7 +161,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
             <StyledButton
-                sx={{display: {xs: "flex", sm: "none"}, marginBottom: "2px", width: "100%"}}
+                sx={{display: {xs: "none", sm: "none"}, marginBottom: "2px", width: "100%"}}
                 variant="warning"
                 onClick={() => setAuditBallotHelp(true)}
             >
@@ -181,14 +188,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                <StyledButton
-                    sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
-                    variant="warning"
-                    onClick={() => setAuditBallotHelp(true)}
-                >
-                    <Icon icon={faFire} size="sm" />
-                    <Box>{t("reviewScreen.auditButton")}</Box>
-                </StyledButton>
+                {hideAudit ? null : (
+                    <StyledButton
+                        sx={{width: {xs: "100%", sm: "200px"}, display: {xs: "none", sm: "flex"}}}
+                        variant="warning"
+                        onClick={() => setAuditBallotHelp(true)}
+                    >
+                        <Icon icon={faFire} size="sm" />
+                        <Box>{t("reviewScreen.auditButton")}</Box>
+                    </StyledButton>
+                )}
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -215,6 +224,12 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+    const hideAudit = true
+    const {logout} = useContext(AuthContext)
+
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
 
     function handleCloseDialog(val: boolean) {
         setOpenBallotIdHelp(false)
@@ -233,6 +248,8 @@ export const ReviewScreen: React.FC = () => {
     useEffect(() => {
         if (!ballotStyle || !auditableBallot) {
             navigate(backLink)
+        } else if (!selectionState) {
+            logout()
         }
     })
 
@@ -240,9 +257,13 @@ export const ReviewScreen: React.FC = () => {
         return <CircularProgress />
     }
 
+    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
+
     return (
         <PageLimit maxWidth="lg">
-            <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            {hideAudit ? null : (
+                <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+            )}
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
@@ -254,15 +275,7 @@ export const ReviewScreen: React.FC = () => {
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={2}
-                />
+                <Stepper selected={2} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
                 <Box>{t("reviewScreen.title")}</Box>
@@ -283,18 +296,24 @@ export const ReviewScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("reviewScreen.description"))}
+                {stringToHtml(
+                    t(!hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
+                )}
             </Typography>
-            {ballotStyle.ballot_eml.contests.map((question, index) => (
+            {contests.map((question, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={question}
                     key={index}
-                    questionIndex={index}
+                    questionIndex={question.originalIndex}
                     isReview={true}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
+            <ActionButtons
+                ballotStyle={ballotStyle}
+                auditableBallot={auditableBallot}
+                hideAudit={hideAudit}
+            />
         </PageLimit>
     )
 }

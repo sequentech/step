@@ -4,12 +4,9 @@
 
 use crate::types::error::Result;
 use anyhow::Context;
-use celery::error::TaskError;
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use sequent_core;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
@@ -151,7 +148,7 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             description: candidate.description.clone(),
             r#type: candidate.type_.clone(),
             presentation: candidate.presentation.clone(),
-            is_public: candidate.is_public.clone(),
+            is_public: candidate.is_public,
         }
     }
 }
@@ -191,10 +188,9 @@ pub async fn create_ballot_style(
     ballot_publication_id: String,
 ) -> Result<()> {
     let lock = PgLock::acquire(
-        auth_headers.clone(),
         format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
         Uuid::new_v4().to_string(),
-        Some(ISO8601::now() + Duration::seconds(60)),
+        ISO8601::now() + Duration::seconds(60),
     )
     .await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
@@ -282,7 +278,6 @@ pub async fn create_ballot_style(
                         .collect::<Result<Vec<sequent_core::types::hasura_types::Candidate>>>()
                 },
             )
-            .into_iter()
             .collect::<Result<Vec<Vec<sequent_core::types::hasura_types::Candidate>>>>()?
             .into_iter()
             .flatten()
@@ -312,7 +307,7 @@ pub async fn create_ballot_style(
         )
         .await?;
     }
-    lock.release(auth_headers.clone()).await?;
+    lock.release().await?;
 
     Ok(())
 }

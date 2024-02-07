@@ -27,16 +27,21 @@ pub struct BasesFixture {
 
 fn get_contest_plurality() -> Contest {
     Contest {
+        created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         name: Some("Secretario General".into()),
+        name_i18n: None,
+        alias: None,
+        alias_i18n: None,
         winning_candidates_num: 1,
         description: Some(
             "Elige quien quieres que sea tu Secretario General en tu municipio"
                 .into(),
         ),
+        description_i18n: None,
         max_votes: 1,
         min_votes: 0,
         voting_type: Some("first-past-the-post".into()),
@@ -51,7 +56,11 @@ fn get_contest_plurality() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("José Rabano Pimiento".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -70,7 +79,11 @@ fn get_contest_plurality() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Miguel Pimentel Inventado".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -89,7 +102,11 @@ fn get_contest_plurality() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Iglesias Torquemada".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -108,7 +125,12 @@ fn get_contest_plurality() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Mari Pili Hernández Ordoñez".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
+
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -127,7 +149,11 @@ fn get_contest_plurality() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Y Medio".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -149,6 +175,7 @@ fn get_contest_plurality() -> Contest {
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }),
     }
 }
@@ -191,6 +218,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        num_allowed_revotes: Some(1),
         description: Some("Write-ins simple".into()),
         public_key: Some(PublicKeyConfig {
             public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
@@ -198,12 +226,17 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         contests: vec![Contest {
+            created_at: None,
             id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
             tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
             election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
             election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
             name: Some("Test contest title".into()),
+            name_i18n: None,
+            alias: None,
+            alias_i18n: None,
             description: None,
+            description_i18n: None,
             winning_candidates_num: 1,
             max_votes: 2,
             min_votes: 1,
@@ -219,10 +252,14 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
                     name: Some("Example option 1".into()),
+                    name_i18n: None,
+                    alias: None,
+                    alias_i18n: None,
                     description: Some(
                         "This is an option with an simple example description."
                             .into(),
                     ),
+                    description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
                         is_explicit_invalid: false,
@@ -241,10 +278,14 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
                     name: Some("Example option 1".into()),
+                    name_i18n: None,
+                    alias: None,
+                    alias_i18n: None,
                     description: Some(
                         "This is an option with an simple example description."
                             .into(),
                     ),
+                    description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
                         is_explicit_invalid: false,
@@ -276,7 +317,11 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
                     name: None,
+                    name_i18n: None,
+                    alias: None,
+                    alias_i18n: None,
                     description: None,
+                    description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
                         is_explicit_invalid: false,
@@ -295,7 +340,11 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
                     name: None,
+                    name_i18n: None,
+                    alias: None,
+                    alias_i18n: None,
                     description: None,
+                    description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
                         is_explicit_invalid: false,
@@ -317,6 +366,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 shuffle_category_list: None,
                 show_points: false,
                 enable_checkable_lists: None,
+                candidates_order: None,
             }),
         }],
     }
@@ -397,13 +447,17 @@ pub fn get_writein_plaintext() -> DecodedVoteContest {
 
 pub fn get_test_contest() -> Contest {
     Contest {
+        created_at:None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         name: Some("Test contest title".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
         winning_candidates_num: 1,
         description: Some("This is the description of this contest. You can have multiple contests. You can add simple html like.".into()),
+        description_i18n: None,
         max_votes: 3,
         min_votes: 1,
         voting_type: Some("first-past-the-post".into()),
@@ -417,7 +471,10 @@ pub fn get_test_contest() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Example option 1".into()),
+            name_i18n:None,
+            alias:None,alias_i18n:None,
                 description: Some("This is an option with an simple example description.".into()),
+        description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -442,7 +499,10 @@ pub fn get_test_contest() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Example option 2".into()),
+            name_i18n:None,
+            alias:None,alias_i18n:None,
                 description: Some("An option can contain a description. You can add simple html like ".into()),
+        description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -473,7 +533,10 @@ pub fn get_test_contest() -> Contest {
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Example option 3".into()),
+            name_i18n:None,
+            alias:None,alias_i18n:None,
                 description: None,
+        description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -495,6 +558,7 @@ pub fn get_test_contest() -> Contest {
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order:None,
         }),
     }
 }
@@ -508,15 +572,20 @@ pub(crate) fn get_configurable_contest(
     base32_writeins: bool,
 ) -> Contest {
     let mut contest: Contest = Contest {
+        created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         name: Some("Secretario General".into()),
+        name_i18n: None,
+        alias: None,
+        alias_i18n: None,
         description: Some(
             "Elige quien quieres que sea tu Secretario General en tu municipio"
                 .into(),
         ),
+        description_i18n: None,
         winning_candidates_num: 1,
         max_votes: 3,
         min_votes: 0,
@@ -532,7 +601,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("José Rabano Pimiento".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -551,7 +624,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Miguel Pimentel Inventado".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -570,7 +647,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Iglesias Torquemada".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -589,7 +670,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Mari Pili Hernández Ordoñez".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -608,7 +693,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Y Medio".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -627,7 +716,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Y Medio".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -646,7 +739,11 @@ pub(crate) fn get_configurable_contest(
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Y Medio".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
                 description: None,
+                description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
                     is_explicit_invalid: false,
@@ -668,6 +765,7 @@ pub(crate) fn get_configurable_contest(
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }),
     };
 
@@ -798,12 +896,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_and_implicit_invalid".to_string(),
             contest: Contest {
+        created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Poste de maire(sse)".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                 description: None,
+        description_i18n: None,
                 max_votes: 1,
                 winning_candidates_num: 1,
                 min_votes: 0,
@@ -818,7 +920,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Chloe HUTCHISON".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Independent".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -836,7 +941,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Helen KURGANSKY".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Political Affiliation 1".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -854,7 +962,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Jamie NICHOLLS".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Political Affiliation 2".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -872,7 +983,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: None,
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: None,
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: true,
@@ -894,6 +1008,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+        candidates_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -939,12 +1054,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_invalid".to_string(),
             contest: Contest {
+        created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Poste de maire(sse)".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                 description: None,
+        description_i18n: None,
                 max_votes: 1,
                 min_votes: 0,
                 winning_candidates_num: 1,
@@ -959,7 +1078,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Chloe HUTCHISON".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Independent".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -977,7 +1099,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Helen KURGANSKY".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Political Affiliation 1".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -995,7 +1120,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Jamie NICHOLLS".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Political Affiliation 2".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1013,7 +1141,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: None,
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: None,
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: true,
@@ -1035,6 +1166,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+        candidates_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1070,12 +1202,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_implicit_too_many".to_string(),
             contest: Contest {
+        created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Poste de maire(sse)".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                 description: None,
+        description_i18n: None,
                 max_votes: 1,
                 min_votes: 0,
                 winning_candidates_num: 1,
@@ -1090,7 +1226,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Chloe HUTCHISON".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Independent".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1108,7 +1247,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Helen KURGANSKY".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Political Affiliation 1".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1126,7 +1268,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Jamie NICHOLLS".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("Political Affiliation 2".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1144,7 +1289,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: None,
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: None,
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: true,
@@ -1166,6 +1314,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+        candidates_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1211,12 +1360,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_empty".to_string(),
             contest: Contest {
+        created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Test contest title".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                 description: None,
+        description_i18n: None,
                 max_votes: 1,
                 min_votes: 1,
                 winning_candidates_num: 1,
@@ -1231,7 +1384,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Example option 1".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("This is an option with an simple example description.".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1249,7 +1405,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Example option 2".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("An option can contain a description. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1267,7 +1426,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Example option 3".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: None,
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1289,6 +1451,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+        candidates_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1334,12 +1497,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_invented_candidate".to_string(),
             contest: Contest {
+        created_at:None,
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Test contest title".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                 description: None,
+        description_i18n: None,
                 max_votes: 1,
                 min_votes: 1,
                 winning_candidates_num: 1,
@@ -1354,7 +1521,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Example option 1".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("This is an option with an simple example description.".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1372,7 +1542,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Example option 2".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: Some("An option can contain a description. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.".into()),
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1390,7 +1563,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                         name: Some("Example option 3".into()),
+        name_i18n:None,
+        alias:None,alias_i18n:None,
                         description: None,
+        description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
                             is_explicit_invalid: false,
@@ -1412,6 +1588,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+        candidates_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {

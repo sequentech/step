@@ -18,6 +18,13 @@ pub struct UserArea {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct VotesInfo {
+    pub election_id: String,
+    pub num_votes: usize,
+    pub last_voted_at: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct User {
     pub id: Option<String>,
     pub attributes: Option<HashMap<String, Value>>,
@@ -28,6 +35,7 @@ pub struct User {
     pub last_name: Option<String>,
     pub username: Option<String>,
     pub area: Option<UserArea>,
+    pub votes_info: Option<Vec<VotesInfo>>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]

@@ -7,9 +7,11 @@ use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -24,6 +26,7 @@ pub struct CastVote {
     pub cast_ballot_signature: Option<Vec<u8>>,
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
+    pub ballot_id: Option<String>,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -44,6 +47,7 @@ impl TryFrom<Row> for CastVote {
             cast_ballot_signature: item.try_get("cast_ballot_signature")?,
             voter_id_string: item.try_get("voter_id_string")?,
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            ballot_id: item.try_get("ballot_id")?,
         })
     }
 }
@@ -74,7 +78,8 @@ pub async fn find_area_ballots(
                         content,
                         cast_ballot_signature,
                         voter_id_string,
-                        election_event_id
+                        election_event_id,
+                        ballot_id
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = $1 AND
@@ -152,7 +157,7 @@ pub async fn count_cast_votes_election(
                     tenant_id = $1 AND
                     election_event_id = $2
                 GROUP BY
-                    election_id
+                    election_id;
             "#,
         )
         .await?;
@@ -216,7 +221,6 @@ pub async fn get_count_votes_per_day(
                 OR v.created_at IS NULL
             GROUP BY ds.day
             ORDER BY ds.day;
-            
             "#
             )
             .as_str(),
@@ -241,4 +245,114 @@ pub async fn get_count_votes_per_day(
         .collect::<Result<Vec<CastVotesPerDay>>>()?;
 
     Ok(cast_votes_by_day)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_users_with_vote_info(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    users: Vec<User>,
+) -> Result<Vec<User>> {
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    // Prepare the list of user IDs for the query
+    let user_ids: Vec<String> = users
+        .iter()
+        .map(|user| {
+            user.id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))
+        })
+        .collect::<Result<Vec<String>>>()
+        .with_context(|| "Error extracting user IDs")?;
+
+    let vote_info_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT 
+                v.voter_id_string AS voter_id_string, 
+                v.election_id AS election_id, 
+                COUNT(v.id) AS num_votes, 
+                MAX(v.created_at) AS last_voted_at
+            FROM 
+                sequent_backend.cast_vote v
+            WHERE 
+                v.tenant_id = $1 AND
+                v.election_event_id = $2 AND
+                v.voter_id_string = ANY($3)
+            GROUP BY 
+                v.voter_id_string, v.election_id;
+            "#,
+        )
+        .await
+        .with_context(|| "Error preparing the vote info statement")?;
+
+    let rows = hasura_transaction
+        .query(
+            &vote_info_statement,
+            &[&tenant_uuid, &election_event_uuid, &user_ids],
+        )
+        .await
+        .with_context(|| "Error executing the vote info query")?;
+
+    let mut user_votes_map: HashMap<String, Vec<VotesInfo>> = users
+        .iter()
+        .map(|user| {
+            let user_id = user
+                .id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
+            Ok((user_id, vec![]))
+        })
+        .collect::<Result<_>>()
+        .with_context(|| "Error processing users for user_votes_map")?;
+
+    for row in rows {
+        let voter_id_string: String = row
+            .try_get("voter_id_string")
+            .with_context(|| "Error getting voter_id_string from row")?;
+        let election_id: Uuid = row
+            .try_get("election_id")
+            .with_context(|| "Error getting election_id from row")?;
+        let num_votes: i64 = row
+            .try_get("num_votes")
+            .with_context(|| "Error getting num_votes from row")?;
+        let last_voted_at: DateTime<Utc> = row
+            .try_get("last_voted_at")
+            .with_context(|| "Error getting last_voted_at from row")?;
+
+        if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
+            user_votes_info.push(VotesInfo {
+                election_id: election_id.to_string(),
+                num_votes: num_votes as usize,
+                last_voted_at: last_voted_at.to_string(),
+            });
+        } else {
+            return Err(anyhow!("Not found user for voter-id={voter_id_string}"));
+        }
+    }
+
+    // Construct the final Vec<User> in the same order as the input users
+    Ok(users
+        .iter()
+        .map(|user| {
+            let user_id = user
+                .id
+                .clone()
+                .ok_or_else(|| anyhow!("Encountered a user without an ID"))?;
+            let votes_info = user_votes_map
+                .get(&user_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("Missing vote info for user ID {user_id}"))?;
+            Ok(User {
+                votes_info: Some(votes_info),
+                ..user.clone()
+            })
+        })
+        .collect::<Result<Vec<User>>>()
+        .with_context(|| "Error constructing users result")?)
 }

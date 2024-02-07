@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {WarnBox} from "@sequentech/ui-essentials"
-import {IContest} from "sequent-core"
+import {WarnBox, IContest} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
@@ -30,6 +29,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     )
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
+
     useEffect(() => {
         if (isTouched || !contestSelection) {
             return

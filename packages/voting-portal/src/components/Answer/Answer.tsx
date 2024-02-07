@@ -1,30 +1,33 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
-import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     Candidate,
-    stringToHtml,
+    ICandidate,
+    IContest,
     isUndefined,
     normalizeWriteInText,
+    stringToHtml,
     translate,
 } from "@sequentech/ui-essentials"
-import {ICandidate} from "sequent-core"
-import Image from "mui-image"
-import {
-    selectBallotSelectionQuestion,
-    selectBallotSelectionVoteChoice,
-    setBallotSelectionInvalidVote,
-    setBallotSelectionVoteChoice,
-} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {
     checkAllowWriteIns,
     checkIsWriteIn,
     getImageUrl,
     getLinkUrl,
 } from "../../services/ElectionConfigService"
+import {
+    resetBallotSelection,
+    selectBallotSelectionQuestion,
+    selectBallotSelectionVoteChoice,
+    setBallotSelectionInvalidVote,
+    setBallotSelectionVoteChoice,
+} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useAppDispatch, useAppSelector} from "../../store/hooks"
+
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import Image from "mui-image"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import {useTranslation} from "react-i18next"
 
 export interface IAnswerProps {
@@ -37,6 +40,8 @@ export interface IAnswerProps {
     isReview: boolean
     isInvalidVote?: boolean
     isInvalidWriteIns?: boolean
+    isUniqChecked?: boolean
+    contest: IContest
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -48,7 +53,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     isReview,
     isInvalidVote,
     isInvalidWriteIns,
-    index,
+    isUniqChecked,
+    contest,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
@@ -86,8 +92,20 @@ export const Answer: React.FC<IAnswerProps> = ({
             setInvalidVote(value)
             return
         }
+
         let cleanedText =
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
+
+        if (isUniqChecked) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                    contestId: contest.id,
+                })
+            )
+        }
+
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
@@ -109,6 +127,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             return
         }
         let cleanedText = normalizeWriteInText(writeInText)
+
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,

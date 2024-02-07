@@ -53,18 +53,20 @@ export const {addCastVotes} = castVotesSlice.actions
 export const selectCastVotesByElectionId = (electionId: string) => (state: RootState) =>
     state.castVotes[electionId] || []
 
-export const hasVotedAllElections = (currentElectionId: string) => (state: RootState) => {
-    let castVoteElectionIds = Object.keys(state.castVotes).filter(
-        (electionId) => electionId !== currentElectionId && state.castVotes[electionId]
-    )
-    castVoteElectionIds.push(currentElectionId)
+export const canVoteSomeElection =
+    () =>
+    (state: RootState): boolean => {
+        let ballotStyleElectionIds = Object.keys(state.ballotStyles)
+        let elections = ballotStyleElectionIds
+            .map((electionId) => state.elections[electionId])
+            .filter((election) => !!election)
 
-    let ballotStyleElectionIds = Object.keys(state.ballotStyles)
+        return elections.some((election) => {
+            let electionCastVotes = (election?.id && state.castVotes[election.id]) || []
+            let numAllowedRevotes = election?.num_allowed_revotes ?? 1
 
-    let missingElectionId = ballotStyleElectionIds.find(
-        (ballotStyleElectionId) => !castVoteElectionIds.includes(ballotStyleElectionId)
-    )
-    return isUndefined(missingElectionId)
-}
+            return electionCastVotes.length < numAllowedRevotes
+        })
+    }
 
 export default castVotesSlice.reducer

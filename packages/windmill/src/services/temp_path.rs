@@ -2,13 +2,61 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::error::Result;
+use anyhow::Context;
 use std::env;
-use std::path::PathBuf;
+use std::fs;
+use std::io::Read;
+use std::io::{BufWriter, Write};
+use std::{fs::File, path::PathBuf};
 use tempfile::Builder;
-use tracing::instrument;
+use tempfile::{NamedTempFile, TempPath};
+use tracing::{event, instrument, Level};
 
-#[instrument(err)]
-pub fn generate_random_path(prefix: &str, suffix: &str) -> Result<PathBuf> {
+pub fn get_file_size(filepath: &str) -> Result<u64> {
+    let metadata = fs::metadata(filepath)?;
+    Ok(metadata.len())
+}
+
+/*
+ * Writes data into a named temp file. The temp file will have the
+ * specificed prefix and suffix.
+ *
+ * Returns the TempPath of the file, the stringified version of the path to the
+ * file and the bytes size of the file.
+ *
+ * NOTE: The file will be dropped when the TempPath goes out of the scope.
+ * Returning the TempPath, even if the variable goes unused, allows the caller
+ * to control the lifetime of the created temp file.
+ */
+#[instrument(skip(data), err)]
+pub fn write_into_named_temp_file(
+    data: &Vec<u8>,
+    prefix: &str,
+    suffix: &str,
+) -> Result<(TempPath, String, u64)> {
+    let file =
+        generate_temp_file(prefix, suffix).with_context(|| "Error creating named temp file")?;
+    {
+        let file2 = file
+            .reopen()
+            .with_context(|| "Couldn't reopen file for writing")?;
+        let mut buf_writer = BufWriter::new(file2);
+        buf_writer
+            .write(&data)
+            .with_context(|| "Error writing into named temp file")?;
+        buf_writer
+            .flush()
+            .with_context(|| "Error calling flush into named temp file")?;
+    }
+    let temp_path = file.into_temp_path();
+    let temp_path_string = temp_path.to_string_lossy().to_string();
+    let file_size =
+        get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
+    Ok((temp_path, temp_path_string, file_size))
+}
+
+#[instrument(ret)]
+pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
 
@@ -18,12 +66,8 @@ pub fn generate_random_path(prefix: &str, suffix: &str) -> Result<PathBuf> {
         .prefix(prefix) // Optional: specify a prefix for the file name.
         .suffix(suffix) // Optional: specify a suffix for the file name.
         .rand_bytes(12) // Optional: specify the number of random bytes to use for the name.
-        .tempfile_in(&temp_dir)?
-        .into_temp_path(); // Convert the NamedTempFile into a TempPath without deleting the file when dropped.
+        .tempfile_in(&temp_dir)
+        .with_context(|| "Error generating temp file")?;
 
-    // At this point, temp_file is a TempPath, and the file will not be automatically
-    // deleted unless you explicitly call `temp_file.close()`.
-
-    // Get the file path.
-    Ok(temp_file.to_owned())
+    Ok(temp_file)
 }
