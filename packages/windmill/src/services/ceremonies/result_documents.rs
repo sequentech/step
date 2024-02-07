@@ -50,6 +50,7 @@ async fn generic_save_documents(
             tenant_id.to_string(),
             election_event_id.to_string(),
             OUTPUT_PDF.to_string(),
+            None,
         )
         .await?;
         documents.pdf = Some(document.id);
@@ -68,6 +69,7 @@ async fn generic_save_documents(
             tenant_id.to_string(),
             election_event_id.to_string(),
             OUTPUT_JSON.to_string(),
+            None,
         )
         .await?;
         documents.json = Some(document.id);
@@ -86,6 +88,7 @@ async fn generic_save_documents(
             tenant_id.to_string(),
             election_event_id.to_string(),
             OUTPUT_HTML.to_string(),
+            None,
         )
         .await?;
         documents.html = Some(document.id);
@@ -144,6 +147,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 contest.tenant_id.clone(),
                 contest.election_event_id.clone(),
                 "tally.tar.gz".into(),
+                None,
             )
             .await?;
 

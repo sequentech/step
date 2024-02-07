@@ -22,6 +22,7 @@ pub async fn upload_and_return_document(
     tenant_id: String,
     election_event_id: String,
     name: String,
+    document_id: Option<String>,
 ) -> Result<Document> {
     let new_document = hasura::document::insert_document(
         auth_headers,
@@ -31,7 +32,7 @@ pub async fn upload_and_return_document(
         media_type.clone(),
         file_size.try_into()?,
         /* is_public */ false,
-        None,
+        document_id,
     )
     .await?;
 
