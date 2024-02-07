@@ -5,14 +5,14 @@
 
   <testsuite name="e2e.sidebar.test"
     errors="1" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="15.92" timestamp="">
+    tests="1" time="15.90" timestamp="">
   
-    <testcase name="click on an election event" classname="e2e.sidebar.test" time="5.433" assertions="2">
+    <testcase name="click on an election event" classname="e2e.sidebar.test" time="5.437" assertions="2">
 
     
 
     
-    <error message="An error occurred while running .click() command on &lt;a.menu-item-sequent_backend_election_event:last-child()&gt;: Timed out while waiting for element &#34;a.menu-item-sequent_backend_election_event:last-child()&#34; with &#34;css selector&#34; to be present for 5000 milliseconds." type="error"><![CDATA[
+    <error message="An error occurred while running .click() command on &lt;a.menu-item-sequent_backend_election_event:last-child&gt;: Timed out while waiting for element &#34;a.menu-item-sequent_backend_election_event:last-child&#34; with &#34;css selector&#34; to be present for 5000 milliseconds." type="error"><![CDATA[
     Error
     at DescribeInstance.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/sidebar.test.ts:50:14)
     ]]></error>
@@ -24,7 +24,6 @@
     <system-err>
        NoSuchElementError
    An element could not be located on the page using the given search parameters.
-    {&#34;error&#34;:{&#34;name&#34;:&#34;InvalidSelectorError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
 
     Try fixing by :
     1. Please inspect the html before the step
@@ -35,7 +34,7 @@
     ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
      48 |         browser.assert
      49 |             .visible(`a.menu-item-${this.electionEventLink!}`)
-     50 |             .click(`a.menu-item-${this.electionEventLink!}:last-child()`) 
+     50 |             .click(`a.menu-item-${this.electionEventLink!}:last-child`) 
      51 |             .assert.visible(&#34;a.election-event-area-tab&#34;)
      52 |             .click(&#34;a.election-event-area-tab&#34;)
     ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
