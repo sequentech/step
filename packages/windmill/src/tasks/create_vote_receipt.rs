@@ -61,7 +61,7 @@ pub async fn create_vote_receipt(
         auth_headers.clone(),
         tenant_id,
         election_event_id,
-        format!("vote-receipt-{ballot_id}"),
+        format!("vote-receipt-{ballot_id}.pdf"),
     )
     .await?;
 
