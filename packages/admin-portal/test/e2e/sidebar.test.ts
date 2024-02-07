@@ -45,10 +45,15 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("click on an election event", async (browser: NightwatchAPI) => {
         // browser.assert.urlContains("sequent_backend_election_event")
+        const resultElement = await browser
+            .element(`a.menu-item-${this.electionEventLink!}`)
+            .getLastElementChild()
+        resultElement.click()
+
         browser.assert
-            .visible(`a.menu-item-${this.electionEventLink!}`)
-            .click(`a.menu-item-${this.electionEventLink!}:nth-last-of-type(1)`)
-            .assert.visible("a.election-event-area-tab")
+            // .visible(`a.menu-item-${this.electionEventLink!}`)
+            // .click(`a.menu-item-${this.electionEventLink!}:nth-last-of-type(1)`)
+            .visible("a.election-event-area-tab")
             .click("a.election-event-area-tab")
         const isNew = await browser.assert.visible("button.area-add-button")
         if (isNew) {
