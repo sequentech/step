@@ -1,40 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites errors="1"
-            failures="1"
+<testsuites errors="0"
+            failures="0"
             tests="1">
 
   <testsuite name="e2e.sidebar.test"
-    errors="1" failures="1" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="15.71" timestamp="">
+    errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
+    tests="1" time="5.295" timestamp="">
   
-    <testcase name="click on an election event" classname="e2e.sidebar.test" time="5.639" assertions="3">
+    <testcase name="click on an election event" classname="e2e.sidebar.test" time="0.4930" assertions="3">
 
     
 
-      <failure message="Testing if element &lt;&#34;button.area-add-button&#34;&gt; is visible in 5000ms - expected &#34;is visible&#34; but got: &#34;element could not be located&#34; (5139ms)">    at DescribeInstance.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/sidebar.test.ts:60:28)</failure>
-
     
-    <error message="invalid selector: An invalid or illegal selector was specified
-  (Session info: chrome=121.0.6167.160)" type="error"><![CDATA[
-    InvalidSelectorError: invalid selector: An invalid or illegal selector was specified
-  (Session info: chrome=121.0.6167.160)
-    at Object.throwDecodedError (/Users/xtremis/Developer/backend-services/packages/node_modules/selenium-webdriver/lib/error.js:524:15)
-    at parseHttpResponse (/Users/xtremis/Developer/backend-services/packages/node_modules/selenium-webdriver/lib/http.js:601:13)
-    at Executor.execute (/Users/xtremis/Developer/backend-services/packages/node_modules/selenium-webdriver/lib/http.js:529:28)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5)
-    at async Driver.execute (/Users/xtremis/Developer/backend-services/packages/node_modules/selenium-webdriver/lib/webdriver.js:745:17)
-    at async Driver.findElements (/Users/xtremis/Developer/backend-services/packages/node_modules/selenium-webdriver/lib/webdriver.js:1089:17)
-    ]]></error>
+
     
     </testcase>
   
 
-  
-    <system-err>
-       InvalidSelectorError
-   invalid selector: An invalid or illegal selector was specified
-  (Session info: chrome=121.0.6167.160)
-    </system-err>
   
 
     

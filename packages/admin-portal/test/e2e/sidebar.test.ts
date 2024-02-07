@@ -61,6 +61,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         } else {
             browser.assert.visible(`"button.add-button"`).click("button.add-button")
         }
+        browser.pause(5000)
 
         // .sendKeys("input[name=name]", "this is a test election event name")
         // .assert.visible("input[name=description]")
