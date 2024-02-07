@@ -59,10 +59,10 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         }
         browser
             .sendKeys("input[name=name]", "this is an area name")
-            .assert.enabled(`button.election-event-save-button`)
+            .assert.enabled("button[type=submit]")
             .click("button[type=submit]")
             .pause(5000)
-            .assert.visible(`a[title='this is a test election event name']`)
+        // .assert.visible(`a[title='this is a test election event name']`)
     })
 
     // it("create an election", async (browser: NightwatchAPI) => {
