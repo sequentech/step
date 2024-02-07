@@ -35,6 +35,7 @@ pub async fn create_vote_receipt(
 ) -> Result<Json<CreateVoteReceiptOutput>, (Status, String)> {
     let start = Instant::now();
     let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
+    dbg!(&area_id);
     let input = body.into_inner();
     let element_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -42,7 +43,8 @@ pub async fn create_vote_receipt(
     let task = celery_app
         .send_task(
             windmill::tasks::create_vote_receipt::create_vote_receipt::new(
-                input.ballot_id.to_string(),
+                element_id.clone(),
+                input.ballot_id.clone(),
             ),
         )
         .await

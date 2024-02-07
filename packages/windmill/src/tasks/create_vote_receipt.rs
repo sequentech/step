@@ -27,12 +27,12 @@ pub struct RenderTemplateBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 60000)]
 pub async fn create_vote_receipt(
+    element_id: String,
     ballot_id: String,
     // tenant_id: String,
     // election_event_id: String,
 ) -> Result<()> {
-    println!("allo ");
+    dbg!(&element_id);
     dbg!(&ballot_id);
-
     Ok(())
 }
