@@ -54,7 +54,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         browser.isPresent(
             {
                 selector: "button.area-add-button",
-                suppressNotFoundErrors: true,
+                suppressNotFoundErrors: false,
             },
             () => {
                 browser.assert.visible("button.area-add-button").click("button.area-add-button")
