@@ -150,7 +150,11 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const {t, i18n} = useTranslation()
     const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
     if (!question) {
-        return <>{t("confirmationScreen.contestNotFound", {contestId: questionPlaintext.contest_id})}</>
+        return (
+            <>
+                {t("confirmationScreen.contestNotFound", {contestId: questionPlaintext.contest_id})}
+            </>
+        )
     }
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&

@@ -26,7 +26,9 @@ export const sortCandidatesInContest = (
             })
             break
         case CandidatesOrder.CUSTOM:
-            res.sort((a, b) => a.presentation?.sort_order! - b.presentation?.sort_order!)
+            res.sort(
+                (a, b) => (a.presentation?.sort_order ?? -1) - (b.presentation?.sort_order ?? -1)
+            )
             break
         case CandidatesOrder.RANDOM:
             if (applyRandom) {
