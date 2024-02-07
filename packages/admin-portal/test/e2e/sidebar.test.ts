@@ -56,7 +56,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
                 selector: "button.area-add-button",
                 suppressNotFoundErrors: false,
             },
-            () => {
+            (result) => {
+                console.log("is present result", result)
                 browser.assert.visible("button.area-add-button").click("button.area-add-button")
                 browser
                     .sendKeys("input[name=name]", "this is an area name")
