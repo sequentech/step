@@ -145,6 +145,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         createVoteReceipt({
             variables: {
                 ballotId,
+                election_event_id: eventId,
+                tenant_id: tenantId,
             },
         })
     }
