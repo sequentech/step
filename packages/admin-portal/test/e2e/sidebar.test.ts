@@ -53,7 +53,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
 
         browser.isPresent(
             {
-                selector: "div.areas-container",
+                selector: "button.area-add-button",
                 suppressNotFoundErrors: true,
             },
             () => {
