@@ -5,7 +5,7 @@
 
   <testsuite name="e2e.sidebar.test"
     errors="1" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="46.07" timestamp="">
+    tests="1" time="46.09" timestamp="">
   
     <testcase name="click on an election event" classname="e2e.sidebar.test" time="20.68" assertions="2">
 

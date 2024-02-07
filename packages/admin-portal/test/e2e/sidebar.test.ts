@@ -51,19 +51,29 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
 
         browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
 
-        const isNew = await browser.element.find("button.area-add-button")
-        if (isNew) {
-            browser.assert.visible("button.area-add-button").click("button.area-add-button")
-        } else {
-            browser.assert.visible(".add-button").click(".add-button")
-        }
-        browser.pause(15000)
-        // browser
-        //     .sendKeys("input[name=name]", "this is an area name")
-        //     .assert.enabled("button[type=submit]")
-        //     .click("button[type=submit]")
-        //     .pause(500)
-        //     .assert.textContains("span.area-name", "this is an area name")
+        browser.isPresent(
+            {
+                selector: "div.areas-container",
+                suppressNotFoundErrors: true,
+            },
+            () => {
+                browser.assert.visible("button.area-add-button").click("button.area-add-button")
+                browser
+                    .sendKeys("input[name=name]", "this is an area name")
+                    .assert.enabled("button[type=submit]")
+                    .click("button[type=submit]")
+                    .pause(500)
+                    .assert.textContains("span.area-name", "this is an area name")
+                    .end()
+            }
+        )
+        browser.assert.visible(".add-button").click(".add-button")
+        browser
+            .sendKeys("input[name=name]", "this is an area name")
+            .assert.enabled("button[type=submit]")
+            .click("button[type=submit]")
+            .pause(500)
+            .assert.textContains("span.area-name", "this is an area name")
     })
 
     // it("create an election", async (browser: NightwatchAPI) => {
