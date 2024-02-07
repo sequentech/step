@@ -51,6 +51,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
 
         browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
 
+        await browser.debug()
+
         browser.isPresent(
             {
                 selector: "button.area-add-button",
