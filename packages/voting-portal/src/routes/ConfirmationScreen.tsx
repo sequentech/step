@@ -29,9 +29,10 @@ import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesS
 import Stepper from "../components/Stepper"
 import {useContext} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
-import {CreateVoteReceiptMutation} from "../gql/graphql"
+import {CreateVoteReceiptMutation, GetDocumentQuery} from "../gql/graphql"
+import {GET_DOCUMENT} from "../queries/GetDocument"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -124,6 +125,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const [createVoteReceipt] = useMutation<CreateVoteReceiptMutation>(CREATE_VOTE_RECEIPT)
+    const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
+    const [polling, setPolling] = useState<NodeJS.Timer | null>()
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
@@ -139,17 +142,59 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         }
     }, [ballotStyle, dispatch])
 
-    function printVoteReceipt() {
-        console.log("asdfasfasdfas")
-
-        createVoteReceipt({
+    async function printVoteReceipt() {
+        const res = await createVoteReceipt({
             variables: {
                 ballotId,
                 election_event_id: eventId,
                 tenant_id: tenantId,
             },
         })
+
+        startPolling(res.data?.create_vote_receipt?.id)
     }
+
+    function fetchData(documentId: string) {
+        getDocument({
+            variables: {
+                id: documentId,
+                tenantId,
+            },
+            fetchPolicy: "network-only",
+        })
+    }
+
+    function startPolling(documentId: string) {
+        if (!polling) {
+            fetchData(documentId)
+
+            const intervalId = setInterval(() => {
+                fetchData(documentId)
+            }, 1000)
+
+            setPolling(intervalId)
+        }
+    }
+
+    function stopPolling() {
+        if (polling) {
+            clearInterval(polling)
+            setPolling(null)
+        }
+    }
+
+    console.log("LS -> src/routes/ConfirmationScreen.tsx:185 -> documentData: ", documentData)
+    if (documentData?.sequent_backend_document?.length > 0) {
+        stopPolling()
+    }
+
+    useEffect(() => {
+        return () => {
+            if (polling) {
+                clearInterval(polling)
+            }
+        }
+    }, [polling])
 
     return (
         <ActionsContainer>
