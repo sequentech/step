@@ -57,6 +57,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
         } else {
             browser.assert.visible("button.add-button").click("button.add-button")
         }
+        browser.pause(5000)
         browser
             .sendKeys("input[name=name]", "this is an area name")
             .assert.enabled("button[type=submit]")
