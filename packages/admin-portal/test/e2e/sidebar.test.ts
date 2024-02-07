@@ -57,7 +57,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
             .click("a.election-event-area-tab")
         const isNew = await browser.assert.visible("button.area-add-button")
         if (isNew) {
-            browser.assert.visible(`"button.area-add-button"`).click("button.area-add-button")
+            browser.assert.visible("button.area-add-button").click("button.area-add-button")
         } else {
             browser.assert.visible(`"button.add-button"`).click("button.add-button")
         }
