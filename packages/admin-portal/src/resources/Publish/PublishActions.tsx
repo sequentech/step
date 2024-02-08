@@ -153,8 +153,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     Icon={Publish}
                                     onClick={onGenerate}
                                     st={EPublishStatus.Generated}
-                                    label={t("publish.action.publish-button")}
-                                    className="publish-action-publish"
+                                    label={t("publish.action.publish")}
+                                    className="publish-action-publish-button"
                                     disabledStatus={[EPublishStatus.Stopped]}
                                 />
                             )}
@@ -167,7 +167,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     disabledStatus={[]}
                                     st={EPublishStatus.Generated}
                                     label={t("publish.action.generate")}
-                                    className="publish.action.generate-button"
+                                    className="publish-action-generate-button"
                                     onClick={() => handleEvent(onGenerate)}
                                 />
                             )}
