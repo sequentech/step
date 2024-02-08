@@ -237,7 +237,7 @@ function TreeMenuItem({
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext && canCreateElectionEvent ? (
                     <div
-                        className={() =>
+                        className={({isActive}) =>
                             cn(
                                 "flex-none w-6 h-6 cursor-pointer text-black",
                                 `menu-item-toggle-${treeResourceNames[0]}`
@@ -268,7 +268,7 @@ function TreeMenuItem({
                         className={({isActive}) =>
                             cn(
                                 "grow py-1.5 text-black border-b-2 border-white hover:border-brand-color truncate cursor-pointer",
-                                isActive && "border-b-2 border-brand-color",
+                                isActive && "menu-item-active border-b-2 border-brand-color",
                                 `menu-item-${treeResourceNames[0]}`
                             )
                         }
