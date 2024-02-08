@@ -33,6 +33,7 @@ import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
 import {CreateVoteReceiptMutation, GetDocumentQuery} from "../gql/graphql"
 import {GET_DOCUMENT} from "../queries/GetDocument"
+import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -126,7 +127,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const [createVoteReceipt] = useMutation<CreateVoteReceiptMutation>(CREATE_VOTE_RECEIPT)
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
+    const [fetchDocumentUrl, {data: documentUrl}] = useLazyQuery(FETCH_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>()
+    const [documentId, setDocumentId] = useState<string | null>(null)
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
@@ -151,7 +154,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
             },
         })
 
-        startPolling(res.data?.create_vote_receipt?.id)
+        setDocumentId(res.data?.create_vote_receipt?.id)
+
+        console.log("LS -> src/routes/ConfirmationScreen.tsx:159 -> documentId: ", documentId)
+        if (documentId) {
+            startPolling(documentId)
+        }
     }
 
     function fetchData(documentId: string) {
@@ -176,16 +184,28 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         }
     }
 
-    function stopPolling() {
-        if (polling) {
-            clearInterval(polling)
-            setPolling(null)
+    useEffect(() => {
+        function stopPolling() {
+            if (polling) {
+                clearInterval(polling)
+                setPolling(null)
+            }
         }
-    }
 
-    if (documentData?.sequent_backend_document?.length > 0) {
-        stopPolling()
-    }
+        if (documentData?.sequent_backend_document?.length > 0) {
+            console.log("time tot stop polloing", documentId)
+            stopPolling()
+            fetchDocumentUrl({
+                variables: {
+                    documentId,
+                    electionEventId: eventId,
+                },
+            })
+        }
+    }, [fetchDocumentUrl, polling, documentData, documentId])
+    console.log("LS -> src/routes/ConfirmationScreen.tsx:203 -> documentData: ", documentData)
+    console.log("LS -> src/routes/ConfirmationScreen.tsx:205 -> documentUrl: ", documentUrl)
+    console.log("LS -> src/routes/ConfirmationScreen.tsx:203 -> documentId: ", documentId)
 
     useEffect(() => {
         return () => {
