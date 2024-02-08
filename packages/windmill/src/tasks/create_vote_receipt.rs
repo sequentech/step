@@ -14,18 +14,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub enum FormatType {
-    TEXT,
-    PDF,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RenderTemplateBody {
-    template: String,
-    name: String,
-    variables: Map<String, Value>,
-    format: FormatType,
+pub struct TemplateData {
+    ballot_id: String,
+    ballot_tracker_url: String,
 }
 
 #[instrument(err)]
@@ -34,6 +26,7 @@ pub struct RenderTemplateBody {
 pub async fn create_vote_receipt(
     element_id: String,
     ballot_id: String,
+    ballot_tracker_url: String,
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
@@ -42,10 +35,15 @@ pub async fn create_vote_receipt(
     let mut map = Map::new();
     map.insert(
         "map".to_string(),
-        serde_json::from_str("{\"name\": \"Kevin\"}").map_err(|err| anyhow!("{}", err))?,
+        serde_json::to_value(TemplateData {
+            ballot_id: ballot_id.clone(),
+            ballot_tracker_url,
+        })
+        .map_err(|err| anyhow!("{}", err))?,
     );
 
     let default_html_template = include_str!("../resources/vote_receipt.hbs");
+
     let render = reports::render_template_text(default_html_template, map)
         .map_err(|err| anyhow!("{}", err))?;
 
