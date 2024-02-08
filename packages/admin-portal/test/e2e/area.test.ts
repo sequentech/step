@@ -102,4 +102,33 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
             }
         )
     })
+
+    it("delete an area", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.area-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".delete-area-icon").click(".delete-area-icon")
+                    browser.assert
+                        .enabled(`button.ok-button`)
+                        .click("button.ok-button")
+                        .pause(1000)
+                        .assert.not.elementPresent("span.area-description")
+                }
+            }
+        )
+    })
 })
