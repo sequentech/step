@@ -5,8 +5,6 @@
 use crate::pipes::error::{Error, Result};
 use serde::Deserialize;
 use serde_path_to_error;
-use serde_path_to_error::Deserializer;
-use std::fmt::Debug;
 use std::fs::File;
 use std::io::Read;
 
