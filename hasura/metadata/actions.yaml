@@ -231,6 +231,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: user
   - role: admin-user
   comment: fetch document
 - name: generate_ballot_publication
