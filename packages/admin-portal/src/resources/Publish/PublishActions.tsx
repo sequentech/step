@@ -60,10 +60,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus}: any) => (
+    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus, className}: any) => (
         <Button
             onClick={onClick}
             label={t(label)}
+            className={className}
             style={
                 disabledStatus?.includes(status)
                     ? {
