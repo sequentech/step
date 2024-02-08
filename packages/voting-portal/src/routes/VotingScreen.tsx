@@ -11,6 +11,8 @@ import {
     stringToHtml,
     theme,
     translateElection,
+    sortContestByCreationDate,
+    IContest,
 } from "@sequentech/ui-essentials"
 import React, {useContext, useEffect, useState} from "react"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
@@ -21,8 +23,14 @@ import {
     selectBallotSelectionByElectionId,
     setBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-
+import {provideBallotService} from "../services/BallotService"
+import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {Question} from "../components/Question/Question"
+import {CircularProgress} from "@mui/material"
+import {selectElectionById} from "../store/elections/electionsSlice"
+import {useRootBackLink} from "../hooks/root-back-link"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {Box} from "@mui/material"
 import Button from "@mui/material/Button"
@@ -290,7 +298,6 @@ const VotingScreen: React.FC = () => {
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
-                    questionIndex={contest.originalIndex}
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}

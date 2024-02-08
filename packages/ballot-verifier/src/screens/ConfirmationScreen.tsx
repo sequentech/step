@@ -138,7 +138,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
 
 interface PlaintextVoteQuestionProps {
     questionPlaintext: IDecodedVoteContest
-    question: IContest
+    question: IContest | null
     ballotService: IBallotService
 }
 
@@ -149,6 +149,13 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
 }) => {
     const {t, i18n} = useTranslation()
     const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
+    if (!question) {
+        return (
+            <>
+                {t("confirmationScreen.contestNotFound", {contestId: questionPlaintext.contest_id})}
+            </>
+        )
+    }
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
             question.presentation?.invalid_vote_policy !== "not-allowed" &&
@@ -361,7 +368,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const {t} = useTranslation()
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
-    const questions = confirmationBallot?.election_config.contests || []
+    const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
 
     return (
         <>
@@ -416,12 +423,12 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                 </>
             ) : (
                 <>
-                    {plaintextVoteQuestions.map((voteQuestion, index) => (
+                    {plaintextVoteQuestions.map((voteQuestion) => (
                         <PlaintextVoteQuestion
                             questionPlaintext={voteQuestion}
-                            question={questions[index]}
+                            question={questionsMap[voteQuestion.contest_id] ?? null}
                             ballotService={ballotService}
-                            key={index}
+                            key={voteQuestion.contest_id}
                         />
                     ))}
                 </>

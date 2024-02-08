@@ -32,7 +32,7 @@ import {useTranslation} from "react-i18next"
 
 export interface IAnswerProps {
     answer: ICandidate
-    questionIndex: number
+    contestId: string
     index: number
     ballotStyle: IBallotStyle
     hasCategory?: boolean
@@ -46,7 +46,7 @@ export interface IAnswerProps {
 
 export const Answer: React.FC<IAnswerProps> = ({
     answer,
-    questionIndex,
+    contestId,
     ballotStyle,
     hasCategory,
     isActive,
@@ -57,12 +57,12 @@ export const Answer: React.FC<IAnswerProps> = ({
     contest,
 }) => {
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
+        selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
     )
     const questionState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex)
+        selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
-    const question = ballotStyle.ballot_eml.contests[questionIndex]
+    const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
@@ -79,7 +79,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         dispatch(
             setBallotSelectionInvalidVote({
                 ballotStyle,
-                questionIndex,
+                contestId,
                 isExplicitInvalid: value,
             })
         )
@@ -109,7 +109,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
-                questionIndex,
+                contestId,
                 voteChoice: {
                     id: answer.id,
                     selected: value ? 0 : -1,
@@ -120,7 +120,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const isWriteIn = checkIsWriteIn(answer)
-    const allowWriteIns = checkAllowWriteIns(question)
+    const allowWriteIns = question && checkAllowWriteIns(question)
 
     const setWriteInText = (writeInText: string): void => {
         if (!isWriteIn || !allowWriteIns || !isActive || isReview) {
@@ -131,7 +131,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
-                questionIndex,
+                contestId,
                 voteChoice: {
                     id: answer.id,
                     selected: isUndefined(selectionState) ? -1 : selectionState.selected,

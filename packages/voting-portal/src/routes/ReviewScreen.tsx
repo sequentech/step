@@ -4,51 +4,19 @@ import {
     Dialog,
     EVotingStatus,
     IElectionEventStatus,
-    Icon,
-    IconButton,
-    PageLimit,
-    stringToHtml,
-    theme,
+    sortContestByCreationDate,
 } from "@sequentech/ui-essentials"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
-import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
-import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {
-    clearBallot,
-    selectBallotSelectionByElectionId,
-} from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    faAngleLeft,
-    faAngleRight,
-    faCircleQuestion,
-    faFire,
-} from "@fortawesome/free-solid-svg-icons"
-import {hashBallot, provideBallotService} from "../services/BallotService"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {useMutation, useQuery} from "@apollo/client"
-
-import {Box} from "@mui/material"
-import Button from "@mui/material/Button"
 import {CircularProgress} from "@mui/material"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
-import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
-import {Question} from "../components/Question/Question"
-import Stepper from "../components/Stepper"
-import {TenantEventType} from ".."
-import Typography from "@mui/material/Typography"
+import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
-import {cloneDeep} from "lodash"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {sortContestByCreationDate} from "../lib/utils"
-import {styled} from "@mui/material/styles"
+import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {useTranslation} from "react-i18next"
-import {v4 as uuidv4} from "uuid"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import Stepper from "../components/Stepper"
+import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -305,7 +273,6 @@ export const ReviewScreen: React.FC = () => {
                     ballotStyle={ballotStyle}
                     question={question}
                     key={index}
-                    questionIndex={question.originalIndex}
                     isReview={true}
                 />
             ))}
