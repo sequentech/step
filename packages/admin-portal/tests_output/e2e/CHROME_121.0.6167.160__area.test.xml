@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites errors="0"
-            failures="0"
+<testsuites errors="6"
+            failures="1"
             tests="3">
 
   <testsuite name="e2e.area.test"
-    errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="3" time="18.80" timestamp="">
+    errors="6" failures="1" hostname="" id="" package="e2e" skipped="1"
+    tests="3" time="69.15" timestamp="">
   
-    <testcase name="create an area" classname="e2e.area.test" time="1.411" assertions="4">
+    <testcase name="create an area" classname="e2e.area.test" time="0.7930" assertions="4">
 
     
 
@@ -18,7 +18,7 @@
     
     </testcase>
   
-    <testcase name="edit an area" classname="e2e.area.test" time="2.452" assertions="4">
+    <testcase name="edit an area" classname="e2e.area.test" time="2.462" assertions="4">
 
     
 
@@ -29,22 +29,72 @@
     
     </testcase>
   
-    <testcase name="delete an area" classname="e2e.area.test" time="3.145" assertions="4">
+    <testcase name="edit an area contest" classname="e2e.area.test" time="14.72" assertions="3">
 
     
 
-    
+      <failure message="Testing if element &lt;button[type=submit]&gt; is enabled in 5000ms - expected &#34;is enabled&#34; but got: &#34;not enabled&#34; (5228ms)">    at NightwatchAPI.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/area.test.ts:216:33)</failure>
 
     
-
+    <error message="Testing if element [33m&lt;button[type=submit]&gt;[39m is enabled in 5000ms - expected [32m&#34;is enabled&#34;[39m but got: [31m&#34;not enabled&#34;[39m [90m(5228ms)[39m" type="error"><![CDATA[
+    Error
+    at DescribeInstance.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/area.test.ts:84:17)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    ]]></error>
     
     </testcase>
   
 
   
+    <system-err>
+       TimeoutError
+   An error occurred while running .click() command on &lt;input[type=checkbox]&gt;: element click intercepted: Element &lt;input class=&#34;PrivateSwitchBase-input css-1m9pwf3&#34; type=&#34;checkbox&#34; data-indeterminate=&#34;false&#34;&gt; is not clickable at point (363, 309). Other element would receive the click: &lt;div aria-hidden=&#34;true&#34; class=&#34;MuiBackdrop-root MuiModal-backdrop css-i9fmh8-MuiBackdrop-root-MuiModal-backdrop&#34; style=&#34;opacity: 1; transition: opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;&#34;&gt;&lt;/div&gt;
+  (Session info: chrome=121.0.6167.160)
+    {&#34;error&#34;:{&#34;name&#34;:&#34;ElementClickInterceptedError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
+
+    Error location:
+    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/area.test.ts:215
+    –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     213 |                     browser.assert.visible(&#34;.edit-area-icon&#34;).click(&#34;.edit-area-icon&#34;)
+     214 |                     browser
+     215 |                         .click(&#34;input[type=checkbox]&#34;) 
+     216 |                         .assert.enabled(&#34;button[type=submit]&#34;)
+     217 |                         .click(&#34;button[type=submit]&#34;)
+    –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+ Error
+   Timed out while waiting for element &#34;By(css selector, li.menu-action-delete-sequent_backend_candidate)&#34; to be present for 5000 milliseconds.
+ Error
+   Timed out while waiting for element &#34;By(css selector, button.ok-button)&#34; to be present for 5000 milliseconds.
+ TimeoutError
+   done() callback timeout of 20000ms was reached while executing &#34;after&#34;. Make sure to call the done() callback when the operation finishes.
+ Error
+   Timed out while waiting for element &#34;By(css selector, a[title=&#39;this is candidate two name&#39;] + div.menu-actions-sequent_backend_candidate)&#34; to be present for 5000 milliseconds.
+ Error
+   Error while running &#34;click&#34; command: Invalid selector value specified &#34;null&#34;
+
+    Error location:
+    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/area.test.ts:84
+    –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     82 |             )
+     83 |             .moveTo()
+     84 |         browser.click(menu) 
+     85 |         browser.pause(200)
+     86 |         browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+    –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+    </system-err>
+  
 
     
 
+  
+    
+    <testcase
+      name="delete an area" classname="e2e.area.test">
+      <skipped />
+    </testcase>
+    
   
   </testsuite>
 </testsuites>

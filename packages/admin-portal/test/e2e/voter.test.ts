@@ -73,6 +73,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
         browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
         browser.pause(200)
         browser.element(`button.ok-button`).click()
+        browser.pause(200)
 
         // delete candidate two
         menu = await browser
@@ -84,35 +85,44 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
         browser.pause(200)
         browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
         browser.element(`button.ok-button`).click()
+        browser.pause(200)
 
         // delete contest
         menu = await browser
-            .element(`a[title='this is contest name'] + div.menu-actions-${this.candidateLink!}`)
+            .element(
+                `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
+            )
             .moveTo()
         browser.click(menu)
         browser.pause(200)
         browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
         browser.element(`button.ok-button`).click()
+        browser.pause(200)
 
         // delete election
         menu = await browser
-            .element(`a[title='this is election name'] + div.menu-actions-${this.candidateLink!}`)
+            .element(
+                `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
+            )
             .moveTo()
         browser.click(menu)
         browser.pause(200)
         browser.element(`li.menu-action-delete-${this.electionLink!}`).click()
         browser.element(`button.ok-button`).click()
+        browser.pause(200)
 
         // delete election event
         menu = await browser
             .element(
-                `a[title='this is celection event name'] + div.menu-actions-${this.candidateLink!}`
+                `a[title='this is a test election event name'] + div.menu-actions-${this
+                    .electionEventLink!}`
             )
             .moveTo()
         browser.click(menu)
         browser.pause(200)
         browser.element(`li.menu-action-delete-${this.electionEventLink!}`).click()
         browser.element(`button.ok-button`).click()
+        browser.pause(200)
 
         // Logout
         browser
