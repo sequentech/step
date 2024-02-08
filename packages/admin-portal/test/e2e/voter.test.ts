@@ -61,19 +61,22 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     browser.assert
                         .visible("button.voter-add-button")
-                        .click("button.area-add-button")
+                        .click("button.voter-add-button")
                 } else {
                     browser.assert.visible("button.add-button").click("button.add-button")
                 }
                 browser
                     .sendKeys("input[name=first_name]", "this is an voter firstname")
                     .sendKeys("input[name=last_name]", "this is an voter lastname")
-                    .sendKeys("input[name=email]", "this is an voter email")
-                    .sendKeys("input[name=username]", "this is an voter username")
+                    .sendKeys("input[name=email]", "thisisavoter@voter.com")
+                    .sendKeys("input[name=username]", "voterusername")
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
                     .pause(200)
-                    .assert.textContains("span.voter-first_name", "this is an voter firstname")
+                    .assert.textContains("span.first_name", "this is an voter firstname")
+                    .assert.textContains("span.last_name", "this is an voter lastname")
+                    .assert.textContains("span.email", "thisisavoter@voter.com")
+                    .assert.textContains("span.username", "voterusername")
             }
         )
     })
@@ -110,33 +113,33 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
     //         }
     //     )
     // })
-    //
-    // it("delete an voter", async (browser: NightwatchAPI) => {
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-voter-tab").click("a.election-event-area-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.voter-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".delete-voter-icon").click(".delete-area-icon")
-    //                 browser.assert
-    //                     .enabled(`button.ok-button`)
-    //                     .click("button.ok-button")
-    //                     .pause(1000)
-    //                     .assert.not.elementPresent("span.voter-description")
-    //             }
-    //         }
-    //     )
-    // })
+
+    it("delete an voter", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-voter-tab").click("a.election-event-voter-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.voter-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".delete-voter-icon").click(".delete-voter-icon")
+                    browser.assert
+                        .enabled(`button.ok-button`)
+                        .click("button.ok-button")
+                        .pause(1000)
+                        .assert.not.elementPresent("span.first_name")
+                }
+            }
+        )
+    })
 })

@@ -191,12 +191,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             showAction: () => canSendCommunications,
         },
         {
-            icon: <EditIcon className="edit-icon" />,
+            icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
             showAction: () => canEditUsers,
         },
         {
-            icon: <DeleteIcon className="delete-icon" />,
+            icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
             showAction: () => canEditUsers,
         },
