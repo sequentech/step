@@ -63,66 +63,66 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
-        // delete candidate one
-        let menu = await browser
-            .element(
-                `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
-            )
-            .moveTo()
-        browser.click(menu)
-        browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
-        browser.pause(200)
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
-
-        // delete candidate two
-        menu = await browser
-            .element(
-                `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
-            )
-            .moveTo()
-        browser.click(menu)
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
-
-        // delete contest
-        menu = await browser
-            .element(
-                `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
-            )
-            .moveTo()
-        browser.click(menu)
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
-
-        // delete election
-        menu = await browser
-            .element(
-                `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
-            )
-            .moveTo()
-        browser.click(menu)
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${this.electionLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
-
-        // delete election event
-        menu = await browser
-            .element(
-                `a[title='this is a test election event name'] + div.menu-actions-${this
-                    .electionEventLink!}`
-            )
-            .moveTo()
-        browser.click(menu)
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${this.electionEventLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
+        // // delete candidate one
+        // let menu = await browser
+        //     .element(
+        //         `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
+        //     )
+        //     .moveTo()
+        // browser.click(menu)
+        // browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+        // browser.pause(200)
+        // browser.element(`button.ok-button`).click()
+        // browser.pause(200)
+        //
+        // // delete candidate two
+        // menu = await browser
+        //     .element(
+        //         `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
+        //     )
+        //     .moveTo()
+        // browser.click(menu)
+        // browser.pause(200)
+        // browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+        // browser.element(`button.ok-button`).click()
+        // browser.pause(200)
+        //
+        // // delete contest
+        // menu = await browser
+        //     .element(
+        //         `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
+        //     )
+        //     .moveTo()
+        // browser.click(menu)
+        // browser.pause(200)
+        // browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
+        // browser.element(`button.ok-button`).click()
+        // browser.pause(200)
+        //
+        // // delete election
+        // menu = await browser
+        //     .element(
+        //         `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
+        //     )
+        //     .moveTo()
+        // browser.click(menu)
+        // browser.pause(200)
+        // browser.element(`li.menu-action-delete-${this.electionLink!}`).click()
+        // browser.element(`button.ok-button`).click()
+        // browser.pause(200)
+        //
+        // // delete election event
+        // menu = await browser
+        //     .element(
+        //         `a[title='this is a test election event name'] + div.menu-actions-${this
+        //             .electionEventLink!}`
+        //     )
+        //     .moveTo()
+        // browser.click(menu)
+        // browser.pause(200)
+        // browser.element(`li.menu-action-delete-${this.electionEventLink!}`).click()
+        // browser.element(`button.ok-button`).click()
+        // browser.pause(200)
 
         // Logout
         browser
@@ -157,7 +157,8 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
                     .enabled("button.publish-publish-button")
                     .click("button.publish-publish-button")
                     .pause(200)
-                    .assert.not.enabled("button.publish-action-publish-button")
+                    .assert.not.enabled("button.publish-action-pause-button")
+                    .assert.not.enabled("button.publish-action-stop-button")
             }
         )
     })
@@ -181,14 +182,15 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
                     browser.end()
                 } else {
                     browser.assert
-                        .visible("publish-visibility-icon")
-                        .click("publish-visibility-icon")
+                        .visible(".publish-visibility-icon")
+                        .click(".publish-visibility-icon")
                 }
                 browser.assert
                     .enabled("button.publish-back-button")
                     .click("button.publish-back-button")
                     .pause(200)
-                    .assert.not.enabled("button.publish-action-publish-button")
+                    .assert.not.enabled("button.publish-action-pause-button")
+                    .assert.not.enabled("button.publish-action-stop-button")
             }
         )
     })
