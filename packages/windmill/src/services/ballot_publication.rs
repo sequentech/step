@@ -21,6 +21,7 @@ use crate::tasks::update_election_event_ballot_styles::update_election_event_bal
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde::{Deserialize, Serialize};
@@ -238,11 +239,7 @@ async fn get_publication_json(
 
     let val_arr: Vec<Value> = ballot_style_strings
         .iter()
-        .map(|el| {
-            el.clone()
-                .map(|val| serde_json::from_str(&val).ok())
-                .flatten()
-        })
+        .map(|el| el.clone().map(|val| deserialize_str(&val).ok()).flatten())
         .filter(|el| el.is_some())
         .map(|el| el.unwrap())
         .collect();
@@ -272,7 +269,7 @@ pub async fn get_ballot_publication_diff(
 
     let p = PublicationStyles {
         ballot_publication_id: ballot_publication_id.clone(),
-        ballot_styles: serde_json::from_str("{}").unwrap(),
+        ballot_styles: deserialize_str("{}").unwrap(),
     };
 
     let ballot_publication = get_ballot_publication_by_id(
