@@ -237,12 +237,7 @@ function TreeMenuItem({
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext && canCreateElectionEvent ? (
                     <div
-                        className={({isActive}) =>
-                            cn(
-                                "flex-none w-6 h-6 cursor-pointer text-black",
-                                `menu-item-toggle-${treeResourceNames[0]}`
-                            )
-                        }
+                        className={`flex-none w-6 h-6 cursor-pointer text-black menu-item-toggle-${treeResourceNames[0]}`}
                         onClick={onClick}
                     >
                         {open ? (
