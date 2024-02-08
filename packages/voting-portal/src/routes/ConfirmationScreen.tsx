@@ -29,9 +29,8 @@ import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesS
 import Stepper from "../components/Stepper"
 import {useContext} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
-import {CreateVoteReceiptMutation, GetDocumentQuery} from "../gql/graphql"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 
@@ -126,7 +125,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
-    const [createVoteReceipt] = useMutation<CreateVoteReceiptMutation>(CREATE_VOTE_RECEIPT)
+    const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const [fetchDocumentUrl, {data: documentUrl}] = useLazyQuery(FETCH_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
