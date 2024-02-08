@@ -44,35 +44,88 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("click on an election event", async (browser: NightwatchAPI) => {
-        const resultElement = await browser.element.findAll(
-            `a.menu-item-${this.electionEventLink!}`
-        )
-        resultElement[resultElement.length - 1].click()
+        // const resultElement = await browser.element.findAll(
+        //     `a.menu-item-${this.electionEventLink!}`
+        // )
+        // resultElement[resultElement.length - 1].click()
 
-        browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
+        // opens ee menu
+        browser.assert
+            .visible("a.menu-item-active")
+            .click(`div.menu-item-toggle-${this.electionEventLink}:has(+ a.menu-item-active)`)
 
-        // await browser.debug()
-
+        // checks if has election menu
+        // case yes opens election menu
+        // case no asserts create election is visible
         browser.isPresent(
             {
-                selector: "button.area-add-button",
-                suppressNotFoundErrors: true,
+                selector: `a.menu-item-${this.electionLink}`,
+                supressNotFoundErrors: true,
                 timeout: 1000,
             },
             (result) => {
                 if (result.value) {
-                    browser.assert.visible("button.area-add-button").click("button.area-add-button")
+                    // opens election menu
+                    browser.assert
+                        .visible(`a.menu-item-${this.electionLink}`)
+                        .click(
+                            `div.menu-item-toggle-${this.electionLink}:has(+ a.menu-item-${this.electionLink})`
+                        )
+
+                    // checks if has contest menu
+                    // case yes opens contest menu
+                    // case no asserts create contest is visible
+                    browser.isPresent(
+                        {
+                            selector: `a.menu-item-${this.contestLink}`,
+                            supressNotFoundErrors: true,
+                            timeout: 1000,
+                        },
+                        (result) => {
+                            if (result.value) {
+                                // opens contest menu
+                                browser.assert
+                                    .visible(`a.menu-item-${this.contestLink}`)
+                                    .click(
+                                        `div.menu-item-toggle-${this.contestLink}:has(+ a.menu-item-${this.electionLink})`
+                                    )
+                            } else {
+                                // check has new
+                                browser.assert.visible(`a.${this.contestLink!}`)
+                            }
+                        }
+                    )
+
+                    // closes election menu
+                    browser.assert
+                        .visible(`a.menu-item-${this.electionLink}`)
+                        .click(
+                            `div.menu-item-toggle-${this.electionLink}:has(+ a.menu-item-${this.electionLink})`
+                        )
+
+                    // closes ee menu
+                    browser.assert
+                        .visible("a.menu-item-active")
+                        .click(
+                            `div.menu-item-toggle-${this.electionEventLink}:has(+ a.menu-item-active)`
+                        )
                 } else {
-                    browser.assert.visible("button.add-button").click("button.add-button")
+                    browser.assert.visible(`a.${this.electionLink!}`)
+                    // .click(`a.${this.electionLink!}`)
+                    browser.assert
+                        .visible("a.menu-item-active")
+                        .click(
+                            `div.menu-item-toggle-${this.electionEventLink}:has(+ a.menu-item-active)`
+                        )
                 }
-                browser
-                    .sendKeys("input[name=name]", "this is an area name")
-                    .assert.enabled("button[type=submit]")
-                    .click("button[type=submit]")
-                    .pause(200)
-                    .assert.textContains("span.area-name", "this is an area name")
             }
         )
+
+        browser.pause(2000)
+        // .visible(`a.${this.electionLink!}`)
+        // .click(`a.${this.electionLink!}`)
+
+        // await browser.debug()
     })
 
     // it("create an election", async (browser: NightwatchAPI) => {
