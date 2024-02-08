@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites errors="3"
-            failures="1"
-            tests="3">
+<testsuites errors="0"
+            failures="0"
+            tests="4">
 
   <testsuite name="e2e.voter.test"
-    errors="3" failures="1" hostname="" id="" package="e2e" skipped="1"
-    tests="3" time="43.73" timestamp="">
+    errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
+    tests="4" time="30.47" timestamp="">
   
     <testcase name="create an voter" classname="e2e.voter.test" time="1.320" assertions="7">
 
@@ -24,7 +24,7 @@
     
     </testcase>
   
-    <testcase name="edit an voter to set password" classname="e2e.voter.test" time="2.376" assertions="4">
+    <testcase name="edit an voter to set password" classname="e2e.voter.test" time="2.908" assertions="4">
 
     
 
@@ -35,77 +35,51 @@
     
     </testcase>
   
-    <testcase name="edit an voter to set area" classname="e2e.voter.test" time="6.985" assertions="3">
+    <testcase name="edit an voter to set area" classname="e2e.voter.test" time="5.930" assertions="13">
 
     
 
-      <failure message="Testing if element &lt;input[name=area]&gt; is visible in 5000ms - expected &#34;is visible&#34; but got: &#34;not visible&#34; (5227ms)">    at NightwatchAPI.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/voter.test.ts:135:26)</failure>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    </testcase>
+  
+    <testcase name="delete an voter" classname="e2e.voter.test" time="2.540" assertions="4">
+
+    
+
+    
+
+    
 
     
     </testcase>
   
 
   
-    <system-err>
-       TimeoutError
-   An error occurred while running .click() command on &lt;button.profile-menu-button&gt;: element click intercepted: Element &lt;button class=&#34;MuiButtonBase-root MuiIconButton-root MuiIconButton-colorInherit MuiIconButton-sizeLarge profile-menu-button css-1ox7czc-MuiButtonBase-root-MuiIconButton-root&#34; tabindex=&#34;0&#34; type=&#34;button&#34; aria-label=&#34;account of current user&#34; aria-controls=&#34;menu-appbar&#34; aria-haspopup=&#34;true&#34;&gt;...&lt;/button&gt; is not clickable at point (1107, 39). Other element would receive the click: &lt;input aria-invalid=&#34;false&#34; aria-describedby=&#34;email-helper-text&#34; id=&#34;email&#34; name=&#34;email&#34; type=&#34;text&#34; class=&#34;MuiInputBase-input MuiOutlinedInput-input MuiInputBase-inputSizeSmall css-l8ymep-MuiInputBase-input-MuiOutlinedInput-input&#34; value=&#34;thisisavoter@voter.com&#34;&gt;
-  (Session info: chrome=121.0.6167.160)
-    {&#34;error&#34;:{&#34;name&#34;:&#34;ElementClickInterceptedError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
-
-    Error location:
-    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/voter.test.ts:40
-    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-     38 |     after(function (this: ExtendDescribeThis&lt;LoginThis&gt;, browser) {
-     39 |         browser
-     40 |             .click(&#34;button.profile-menu-button&#34;) 
-     41 |             .click(&#34;li.logout-button&#34;)
-     42 |             .click(&#34;button.ok-button&#34;)
-    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-
- TimeoutError
-   An error occurred while running .click() command on &lt;li.logout-button&gt;: element not interactable
-  (Session info: chrome=121.0.6167.160)
-    {&#34;error&#34;:{&#34;name&#34;:&#34;ElementNotInteractableError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
-
-    Error location:
-    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/voter.test.ts:41
-    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-     39 |         browser
-     40 |             .click(&#34;button.profile-menu-button&#34;)
-     41 |             .click(&#34;li.logout-button&#34;) 
-     42 |             .click(&#34;button.ok-button&#34;)
-     43 |             .end()
-    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-
- NoSuchElementError
-   An element could not be located on the page using the given search parameters.
-
-    Try fixing by :
-    1. Please inspect the html before the step
-    2. Verify if an element with the mentioned selector is present in the DOM tree
-
-    Error location:
-    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/voter.test.ts:42
-    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-     40 |             .click(&#34;button.profile-menu-button&#34;)
-     41 |             .click(&#34;li.logout-button&#34;)
-     42 |             .click(&#34;button.ok-button&#34;) 
-     43 |             .end()
-     44 |     })
-    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-
-    </system-err>
-  
 
     
 
-  
-    
-    <testcase
-      name="delete an voter" classname="e2e.voter.test">
-      <skipped />
-    </testcase>
-    
   
   </testsuite>
 </testsuites>
