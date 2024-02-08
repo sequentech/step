@@ -6290,22 +6290,6 @@
                 "deprecationReason": null
               },
               {
-                "name": "ballot_tracker_url",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "election_event_id",
                 "description": null,
                 "type": {
