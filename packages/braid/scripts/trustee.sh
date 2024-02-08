@@ -54,7 +54,7 @@ store_secret_vault() {
 handle_trustee_config() {
     if [ -f "$TRUSTEE_CONFIG_PATH" ]; then
         # Configuration file exists, so just use it directly without storing it in the secrets service
-        log "TRUSTEE_CONFIG was provide and exists, using it directly"
+        log "TRUSTEE_CONFIG was provided and exists, using it directly"
     else
         local config_content
         log "Querying secrets service for config..."
