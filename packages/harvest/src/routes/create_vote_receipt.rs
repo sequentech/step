@@ -18,6 +18,7 @@ use windmill::services::celery_app::get_celery_app;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateVoteReceiptInput {
     ballot_id: String,
+    ballot_tracker_url: String,
     tenant_id: String,
     election_event_id: String,
 }
@@ -46,6 +47,7 @@ pub async fn create_vote_receipt(
             windmill::tasks::create_vote_receipt::create_vote_receipt::new(
                 element_id.clone(),
                 input.ballot_id.clone(),
+                input.ballot_tracker_url,
                 input.tenant_id,
                 input.election_event_id,
             ),
