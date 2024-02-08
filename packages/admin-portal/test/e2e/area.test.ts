@@ -212,7 +212,37 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
                 } else {
                     browser.assert.visible(".edit-area-icon").click(".edit-area-icon")
                     browser
-                        .click("input[type=checkbox]")
+                        .click(".area-contest label")
+                        .assert.enabled("button[type=submit]")
+                        .click("button[type=submit]")
+                        .pause(200)
+                    // .assert.textContains("span.area-description", "this is an area description")
+                }
+            }
+        )
+    })
+
+    it("edit an area contest unset contest", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.area-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".edit-area-icon").click(".edit-area-icon")
+                    browser
+                        .click(".area-contest label")
                         .assert.enabled("button[type=submit]")
                         .click("button[type=submit]")
                         .pause(200)
