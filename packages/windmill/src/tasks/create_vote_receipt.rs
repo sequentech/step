@@ -45,7 +45,8 @@ pub async fn create_vote_receipt(
         serde_json::from_str("{\"name\": \"Kevin\"}").map_err(|err| anyhow!("{}", err))?,
     );
 
-    let render = reports::render_template_text("<h1>Bonjour, {{map.name}}</h1>", map)
+    let default_html_template = include_str!("../resources/vote_receipt.hbs");
+    let render = reports::render_template_text(default_html_template, map)
         .map_err(|err| anyhow!("{}", err))?;
 
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;

@@ -1,0 +1,37 @@
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vote receipt - Sequentech</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 768px;
+      }
+      
+      .logo {
+        content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
+        text-align:center;
+        margin: 16px auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="logo"></div>
+    <div id="qrcode"></div>
+  </body>
+  
+  <script>
+      const qrcode = new QRCode(document.getElementById("qrcode"), {
+        text: "http://jindo.dev.naver.com/collie",
+        width: 128,
+        height: 128,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+  </script>
+</html>
