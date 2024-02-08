@@ -151,15 +151,44 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
                     browser.assert
                         .visible("button.publish-add-button")
                         .click("button.publish-add-button")
-                } else {
-                    browser.assert.visible("button.add-button").click("button.add-button")
                 }
-                browser
-                    // .sendKeys("input[name=username]", "publishusername")
-                    // .assert.enabled("button[type=submit]")
-                    // .click("button[type=submit]")
-                    .pause(2000)
-                // .assert.textContains("span.first_name", "this is an publish firstname")
+                browser.pause(5000)
+                browser.assert
+                    .enabled("button.publish-publish-button")
+                    .click("button.publish-publish-button")
+                    .pause(200)
+                    .assert.not.enabled("button.publish-action-publish-button")
+            }
+        )
+    })
+
+    it("publish view can go back", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.publish-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert
+                        .visible("publish-visibility-icon")
+                        .click("publish-visibility-icon")
+                }
+                browser.assert
+                    .enabled("button.publish-back-button")
+                    .click("button.publish-back-button")
+                    .pause(200)
+                    .assert.not.enabled("button.publish-action-publish-button")
             }
         )
     })

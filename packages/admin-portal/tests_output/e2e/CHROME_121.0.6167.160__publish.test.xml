@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites errors="7"
+            failures="1"
+            tests="1">
+
+  <testsuite name="e2e.publish.test"
+    errors="7" failures="1" hostname="" id="" package="e2e" skipped="1"
+    tests="1" time="55.03" timestamp="">
+  
+    <testcase name="create a publish" classname="e2e.publish.test" time="10.72" assertions="3">
+
+    
+
+      <failure message="Testing if element &lt;button.publish-publish-button&gt; is enabled in 5000ms - expected &#34;is enabled&#34; but got: &#34;error while locating the element&#34; (5135ms)">    at NightwatchAPI.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/publish.test.ts:157:22)</failure>
+
+    
+    <error message="Testing if element [33m&lt;button.publish-publish-button&gt;[39m is enabled in 5000ms - expected [32m&#34;is enabled&#34;[39m but got: [31m&#34;error while locating the element&#34;[39m [90m(5135ms)[39m" type="error"><![CDATA[
+    Error
+    at DescribeInstance.&lt;anonymous&gt; (/Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/publish.test.ts:96:17)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    ]]></error>
+    
+    </testcase>
+  
+
+  
+    <system-err>
+       NoSuchElementError
+   An element could not be located on the page using the given search parameters.
+
+    Try fixing by :
+    1. Please inspect the html before the step
+    2. Verify if an element with the mentioned selector is present in the DOM tree
+ TimeoutError
+   An error occurred while running .click() command on &lt;web element{E01F7D65214F244B133ACD0B4D1B52B5_element_6871}&gt;: stale element reference: stale element not found
+  (Session info: chrome=121.0.6167.160)
+    {&#34;error&#34;:{&#34;name&#34;:&#34;StaleElementReferenceError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
+
+    Error location:
+    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/publish.test.ts:84
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     82 |             )
+     83 |             .moveTo()
+     84 |         browser.click(menu) 
+     85 |         browser.pause(200)
+     86 |         browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+ Error
+   Timed out while waiting for element &#34;By(css selector, li.menu-action-delete-sequent_backend_candidate)&#34; to be present for 5000 milliseconds.
+ Error
+   Timed out while waiting for element &#34;By(css selector, button.ok-button)&#34; to be present for 5000 milliseconds.
+ TimeoutError
+   done() callback timeout of 20000ms was reached while executing &#34;after&#34;. Make sure to call the done() callback when the operation finishes.
+ Error
+   Timed out while waiting for element &#34;By(css selector, a[title=&#39;this is a test contest name&#39;] + div.menu-actions-sequent_backend_contest)&#34; to be present for 5000 milliseconds.
+ Error
+   Error while running &#34;click&#34; command: Invalid selector value specified &#34;null&#34;
+
+    Error location:
+    /Users/xtremis/Developer/backend-services/packages/admin-portal/test/e2e/publish.test.ts:96
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     94 |             )
+     95 |             .moveTo()
+     96 |         browser.click(menu) 
+     97 |         browser.pause(200)
+     98 |         browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+    </system-err>
+  
+
+    
+
+  
+    
+    <testcase
+      name="publish view can go back" classname="e2e.publish.test">
+      <skipped />
+    </testcase>
+    
+  
+  </testsuite>
+</testsuites>
