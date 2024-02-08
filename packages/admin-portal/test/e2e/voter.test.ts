@@ -81,38 +81,70 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
         )
     })
 
-    // it("edit an voter", async (browser: NightwatchAPI) => {
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-voter-tab").click("a.election-event-area-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.voter-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".edit-voter-icon").click(".edit-area-icon")
-    //                 browser
-    //                     .sendKeys("input[name=description]", "this is an voter description")
-    //                     .assert.enabled("button[type=submit]")
-    //                     .click("button[type=submit]")
-    //                     .pause(200)
-    //                     .assert.textContains(
-    //                         "span.voter-description",
-    //                         "this is an area description"
-    //                     )
-    //             }
-    //         }
-    //     )
-    // })
+    it("edit an voter to set password", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-voter-tab").click("a.election-event-voter-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.voter-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".edit-voter-icon").click(".edit-voter-icon")
+                    browser
+                        .sendKeys("input[name=password]", "secretepassword")
+                        .sendKeys("input[name=repeat_password]", "secretepassword")
+                        .assert.enabled("button[type=submit]")
+                        .click("button[type=submit]")
+                        .pause(200)
+                        .assert.textContains("span.first_name", "this is an voter firstname")
+                }
+            }
+        )
+    })
+
+    it("edit an voter to set area", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-voter-tab").click("a.election-event-voter-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.voter-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".edit-voter-icon").click(".edit-voter-icon")
+                    browser.assert
+                        .visible(".select-voter-area")
+                        .click(".select-voter-area")
+                        .pause(5000)
+                        // .sendKeys("input[name=password]", "secretepassword")
+                        // .sendKeys("input[name=repeat_password]", "secretepassword")
+                        .assert.enabled("button[type=submit]")
+                        .click("button[type=submit]")
+                        .pause(200)
+                        .assert.textContains("span.first_name", "this is an voter firstname")
+                }
+            }
+        )
+    })
 
     it("delete an voter", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
