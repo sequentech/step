@@ -110,9 +110,10 @@ const ActionLink = styled(Link)`
 
 interface ActionButtonsProps {
     electionId?: string
+    ballotTrackerUrl?: string
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId}) => {
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
@@ -128,7 +129,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const [createVoteReceipt] = useMutation<CreateVoteReceiptMutation>(CREATE_VOTE_RECEIPT)
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const [fetchDocumentUrl, {data: documentUrl}] = useLazyQuery(FETCH_DOCUMENT)
-    const [polling, setPolling] = useState<NodeJS.Timer | null>()
+    const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
 
     const onClickToScreen = () => {
@@ -149,6 +150,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         const res = await createVoteReceipt({
             variables: {
                 ballotId,
+                ballotTrackerUrl, // TODO
                 election_event_id: eventId,
                 tenant_id: tenantId,
             },
@@ -202,7 +204,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 },
             })
         }
-    }, [fetchDocumentUrl, polling, documentData, documentId])
+    }, [eventId, fetchDocumentUrl, polling, documentData, documentId])
     console.log("LS -> src/routes/ConfirmationScreen.tsx:203 -> documentData: ", documentData)
     console.log("LS -> src/routes/ConfirmationScreen.tsx:205 -> documentUrl: ", documentUrl)
     console.log("LS -> src/routes/ConfirmationScreen.tsx:203 -> documentId: ", documentId)
@@ -365,7 +367,7 @@ export const ConfirmationScreen: React.FC = () => {
             <QRContainer>
                 <QRCode value={ballotTrackerUrl} />
             </QRContainer>
-            <ActionButtons electionId={electionId} />
+            <ActionButtons ballotTrackerUrl={ballotTrackerUrl} electionId={electionId} />
         </PageLimit>
     )
 }
