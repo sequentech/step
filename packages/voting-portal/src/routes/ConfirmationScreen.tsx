@@ -148,8 +148,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     async function printVoteReceipt() {
         const res = await createVoteReceipt({
             variables: {
-                ballotId,
-                ballotTrackerUrl, // TODO
+                ballot_id: ballotId,
+                ballot_tracker_url: ballotTrackerUrl,
                 election_event_id: eventId,
                 tenant_id: tenantId,
             },
