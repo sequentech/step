@@ -33,9 +33,88 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
             .sendKeys(this.password!, "admin")
             .click(this.submitButton!)
             .pause(1000)
+
+        browser.element(`a.${this.electionEventLink!}`).click()
+        browser.element("input[name=name]").sendKeys("this is a test election event name")
+        browser.element("button.election-event-save-button").click()
+        browser.pause(5000)
+
+        // create an election"
+        browser.element(`a.${this.electionLink!}`).click()
+        browser.element("input[name=name]").sendKeys("this is a test election name")
+        browser.element("button.election-save-button").click()
+
+        // create a contest"
+        browser.element(`a.${this.contestLink!}`).click()
+        browser.element("input[name=name]").sendKeys("this is a test contest name")
+        browser.element("button.contest-save-button").click()
+
+        // create a candidate one"
+        browser.element(`a.${this.candidateLink!}`).click()
+        browser.element("input[name=name]").sendKeys("this is candidate one name")
+        browser.element("button.candidate-save-button").click()
+        browser.pause(500)
+
+        // create a candidate two"
+        browser.element(`a.${this.candidateLink!}`).click()
+        browser.element("input[name=name]").sendKeys("this is candidate two name")
+        browser.element("button.candidate-save-button").click()
+        browser.pause(500)
     })
 
-    after(function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+        // delete candidate one
+        let menu = await browser
+            .element(
+                `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+        browser.pause(200)
+        browser.element(`button.ok-button`).click()
+
+        // delete candidate two
+        menu = await browser
+            .element(
+                `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+        browser.element(`button.ok-button`).click()
+
+        // delete contest
+        menu = await browser
+            .element(`a[title='this is contest name'] + div.menu-actions-${this.candidateLink!}`)
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
+        browser.element(`button.ok-button`).click()
+
+        // delete election
+        menu = await browser
+            .element(`a[title='this is election name'] + div.menu-actions-${this.candidateLink!}`)
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.electionLink!}`).click()
+        browser.element(`button.ok-button`).click()
+
+        // delete election event
+        menu = await browser
+            .element(
+                `a[title='this is celection event name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.electionEventLink!}`).click()
+        browser.element(`button.ok-button`).click()
+
+        // Logout
         browser
             .click("button.profile-menu-button")
             .click("li.logout-button")
