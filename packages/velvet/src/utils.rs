@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::pipes::error::{Error, Result};
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde::Deserialize;
-use serde_path_to_error;
 use std::fs::File;
 use std::io::Read;
 
@@ -15,11 +15,8 @@ pub trait HasId {
 pub fn parse_file<T: for<'a> Deserialize<'a>>(mut file: File) -> Result<T> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    let jd = &mut serde_json::Deserializer::from_str(&contents);
 
-    let result: Result<T, _> = serde_path_to_error::deserialize(jd);
-
-    result.map_err(|err| {
+    deserialize_str(&contents).map_err(|err| {
         Error::UnexpectedError(format!("Parse error: {:?} . Contents {contents}", err))
     })
 }
