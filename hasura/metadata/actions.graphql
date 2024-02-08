@@ -52,6 +52,7 @@ type Mutation {
 type Mutation {
   create_vote_receipt (
     ballot_id: String!
+    ballot_tracker_url: String!
     tenant_id: String!
     election_event_id: String!
   ): CreateVoteReceiptOutput
