@@ -183,7 +183,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         }
     }
 
-    console.log("LS -> src/routes/ConfirmationScreen.tsx:185 -> documentData: ", documentData)
     if (documentData?.sequent_backend_document?.length > 0) {
         stopPolling()
     }
@@ -210,6 +209,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 onClick={printVoteReceipt}
                 variant="secondary"
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                disabled={!!polling}
             >
                 <Icon icon={faPrint} size="sm" />
                 <Box>Bonjour la vie</Box>
