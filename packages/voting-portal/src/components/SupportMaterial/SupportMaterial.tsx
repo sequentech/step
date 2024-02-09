@@ -91,7 +91,6 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
 }) => {
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
-    const {globalSettings} = useContext(SettingsContext)
     const {getDocumentUrl} = useGetPublicDocumentUrl(documentId)
 
     const videoRef = React.useRef<HTMLIFrameElement>(null)
@@ -108,7 +107,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     }
 
     let documentName = imageData?.sequent_backend_document?.[0]?.name
-    const documentUrl = documentName ? getDocumentUrl() : null
+    const documentUrl = documentName ? getDocumentUrl(documentName) : ""
 
     return (
         <>
