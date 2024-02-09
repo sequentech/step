@@ -14,7 +14,6 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
-import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {GetDocumentQuery} from "../../gql/graphql"
 import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
 
@@ -91,7 +90,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
 }) => {
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
-    const {getDocumentUrl} = useGetPublicDocumentUrl(documentId)
+    const {getDocumentUrl} = useGetPublicDocumentUrl()
 
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
@@ -107,7 +106,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     }
 
     let documentName = imageData?.sequent_backend_document?.[0]?.name
-    const documentUrl = documentName ? getDocumentUrl(documentName) : ""
+    const documentUrl = documentName ? getDocumentUrl(documentId, documentName) : ""
 
     return (
         <>

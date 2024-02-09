@@ -3,11 +3,11 @@ import {useParams} from "react-router-dom"
 import {TenantEventType} from ".."
 import {SettingsContext} from "../providers/SettingsContextProvider"
 
-export function useGetPublicDocumentUrl(documentId: string) {
+export function useGetPublicDocumentUrl() {
     const {tenantId} = useParams<TenantEventType>()
     const {globalSettings} = useContext(SettingsContext)
 
-    function getDocumentUrl(documentName: string): string {
+    function getDocumentUrl(documentId: string, documentName: string): string {
         return encodeURI(
             `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
         )
