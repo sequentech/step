@@ -34,7 +34,7 @@ pub async fn create_vote_receipt(
 
     let mut map = Map::new();
     map.insert(
-        "map".to_string(),
+        "data".to_string(),
         serde_json::to_value(TemplateData {
             ballot_id: ballot_id.clone(),
             ballot_tracker_url,
