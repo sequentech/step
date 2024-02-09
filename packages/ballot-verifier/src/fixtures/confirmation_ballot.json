@@ -24,6 +24,7 @@
             "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
             "max_votes": 1,
             "min_votes": 0,
+            "winning_candidates_num": 1,
             "voting_type": "first-past-the-post",
             "counting_algorithm": "plurality-at-large",
             "is_encrypted": true,

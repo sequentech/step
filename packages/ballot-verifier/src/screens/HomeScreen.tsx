@@ -17,6 +17,7 @@ import {
     IconButton,
     theme,
     Dialog,
+    IAuditableBallot,
 } from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
@@ -144,13 +145,10 @@ export const HomeScreen: React.FC<IProps> = ({
         }
     }, [confirmationBallot, ballotId, isNextActive])
 
-    const handleAuditableBallot = (auditableBallot: string | null) => {
+    const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
         const decodedBallot =
             (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot)) || null
-        const ballotStyle =
-            (null !== auditableBallot &&
-                ballotService.getBallotStyleFromAuditableBallot(auditableBallot)) ||
-            null
+        const ballotStyle = auditableBallot?.config ?? null
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)
             setConfirmationBallot(null)
@@ -167,8 +165,8 @@ export const HomeScreen: React.FC<IProps> = ({
 
     const handleFiles = async (files: FileList) => {
         setFileName(files[0].name)
-        const auditableBallot = await parseAuditableBallotFile(files[0], ballotService)
-        handleAuditableBallot(auditableBallot)
+        const auditableBallotString = await parseAuditableBallotFile(files[0], ballotService)
+        auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
     }
 
     // use sample ballot

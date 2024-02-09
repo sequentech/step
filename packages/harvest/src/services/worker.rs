@@ -5,6 +5,7 @@
 use crate::routes::scheduled_event;
 use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::{anyhow, Result};
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::communications::SendCommunicationBody;
 use tracing::{event, instrument, Level};
@@ -26,7 +27,7 @@ pub async fn process_scheduled_event(
     match event.event_processor.clone() {
         EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
-                serde_json::from_value(event.event_payload.clone())?;
+                deserialize_value(event.event_payload.clone())?;
             let election_event_id = event
                 .election_event_id
                 .ok_or(anyhow!("empty election_event_id"))?;
@@ -41,7 +42,7 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::UPDATE_VOTING_STATUS => {
             let payload: update_voting_status::UpdateVotingStatusPayload =
-                serde_json::from_value(event.event_payload.clone())?;
+                deserialize_value(event.event_payload.clone())?;
             let election_event_id = event
                 .election_event_id
                 .ok_or(anyhow!("empty election_event_id"))?;
@@ -72,7 +73,7 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::SEND_COMMUNICATION => {
             let payload: SendCommunicationBody =
-                serde_json::from_value(event.event_payload.clone())?;
+                deserialize_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(send_communication::new(
                     payload,

@@ -31,6 +31,7 @@ import {
     translate,
     ICandidate,
     IContest,
+    EInvalidVotePolicy,
 } from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 import Image from "mui-image"
@@ -158,7 +159,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     }
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
-            question.presentation?.invalid_vote_policy !== "not-allowed" &&
+            question.presentation?.invalid_vote_policy !== EInvalidVotePolicy.NOT_ALLOWED &&
             question.candidates.find((answer) => checkIsInvalidVote(answer))) ||
         null
     const answersById = keyBy(question.candidates, (a) => a.id)
