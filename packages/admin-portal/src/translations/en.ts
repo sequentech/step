@@ -179,6 +179,28 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
+                schedules: "SCHEDULES",
+            },
+        },
+        scheduleScreen: {
+            noPermissions: "You don't have permission to access settings.",
+            createScheduleSuccess: "Schedule created",
+            createScheduleError: "Error creating schedule",
+            deleteScheduleSuccess: "Schedule deleted",
+            deleteScheduleError: "Error deleting schedule",
+            common: {
+                title: "Scheduled",
+                subtitle: "Schedules configuration",
+                createNew: "Create Schedule",
+                emptyHeader: "No Schedule yet.",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Schedule",
+                selectSchedule: "Select one schedule from the predefined list or write a custom one",
+            },
+            edit: {
+                title: "Edit Schedule",
             },
         },
         dashboard: {

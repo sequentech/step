@@ -181,6 +181,29 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
+                schedules: "HORARIOS",
+            },
+        },
+        scheduleScreen: {
+            noPermissions: "No tienes permiso para acceder a la configuración.",
+            createScheduleSuccess: "Fecha creada",
+            createScheduleError: "Error creando fecha",
+            deleteScheduleSuccess: "Fecha borrada",
+            deleteScheduleError: "Error borrando fecha",
+            common: {
+                title: "Programado",
+                subtitle: "Configuración de fechas",
+                createNew: "Crear fecha",
+                emptyHeader: "Aún no hay fechas.",
+                emptyBody: "¿Quieres crear uno?",
+            },
+            create: {
+                title: "Crear fecha",
+                selectSchedule:
+                    "Seleccione un horario de la lista predefinida o escriba uno personalizado",
+            },
+            edit: {
+                title: "Editar fecha",
             },
         },
         dashboard: {

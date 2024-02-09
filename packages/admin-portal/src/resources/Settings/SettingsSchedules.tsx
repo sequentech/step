@@ -11,7 +11,24 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
+import {
+    List,
+    TextField,
+    TextInput,
+    useDelete,
+    Identifier,
+    DatagridConfigurable,
+    useRecordContext,
+    useListContext,
+    useGetList,
+    useList,
+    RaRecord,
+    ListContextProvider,
+    Datagrid,
+    useUpdate,
+    useGetOne,
+    useNotify,
+} from "react-admin"
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -21,8 +38,9 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
-import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
-import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
+import {SettingsSchedulesEdit} from "./SettingsSchedulesEdit"
+import {SettingsSchedulesCreate} from "./SettingsSchedulesCreate"
+import {ISchedule} from "./constants"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -47,16 +65,27 @@ const useActionPermissions = () => {
 const OMIT_FIELDS = ["id", "ballot_eml"]
 const Filters: Array<ReactElement> = [<TextInput label="Name" source="name" key={0} />]
 
-export const SettingsSchedules: React.FC<void> = () => {
+export const SettingsSchedules: React.FC = () => {
     const {t} = useTranslation()
-    const [deleteOne] = useDelete()
+    const [tenantId] = useTenantStore()
+    const notify = useNotify()
     const {canWriteTenant} = useActionPermissions()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [scheduleData, setScheduleData] = React.useState<Array<RaRecord<Identifier>>>([])
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+
+    const {data, isLoading, refetch} = useGetOne("sequent_backend_tenant", {id: tenantId})
+    const [update, {isLoading: isLoadingDelete}] = useUpdate("sequent_backend_tenant")
+    const listContext = useList({data: scheduleData})
+
+    useEffect(() => {
+        const temp = data?.settings?.schedules ?? []
+        setScheduleData(temp)
+    }, [data])
 
     useEffect(() => {
         if (recordId) {
@@ -68,6 +97,7 @@ export const SettingsSchedules: React.FC<void> = () => {
         setRecordId(undefined)
         setOpenDrawer(false)
         setOpen(false)
+        refetch()
     }
 
     const handleOpenCreateDrawer = () => {
@@ -80,10 +110,13 @@ export const SettingsSchedules: React.FC<void> = () => {
         setOpen(false)
         setTimeout(() => {
             setRecordId(undefined)
+            refetch()
         }, 400)
     }
 
     const editAction = (id: Identifier) => {
+        console.log("record editAction", id)
+
         setRecordId(id)
     }
 
@@ -93,8 +126,39 @@ export const SettingsSchedules: React.FC<void> = () => {
     }
 
     const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
-        setDeleteId(undefined)
+        console.log("record deleteAction", scheduleData)
+        console.log("record data", data)
+        console.log("record id", deleteId)
+
+        const filteredData = scheduleData.filter((s: RaRecord<Identifier>) => s.id !== deleteId)
+        console.log("record data", filteredData)
+        const sendData = {
+            ...data,
+            settings: {
+                ...data.settings,
+                schedules: filteredData,
+            },
+        }
+
+        update(
+            "sequent_backend_tenant",
+            {
+                id: tenantId,
+                data: sendData,
+            },
+            {
+                onSuccess: () => {
+                    notify(t("scheduleScreen.deleteScheduleSuccess"), {type: "success"})
+                    setDeleteId(undefined)
+                    refetch()
+                },
+                onError: (error) => {
+                    notify(t("scheduleScreen.deleteScheduleError"), {type: "error"})
+                    setDeleteId(undefined)
+                    refetch()
+                },
+            }
+        )
     }
 
     const actions: any[] = [
@@ -105,19 +169,19 @@ export const SettingsSchedules: React.FC<void> = () => {
     const CreateButton = () => (
         <Button onClick={handleOpenCreateDrawer}>
             <IconButton icon={faPlus} fontSize="24px" />
-            {t("electionTypeScreen.common.createNew")}
+            {t("scheduleScreen.common.createNew")}
         </Button>
     )
 
     const Empty = () => (
         <EmptyBox m={1}>
             <Typography variant="h4" paragraph>
-                {t("electionTypeScreen.common.emptyHeader")}
+                {t("scheduleScreen.common.emptyHeader")}
             </Typography>
             {canWriteTenant ? (
                 <>
                     <Typography variant="body1" paragraph>
-                        {t("electionTypeScreen.common.emptyBody")}
+                        {t("scheduleScreen.common.emptyBody")}
                     </Typography>
                     <CreateButton />
                 </>
@@ -131,7 +195,7 @@ export const SettingsSchedules: React.FC<void> = () => {
 
     return (
         <>
-            <List
+            {/* <List
                 filters={Filters}
                 actions={
                     <ListActions
@@ -139,18 +203,52 @@ export const SettingsSchedules: React.FC<void> = () => {
                         withFilter
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />}
+                        Component={<SettingsSchedulesCreate close={handleCloseCreateDrawer} />}
                     />
                 }
                 empty={<Empty />}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" />
+                <TextField source="name" />
+                    <TextField source="date" />
 
                     <ActionsColumn actions={actions} />
                 </DatagridConfigurable>
-            </List>
+            </List> */}
+
+            <ListContextProvider value={listContext}>
+                {scheduleData.length > 0 && (
+                    <Box display="flex" justifyContent="flex-end" mb={2}>
+                        <ListActions
+                            custom
+                            withFilter={false}
+                            withImport={false}
+                            withExport={false}
+                            withColumns={false}
+                            open={openDrawer}
+                            setOpen={setOpenDrawer}
+                            Component={<SettingsSchedulesCreate close={handleCloseCreateDrawer} />}
+                        />
+                    </Box>
+                )}
+
+                <Datagrid empty={<Empty />} bulkActionButtons={false}>
+                    <TextField source="name" />
+                    <TextField source="date" />
+                    <ActionsColumn actions={actions} />
+                </Datagrid>
+            </ListContextProvider>
+
+            <Drawer
+                anchor="right"
+                open={openDrawer}
+                onClose={handleCloseCreateDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <SettingsSchedulesCreate close={handleCloseCreateDrawer} />
+            </Drawer>
 
             <Drawer
                 anchor="right"
@@ -160,7 +258,7 @@ export const SettingsSchedules: React.FC<void> = () => {
                     sx: {width: "40%"},
                 }}
             >
-                <SettingselectionsTypesEdit id={recordId} close={handleCloseEditDrawer} />
+                <SettingsSchedulesEdit id={recordId} close={handleCloseEditDrawer} />
             </Drawer>
 
             <Dialog
