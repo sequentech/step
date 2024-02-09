@@ -200,6 +200,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 documentId!,
                 documentData?.sequent_backend_document[0]?.name
             )
+
+            window.open(documentUrl, "_blank")
         }
     }, [eventId, polling, documentData, documentId, getDocumentUrl])
 
