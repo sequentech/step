@@ -40,7 +40,7 @@ export interface AuthContextValues {
     /**
      * Function to initiate the logout
      */
-    logout: (url?: string) => void
+    logout: (redirectUrl?: string) => void
 
     /**
      * Check if the user has the given role
@@ -285,13 +285,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         setEventId(eventId)
     }
 
-    const logout = (url?: string) => {
+    const logout = (redirectUrl?: string) => {
         if (!keycloak) {
+            if (redirectUrl) {
+                window.location.href = redirectUrl
+            }
             return
         }
 
         keycloak.logout({
-            redirectUri: url,
+            redirectUri: redirectUrl,
         })
     }
 

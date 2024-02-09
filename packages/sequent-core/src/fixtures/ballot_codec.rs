@@ -168,13 +168,14 @@ fn get_contest_plurality() -> Contest {
         presentation: Some(ContestPresentation {
             allow_writeins: false,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }),
     }
 }
@@ -224,6 +225,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             is_demo: false,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        election_event_presentation: None,
         contests: vec![Contest {
             created_at: None,
             id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
@@ -358,13 +360,14 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             presentation: Some(ContestPresentation {
                 allow_writeins: true,
                 base32_writeins: true,
-                invalid_vote_policy: "allowed".into(),
+                invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                 cumulative_number_of_checkboxes: None,
                 shuffle_categories: true,
                 shuffle_category_list: None,
                 show_points: false,
                 enable_checkable_lists: None,
                 candidates_order: None,
+                candidates_selection_policy: None,
             }),
         }],
     }
@@ -549,13 +552,14 @@ pub fn get_test_contest() -> Contest {
         presentation: Some(ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allow".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order:None,
+            candidates_selection_policy: None,
         }),
     }
 }
@@ -755,13 +759,14 @@ pub(crate) fn get_configurable_contest(
         presentation: Some(ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allow".into(),
+            invalid_vote_policy: InvalidVotePolicy::NOT_ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }),
     };
 
@@ -997,12 +1002,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+                    candidates_selection_policy: None,
         candidates_order: None,
                 }),
             },
@@ -1154,12 +1160,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
+                    candidates_selection_policy: None,
         candidates_order: None,
                 }),
             },
@@ -1301,13 +1308,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
-        candidates_order: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1437,13 +1445,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
-        candidates_order: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1573,13 +1582,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 presentation: Some(ContestPresentation {
                     allow_writeins: true,
                     base32_writeins: true,
-                    invalid_vote_policy: "allowed".into(),
+                    invalid_vote_policy: InvalidVotePolicy::ALLOWED,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: true,
                     shuffle_category_list: None,
                     show_points: false,
                     enable_checkable_lists: None,
-        candidates_order: None,
+                    candidates_order: None,
+                    candidates_selection_policy: None,
                 }),
             },
             raw_ballot: RawBallotContest {

@@ -15,7 +15,7 @@ use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
-pub type I18nContent = HashMap<String, String>;
+pub type I18nContent<T = String> = HashMap<String, T>;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
@@ -252,6 +252,112 @@ pub enum CandidatesOrder {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum InvalidVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "warn-invalid-implicit-and-explicit")]
+    #[serde(rename = "warn-invalid-implicit-and-explicit")]
+    WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum CandidatesSelectionPolicy {
+    #[strum(serialize = "radio")]
+    #[serde(rename = "radio")]
+    RADIO, // if you select one, the previously selected one gets unselected
+    #[strum(serialize = "cumulative")]
+    #[serde(rename = "cumulative")]
+    CUMULATIVE, // default behaviour
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventMaterials {
+    pub activated: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventLanguageConf {
+    pub enabled_language_codes: Option<Vec<String>>,
+    pub default_language_code: Option<String>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventPresentation {
+    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub materials: Option<ElectionEventMaterials>,
+    pub language_conf: Option<ElectionEventLanguageConf>,
+    pub logo_url: Option<String>,
+    pub redirect_finish_url: Option<String>,
+    pub css: Option<String>,
+    pub hide_audit: Option<bool>,
+    pub skip_election_list: Option<bool>,
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -265,13 +371,14 @@ pub enum CandidatesOrder {
 pub struct ContestPresentation {
     pub allow_writeins: bool,
     pub base32_writeins: bool,
-    pub invalid_vote_policy: String, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub invalid_vote_policy: InvalidVotePolicy, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: bool,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
+    pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
 }
 
 impl ContestPresentation {
@@ -279,13 +386,14 @@ impl ContestPresentation {
         ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: false,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }
     }
 }
@@ -355,9 +463,9 @@ impl Contest {
             .as_ref()
             .map(|presentation| {
                 [
-                    "allowed".to_string(),
-                    "warn".to_string(),
-                    "warn-invalid-implicit-and-explicit".to_string(),
+                    InvalidVotePolicy::ALLOWED,
+                    InvalidVotePolicy::WARN,
+                    InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
                 ]
                 .contains(&presentation.invalid_vote_policy)
             })
@@ -515,4 +623,5 @@ pub struct BallotStyle {
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,
     pub contests: Vec<Contest>,
+    pub election_event_presentation: Option<ElectionEventPresentation>,
 }
