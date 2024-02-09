@@ -291,7 +291,7 @@ pub async fn create_ballot_style(
             sequent_core::types::hasura_types::Election::from(election),
             contests,
             candidates,
-        );
+        )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
         let _hasura_response = hasura::ballot_style::insert_ballot_style(
             auth_headers.clone(),

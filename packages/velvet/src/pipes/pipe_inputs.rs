@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::error::{Error, Result};
-use crate::cli::{state::Stage, CliRun};
+use crate::{
+    cli::{state::Stage, CliRun},
+    utils::parse_file,
+};
 use sequent_core::ballot::{BallotStyle, Contest};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -94,7 +97,7 @@ impl PipeInputs {
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
 
-        let election: ElectionConfig = serde_json::from_reader(config_file)?;
+        let election: ElectionConfig = parse_file(config_file)?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -124,7 +127,7 @@ impl PipeInputs {
         }
         let config_file = fs::File::open(&config_path_contest)
             .map_err(|e| Error::FileAccess(config_path_contest.clone(), e))?;
-        let contest: Contest = serde_json::from_reader(config_file)?;
+        let contest: Contest = parse_file(config_file)?;
 
         let entries = fs::read_dir(path)?;
         let mut configs = vec![];
@@ -144,7 +147,7 @@ impl PipeInputs {
 
                 let config_file = fs::File::open(&config_path_area)
                     .map_err(|e| Error::FileAccess(config_path_area.clone(), e))?;
-                let area_config: AreaConfig = serde_json::from_reader(config_file)?;
+                let area_config: AreaConfig = parse_file(config_file)?;
 
                 configs.push(InputAreaConfig {
                     id: area_id,

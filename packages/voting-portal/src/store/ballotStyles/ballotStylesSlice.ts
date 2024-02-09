@@ -25,18 +25,6 @@ export interface BallotStylesState {
 
 const initialState: BallotStylesState = {}
 
-/*
-export const fetchElectionByIdAsync = createAsyncThunk(
-    "elections/fetchElectionByIdAsync",
-    async (electionId: number) => {
-        console.log("trying fetchElectionByIdAsync")
-        const response = await fetchElection(electionId)
-        // The value we return becomes the `fulfilled` action payload
-        return response
-    }
-)
-*/
-
 export const ballotStylesSlice = createSlice({
     name: "ballotStyles",
     initialState,
@@ -57,5 +45,8 @@ export const selectBallotStyleByElectionId = (electionId: string) => (state: Roo
     state.ballotStyles[electionId]
 
 export const selectBallotStyleElectionIds = (state: RootState) => Object.keys(state.ballotStyles)
+
+export const selectFirstBallotStyle = (state: RootState): IBallotStyle | undefined =>
+    Object.values(state.ballotStyles)?.[0]
 
 export default ballotStylesSlice.reducer

@@ -22,10 +22,10 @@ export interface AnswersListProps {
     checkableCandidates: boolean
     category: ICategory
     ballotStyle: IBallotStyle
-    questionIndex: number
+    contestId: string
     isReview: boolean
     isInvalidWriteIns?: boolean
-    isUniqChecked?: boolean
+    isRadioSelection?: boolean
     contest: IContest
 }
 
@@ -51,23 +51,23 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     checkableCandidates,
     category,
     ballotStyle,
-    questionIndex,
+    contestId,
     isReview,
     isInvalidWriteIns,
-    isUniqChecked,
+    isRadioSelection,
     contest,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, categoryAnswerId)
+        selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, categoryAnswerId)
     )
     const questionState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex)
+        selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
     const dispatch = useAppDispatch()
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) => {
-        if (isUniqChecked) {
+        if (isRadioSelection) {
             dispatch(
                 resetBallotSelection({
                     ballotStyle,
@@ -82,7 +82,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             dispatch(
                 setBallotSelectionVoteChoice({
                     ballotStyle,
-                    questionIndex,
+                    contestId,
                     voteChoice: {
                         id: categoryAnswerId,
                         selected: value ? 0 : -1,
@@ -108,7 +108,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 <Answer
                     ballotStyle={ballotStyle}
                     answer={candidate}
-                    questionIndex={questionIndex}
+                    contestId={contestId}
                     key={candidateIndex}
                     index={candidateIndex}
                     hasCategory={true}

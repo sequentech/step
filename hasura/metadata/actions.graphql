@@ -167,6 +167,7 @@ type Mutation {
     media_type: String!
     size: Int!
     is_public: Boolean!
+    election_event_id: String
   ): GetUploadUrlOutput
 }
 

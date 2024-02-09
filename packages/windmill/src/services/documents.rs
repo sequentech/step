@@ -103,11 +103,12 @@ pub async fn get_upload_url(
     size: usize,
     tenant_id: &str,
     is_public: bool,
+    election_event_id: Option<String>,
 ) -> Result<(Document, String)> {
     let document = &hasura::document::insert_document(
         auth_headers,
         tenant_id.to_string(),
-        None,
+        election_event_id,
         name.to_string(),
         media_type.to_string(),
         size as i64,

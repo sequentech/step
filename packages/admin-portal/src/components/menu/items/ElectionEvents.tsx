@@ -10,10 +10,10 @@ import {styled} from "@mui/material/styles"
 import {
     IconButton,
     adminTheme,
-    CandidatesOrder,
     ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
+    sortCandidatesInContest,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
@@ -170,13 +170,10 @@ export default function ElectionEvents() {
                             contests: election.contests.map((contest) => {
                                 let orderType = contest.presentation?.candidates_order
 
-                                if (orderType === CandidatesOrder.CUSTOM) {
-                                    contest.candidates.sort(
-                                        (a, b) =>
-                                            a.presentation?.sort_order! -
-                                            b.presentation?.sort_order!
-                                    )
-                                }
+                                contest.candidates = sortCandidatesInContest(
+                                    contest.candidates,
+                                    orderType
+                                )
 
                                 return contest
                             }),

@@ -1,4 +1,4 @@
-FROM rust:1.72.0
+FROM rustlang/rust:nightly-slim
 
 # copy projects
 WORKDIR /app
@@ -11,7 +11,12 @@ COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./wrap-map-err ./wrap-map-err
 
-RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    && rm -rf /var/lib/apt/lists/*
 RUN rustup default nightly
 
 # build projects

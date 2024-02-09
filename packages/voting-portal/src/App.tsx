@@ -15,10 +15,15 @@ import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {useAppSelector} from "./store/hooks"
-import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
+import {selectElectionIds} from "./store/elections/electionsSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectFirstBallotStyle,
+} from "./store/ballotStyles/ballotStylesSlice"
 
-const StyledApp = styled(Stack)`
+const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
+    ${({css}) => css}
 `
 
 const HeaderWithContext: React.FC = () => {
@@ -26,9 +31,10 @@ const HeaderWithContext: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
 
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
-    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+    let presentation: IElectionEventPresentation | undefined =
+        ballotStyle?.ballot_eml.election_event_presentation
 
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
 
@@ -42,7 +48,7 @@ const HeaderWithContext: React.FC = () => {
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-            logoUrl="https://www.alliedpilots.org/Areas/AlliedPilots/Assets/img/APA_Logo.svg"
+            logoUrl={presentation?.logo_url}
         />
     )
 }
@@ -53,6 +59,9 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+
+    const electionIds = useAppSelector(selectElectionIds)
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -79,7 +88,10 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
     return (
-        <StyledApp className="app-root">
+        <StyledApp
+            className="app-root"
+            css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+        >
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}

@@ -6,20 +6,20 @@ import {Box} from "@mui/material"
 import {
     theme,
     stringToHtml,
-    shuffle,
     splitList,
     keyBy,
     translate,
     IContest,
+    sortCandidatesInContest,
+    CandidatesOrder,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
-    checkCustomCandidatesOrder,
+    checkIsRadioSelection,
     checkPositionIsTop,
-    checkShuffleAllOptions,
     checkShuffleCategories,
     checkShuffleCategoryList,
     getCheckableOptions,
@@ -50,21 +50,18 @@ const CandidatesWrapper = styled(Box)`
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
     question: IContest
-    questionIndex: number
     isReview: boolean
     setDisableNext?: (value: boolean) => void
-    isUniqChecked?: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
     ballotStyle,
     question,
-    questionIndex,
     isReview,
     setDisableNext,
-    isUniqChecked,
 }) => {
     const {i18n} = useTranslation()
+
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
@@ -76,15 +73,14 @@ export const Question: React.FC<IQuestionProps> = ({
     )
 
     // do the shuffling
-    const checkCustomSort = checkCustomCandidatesOrder(question)
-    const shuffleAllOptions = checkShuffleAllOptions(question)
+    const candidatesOrderType = question.presentation?.candidates_order
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
     if (null === categoriesMapOrder) {
         setCategoriesMapOrder(
             getShuffledCategories(
                 categoriesMap,
-                shuffleAllOptions,
+                candidatesOrderType === CandidatesOrder.RANDOM,
                 shuffleCategories,
                 shuffleCategoryList
             )
@@ -92,26 +88,23 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        if (checkCustomSort) {
-            let candidates = [...noCategoryCandidates]
-            candidates.sort((a, b) => a.presentation!.sort_order! - b.presentation!.sort_order!)
-            setCandidatesOrder(candidates.map((c) => c.id))
-        } else if (shuffleAllOptions) {
-            setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
-        } else {
-            setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
-        }
+        setCandidatesOrder(
+            sortCandidatesInContest(noCategoryCandidates, candidatesOrderType, true).map(
+                (c) => c.id
+            )
+        )
     }
 
-    if (shuffleAllOptions && null === candidatesOrder) {
-        setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
-    }
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
 
     const onSetIsInvalidWriteIns = (value: boolean) => {
         setIsInvalidWriteIns(value)
         setDisableNext?.(value)
     }
+
+    // when isRadioChecked is true, clicking on another option works as a radio button:
+    // it deselects the previously selected option to select the new one
+    const isRadioSelection = checkIsRadioSelection(question)
 
     return (
         <Box>
@@ -134,13 +127,13 @@ export const Question: React.FC<IQuestionProps> = ({
                     <Answer
                         ballotStyle={ballotStyle}
                         answer={answer}
-                        questionIndex={questionIndex}
+                        contestId={question.id}
                         key={answerIndex}
                         index={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
-                        isUniqChecked={isUniqChecked}
+                        isRadioSelection={isRadioSelection}
                         contest={question}
                     />
                 ))}
@@ -155,10 +148,10 @@ export const Question: React.FC<IQuestionProps> = ({
                                 checkableCandidates={checkableCandidates}
                                 category={category}
                                 ballotStyle={ballotStyle}
-                                questionIndex={questionIndex}
+                                contestId={question.id}
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
-                                isUniqChecked={isUniqChecked}
+                                isRadioSelection={isRadioSelection}
                                 contest={question}
                             />
                         )
@@ -170,12 +163,12 @@ export const Question: React.FC<IQuestionProps> = ({
                             isInvalidWriteIns={isInvalidWriteIns}
                             ballotStyle={ballotStyle}
                             answer={answer}
-                            questionIndex={questionIndex}
+                            contestId={question.id}
                             index={answerIndex}
                             key={answerIndex}
                             isActive={!isReview}
                             isReview={isReview}
-                            isUniqChecked={isUniqChecked}
+                            isRadioSelection={isRadioSelection}
                             contest={question}
                         />
                     ))}
@@ -183,14 +176,14 @@ export const Question: React.FC<IQuestionProps> = ({
                     <Answer
                         ballotStyle={ballotStyle}
                         answer={answer}
-                        questionIndex={questionIndex}
+                        contestId={question.id}
                         index={answerIndex}
                         key={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
                         isInvalidWriteIns={false}
-                        isUniqChecked={isUniqChecked}
+                        isRadioSelection={isRadioSelection}
                         contest={question}
                     />
                 ))}

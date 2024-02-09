@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ICountingAlgorithm, IVotingType} from "@/resources/Contest/constants"
-import {IBallotStyle} from "@sequentech/ui-essentials"
+import {IBallotStyle, EInvalidVotePolicy} from "@sequentech/ui-essentials"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
@@ -26,6 +26,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                 'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 1,
             min_votes: 1,
+            winning_candidates_num: 1,
             voting_type: IVotingType.NON_PREFERENTIAL,
             counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
@@ -147,9 +148,8 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
             presentation: {
                 allow_writeins: true,
                 base32_writeins: true,
-                invalid_vote_policy: "allowed",
+                invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
                 shuffle_categories: true,
-                shuffle_all_options: true,
                 shuffle_category_list: [],
                 show_points: false,
                 enable_checkable_lists: "allow-selecting-candidates-and-lists",
@@ -180,6 +180,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                 'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 1,
             min_votes: 1,
+            winning_candidates_num: 1,
             voting_type: IVotingType.NON_PREFERENTIAL,
             counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
@@ -252,9 +253,8 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
             presentation: {
                 allow_writeins: true,
                 base32_writeins: true,
-                invalid_vote_policy: "allowed",
+                invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
                 shuffle_categories: true,
-                shuffle_all_options: true,
                 shuffle_category_list: [],
                 show_points: false,
                 enable_checkable_lists: "allow-selecting-candidates-and-lists",
@@ -285,6 +285,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                 'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 2,
             min_votes: 1,
+            winning_candidates_num: 1,
             voting_type: IVotingType.NON_PREFERENTIAL,
             counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
@@ -362,9 +363,8 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
             presentation: {
                 allow_writeins: true,
                 base32_writeins: true,
-                invalid_vote_policy: "allowed",
+                invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
                 shuffle_categories: true,
-                shuffle_all_options: true,
                 show_points: false,
                 enable_checkable_lists: "allow-selecting-candidates-and-lists",
             },
@@ -394,6 +394,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                 'This is the description of the election. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
             max_votes: 1,
             min_votes: 1,
+            winning_candidates_num: 1,
             voting_type: IVotingType.NON_PREFERENTIAL,
             counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
@@ -473,9 +474,8 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
             presentation: {
                 allow_writeins: true,
                 base32_writeins: true,
-                invalid_vote_policy: "allowed",
+                invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
                 shuffle_categories: true,
-                shuffle_all_options: true,
                 show_points: false,
                 enable_checkable_lists: "allow-selecting-candidates-and-lists",
             },

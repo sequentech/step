@@ -23,11 +23,15 @@ use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
+use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::base64::Base64Deserialize;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
+use serde_json;
+use serde_json::Value;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -72,17 +76,18 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id = area.election_event_id.as_str();
 
-    let hashable_ballot: HashableBallot<RistrettoCtx> =
-        Base64Deserialize::deserialize(input.content.clone())
-            .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
+    let hashable_ballot: HashableBallot = serde_json::from_str(&input.content)
+        .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
 
     let pseudonym_h =
         hash_voter_id(voter_id).map_err(|err| anyhow!("Error hashing voter id: {:?}", err))?;
-    let vote_h = hash_ballot(hashable_ballot.clone())
+    let vote_h = hash_ballot_sha512(&hashable_ballot)
         .map_err(|err| anyhow!("Error hashing ballot: {:?}", err))?;
 
-    hashable_ballot
-        .contests
+    let hashable_ballot_contests = hashable_ballot
+        .deserialize_contests()
+        .map_err(|err| anyhow!("Error deserializing ballot content: {:?}", err))?;
+    hashable_ballot_contests
         .iter()
         .map(|contest| check_popk(contest))
         .collect::<Result<Vec<()>>>()?;
@@ -191,11 +196,6 @@ fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     hash_to_array(&bytes)
 }
 
-fn hash_ballot(ballot: HashableBallot<RistrettoCtx>) -> Result<Hash, StrandError> {
-    let bytes = ballot.strand_serialize()?;
-    hash_to_array(&bytes)
-}
-
 #[instrument(skip_all, err)]
 async fn get_electoral_log(
     election_event: &GetElectionEventSequentBackendElectionEvent,
@@ -251,7 +251,7 @@ async fn check_status(
         .clone()
         .ok_or(anyhow!("Could not retrieve election event status"))?;
     let status: ElectionEventStatus =
-        serde_json::from_value(status).context("Failed to deserialize election event status")?;
+        deserialize_value(status).context("Failed to deserialize election event status")?;
     if status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election event voting status is not open"));
     }

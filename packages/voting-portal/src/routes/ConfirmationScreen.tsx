@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useEffect} from "react"
+import React, {useState, useEffect, useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -26,13 +26,12 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import Stepper from "../components/Stepper"
-import {useContext} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -113,13 +112,13 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId}) => {
+    const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
-    const {logout} = useContext(AuthContext)
 
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {hashBallot} = provideBallotService()
@@ -268,7 +267,7 @@ export const ConfirmationScreen: React.FC = () => {
     })
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="confirmation-screen screen">
             <Box marginTop="24px">
                 <Stepper selected={3} />
             </Box>

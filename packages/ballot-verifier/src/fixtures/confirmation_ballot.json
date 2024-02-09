@@ -24,6 +24,7 @@
             "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
             "max_votes": 1,
             "min_votes": 0,
+            "winning_candidates_num": 1,
             "voting_type": "first-past-the-post",
             "counting_algorithm": "plurality-at-large",
             "is_encrypted": true,
@@ -109,7 +110,6 @@
                 "base32_writeins": true,
                 "invalid_vote_policy": "allowed",
                 "shuffle_categories": true,
-                "shuffle_all_options": true,
                 "show_points": false
             }
          },
@@ -207,7 +207,6 @@
                 "base32_writeins": true,
                 "invalid_vote_policy": "allowed",
                 "shuffle_categories": true,
-                "shuffle_all_options": true,
                 "show_points": false
             }
          }
