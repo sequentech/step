@@ -134,10 +134,10 @@ pub async fn insert_ballots(
                 .map(|ballot_str| {
                     event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
 
-                    let hashable_ballot: HashableBallot<RistrettoCtx> =
-                        Base64Deserialize::deserialize(ballot_str).unwrap();
-                    hashable_ballot
-                        .contests
+                    let hashable_ballot: HashableBallot =
+                        serde_json::from_str(&ballot_str).unwrap();
+                    let contests = hashable_ballot.deserialize_contests().unwrap();
+                    contests
                         .iter()
                         .find(|contest| contest.contest_id == tally_session_contest.contest_id)
                         .map(|contest| contest.ciphertext.clone())

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {TranslationDict} from "@root/services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 
 export enum EVotingStatus {
@@ -70,9 +71,14 @@ export interface IContest {
     election_event_id: string
     election_id: string
     name?: string
+    name_i18n?: TranslationDict
     description?: string
+    description_i18n?: TranslationDict
+    alias?: string
+    alias_i18n?: TranslationDict
     max_votes: number
     min_votes: number
+    winning_candidates_num: number
     voting_type?: string
     counting_algorithm?: string
     is_encrypted: boolean
@@ -104,8 +110,11 @@ export interface ICandidate {
     election_id: string
     contest_id: string
     name?: string
-    alias?: string
+    name_i18n?: TranslationDict
     description?: string
+    description_i18n?: TranslationDict
+    alias?: string
+    alias_i18n?: TranslationDict
     candidate_type?: string
     presentation?: ICandidatePresentation
 }
@@ -126,4 +135,19 @@ export interface IBallotStyle {
 export interface IPublicKeyConfig {
     public_key: string
     is_demo: boolean
+}
+
+export interface IAuditableBallot {
+    version: number
+    issue_date: string
+    config: IBallotStyle
+    contests: Array<string>
+    ballot_hash: string
+}
+
+export interface IHashableBallot {
+    version: number
+    issue_date: string
+    contests: Array<string>
+    config: IBallotStyle
 }

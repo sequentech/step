@@ -195,9 +195,7 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const startMs = Date.now()
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-            const endMs = Date.now()
 
             dispatch(
                 setAuditableBallot({

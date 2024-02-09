@@ -6,7 +6,9 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
 use strand::hash;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
+use strand::hash::Hash;
+use strand::serialization::StrandDeserialize;
+use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
 use base64::engine::general_purpose;
@@ -22,6 +24,12 @@ use crate::util::date::get_current_date;
 
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
+
+/// Sha-512 hash are 64 bytes, this short hash uses
+/// only the first 32 bytes.
+pub const SHORT_SHA512_HASH_LENGTH_BYTES: usize = 32;
+
+pub type ShortHash = [u8; SHORT_SHA512_HASH_LENGTH_BYTES];
 
 // Labels are used to make the proof of knowledge unique.
 // This is a constant for now but when we implement voter signatures this will
@@ -87,7 +95,7 @@ pub fn parse_public_key<C: Ctx>(
 
 pub fn recreate_encrypt_cyphertext<C: Ctx>(
     ctx: &C,
-    ballot: &AuditableBallot<C>,
+    ballot: &AuditableBallot,
 ) -> Result<Vec<ReplicationChoice<C>>, BallotError> {
     let public_key = parse_public_key::<C>(&ballot.config)?;
     // check ballot version
@@ -98,8 +106,10 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
         )));
     }
 
-    ballot
-        .contests
+    let contests: Vec<AuditableBallotContest<C>> =
+        ballot.deserialize_contests::<C>()?;
+
+    contests
         .clone()
         .into_iter()
         .map(|contests| {
@@ -136,7 +146,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
-) -> Result<AuditableBallot<C>, BallotError> {
+) -> Result<AuditableBallot, BallotError> {
     if config.contests.len() != decoded_contests.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded contests {} != {}",
@@ -184,30 +194,42 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     let mut auditable_ballot = AuditableBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
-        contests: contests,
+        contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
     };
 
-    let hashable_ballot = HashableBallot::from(&auditable_ballot);
+    let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
     auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)
 }
 
+pub fn hash_ballot_sha512(
+    hashable_ballot: &HashableBallot,
+) -> Result<Hash, StrandError> {
+    let hashable_ballot_string = serde_json::to_string(hashable_ballot)
+        .map_err(|error| StrandError::SerializationError(error.into()))?;
+    let bytes = (&hashable_ballot_string).as_bytes();
+    hash::hash_to_array(bytes)
+}
+
+pub fn shorten_hash(hash: &Hash) -> ShortHash {
+    let mut shortened: ShortHash = [0u8; SHORT_SHA512_HASH_LENGTH_BYTES];
+    shortened.copy_from_slice(&hash[0..32]);
+    shortened
+}
+
 // hash ballot:
 // serialize ballot into string, then hash to sha512, truncate to
 // 256 bits and serialize to hexadecimal
-pub fn hash_ballot<C: Ctx>(
-    hashable_ballot: &HashableBallot<C>,
+pub fn hash_ballot(
+    hashable_ballot: &HashableBallot,
 ) -> Result<String, BallotError> {
-    let bytes = hashable_ballot
-        .strand_serialize()
+    let sha512_hash = hash_ballot_sha512(hashable_ballot)
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
-    let hash_bytes = hash::hash(bytes.as_slice())
-        .map_err(|error| BallotError::Serialization(error.to_string()))?;
-    let hash_256bits_slice = &hash_bytes[0..32];
-    Ok(hex::encode(hash_256bits_slice))
+    let short_hash = shorten_hash(&sha512_hash);
+    Ok(hex::encode(short_hash))
 }
 
 #[cfg(test)]
@@ -262,7 +284,10 @@ mod tests {
                 &ballot_style,
             )
             .unwrap();
-        let plaintext = auditable_ballot.contests[0].choice.plaintext.clone();
+        let contests = auditable_ballot
+            .deserialize_contests::<RistrettoCtx>()
+            .unwrap();
+        let plaintext = contests[0].choice.plaintext.clone();
         let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
