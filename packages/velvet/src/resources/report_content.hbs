@@ -27,32 +27,42 @@
 
         <table>
           <tr>
-            <th colspan="2">Participation</th>
+            <th colspan="3">Participation</th>
           </tr>
           <tr>
-            <td style="width: 55%;">Total number of votes cast</td>
-            <td style="width: 45%;">{{ format_u64 report.contest_result.total_votes }}</td>
+            <td style="width: 55%;">Summary</td>
+            <td style="width: 22.5%;">Total</td>
+            <td style="width: 22.5%;">%</td>
           </tr>
           <tr>
             <td style="width: 55%;">Census</td>
-            <td style="width: 45%;">{{ format_u64 report.contest_result.census }}</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.census }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_census }}</td>
           </tr>
           <tr>
-            <td style="width: 55%;">Blank votes (total)</td>
-            <td style="width: 45%;">{{ format_u64 report.contest_result.total_blank_votes }}</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Explicit invalid votes</td>
-            <td style="width: 45%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Implicit invalid votes</td>
-            <td style="width: 45%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
+            <td style="width: 55%;">Total number of votes cast</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_votes }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}</td>
           </tr>
           <tr>
             <td style="width: 55%;">Total number of valid votes</td>
-            <td style="width: 45%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.total_valid_votes }}</td>
           </tr>
+          <tr>
+            <td style="width: 55%;">Blank votes (total)</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_blank_votes }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_blank_votes }}</td>
+          </tr>
+          <tr>
+            <td style="width: 55%;">Explicit invalid votes</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}</td>
+          </tr>
+          <tr>
+            <td style="width: 55%;">Implicit invalid votes</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}</td> </tr>
         </table>
 
         <table>
@@ -69,7 +79,7 @@
             <tr class="">
               <td style="width: 55%;">{{{ candidate.candidate.name }}}</td>
               <td style="width: 15%;">{{ format_u64 candidate.total_count }}</td>
-              <td style="width: 15%;">{{ candidate.percentage_votes }}%</td>
+              <td style="width: 15%;">{{ format_percentage candidate.percentage_votes }}%</td>
               <td style="width: 15%;">{{ candidate.winning_position }}</td>
             </tr>
           {{/each}}

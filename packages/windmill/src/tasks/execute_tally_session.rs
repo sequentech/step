@@ -6,9 +6,7 @@ use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
-    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
-};
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
@@ -21,10 +19,8 @@ use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
-use crate::services::compress::compress_folder;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::date::ISO8601;
-use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
@@ -32,13 +28,14 @@ use crate::services::protocol_manager;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot::BallotStyle;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
@@ -49,7 +46,7 @@ use std::str::FromStr;
 use std::string::ToString;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
-use tokio::time::{interval, Duration as ChronoDuration};
+use tokio::time::Duration as ChronoDuration;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -68,7 +65,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .sequent_backend_ballot_style
         .iter()
         .map(|ballot_style_row| {
-            let ballot_style_res: Result<BallotStyle, Error> = serde_json::from_str(
+            let ballot_style_res: Result<BallotStyle, Error> = deserialize_str(
                 ballot_style_row
                     .ballot_eml
                     .clone()
@@ -134,7 +131,7 @@ async fn process_plaintexts(
                 };
 
             Some(AreaContestDataType {
-                plaintexts: plaintexts,
+                plaintexts,
                 last_tally_session_execution: session_contest.clone(),
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),

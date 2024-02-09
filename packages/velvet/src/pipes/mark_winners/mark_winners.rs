@@ -15,6 +15,7 @@ use crate::pipes::{
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
+use crate::utils::parse_file;
 
 pub const OUTPUT_WINNERS: &str = "winners.json";
 
@@ -92,7 +93,7 @@ impl Pipe for MarkWinners {
 
                     let f = fs::File::open(&contest_result_file)
                         .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                    let contest_result: ContestResult = serde_json::from_reader(f)?;
+                    let contest_result: ContestResult = parse_file(f)?;
 
                     let winner = self.get_winners(&contest_result);
 
@@ -120,7 +121,7 @@ impl Pipe for MarkWinners {
 
                 let f = fs::File::open(&contest_result_file)
                     .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                let contest_result: ContestResult = serde_json::from_reader(f)?;
+                let contest_result: ContestResult = parse_file(f)?;
 
                 let winner = self.get_winners(&contest_result);
 
