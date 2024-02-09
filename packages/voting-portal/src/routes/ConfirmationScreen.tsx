@@ -32,7 +32,6 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
 import {GET_DOCUMENT} from "../queries/GetDocument"
-import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 
 const StyledTitle = styled(Typography)`
@@ -128,7 +127,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
-    // const [fetchDocumentUrl, {data: documentUrl}] = useLazyQuery(FETCH_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
@@ -202,7 +200,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 documentId!,
                 documentData?.sequent_backend_document[0]?.name
             )
-            console.log("LS -> src/routes/ConfirmationScreen.tsx:204 -> documentUrl: ", documentUrl)
         }
     }, [eventId, polling, documentData, documentId, getDocumentUrl])
 
@@ -214,10 +211,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         }
     }, [polling])
 
-// http://127.0.0.1:9000/public/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event-c9cf798a-e3cd-4b52-9d0d-dd536750fc94/document-e19f9556-3c57-406a-8bfe-2a175e226e4d/vote-receipt-37e8e82a6f5f37af92a30e85e795268f0c926695ab47905d9764e4a6b3af919a.pdf
-
-// http://127.0.0.1:9002/public/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/document-e19f9556-3c57-406a-8bfe-2a175e226e4d/vote-receipt-37e8e82a6f5f37af92a30e85e795268f0c926695ab47905d9764e4a6b3af919a.pdf
-  
     return (
         <ActionsContainer>
             <StyledButton
