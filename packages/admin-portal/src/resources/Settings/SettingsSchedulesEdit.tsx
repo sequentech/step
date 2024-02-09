@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useEffect } from "react"
+import React, {useEffect} from "react"
 
 import {useTranslation} from "react-i18next"
 
 import {
-    Edit,
     useNotify,
     TextInput,
     Identifier,
@@ -15,12 +14,17 @@ import {
     useRefresh,
     useUpdate,
     useGetOne,
+    SelectInput,
+    DateInput,
+    RaRecord,
+    Toolbar,
 } from "react-admin"
 
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import { ISchedule } from './constants'
+import {ISchedule, SCHEDULE_NAMES_LIST} from "./constants"
+import {Typography} from "@mui/material"
 
 interface EditProps {
     id?: Identifier | undefined
@@ -32,8 +36,9 @@ export const SettingsSchedulesEdit: React.FC<EditProps> = (props) => {
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
-
     const notify = useNotify()
+
+    const [scheduleData, setScheduleData] = React.useState<RaRecord<Identifier> | undefined>()
 
     const [update] = useUpdate("sequent_backend_tenant")
     const {data} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
@@ -41,41 +46,69 @@ export const SettingsSchedulesEdit: React.FC<EditProps> = (props) => {
     })
 
     useEffect(() => {
-        console.log("record edit data", data)
         const schedule = data?.settings?.schedules.find((s: ISchedule) => s.id === id)
-        console.log("record edit schedule", schedule)
+        setScheduleData(schedule)
     }, [id, data])
 
-    // const onSuccess = async () => {
-    //     refresh()
+    const handleSubmit = (newItem: any) => {
+        const oldSettings = data?.settings?.schedules.filter((s: ISchedule) => s.id !== id)
 
-    //     if (close) {
-    //         close()
-    //     }
-    // }
+        const sendData = {
+            ...data,
+            settings: {
+                ...data?.settings,
+                schedules: [...oldSettings, newItem],
+            },
+        }
 
-    // const onError = async () => {
-    //     refresh()
-
-    //     if (close) {
-    //         close()
-    //     }
-    // }
+        update(
+            "sequent_backend_tenant",
+            {
+                id: tenantId,
+                data: sendData,
+            },
+            {
+                onSuccess: () => {
+                    notify(t("scheduleScreen.createScheduleSuccess"), {type: "success"})
+                    refresh()
+                    if (close) {
+                        close()
+                    }
+                },
+                onError: (error) => {
+                    notify(t("scheduleScreen.createScheduleError"), {type: "error"})
+                    refresh()
+                    if (close) {
+                        close()
+                    }
+                },
+            }
+        )
+    }
 
     return (
-        <Edit
-            id={id}
-            redirect={false}
+        <SimpleForm
+            onSubmit={handleSubmit}
+            record={scheduleData}
+            toolbar={
+                <Toolbar>
+                    <SaveButton />
+                </Toolbar>
+            }
         >
-            <PageHeaderStyles.Wrapper>
-                <SimpleForm toolbar={<SaveButton />}>
-                    <PageHeaderStyles.Title>
-                        {t("electionTypeScreen.edit.title")}
-                    </PageHeaderStyles.Title>
-
-                    <TextInput source="name" />
-                </SimpleForm>
-            </PageHeaderStyles.Wrapper>
-        </Edit>
+            <PageHeaderStyles.Title>{t("scheduleScreen.create.title")}</PageHeaderStyles.Title>
+            <Typography variant="body2" color="textSecondary">
+                {t("scheduleScreen.create.selectSchedule")}
+            </Typography>
+            <SelectInput
+                source="name"
+                choices={SCHEDULE_NAMES_LIST.map((item) => ({
+                    id: item,
+                    name: t(item),
+                }))}
+            />
+            <TextInput source="name" />
+            <DateInput source="date" />
+        </SimpleForm>
     )
 }

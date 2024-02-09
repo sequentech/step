@@ -44,7 +44,6 @@ export const SettingsSchedulesCreate: React.FC<CreateProps> = (props) => {
     const handleSubmit = (newItem: any) => {
         
         newItem.id = crypto.randomUUID()
-        console.log("record newItem", newItem)
 
         const sendData = {
             ...data,

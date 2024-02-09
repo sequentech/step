@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
-        breadcrumbSteps: {
+        "breadcrumbSteps": {
             electionList: "Election List",
             ballot: "Ballot",
             review: "Review",
             confirmation: "Confirmation",
             audit: "Audit",
         },
-        votingScreen: {
+        "votingScreen": {
             backButton: "Back",
             reviewButton: "Next",
             ballotHelpDialog: {
@@ -20,7 +20,7 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
-        startScreen: {
+        "startScreen": {
             startButton: "Start Voting",
             instructionsTitle: "Instructions",
             instructionsDescription: "You need to follow these steps to cast your ballot:",
@@ -34,7 +34,7 @@ const englishTranslation = {
             step3Description:
                 "You can cast it so that it's properly registered. Alternatively, you can audit that your ballot was correctly encrypted.",
         },
-        reviewScreen: {
+        "reviewScreen": {
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
@@ -62,7 +62,7 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
         },
-        logsScreen: {
+        "logsScreen": {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle: "General logs of the main and IAM databases",
@@ -77,7 +77,7 @@ const englishTranslation = {
                 title: "IAM Database Logs",
             },
         },
-        confirmationScreen: {
+        "confirmationScreen": {
             title: "Your vote has been cast",
             description:
                 "The confirmation code bellow verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
@@ -100,7 +100,7 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
-        auditScreen: {
+        "auditScreen": {
             printButton: "Print",
             restartButton: "Start Voting",
             title: "Audit your Ballot",
@@ -127,7 +127,7 @@ const englishTranslation = {
             bottomWarning:
                 "For security reason, when you audit your ballot, it need to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ bellow.",
         },
-        electionSelectionScreen: {
+        "electionSelectionScreen": {
             title: "Election list",
             description: "Select the election you want to vote",
             chooserHelpDialog: {
@@ -137,7 +137,7 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
-        areas: {
+        "areas": {
             common: {
                 title: "Areas",
                 subTitle: "Area configuration.",
@@ -151,7 +151,7 @@ const englishTranslation = {
                 action: "Create Area",
             },
         },
-        electionTypeScreen: {
+        "electionTypeScreen": {
             noPermissions: "You don't have permission to access settings.",
             common: {
                 title: "Election Type",
@@ -182,7 +182,7 @@ const englishTranslation = {
                 schedules: "SCHEDULES",
             },
         },
-        scheduleScreen: {
+        "scheduleScreen": {
             noPermissions: "You don't have permission to access settings.",
             createScheduleSuccess: "Schedule created",
             createScheduleError: "Error creating schedule",
@@ -197,17 +197,18 @@ const englishTranslation = {
             },
             create: {
                 title: "Create Schedule",
-                selectSchedule: "Select one schedule from the predefined list or write a custom one",
+                selectSchedule:
+                    "Select one schedule from the predefined list or write a custom one",
             },
             edit: {
                 title: "Edit Schedule",
             },
         },
-        dashboard: {
+        "dashboard": {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
         },
-        electionEventScreen: {
+        "electionEventScreen": {
             common: {
                 subtitle: "Election event configuration.",
             },
@@ -329,7 +330,7 @@ const englishTranslation = {
                 },
             },
         },
-        electionScreen: {
+        "electionScreen": {
             common: {
                 title: "Election",
                 subtitle: "Election configuration.",
@@ -369,7 +370,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
         },
-        tenantScreen: {
+        "tenantScreen": {
             common: {
                 title: "Client",
             },
@@ -379,7 +380,7 @@ const englishTranslation = {
             createSuccess: "Customer created",
             createError: "Error creating customer",
         },
-        usersAndRolesScreen: {
+        "usersAndRolesScreen": {
             noPermissions: "You don't have permission to access users or roles.",
             common: {
                 title: "Users and Roles",
@@ -536,7 +537,7 @@ const englishTranslation = {
                 "tally-sheet-delete": "Delete Tally Sheet",
             },
         },
-        common: {
+        "common": {
             export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
                 electionEvent: "Election Event",
@@ -585,13 +586,13 @@ const englishTranslation = {
                 delete: "Are you sure you want to delete this item?",
             },
         },
-        createResource: {
+        "createResource": {
             electionEvent: "Create an Election Event",
             election: "Create an Election",
             contest: "Create a Contest",
             candidate: "Create a Candidate",
         },
-        sideMenu: {
+        "sideMenu": {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
@@ -643,7 +644,7 @@ const englishTranslation = {
                 },
             },
         },
-        candidateScreen: {
+        "candidateScreen": {
             common: {
                 subtitle: "Candidate configuration.",
             },
@@ -671,7 +672,7 @@ const englishTranslation = {
             createCandidateSuccess: "Candidate created",
             createCandidateError: "Error creating candidate",
         },
-        contestScreen: {
+        "contestScreen": {
             common: {
                 subtitle: "Contest configuration.",
             },
@@ -699,7 +700,7 @@ const englishTranslation = {
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",
         },
-        keysGeneration: {
+        "keysGeneration": {
             configureStep: {
                 create: "Create Keys Ceremony",
                 title: "Create Election Event Keys Ceremony",
@@ -781,7 +782,7 @@ const englishTranslation = {
                 verified: "Backup verified successfully.",
             },
         },
-        tally: {
+        "tally": {
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
@@ -871,7 +872,7 @@ const englishTranslation = {
                 winning_position: "Winning position",
             },
         },
-        publish: {
+        "publish": {
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
@@ -910,14 +911,14 @@ const englishTranslation = {
                 change_status: "Election status changed",
             },
         },
-        emailEditor: {
+        "emailEditor": {
             subject: "Email Subject",
             tabs: {
                 plaintext: "Plain Text Body",
                 richtext: "Rich Text Body",
             },
         },
-        sendCommunication: {
+        "sendCommunication": {
             send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -960,7 +961,7 @@ const englishTranslation = {
                 subject: "Subject",
             },
         },
-        tallysheet: {
+        "tallysheet": {
             createTallySuccess: "Tally Sheet saved",
             createTallyError: "Error saving Tally Sheet",
             allFieldsRequired: "All fields are required",
@@ -1025,7 +1026,7 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
-        communicationTemplate: {
+        "communicationTemplate": {
             noPermissions: "You don't have permission to access communication templates.",
             title: "Communication Templates",
             subtitle: "List of communication templates",
@@ -1067,7 +1068,7 @@ const englishTranslation = {
                 sms: "SMS",
             },
         },
-        materials: {
+        "materials": {
             createMaterialSuccess: "Support material created",
             createMaterialError: "Error creating support material",
             updateMaterialSuccess: "Support material updated",
@@ -1081,6 +1082,17 @@ const englishTranslation = {
                 document: "Document is required",
             },
         },
+        "System lockdown for finalization of Internet voting settings":
+            "System lockdown for finalization of Internet voting settings",
+        "Start and end of pre-registration for OVCS": "Start and end of pre-registration for OVCS",
+        "Start and end of test voting period": "Start and end of test voting period",
+        "Start and end of Internet voting period": "Start and end of Internet voting period",
+        "Date and time covering the schedule for the following activities:":
+            "Date and time covering the schedule for the following activities:",
+        "Lab test": "Lab test",
+        "Field test": "Field test",
+        "Mock elections": "Mock elections",
+        "FTS": "FTS",
     },
 }
 
