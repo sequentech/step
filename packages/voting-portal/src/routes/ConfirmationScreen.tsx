@@ -155,11 +155,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             },
         })
 
-        setDocumentId(res.data?.create_vote_receipt?.id)
+        let docId = res.data?.create_vote_receipt?.id
 
-        console.log("LS -> src/routes/ConfirmationScreen.tsx:159 -> documentId: ", documentId)
-        if (documentId) {
-            startPolling(documentId)
+        if (docId) {
+            setDocumentId(docId)
+            startPolling(docId)
         }
     }
 
@@ -194,7 +194,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         }
 
         if (documentData?.sequent_backend_document?.length > 0) {
-            console.log("time tot stop polloing", documentId)
             stopPolling()
             fetchDocumentUrl({
                 variables: {
@@ -204,9 +203,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             })
         }
     }, [eventId, fetchDocumentUrl, polling, documentData, documentId])
-    console.log("LS -> src/routes/ConfirmationScreen.tsx:203 -> documentData: ", documentData)
-    console.log("LS -> src/routes/ConfirmationScreen.tsx:205 -> documentUrl: ", documentUrl)
-    console.log("LS -> src/routes/ConfirmationScreen.tsx:203 -> documentId: ", documentId)
 
     useEffect(() => {
         return () => {
