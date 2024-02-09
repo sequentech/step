@@ -1089,9 +1089,8 @@ const spanishTranslation: TranslationType = {
             "Bloqueo del sistema para la finalización de la configuración de votación por Internet",
         "Start and end of pre-registration for OVCS": "Inicio y fin de la preinscripción para OVCS",
         "Start and end of test voting period": "Inicio y fin del período de votación de prueba",
-        "Start and end of Internet voting period": "Inicio y fin del período de votación por Internet",
-        "Date and time covering the schedule for the following activities:":
-            "Fecha y hora que cubre el cronograma de las siguientes actividades:",
+        "Start and end of Internet voting period":
+            "Inicio y fin del período de votación por Internet",
         "Lab test": "Prueba de laboratorio",
         "Field test": "Prueba de campo",
         "Mock elections": "Elecciones simuladas",

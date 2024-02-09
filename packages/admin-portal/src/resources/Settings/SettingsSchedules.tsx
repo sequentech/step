@@ -126,12 +126,7 @@ export const SettingsSchedules: React.FC = () => {
     }
 
     const confirmDeleteAction = () => {
-        console.log("record deleteAction", scheduleData)
-        console.log("record data", data)
-        console.log("record id", deleteId)
-
         const filteredData = scheduleData.filter((s: RaRecord<Identifier>) => s.id !== deleteId)
-        console.log("record data", filteredData)
         const sendData = {
             ...data,
             settings: {
@@ -232,7 +227,14 @@ export const SettingsSchedules: React.FC = () => {
                     </Box>
                 )}
 
-                <Datagrid empty={<Empty />} bulkActionButtons={false}>
+                <Datagrid
+                    empty={<Empty />}
+                    bulkActionButtons={false}
+                    sx={{
+                        "& .column-name": {width: "70%"},
+                        "& .column-undefined": {textAlign: "center"},
+                    }}
+                >
                     <TextField source="name" />
                     <TextField source="date" />
                     <ActionsColumn actions={actions} />

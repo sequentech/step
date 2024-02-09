@@ -1087,8 +1087,6 @@ const englishTranslation = {
         "Start and end of pre-registration for OVCS": "Start and end of pre-registration for OVCS",
         "Start and end of test voting period": "Start and end of test voting period",
         "Start and end of Internet voting period": "Start and end of Internet voting period",
-        "Date and time covering the schedule for the following activities:":
-            "Date and time covering the schedule for the following activities:",
         "Lab test": "Lab test",
         "Field test": "Field test",
         "Mock elections": "Mock elections",

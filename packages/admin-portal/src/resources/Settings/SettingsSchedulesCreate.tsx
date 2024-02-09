@@ -24,7 +24,6 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {SCHEDULE_NAMES_LIST} from "./constants"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 
-
 interface CreateProps {
     close?: () => void
 }
@@ -42,7 +41,6 @@ export const SettingsSchedulesCreate: React.FC<CreateProps> = (props) => {
     })
 
     const handleSubmit = (newItem: any) => {
-        
         newItem.id = crypto.randomUUID()
 
         const sendData = {
@@ -94,7 +92,6 @@ export const SettingsSchedulesCreate: React.FC<CreateProps> = (props) => {
                 />
                 <TextInput source="name" />
                 <DateInput source="date" />
-
             </SimpleForm>
         </Create>
     )

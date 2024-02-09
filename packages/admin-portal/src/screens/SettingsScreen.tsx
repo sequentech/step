@@ -15,7 +15,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
 import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
-import { SettingsSchedulesCreate } from '@/resources/Settings/SettingsSchedulesCreate'
+import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
