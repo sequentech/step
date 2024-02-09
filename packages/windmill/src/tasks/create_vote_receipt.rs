@@ -62,6 +62,7 @@ pub async fn create_vote_receipt(
         election_event_id,
         format!("vote-receipt-{ballot_id}.pdf"),
         Some(element_id),
+        Some(true),
     )
     .await?;
 
