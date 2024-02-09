@@ -14,6 +14,8 @@ import {
     WrapperField,
     FunctionField,
     useRefresh,
+    BooleanInput,
+    BooleanField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
@@ -60,15 +62,9 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
+    const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
+    const [recordId, setRecordId] = React.useState<string | undefined>(undefined)
 
     useEffect(() => {
         if (recordId) {
@@ -89,13 +85,13 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
     }
 
     const editAction = (id: Identifier) => {
-        setRecordId(id)
+        setRecordId(id as string)
     }
 
     const deleteAction = (id: Identifier) => {
         // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
-        setDeleteId(id)
+        setDeleteId(id as string)
     }
 
     const confirmDeleteAction = () => {
@@ -146,6 +142,11 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
+                    <BooleanField
+                        source={"is_hidden"}
+                        label={t("materials.fields.isHidden")}
+                        sortable={false}
+                    />
                     <TextField
                         source={`data.title_i18n[${i18n.language}]`}
                         label={t("common.label.title")}
