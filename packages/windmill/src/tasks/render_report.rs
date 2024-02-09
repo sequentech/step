@@ -71,7 +71,7 @@ pub async fn render_report(
             election_event_id,
             input.name,
             None,
-            None,
+            false,
         )
         .await?;
     } else {
@@ -90,7 +90,7 @@ pub async fn render_report(
             election_event_id,
             input.name,
             None,
-            None,
+            false,
         )
         .await?;
     }

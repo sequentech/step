@@ -23,7 +23,7 @@ pub async fn upload_and_return_document(
     election_event_id: String,
     name: String,
     document_id: Option<String>,
-    is_public: Option<bool>,
+    is_public: bool,
 ) -> Result<Document> {
     let new_document = hasura::document::insert_document(
         auth_headers,
@@ -32,7 +32,7 @@ pub async fn upload_and_return_document(
         name.clone(),
         media_type.clone(),
         file_size.try_into()?,
-        is_public.unwrap_or(false),
+        is_public,
         document_id,
     )
     .await?;
@@ -44,19 +44,30 @@ pub async fn upload_and_return_document(
         .ok_or(anyhow!("expected document"))?
         .returning[0];
 
-    let document_s3_key = s3::get_document_key(&tenant_id, &election_event_id, &document.id, &name);
+    let (document_s3_key, bucket) = match is_public {
+        true => {
+            let document_s3_key = s3::get_public_document_key(
+                tenant_id.to_string(),
+                document.id.clone(),
+                name.to_string(),
+            );
+            let bucket = s3::get_public_bucket()?;
 
-    let document_s3_key =
-        s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());
+            (document_s3_key, bucket)
+        }
+        false => {
+            let document_s3_key =
+                s3::get_document_key(&tenant_id, &election_event_id, &document.id, &name);
+            let bucket = s3::get_private_bucket()?;
 
-    dbg!(&document_s3_key);
-    dbg!(&file_path);
+            (document_s3_key, bucket)
+        }
+    };
 
     s3::upload_file_to_s3(
         /* key */ document_s3_key,
-        /* is_public */ is_public.unwrap_or(false),
-        // /* s3_bucket */ s3::get_private_bucket()?,
-        s3::get_public_bucket()?, // TODO: fix
+        /* is_public */ is_public,
+        /* s3_bucket */ bucket,
         /* media_type */ media_type,
         /* file_path */ file_path,
     )
