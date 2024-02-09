@@ -131,7 +131,7 @@ export const AuditScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="audit-screen screen">
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             <Box marginTop="24px">
                 <Dialog

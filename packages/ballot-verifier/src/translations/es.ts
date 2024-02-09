@@ -74,6 +74,7 @@ const spanishTranslation: TranslationType = {
             },
             markedInvalid: "Voto explícitamente marcado inválido",
             points: "({{points}} Puntos)",
+            contestNotFound: "Pregunta no encontrada: {{contestId}}",
         },
         poweredBy: "Funciona con",
         errors: {

@@ -29,9 +29,6 @@ export const checkAllowWriteIns = (question: IContest): boolean =>
 export const checkShuffleCategories = (question: IContest): boolean =>
     !!question.presentation?.shuffle_categories
 
-export const checkShuffleAllOptions = (question: IContest): boolean =>
-    !!question.presentation?.shuffle_all_options
-
 export const checkShuffleCategoryList = (question: IContest): Array<string> =>
     question.presentation?.shuffle_category_list || []
 

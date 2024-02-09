@@ -110,7 +110,6 @@
                 "base32_writeins": true,
                 "invalid_vote_policy": "allowed",
                 "shuffle_categories": true,
-                "shuffle_all_options": true,
                 "show_points": false
             }
          },
@@ -208,7 +207,6 @@
                 "base32_writeins": true,
                 "invalid_vote_policy": "allowed",
                 "shuffle_categories": true,
-                "shuffle_all_options": true,
                 "show_points": false
             }
          }

@@ -1,4 +1,4 @@
-use sequent_core::ballot::{Contest, ContestPresentation};
+use sequent_core::ballot::{Contest, ContestPresentation, InvalidVotePolicy};
 use uuid::Uuid;
 
 use super::candidates;
@@ -37,14 +37,14 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         presentation: Some(ContestPresentation {
             allow_writeins: false,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
-            shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }),
     }
 }
@@ -88,14 +88,14 @@ pub fn get_contest_min_max_votes(
         presentation: Some(ContestPresentation {
             allow_writeins: false,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
-            shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }),
     }
 }

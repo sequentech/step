@@ -1,0 +1,41 @@
+import {CandidatesOrder, ICandidate} from "@root/types/CoreTypes"
+import {cloneDeep} from "lodash"
+import {shuffle} from "moderndash"
+
+export const sortCandidatesInContest = (
+    candidates: Array<ICandidate>,
+    order?: CandidatesOrder,
+    applyRandom?: boolean
+): Array<ICandidate> => {
+    let res = cloneDeep(candidates)
+
+    switch (order) {
+        case CandidatesOrder.ALPHABETICAL:
+            res.sort((a, b) => {
+                const nameA = a.alias?.toLowerCase() ?? a.name?.toLowerCase() ?? ""
+                const nameB = b.alias?.toLowerCase() ?? b.name?.toLowerCase() ?? ""
+
+                if (nameA < nameB) {
+                    return -1
+                }
+                if (nameA > nameB) {
+                    return 1
+                }
+
+                return 0
+            })
+            break
+        case CandidatesOrder.CUSTOM:
+            res.sort(
+                (a, b) => (a.presentation?.sort_order ?? -1) - (b.presentation?.sort_order ?? -1)
+            )
+            break
+        case CandidatesOrder.RANDOM:
+            if (applyRandom) {
+                res = shuffle(res)
+            }
+            break
+    }
+
+    return res
+}

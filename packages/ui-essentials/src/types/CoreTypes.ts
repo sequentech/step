@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {TranslationDict} from "@root/services/translate"
+import {IElectionEventPresentation} from "./ElectionEventPresentation"
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
@@ -39,17 +40,29 @@ export interface IElectionStatistics {
     num_sms_sent: number
 }
 
+export enum EInvalidVotePolicy {
+    ALLOWED = "allowed",
+    WARN = "warn",
+    WARN_INVALID_IMPLICIT_AND_EXPLICIT = "warn-invalid-implicit-and-explicit",
+    NOT_ALLOWED = "not-allowed",
+}
+
+export enum ECandidatesSelectionPolicy {
+    RADIO = "radio", // if you select one, the previously selected one gets unselected
+    CUMULATIVE = "cumulative", // default behaviour
+}
+
 export interface IContestPresentation {
     allow_writeins: boolean
     base32_writeins: boolean
     invalid_vote_policy: string
     cumulative_number_of_checkboxes?: number
     shuffle_categories: boolean
-    shuffle_all_options: boolean
     shuffle_category_list?: Array<string>
     show_points: boolean
     enable_checkable_lists?: string
     candidates_order?: CandidatesOrder
+    candidates_selection_policy?: ECandidatesSelectionPolicy
 }
 
 export interface IContest {
@@ -116,6 +129,7 @@ export interface IBallotStyle {
     public_key?: IPublicKeyConfig
     area_id: string
     contests: Array<IContest>
+    election_event_presentation?: IElectionEventPresentation
 }
 
 export interface IPublicKeyConfig {

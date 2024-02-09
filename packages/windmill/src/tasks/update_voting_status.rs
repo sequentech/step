@@ -5,6 +5,7 @@
 use anyhow::Context;
 use celery::error::TaskError;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -37,7 +38,7 @@ pub async fn update_voting_status(
     .with_context(|| "can't find election event")?;
     let election_event = &election_event_response.sequent_backend_election_event[0];
     let old_status: ElectionStatus = match election_event.status.clone() {
-        Some(status) => serde_json::from_value(status)?,
+        Some(status) => deserialize_value(status)?,
         None => ElectionStatus {
             voting_status: payload.status.clone(),
         },

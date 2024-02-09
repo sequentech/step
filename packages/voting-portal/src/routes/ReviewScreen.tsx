@@ -17,6 +17,7 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
+    sortContestByCreationDate,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -33,7 +34,6 @@ import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
-import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
 import {addCastVotes} from "../store/castVotes/castVotesSlice"
@@ -42,13 +42,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
-import {cloneDeep} from "lodash"
-import {sortContestByCreationDate} from "../lib/utils"
-import {
-    clearBallot,
-    selectBallotSelectionByElectionId,
-} from "../store/ballotSelections/ballotSelectionsSlice"
-import AuthContextProvider, {AuthContext} from "../providers/AuthContextProvider"
+import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -223,7 +218,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = true
+    const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
 
     const selectionState = useAppSelector(
@@ -259,7 +254,7 @@ export const ReviewScreen: React.FC = () => {
     const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="review-screen screen">
             {hideAudit ? null : (
                 <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
@@ -304,7 +299,6 @@ export const ReviewScreen: React.FC = () => {
                     ballotStyle={ballotStyle}
                     question={question}
                     key={index}
-                    questionIndex={question.originalIndex}
                     isReview={true}
                 />
             ))}

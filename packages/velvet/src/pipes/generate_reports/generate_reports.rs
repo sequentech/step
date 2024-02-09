@@ -19,13 +19,16 @@ use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
+};
+use crate::{
+    pipes::error::{Error, Result},
+    utils::parse_file,
 };
 
 pub const OUTPUT_PDF: &str = "report.pdf";
@@ -77,7 +80,7 @@ impl GenerateReports {
                     .map(|cr| CandidateResultForReport {
                         candidate: cr.candidate.clone(),
                         total_count: cr.total_count,
-                        percentage_votes: format!("{:.2}", cr.percentage_votes),
+                        percentage_votes: cr.percentage_votes,
                         winning_position: map_winners.get(&cr.candidate.id).cloned(),
                     })
                     .collect();
@@ -168,7 +171,7 @@ impl GenerateReports {
 
         let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
 
-        let res: ContestResult = serde_json::from_reader(f)?;
+        let res: ContestResult = parse_file(f)?;
 
         Ok(res)
     }
@@ -195,7 +198,7 @@ impl GenerateReports {
 
         let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
 
-        let res: Vec<WinnerResult> = serde_json::from_reader(f)?;
+        let res: Vec<WinnerResult> = parse_file(f)?;
 
         Ok(res)
     }
@@ -386,6 +389,6 @@ pub struct ReportDataComputed {
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
-    pub percentage_votes: String,
+    pub percentage_votes: f64,
     pub winning_position: Option<usize>,
 }

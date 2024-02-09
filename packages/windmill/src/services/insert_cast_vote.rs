@@ -26,6 +26,7 @@ use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::serialization::base64::Base64Deserialize;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
@@ -250,7 +251,7 @@ async fn check_status(
         .clone()
         .ok_or(anyhow!("Could not retrieve election event status"))?;
     let status: ElectionEventStatus =
-        serde_json::from_value(status).context("Failed to deserialize election event status")?;
+        deserialize_value(status).context("Failed to deserialize election event status")?;
     if status.voting_status != VotingStatus::OPEN {
         return Err(anyhow!("Election event voting status is not open"));
     }

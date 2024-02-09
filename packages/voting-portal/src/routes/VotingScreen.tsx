@@ -15,6 +15,8 @@ import {
     isUndefined,
     Dialog,
     translateElection,
+    sortContestByCreationDate,
+    IContest,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -35,7 +37,6 @@ import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
-import {sortContestByCreationDate} from "../lib/utils"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 
@@ -77,11 +78,10 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    disableNext: boolean
     handleNext: () => void
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({handleNext, disableNext}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
@@ -176,6 +176,8 @@ const VotingScreen: React.FC = () => {
         })
     }
 
+    // if true, when the user clicks next, there will be a dialog
+    // that doesn't allow to continue and forces the user to fix the issues
     const skipNextButton = Object.values(disableNext).some((v) => v)
 
     const encryptAndReview = () => {
@@ -228,24 +230,21 @@ const VotingScreen: React.FC = () => {
     }, [navigate, backLink, election, ballotStyle, selectionState, canVote, logout])
 
     useEffect(() => {
-        let hasVoted = []
+        let minMaxGlobal = false
         for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
-            let votos = 0
+            let votes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)
             for (let choice of selection?.choices ?? []) {
                 if (choice.selected > -1) {
-                    votos = choice.selected + 1
+                    votes = choice.selected + 1
                 }
             }
-            if (contest.min_votes >= votos && contest.max_votes <= votos) {
-                hasVoted.push(true)
-            } else {
-                hasVoted.push(false)
-            }
+            let outOfRange = votes < contest.min_votes || votes > contest.max_votes
+            minMaxGlobal = minMaxGlobal || outOfRange
         }
         setDisableNext({
             ...disableNext,
-            global: hasVoted.some((v) => !v),
+            minmax_global: minMaxGlobal,
         })
     }, [selectionState, ballotStyle])
 
@@ -256,7 +255,7 @@ const VotingScreen: React.FC = () => {
     const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="voting-screen screen">
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>
@@ -289,14 +288,12 @@ const VotingScreen: React.FC = () => {
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
-                    questionIndex={contest.originalIndex}
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
-                    isUniqChecked={true} // TODO: make it configurable
                 />
             ))}
-            <ActionButtons handleNext={encryptAndReview} disableNext={skipNextButton} />
+            <ActionButtons handleNext={encryptAndReview} />
 
             <Dialog
                 handleClose={() => setOpenNonVoted(false)}
