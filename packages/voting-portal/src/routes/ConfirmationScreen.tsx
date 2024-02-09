@@ -116,7 +116,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
-    const triggerPrint = () => window.print()
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
@@ -216,21 +215,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     return (
         <ActionsContainer>
             <StyledButton
-                onClick={triggerPrint}
+                onClick={printVoteReceipt}
+                disabled={!!polling}
                 variant="secondary"
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
             >
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("confirmationScreen.printButton")}</Box>
-            </StyledButton>
-            <StyledButton
-                onClick={printVoteReceipt}
-                variant="secondary"
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                disabled={!!polling}
-            >
-                <Icon icon={faPrint} size="sm" />
-                <Box>Bonjour la vie</Box>
             </StyledButton>
             {!canVote ? (
                 <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
