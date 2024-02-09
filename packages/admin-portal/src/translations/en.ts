@@ -692,7 +692,9 @@ const englishTranslation = {
                     "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
-                errorMinTrustees:
+                errorMinTrustees_one:
+                    "You selected only {{selected}} trustee, but you must select at least {{threshold}}.",
+                errorMinTrustees_other:
                     "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorThreshold:
                     "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
@@ -761,9 +763,10 @@ const englishTranslation = {
                 title: "Check your Encrypted Private Key Backups",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
-                errorUploading: "Upload error: {{error}}",
+                errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
+                downloaded: "Encripted Private Key generated successfully.",
             },
         },
         tally: {
