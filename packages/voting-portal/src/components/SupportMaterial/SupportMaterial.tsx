@@ -16,6 +16,7 @@ import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {GetDocumentQuery} from "../../gql/graphql"
+import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -91,6 +92,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
+    const {getDocumentUrl} = useGetPublicDocumentUrl(documentId)
 
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
@@ -104,6 +106,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     const handleOpenDialog = async (type: string) => {
         openPreviewSet(true)
     }
+
+    let documentName = imageData?.sequent_backend_document?.[0]?.name
+    const documentUrl = documentName ? getDocumentUrl() : null
 
     return (
         <>
@@ -168,10 +173,8 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                         {kind.includes("image") ? (
                             <>
                                 <img
-                                    src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
-                                    )}
-                                    alt={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
+                                    src={documentUrl}
+                                    alt={`tenant-${tenantId}/document-${documentId}/${documentName}`}
                                 />
                             </>
                         ) : kind.includes("pdf") ? (
@@ -185,10 +188,8 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                 }}
                             >
                                 <iframe
-                                    src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
-                                    )}
-                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
+                                    src={documentUrl}
+                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     width="1400"
                                     height="800"
                                 ></iframe>
@@ -207,12 +208,10 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     ref={videoRef}
                                     width="800"
                                     height="500"
-                                    src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
-                                    )}
+                                    src={documentUrl}
+                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     referrerPolicy="origin"
                                     sandbox="allow-scripts allow-same-origin"
-                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
                                     allow="autoplay;"
                                 ></iframe>
                             </Box>
@@ -230,10 +229,8 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     loading="lazy"
                                     width="800"
                                     height="120"
-                                    src={encodeURI(
-                                        `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`
-                                    )}
-                                    title={`tenant-${tenantId}/document-${documentId}/${imageData?.sequent_backend_document?.[0]?.name}`}
+                                    src={documentUrl}
+                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     allow="autoplay"
                                 ></iframe>
                             </Box>
