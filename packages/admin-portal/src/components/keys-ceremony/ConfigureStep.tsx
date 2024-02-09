@@ -177,7 +177,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         if (!isNumber(intValue) || isNaN(intValue) || intValue < 2 || intValue > max) {
             return t("keysGeneration.configureStep.errorThreshold", {
                 selected: intValue,
-                min: 0,
+                min: 2,
                 max: max,
             })
         }

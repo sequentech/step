@@ -766,7 +766,7 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
                 errorUploading:
-                    "Backup de Clave Encriptada Privada inválido, por favor inténtalo de nuevo",
+                    "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
                 downloaded: "Clave Encriptada Privada generada exitosamente.",
