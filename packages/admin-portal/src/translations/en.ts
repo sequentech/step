@@ -208,11 +208,11 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
-                hideAudit: "Disable Audit",
+                hideAudit: "Disable Ballot Audit Support",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
-                skipElectionList: "Skip Election List screen",
+                skipElectionList: "Skip Election List Screen",
             },
             error: {
                 endDate: "End date must be after start date",

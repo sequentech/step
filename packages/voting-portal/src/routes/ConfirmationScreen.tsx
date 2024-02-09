@@ -132,7 +132,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     }
 
     const onClickRedirect = () => {
-        logout(presentation?.redirect_finish_url)
+        logout(presentation?.redirect_finish_url ?? undefined)
     }
 
     return (

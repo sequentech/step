@@ -210,7 +210,7 @@ const spanishTranslation: TranslationType = {
                 materialActivated: "Materiales de Soporte activados",
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
-                hideAudit: "Deshabilitar Auditoría",
+                hideAudit: "Deshabilitar Soporte de Auditoría de la Papeleta",
                 logoUrl: "Logo URL",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",

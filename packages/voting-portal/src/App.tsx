@@ -63,20 +63,6 @@ const App = () => {
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
-    // const css = `
-    //     &:has(div > .start-screen) {
-    //         background-image: linear-gradient(1deg, #ffffff, transparent),url('https://www.alliedpilots.org/-/media/AlliedPilots/BackgroundBanners/13.jpg')!important;
-    //
-    //         .header-class, .footer-class {
-    //         background-color: unset;
-    //         }
-    //
-    //         .app-version {
-    //         background: unset;
-    //         }
-    //     }
-    // `
-
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(
