@@ -11,12 +11,15 @@ import {
     IDecodedVoteContest,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {IBallotStyle} from "@sequentech/ui-essentials"
+import {IBallotStyle, IAuditableBallot, IHashableBallot} from "@sequentech/ui-essentials"
 
 export interface IBallotService {
-    toHashableBallot: (auditableBallot: string) => string
-    hashBallot: (auditableBallot: string) => string
-    encryptBallotSelection: (ballotSelection: BallotSelection, election: IBallotStyle) => string
+    toHashableBallot: (auditableBallot: IAuditableBallot) => IHashableBallot
+    hashBallot: (auditableBallot: IAuditableBallot) => string
+    encryptBallotSelection: (
+        ballotSelection: BallotSelection,
+        election: IBallotStyle
+    ) => IAuditableBallot
     interpretContestSelection: (
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
@@ -25,10 +28,10 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => number
-    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
+    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
 }
 
-export const toHashableBallot = (auditableBallot: string): string => {
+export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBallot => {
     try {
         return to_hashable_ballot_js(auditableBallot)
     } catch (error) {
@@ -37,7 +40,7 @@ export const toHashableBallot = (auditableBallot: string): string => {
     }
 }
 
-export const hashBallot = (auditableBallot: string): string => {
+export const hashBallot = (auditableBallot: IAuditableBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
     } catch (error) {
@@ -49,7 +52,7 @@ export const hashBallot = (auditableBallot: string): string => {
 export const encryptBallotSelection = (
     ballotSelection: BallotSelection,
     election: IBallotStyle
-): string => {
+): IAuditableBallot => {
     try {
         return encrypt_decoded_contest_js(ballotSelection, election)
     } catch (error) {
@@ -89,7 +92,7 @@ export const getWriteInAvailableCharacters = (
 }
 
 export const decodeAuditableBallot = (
-    auditableBallot: string
+    auditableBallot: IAuditableBallot
 ): Array<IDecodedVoteContest> | null => {
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)

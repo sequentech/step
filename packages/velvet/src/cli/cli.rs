@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::config::Config;
+use crate::{config::Config, utils::parse_file};
 
 use super::error::{Error, Result};
 use clap::{Parser, Subcommand};
@@ -48,7 +48,7 @@ impl CliRun {
         }
 
         let file = File::open(&self.config).map_err(|_| Error::CannotOpenConfig)?;
-        let config: Config = serde_json::from_reader(file)?;
+        let config: Config = parse_file(file)?;
 
         for stage in &config.stages.order {
             if !config.stages.stages_def.contains_key(stage) {

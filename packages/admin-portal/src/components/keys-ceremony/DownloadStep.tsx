@@ -113,6 +113,11 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     </WizardStyles.DownloadButton>
                     <WizardStyles.StatusBox>
                         {downloading ? <WizardStyles.DownloadProgress /> : null}
+                        {downloaded ? (
+                            <WizardStyles.SucessMessage variant="body1">
+                                {t("keysGeneration.checkStep.downloaded")}
+                            </WizardStyles.SucessMessage>
+                        ) : null}
                         {errors ? (
                             <WizardStyles.ErrorMessage variant="body2">
                                 {errors}

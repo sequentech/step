@@ -394,6 +394,52 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-ballot-style"}
+                                onChange={() => setExpanded("election-event-data-ballot-style")}
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-ballot-style" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.ballotDesign")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <BooleanInput
+                                        disabled={!canEdit}
+                                        source={"presentation.hide_audit"}
+                                        label={t(`electionEventScreen.field.hideAudit`)}
+                                    />
+                                    <BooleanInput
+                                        disabled={!canEdit}
+                                        source={"presentation.skip_election_list"}
+                                        label={t(`electionEventScreen.field.skipElectionList`)}
+                                    />
+                                    <TextInput
+                                        resettable={true}
+                                        source={"presentation.logo_url"}
+                                        label={t("electionEventScreen.field.logoUrl")}
+                                    />
+                                    <TextInput
+                                        resettable={true}
+                                        source={"presentation.redirect_finish_url"}
+                                        label={t("electionEventScreen.field.redirectFinishUrl")}
+                                    />
+                                    <TextInput
+                                        resettable={true}
+                                        multiline={true}
+                                        source={"presentation.css"}
+                                        label={t("electionEventScreen.field.css")}
+                                    />
+                                </AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-allowed"}
                                 onChange={() => setExpanded("election-event-data-allowed")}
                             >
