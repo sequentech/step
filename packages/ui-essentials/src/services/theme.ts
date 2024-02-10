@@ -349,22 +349,22 @@ let MuiButton: Components["MuiButton"] = {
             style: {
                 "backgroundColor": palette.yellow.main,
                 "border": `1px solid ${palette.yellow.main}`,
-                "color": palette.black,
+                "color": palette.white,
                 "&:hover": {
                     backgroundColor: palette.yellow.dark,
                     border: `1px solid ${palette.yellow.dark}`,
-                    color: palette.black,
+                    color: palette.white,
                     boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
                 },
                 "&:active": {
                     backgroundColor: `${palette.yellow.main} !important`,
                     border: `1px solid ${palette.yellow.main}`,
-                    color: `${palette.black} !important`,
+                    color: `${palette.white} !important`,
                 },
                 "&:focus": {
                     border: `2px solid ${palette.yellow.dark}`,
                     backgroundColor: palette.yellow.dark,
-                    color: palette.black,
+                    color: palette.white,
                 },
                 "&.Mui-disabled": {
                     background: "rgba(239, 68, 68, 0.4)",
