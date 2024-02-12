@@ -241,13 +241,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
-                                            toto
                                             <ContentInput
                                                 parsedValue={
                                                     parsedValue as Sequent_Backend_Communication_Template
                                                 }
                                             />
-                                            tata
                                         </AccordionDetails>
                                     </FormStyles.AccordionExpanded>
                                 </FormControl>
