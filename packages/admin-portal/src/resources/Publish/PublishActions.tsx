@@ -53,7 +53,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
     const IconOrProgress = ({st, Icon}: any) => {
-        return status === st?.toUpperCase().includes("LOADING") && status !== EPublishStatus.Void ? (
+        return status === st?.toUpperCase().includes("LOADING") &&
+            status !== EPublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
             <Icon width={24} />

@@ -1,29 +1,15 @@
-// export enum EPublishStatus {
-//     Void = 0,
-//     Started = 1,
-//     StartedLoading = 1.1,
-//     Paused = 2,
-//     PausedLoading = 2.1,
-//     Stopped = 3,
-//     StoppedLoading = 3.1,
-//     Published = 4,
-//     PublishedLoading = 4.1,
-//     Generated = 5,
-//     GeneratedLoading = 5.1,
-// }
-
 export enum EPublishStatus {
     Void = "VOID",
     Started = "STARTED",
-    StartedLoading = "STARTEDLOADING",
+    StartedLoading = "STARTED_LOADING",
     Paused = "PAUSED",
-    PausedLoading = "PAUSEDLOADING",
+    PausedLoading = "PAUSED_LOADING",
     Stopped = "STOPPED",
-    StoppedLoading = "STOPPEDLOADING",
+    StoppedLoading = "STOPPED_LOADING",
     Published = "PUBLISHED",
-    PublishedLoading = "PUBLISHEDLOADING",
+    PublishedLoading = "PUBLISHED_LOADING",
     Generated = "GENERATED",
-    GeneratedLoading = "GENERATEDLOADING",
+    GeneratedLoading = "GENERATED_LOADING",
 }
 
 export enum EPublishStatushChanges {
