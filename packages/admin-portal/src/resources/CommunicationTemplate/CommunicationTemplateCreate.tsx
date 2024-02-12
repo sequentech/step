@@ -75,7 +75,7 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
-const EmailSmsComponents: React.FC<{
+const ContentInput: React.FC<{
     parsedValue: Sequent_Backend_Communication_Template
 }> = ({parsedValue}) => {
     const {t} = useTranslation()
@@ -242,7 +242,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                                 choices={communicationMethodChoices()}
                                             />
                                             toto
-                                            <EmailSmsComponents
+                                            <ContentInput
                                                 parsedValue={
                                                     parsedValue as Sequent_Backend_Communication_Template
                                                 }
