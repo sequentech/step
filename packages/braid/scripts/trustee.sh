@@ -6,11 +6,11 @@ cd /opt/braid
 bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -i "$IMMUDB_INDEX_DB" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-init-db -l debug
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"awsSecretsManager"} # Default to awsSecretsManager if not set
-if [ -z "$TRUSTEE_NUM" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
-    echo "Error: TRUSTEE_NUM must be set." #Avoid secrets overwriting
+if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
+    echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
 fi
-SECRET_KEY_NAME="trustee${TRUSTEE_NUM}:config"
+SECRET_KEY_NAME="${TRUSTEE_NAME}:config"
 
 if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
     if [ -z "$AWS_SM_KEY_PREFIX" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]
