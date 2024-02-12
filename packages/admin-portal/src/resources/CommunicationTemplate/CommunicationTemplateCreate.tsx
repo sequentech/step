@@ -75,6 +75,26 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
+const EmailSmsComponents: React.FC<{
+    parsedValue: Sequent_Backend_Communication_Template
+}> = ({parsedValue}) => {
+    const {t} = useTranslation()
+    const communicationMethod = useWatch({name: "communication_method"})
+
+    if (communicationMethod === ICommunicationMethod.EMAIL) {
+        return <EmailEditEditor record={parsedValue} />
+    } else {
+        return (
+            <FormStyles.TextInput
+                minRows={4}
+                multiline={true}
+                source="template.sms"
+                label={t("communicationTemplate.form.smsMessage")}
+            />
+        )
+    }
+}
+
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = ({close}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -86,25 +106,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         name: string
         value: ICommunicationType
     }>()
-
-    const EmailSmsComponents: React.FC<{
-        parsedValue: Sequent_Backend_Communication_Template
-    }> = ({parsedValue}) => {
-        const communicationMethod = useWatch({name: "communication_method"})
-
-        if (communicationMethod === ICommunicationMethod.EMAIL) {
-            return <EmailEditEditor record={parsedValue} />
-        } else {
-            return (
-                <FormStyles.TextInput
-                    minRows={4}
-                    multiline={true}
-                    source="template.sms"
-                    label={t("communicationTemplate.form.smsMessage")}
-                />
-            )
-        }
-    }
 
     function selectCommunicationType(event: any) {
         const choice = event.target
@@ -240,11 +241,13 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
+                                            toto
                                             <EmailSmsComponents
                                                 parsedValue={
                                                     parsedValue as Sequent_Backend_Communication_Template
                                                 }
                                             />
+                                            tata
                                         </AccordionDetails>
                                     </FormStyles.AccordionExpanded>
                                 </FormControl>
