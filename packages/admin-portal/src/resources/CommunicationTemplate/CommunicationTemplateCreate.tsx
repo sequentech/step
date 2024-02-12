@@ -1,4 +1,4 @@
-import React, {useContext} from "react"
+import React, {useContext, useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -82,6 +82,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE)
     const {globalSettings} = useContext(SettingsContext)
 
+    const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
+        name: string
+        value: ICommunicationType
+    }>()
+
     const EmailSmsComponents: React.FC<{
         parsedValue: Sequent_Backend_Communication_Template
     }> = ({parsedValue}) => {
@@ -101,6 +106,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         }
     }
 
+    function selectCommunicationType(event: any) {
+        const choice = event.target
+        setSelectedCommunicationType(choice)
+    }
+
     const communicationTypeChoices = () => {
         return (Object.values(ICommunicationType) as ICommunicationType[]).map((value) => ({
             id: value,
@@ -109,10 +119,16 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     }
 
     const communicationMethodChoices = () => {
-        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+        let res = (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
         }))
+
+        if (selectedCommunicationType?.value !== ICommunicationType.BALLOT_RECEIPT) {
+            res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
+        }
+
+        return res
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
@@ -171,7 +187,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                     {(incoming) => {
                         const parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id"> =
                             parseValues(incoming)
-                        // console.log("parsedValue :>> ", parsedValue)
 
                         return (
                             <SimpleForm record={parsedValue} onSubmit={onSubmit}>
@@ -200,6 +215,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                         <SelectInput
                                             source="communication_type"
                                             validate={required()}
+                                            onChange={selectCommunicationType}
                                             choices={communicationTypeChoices()}
                                         />
                                     </CommunicationTemplateTitleContainer>

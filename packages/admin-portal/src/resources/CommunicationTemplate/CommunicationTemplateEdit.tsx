@@ -204,14 +204,12 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
                                     // onChange={handleInputChange}
                                     label={t("communicationTemplate.form.alias")}
                                 />
-
                                 <FormStyles.TextInput
                                     source="template.name"
                                     validate={required()}
                                     // onChange={handleInputChange}
                                     label={t("communicationTemplate.form.name")}
                                 />
-
                                 <FormControl fullWidth>
                                     <CommunicationTemplateTitleContainer
                                         title={t("communicationTemplate.form.communicationType")}
