@@ -1057,6 +1057,7 @@ const spanishTranslation: TranslationType = {
             method: {
                 email: "Email",
                 sms: "SMS",
+                document: "DOCUMENTO",
             },
         },
         materials: {

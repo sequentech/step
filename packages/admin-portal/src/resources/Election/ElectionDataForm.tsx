@@ -33,7 +33,7 @@ import {
     Sequent_Backend_Tenant,
 } from "../../gql/graphql"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -91,23 +91,23 @@ export const ElectionDataForm: React.FC = () => {
 
     const [updateImage] = useUpdate()
 
-    const buildLanguageSettings = () => {
-        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
-
-        const temp = []
-        if (tempSettings) {
-            for (const item of tempSettings) {
-                const enabled_item: any = {}
-                enabled_item[item] = true
-                temp.push(enabled_item)
-            }
-        }
-
-        return temp
-    }
-
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
+            const buildLanguageSettings = () => {
+                const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+
+                const temp = []
+                if (tempSettings) {
+                    for (const item of tempSettings) {
+                        const enabled_item: any = {}
+                        enabled_item[item] = true
+                        temp.push(enabled_item)
+                    }
+                }
+
+                return temp
+            }
+
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
@@ -199,19 +199,8 @@ export const ElectionDataForm: React.FC = () => {
                 for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
                     const key = Object.keys(ICommunicationMethod)[value]
 
-                    console.log(
-                        "LS -> src/resources/Election/ElectionDataForm.tsx:217 -> key: ",
-                        key
-                    )
-
-                    console.log(
-                        "LS -> src/resources/Election/ElectionDataForm.tsx:219 -> temp.receipts: ",
-                        temp.receipts
-                    )
-                    if (key !== ICommunicationMethod.DOCUMENT) {
-                        allowed[key] = temp.receipts[key].allowed
-                        template[key] = temp.receipts[key].template
-                    }
+                    allowed[key] = temp.receipts[key]?.allowed
+                    template[key] = temp.receipts[key]?.template
                 }
                 temp.allowed = allowed
                 temp.template = template
@@ -222,10 +211,10 @@ export const ElectionDataForm: React.FC = () => {
 
             return temp
         },
-        [data]
+        [data, tenantData?.voting_channels]
     )
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
 
@@ -327,7 +316,7 @@ export const ElectionDataForm: React.FC = () => {
         const theFile = files?.[0]
 
         if (theFile) {
-            let {data, errors} = await getUploadUrl({
+            let {data} = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
@@ -374,6 +363,7 @@ export const ElectionDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
+
                 return (
                     <SimpleForm
                         validate={formValidator}

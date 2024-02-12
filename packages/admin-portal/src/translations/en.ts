@@ -1053,6 +1053,7 @@ const englishTranslation = {
             method: {
                 email: "Email",
                 sms: "SMS",
+                document: "DOCUMENT",
             },
         },
         materials: {
