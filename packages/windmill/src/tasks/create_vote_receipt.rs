@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    services::{documents::upload_and_return_document, temp_path::write_into_named_temp_file},
+    services::{
+        database::get_hasura_pool, documents::upload_and_return_document,
+        temp_path::write_into_named_temp_file,
+    },
     types::error::Result,
 };
 use anyhow::{anyhow, Context};
@@ -14,10 +17,72 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
 
+use deadpool_postgres::Client as DbClient;
+use rocket::http::Status;
+use rocket::serde::json::Json;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
+use tokio_postgres::row::Row;
+use uuid::Uuid;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TemplateData {
     ballot_id: String,
     ballot_tracker_url: String,
+}
+
+async fn get_template() -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let mut hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let total_distinct_voters_statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                COUNT(DISTINCT voter_id_string) AS total_distinct_voters
+            FROM
+                sequent_backend.cast_vote
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                election_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &total_distinct_voters_statement,
+            &[
+                &Uuid::parse_str("90505c8a-23a9-4cdf-a26b-4e19f6a097d5")
+                    .map_err(|err| anyhow!("{}", err))?,
+                &Uuid::parse_str("c9cf798a-e3cd-4b52-9d0d-dd536750fc94")
+                    .map_err(|err| anyhow!("{}", err))?,
+                &Uuid::parse_str("5207a1e1-e1f3-4758-a4f5-fe5cdab469dd")
+                    .map_err(|err| anyhow!("{}", err))?,
+            ],
+        )
+        .await?;
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let total_distinct_voters: i64 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_distinct_voters")?
+    };
+
+    dbg!(&total_distinct_voters);
+
+    Ok(())
 }
 
 #[instrument(err)]
@@ -31,6 +96,9 @@ pub async fn create_vote_receipt(
     election_event_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
+
+    // SELECT receipts FROM election WHERE id = ?;
+    get_template();
 
     let mut map = Map::new();
     map.insert(
