@@ -44,7 +44,7 @@ const PublishGenerateStyled = {
 export type TPublishGenerate = {
     data: any
     readOnly: boolean
-    status: number
+    status: string
     electionId?: string
     onBack: () => void
     onPublish: () => void

@@ -30,7 +30,7 @@ const filters: Array<ReactElement> = [
 ]
 
 type TPublishList = {
-    status: number
+    status: string
     electionId?: number | string
     electionEventId: number | string | undefined
     canRead: boolean
