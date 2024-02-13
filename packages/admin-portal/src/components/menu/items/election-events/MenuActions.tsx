@@ -210,6 +210,7 @@ export default function MenuAction({
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Add}
+                            className={`menu-action-add-${resourceType}`}
                             onClick={() =>
                                 handleAction(Action.Add, {
                                     id: resourceId,
@@ -233,6 +234,7 @@ export default function MenuAction({
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Archive}
+                            className={`menu-action-archive-${resourceType}`}
                             onClick={() =>
                                 handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
                                     id: resourceId,

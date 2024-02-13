@@ -63,66 +63,66 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
-        // // delete candidate one
-        // let menu = await browser
-        //     .element(
-        //         `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
-        //     )
-        //     .moveTo()
-        // browser.click(menu)
-        // browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
-        // browser.pause(200)
-        // browser.element(`button.ok-button`).click()
-        // browser.pause(200)
-        //
-        // // delete candidate two
-        // menu = await browser
-        //     .element(
-        //         `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
-        //     )
-        //     .moveTo()
-        // browser.click(menu)
-        // browser.pause(200)
-        // browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
-        // browser.element(`button.ok-button`).click()
-        // browser.pause(200)
-        //
-        // // delete contest
-        // menu = await browser
-        //     .element(
-        //         `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
-        //     )
-        //     .moveTo()
-        // browser.click(menu)
-        // browser.pause(200)
-        // browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
-        // browser.element(`button.ok-button`).click()
-        // browser.pause(200)
-        //
-        // // delete election
-        // menu = await browser
-        //     .element(
-        //         `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
-        //     )
-        //     .moveTo()
-        // browser.click(menu)
-        // browser.pause(200)
-        // browser.element(`li.menu-action-delete-${this.electionLink!}`).click()
-        // browser.element(`button.ok-button`).click()
-        // browser.pause(200)
-        //
-        // // delete election event
-        // menu = await browser
-        //     .element(
-        //         `a[title='this is a test election event name'] + div.menu-actions-${this
-        //             .electionEventLink!}`
-        //     )
-        //     .moveTo()
-        // browser.click(menu)
-        // browser.pause(200)
-        // browser.element(`li.menu-action-delete-${this.electionEventLink!}`).click()
-        // browser.element(`button.ok-button`).click()
-        // browser.pause(200)
+        // delete candidate one
+        let menu = await browser
+            .element(
+                `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+        browser.pause(200)
+        browser.element(`button.ok-button`).click()
+        browser.pause(200)
+
+        // delete candidate two
+        menu = await browser
+            .element(
+                `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.candidateLink!}`).click()
+        browser.element(`button.ok-button`).click()
+        browser.pause(200)
+
+        // delete contest
+        menu = await browser
+            .element(
+                `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.contestLink!}`).click()
+        browser.element(`button.ok-button`).click()
+        browser.pause(200)
+
+        // delete election
+        menu = await browser
+            .element(
+                `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-delete-${this.electionLink!}`).click()
+        browser.element(`button.ok-button`).click()
+        browser.pause(200)
+
+        // delete election event
+        menu = await browser
+            .element(
+                `a[title='this is a test election event name'] + div.menu-actions-${this
+                    .electionEventLink!}`
+            )
+            .moveTo()
+        browser.click(menu)
+        browser.pause(200)
+        browser.element(`li.menu-action-archive-${this.electionEventLink!}`).click()
+        browser.element(`button.ok-button`).click()
+        browser.pause(200)
 
         // Logout
         browser
@@ -195,143 +195,108 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
         )
     })
 
-    // it("edit a publish to set password", async (browser: NightwatchAPI) => {
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-publish-tab").click("a.election-event-voter-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.publish-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".edit-publish-icon").click(".edit-voter-icon")
-    //                 browser
-    //                     .sendKeys("input[name=password]", "secretepassword")
-    //                     .sendKeys("input[name=repeat_password]", "secretepassword")
-    //                     .assert.enabled("button[type=submit]")
-    //                     .click("button[type=submit]")
-    //                     .pause(200)
-    //                     .assert.textContains("span.first_name", "this is an publish firstname")
-    //             }
-    //         }
-    //     )
-    // })
-    //
-    // it("edit a publish to set area", async (browser: NightwatchAPI) => {
-    //     // create area
-    //     browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.area-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.assert.visible("button.area-add-button").click("button.area-add-button")
-    //             } else {
-    //                 browser.assert.visible("button.add-button").click("button.add-button")
-    //             }
-    //             browser
-    //                 .sendKeys("input[name=name]", "this is an area name")
-    //                 .assert.enabled("button[type=submit]")
-    //                 .click("button[type=submit]")
-    //                 .pause(200)
-    //                 .assert.textContains("span.area-name", "this is an area name")
-    //         }
-    //     )
-    //
-    //     // activate publishs tab
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-publish-tab").click("a.election-event-voter-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.publish-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         async (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".edit-publish-icon").click(".edit-voter-icon")
-    //                 browser.assert.visible(".select-publish-area").click(".select-voter-area")
-    //                 const opcion = await browser.element.findByRole("option")
-    //                 opcion.click()
-    //                 browser.assert
-    //                     .enabled("button[type=submit]")
-    //                     .click("button[type=submit]")
-    //                     .pause(200)
-    //                     .assert.textContains("span.first_name", "this is an publish firstname")
-    //             }
-    //         }
-    //     )
-    //
-    //     // delete area
-    //     browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.area-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".delete-area-icon").click(".delete-area-icon")
-    //                 browser.assert
-    //                     .enabled(`button.ok-button`)
-    //                     .click("button.ok-button")
-    //                     .pause(1000)
-    //                     .assert.not.elementPresent("span.area-description")
-    //             }
-    //         }
-    //     )
-    // })
-    //
-    // it("delete a publish", async (browser: NightwatchAPI) => {
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-publish-tab").click("a.election-event-voter-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.publish-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".delete-publish-icon").click(".delete-voter-icon")
-    //                 browser.assert
-    //                     .enabled(`button.ok-button`)
-    //                     .click("button.ok-button")
-    //                     .pause(1000)
-    //                     .assert.not.elementPresent("span.first_name")
-    //             }
-    //         }
-    //     )
-    // })
+    it("publish can start election", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.publish-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".publish-visibility-icon")
+                    browser.assert
+                        .enabled("button.publish-action-start-button")
+                        .click("button.publish-action-start-button")
+                        .pause(200)
+                    browser.assert.enabled("button.ok-button").click("button.ok-button")
+                }
+                browser.assert.not
+                    .enabled("button.publish-action-start-button")
+                    .assert.enabled("button.publish-action-pause-button")
+                    .assert.enabled("button.publish-action-stop-button")
+            }
+        )
+    })
+
+    it("publish can pause election", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.publish-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".publish-visibility-icon")
+                    browser.assert
+                        .enabled("button.publish-action-start-button")
+                        .click("button.publish-action-start-button")
+                    browser.assert.enabled("button.ok-button").click("button.ok-button")
+                    browser.assert
+                        .enabled("button.publish-action-pause-button")
+                        .click("button.publish-action-pause-button")
+                    browser.assert.enabled("button.ok-button").click("button.ok-button")
+                }
+                browser.assert
+                    .enabled("button.publish-action-start-button")
+                    .assert.not.enabled("button.publish-action-pause-button")
+                    .assert.enabled("button.publish-action-stop-button")
+            }
+        )
+    })
+
+    it("publish can stop election", async (browser: NightwatchAPI) => {
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.publish-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".publish-visibility-icon")
+                    browser.assert
+                        .enabled("button.publish-action-start-button")
+                        .click("button.publish-action-start-button")
+                    browser.assert.enabled("button.ok-button").click("button.ok-button")
+                    browser.assert
+                        .enabled("button.publish-action-stop-button")
+                        .click("button.publish-action-stop-button")
+                    browser.assert.enabled("button.ok-button").click("button.ok-button")
+                }
+                browser.assert.not
+                    .enabled("button.publish-action-start-button")
+                    .assert.not.enabled("button.publish-action-pause-button")
+                    .assert.not.enabled("button.publish-action-stop-button")
+            }
+        )
+    })
 })
