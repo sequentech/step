@@ -75,6 +75,8 @@ async fn get_template() -> Result<()> {
         .get("DOCUMENTS")
         .and_then(|doc| doc.get("template"));
 
+    dbg!(&template_id);
+
     if let Some(id) = template_id {
         if let Some(id) = id.as_str() {
             let query = hasura_transaction
