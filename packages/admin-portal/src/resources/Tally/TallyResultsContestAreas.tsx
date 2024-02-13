@@ -34,8 +34,8 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
 
     const [value, setValue] = React.useState<number | null>(null)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
-    const [areaContestId, setAreaContestId] = useState<string | null>()
-    const [selectedArea, setSelectedArea] = useState<string | null>()
+    const [areaContestId, setAreaContestId] = useState<string | null>(null)
+    const [selectedArea, setSelectedArea] = useState<string | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
 
@@ -106,6 +106,8 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
 
     const tabGlobalClicked = () => {
         setValue(0)
+        setAreaContestId(null)
+        setSelectedArea(null)
     }
 
     useEffect(() => {

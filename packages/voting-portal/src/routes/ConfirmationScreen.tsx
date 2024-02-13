@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
+import React, {useState, useEffect, useContext} from "react"
+import {useTranslation} from "react-i18next"
 import {
     Dialog,
     Icon,
@@ -10,13 +12,25 @@ import {
     QRCode,
     stringToHtml,
     theme,
+    QRCode,
+    Dialog,
+    IElectionEventPresentation,
 } from "@sequentech/ui-essentials"
-import React, {useEffect, useState} from "react"
-import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {faCheck, faCircleQuestion, faPrint} from "@fortawesome/free-solid-svg-icons"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {styled} from "@mui/material/styles"
+import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
+import Button from "@mui/material/Button"
 import {useNavigate, useParams} from "react-router-dom"
-
+import Link from "@mui/material/Link"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {provideBallotService} from "../services/BallotService"
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {TenantEventType} from ".."
+import {useRootBackLink} from "../hooks/root-back-link"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import Button from "@mui/material/Button"
 import Link from "@mui/material/Link"
@@ -109,28 +123,31 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
+    const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
-    const {logout} = useContext(AuthContext)
 
-    const onClickToScreen = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-    }
-
-    const onClickRedirect = () => {
-        logout("https://google.com")
-    }
+    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
     useEffect(() => {
         if (ballotStyle) {
             dispatch(clearBallot())
         }
     }, [ballotStyle, dispatch])
+
+    const onClickToScreen = () => {
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+    }
+
+    const onClickRedirect = () => {
+        logout(presentation?.redirect_finish_url ?? undefined)
+    }
 
     return (
         <ActionsContainer>
@@ -187,7 +204,7 @@ export const ConfirmationScreen: React.FC = () => {
     })
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="confirmation-screen screen">
             <Box marginTop="24px">
                 <Stepper selected={3} />
             </Box>

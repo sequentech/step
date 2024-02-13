@@ -51,7 +51,7 @@ export const fullAdminTheme = {
                 root: {
                     //marginTop: "4px",
                     //marginBottom: 0,
-                    "& #tenant-select": {
+                    "& #tenant-oelect": {
                         fontSize: "16px",
                         padding: "4px 12px",
                     },
@@ -65,7 +65,7 @@ export const fullAdminTheme = {
                     //    "0px 2px 1px -1px rgba(0, 0, 0, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12)",
                     "paddingRight": "4px",
                     "paddingLeft": "4px",
-                    "height": "calc(100vh - 79px)",
+                    "height": "100%",
 
                     "& .RaMenu-open": {
                         flexGrow: 2,
@@ -78,9 +78,9 @@ export const fullAdminTheme = {
                         marginBottom: "4px",
                     },
                     "& .RaSidebar-fixed": {
-                        display: "flex",
+                        dioplay: "flex",
                         flexDirection: "column",
-                        height: "calc(100vh - 79px)",
+                        height: "100%",
                     },
                 },
             },

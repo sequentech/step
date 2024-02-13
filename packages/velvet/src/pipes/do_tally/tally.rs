@@ -6,6 +6,7 @@ use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAl
 use super::error::{Error, Result};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
+use crate::utils::parse_file;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::{fs, path::PathBuf};
 use tracing::instrument;
@@ -55,7 +56,7 @@ impl Tally {
 
         for f in files {
             let f = fs::File::open(&f).map_err(|e| PipesError::FileAccess(f, e))?;
-            let votes: Vec<DecodedVoteContest> = serde_json::from_reader(f)?;
+            let votes: Vec<DecodedVoteContest> = parse_file(f)?;
             res.push(votes);
         }
 

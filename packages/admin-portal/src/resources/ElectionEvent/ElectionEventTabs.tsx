@@ -22,6 +22,7 @@ export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
+    const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
 
     const location = useLocation()
     const navigate = useNavigate()
@@ -119,9 +120,14 @@ export const ElectionEventTabs: React.FC = () => {
                 {showKeys ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.keys")}
-                        className="election-event-keys-tab"
+                        onClick={() => {
+                            setShowKeysList(Date.now().toString())
+                        }}
                     >
-                        <EditElectionEventKeys />
+                        <EditElectionEventKeys
+                            isShowCeremony={showKeysList}
+                            isShowTrusteeCeremony={showKeysList}
+                        />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showTally ? (

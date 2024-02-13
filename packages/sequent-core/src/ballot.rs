@@ -3,19 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+use crate::error::BallotError;
+use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_wasm_bindgen::Serializer;
 use std::{collections::HashMap, default::Default};
-use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
-pub type I18nContent = HashMap<String, String>;
+pub type I18nContent<T = String> = HashMap<String, T>;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
@@ -55,13 +58,44 @@ pub struct RawAuditableBallot<C: Ctx> {
     pub ballot_hash: String,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct AuditableBallot<C: Ctx> {
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct AuditableBallot {
     pub version: u32,
     pub issue_date: String,
     pub config: BallotStyle,
-    pub contests: Vec<AuditableBallotContest<C>>,
+    pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
+}
+
+impl AuditableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        &self,
+    ) -> Result<Vec<AuditableBallotContest<C>>, BallotError> {
+        self.contests
+            .clone()
+            .into_iter()
+            .map(|auditable_ballot_contest_serialized| {
+                Base64Deserialize::deserialize(
+                    auditable_ballot_contest_serialized.clone(),
+                )
+                .map_err(|err| BallotError::Serialization(err.to_string()))
+            })
+            .collect()
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contests: &Vec<AuditableBallotContest<C>>,
+    ) -> Result<Vec<String>, BallotError> {
+        contests
+            .clone()
+            .into_iter()
+            .map(|auditable_ballot_contest| {
+                Base64Serialize::serialize(&auditable_ballot_contest)
+            })
+            .collect::<Vec<Result<String, BallotError>>>()
+            .into_iter()
+            .collect()
+    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -71,12 +105,43 @@ pub struct HashableBallotContest<C: Ctx> {
     pub proof: Schnorr<C>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
-pub struct HashableBallot<C: Ctx> {
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct HashableBallot {
     pub version: u32,
     pub issue_date: String,
-    pub contests: Vec<HashableBallotContest<C>>,
+    pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
     pub config: BallotStyle,
+}
+
+impl HashableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        &self,
+    ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
+        self.contests
+            .clone()
+            .into_iter()
+            .map(|hashable_ballot_contest_serialized| {
+                Base64Deserialize::deserialize(
+                    hashable_ballot_contest_serialized.clone(),
+                )
+                .map_err(|err| BallotError::Serialization(err.to_string()))
+            })
+            .collect()
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contests: &Vec<HashableBallotContest<C>>,
+    ) -> Result<Vec<String>, BallotError> {
+        contests
+            .clone()
+            .into_iter()
+            .map(|hashable_ballot_contest| {
+                Base64Serialize::serialize(&hashable_ballot_contest)
+            })
+            .collect::<Vec<Result<String, BallotError>>>()
+            .into_iter()
+            .collect()
+    }
 }
 
 impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
@@ -89,19 +154,39 @@ impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
     }
 }
 
-impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
-    fn from(value: &AuditableBallot<C>) -> HashableBallot<C> {
-        assert!(TYPES_VERSION == value.version);
-        HashableBallot {
+impl TryFrom<&AuditableBallot> for HashableBallot {
+    type Error = BallotError;
+
+    fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
+        if TYPES_VERSION != value.version {
+            return Err(BallotError::Serialization(format!(
+                "Unexpected version {}, expected {}",
+                value.version.to_string(),
+                TYPES_VERSION
+            )));
+        }
+
+        let contests = value.deserialize_contests::<RistrettoCtx>()?;
+        let hashable_ballot_contest: Vec<HashableBallotContest<RistrettoCtx>> =
+            contests
+                .iter()
+                .map(|auditable_ballot_contest| {
+                    let hashable_ballot_contest =
+                        HashableBallotContest::<RistrettoCtx>::from(
+                            auditable_ballot_contest,
+                        );
+                    hashable_ballot_contest
+                })
+                .collect();
+
+        Ok(HashableBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
-            contests: value
-                .contests
-                .iter()
-                .map(|contest| HashableBallotContest::<C>::from(contest))
-                .collect(),
+            contests: HashableBallot::serialize_contests::<RistrettoCtx>(
+                &hashable_ballot_contest,
+            )?,
             config: value.config.clone(),
-        }
+        })
     }
 }
 
@@ -252,6 +337,112 @@ pub enum CandidatesOrder {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum InvalidVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "warn-invalid-implicit-and-explicit")]
+    #[serde(rename = "warn-invalid-implicit-and-explicit")]
+    WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum CandidatesSelectionPolicy {
+    #[strum(serialize = "radio")]
+    #[serde(rename = "radio")]
+    RADIO, // if you select one, the previously selected one gets unselected
+    #[strum(serialize = "cumulative")]
+    #[serde(rename = "cumulative")]
+    CUMULATIVE, // default behaviour
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventMaterials {
+    pub activated: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventLanguageConf {
+    pub enabled_language_codes: Option<Vec<String>>,
+    pub default_language_code: Option<String>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionEventPresentation {
+    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub materials: Option<ElectionEventMaterials>,
+    pub language_conf: Option<ElectionEventLanguageConf>,
+    pub logo_url: Option<String>,
+    pub redirect_finish_url: Option<String>,
+    pub css: Option<String>,
+    pub hide_audit: Option<bool>,
+    pub skip_election_list: Option<bool>,
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -265,13 +456,14 @@ pub enum CandidatesOrder {
 pub struct ContestPresentation {
     pub allow_writeins: bool,
     pub base32_writeins: bool,
-    pub invalid_vote_policy: String, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub invalid_vote_policy: InvalidVotePolicy, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: bool,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
+    pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
 }
 
 impl ContestPresentation {
@@ -279,13 +471,14 @@ impl ContestPresentation {
         ContestPresentation {
             allow_writeins: true,
             base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
+            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: false,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
             candidates_order: None,
+            candidates_selection_policy: None,
         }
     }
 }
@@ -355,9 +548,9 @@ impl Contest {
             .as_ref()
             .map(|presentation| {
                 [
-                    "allowed".to_string(),
-                    "warn".to_string(),
-                    "warn-invalid-implicit-and-explicit".to_string(),
+                    InvalidVotePolicy::ALLOWED,
+                    InvalidVotePolicy::WARN,
+                    InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
                 ]
                 .contains(&presentation.invalid_vote_policy)
             })
@@ -515,4 +708,5 @@ pub struct BallotStyle {
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,
     pub contests: Vec<Contest>,
+    pub election_event_presentation: Option<ElectionEventPresentation>,
 }

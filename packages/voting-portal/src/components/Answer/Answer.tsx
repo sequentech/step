@@ -40,7 +40,7 @@ export interface IAnswerProps {
     isReview: boolean
     isInvalidVote?: boolean
     isInvalidWriteIns?: boolean
-    isUniqChecked?: boolean
+    isRadioSelection?: boolean
     contest: IContest
 }
 
@@ -53,7 +53,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     isReview,
     isInvalidVote,
     isInvalidWriteIns,
-    isUniqChecked,
+    isRadioSelection,
     contest,
 }) => {
     const selectionState = useAppSelector(
@@ -96,7 +96,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         let cleanedText =
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
 
-        if (isUniqChecked) {
+        if (isRadioSelection) {
             dispatch(
                 resetBallotSelection({
                     ballotStyle,

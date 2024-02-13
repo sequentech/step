@@ -37,6 +37,7 @@ use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::newtypes::BatchNumber;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
@@ -122,7 +123,7 @@ pub async fn get_tally_session(
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
-            from_value(value)
+            deserialize_value(value)
                 .map_err(|err| anyhow!("Error parsing tally ceremony status: {:?}", err))
         })
         .ok_or(anyhow!("Missing tally ceremony status"))

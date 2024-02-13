@@ -590,8 +590,7 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <NumberInput
                                     source="num_allowed_revotes"
-                                    name="Number of allowed votes"
-                                    label="Number of allowed votes"
+                                    label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
 
