@@ -5,9 +5,9 @@
 
   <testsuite name="e2e.create_election_event.test"
     errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="10" time="63.54" timestamp="">
+    tests="10" time="56.04" timestamp="">
   
-    <testcase name="create an election event" classname="e2e.create_election_event.test" time="7.029" assertions="6">
+    <testcase name="create an election event" classname="e2e.create_election_event.test" time="7.143" assertions="6">
 
     
 
@@ -22,7 +22,7 @@
     
     </testcase>
   
-    <testcase name="create an election" classname="e2e.create_election_event.test" time="6.149" assertions="6">
+    <testcase name="create an election" classname="e2e.create_election_event.test" time="2.169" assertions="6">
 
     
 
@@ -37,7 +37,7 @@
     
     </testcase>
   
-    <testcase name="create a contest" classname="e2e.create_election_event.test" time="2.300" assertions="6">
+    <testcase name="create a contest" classname="e2e.create_election_event.test" time="2.216" assertions="6">
 
     
 
@@ -52,7 +52,7 @@
     
     </testcase>
   
-    <testcase name="create a candidate one" classname="e2e.create_election_event.test" time="2.066" assertions="6">
+    <testcase name="create a candidate one" classname="e2e.create_election_event.test" time="2.044" assertions="6">
 
     
 
@@ -67,7 +67,7 @@
     
     </testcase>
   
-    <testcase name="create a candidate two" classname="e2e.create_election_event.test" time="2.065" assertions="6">
+    <testcase name="create a candidate two" classname="e2e.create_election_event.test" time="2.033" assertions="6">
 
     
 
@@ -82,7 +82,7 @@
     
     </testcase>
   
-    <testcase name="delete candidate one" classname="e2e.create_election_event.test" time="1.952" assertions="3">
+    <testcase name="delete candidate one" classname="e2e.create_election_event.test" time="2.008" assertions="3">
 
     
 
@@ -91,7 +91,7 @@
     
     </testcase>
   
-    <testcase name="delete candidate two" classname="e2e.create_election_event.test" time="1.920" assertions="3">
+    <testcase name="delete candidate two" classname="e2e.create_election_event.test" time="1.957" assertions="3">
 
     
 
@@ -100,7 +100,7 @@
     
     </testcase>
   
-    <testcase name="delete contest" classname="e2e.create_election_event.test" time="1.994" assertions="3">
+    <testcase name="delete contest" classname="e2e.create_election_event.test" time="2.142" assertions="3">
 
     
 
@@ -109,7 +109,7 @@
     
     </testcase>
   
-    <testcase name="delete an election" classname="e2e.create_election_event.test" time="1.905" assertions="3">
+    <testcase name="delete an election" classname="e2e.create_election_event.test" time="1.942" assertions="3">
 
     
 
@@ -118,7 +118,7 @@
     
     </testcase>
   
-    <testcase name="delete an election event" classname="e2e.create_election_event.test" time="1.922" assertions="3">
+    <testcase name="delete an election event" classname="e2e.create_election_event.test" time="1.886" assertions="3">
 
     
 

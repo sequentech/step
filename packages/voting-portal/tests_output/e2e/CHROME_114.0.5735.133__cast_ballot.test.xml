@@ -1,46 +1,88 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites errors="0"
-            failures="0"
+<testsuites errors="4"
+            failures="2"
             tests="1">
 
   <testsuite name="e2e.cast_ballot.test"
-    errors="0" failures="0" hostname="" id="" package="e2e" skipped="0"
-    tests="1" time="13.89" timestamp="">
+    errors="4" failures="2" hostname="" id="" package="e2e" skipped="0"
+    tests="1" time="62.32" timestamp="">
   
-    <testcase name="should cast a ballot" classname="e2e.cast_ballot.test" time="6.943" assertions="15">
+    <testcase name="should cast a ballot" classname="e2e.cast_ballot.test" time="31.16" assertions="2">  <failure message="Timed out while waiting for element &lt;input[name=username]&gt; to be present for 5000 milliseconds. - expected &#34;visible&#34; but got: &#34;not found&#34; (5280ms)">    at DescribeInstance.&lt;anonymous&gt; (/home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts:30:14)
+    at new Promise (&lt;anonymous&gt;)</failure>
+
+      <failure message="Testing if element &lt;By(xpath, .//*[text()=&#34;Election List&#34;])&gt; is visible in 5000ms - expected &#34;is visible&#34; but got: &#34;element could not be located&#34; (5025ms)">    at DescribeInstance.&lt;anonymous&gt; (/home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts:52:24)</failure>
 
     
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
+    <error message="An error occurred while running .click() command on &lt;button.ok-button&gt;: Timed out while waiting for element &#34;button.ok-button&#34; with &#34;css selector&#34; to be present for 5000 milliseconds." type="error"><![CDATA[
+    Error
+    at DescribeInstance.&lt;anonymous&gt; (/home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts:42:14)
+    at new Promise (&lt;anonymous&gt;)
+    ]]></error>
     
     </testcase>
   
 
+  
+    <system-err>
+       NoSuchWindowError
+   no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=114.0.5735.133)
+ NoSuchElementError
+   An element could not be located on the page using the given search parameters.
+    {&#34;error&#34;:{&#34;name&#34;:&#34;NoSuchWindowError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
+
+    Try fixing by :
+    1. Please inspect the html before the step
+    2. Verify if an element with the mentioned selector is present in the DOM tree
+
+    Error location:
+    /home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts:40
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     38 |     afterEach(function (this: ExtendDescribeThis&lt;LoginThis&gt;, browser) {
+     39 |         browser
+     40 |             .click(&#34;button.profile-menu-button&#34;) 
+     41 |             .click(&#34;li.logout-button&#34;)
+     42 |             .click(&#34;button.ok-button&#34;)
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+ NoSuchElementError
+   An element could not be located on the page using the given search parameters.
+    {&#34;error&#34;:{&#34;name&#34;:&#34;NoSuchWindowError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
+
+    Try fixing by :
+    1. Please inspect the html before the step
+    2. Verify if an element with the mentioned selector is present in the DOM tree
+
+    Error location:
+    /home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts:41
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     39 |         browser
+     40 |             .click(&#34;button.profile-menu-button&#34;)
+     41 |             .click(&#34;li.logout-button&#34;) 
+     42 |             .click(&#34;button.ok-button&#34;)
+     43 |             .end()
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+ NoSuchElementError
+   An element could not be located on the page using the given search parameters.
+    {&#34;error&#34;:{&#34;name&#34;:&#34;NoSuchWindowError&#34;,&#34;remoteStacktrace&#34;:&#34;&#34;},&#34;status&#34;:-1,&#34;value&#34;:null}
+
+    Try fixing by :
+    1. Please inspect the html before the step
+    2. Verify if an element with the mentioned selector is present in the DOM tree
+
+    Error location:
+    /home/enric/Developer/backend-services/packages/voting-portal/test/e2e/cast_ballot.test.ts:42
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+     40 |             .click(&#34;button.profile-menu-button&#34;)
+     41 |             .click(&#34;li.logout-button&#34;)
+     42 |             .click(&#34;button.ok-button&#34;) 
+     43 |             .end()
+     44 |     })
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+    </system-err>
   
 
     
