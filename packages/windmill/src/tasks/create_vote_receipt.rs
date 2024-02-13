@@ -75,6 +75,9 @@ async fn get_template() -> Result<()> {
         .get("DOCUMENTS")
         .and_then(|doc| doc.get("template"));
 
+    let toto = results[0].get("DOCUMENTS");
+    
+    dbg!(&toto);
     dbg!(&template_id);
 
     if let Some(id) = template_id {
