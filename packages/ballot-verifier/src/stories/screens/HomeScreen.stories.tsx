@@ -5,7 +5,7 @@ import React from "react"
 import {ComponentStory, ComponentMeta} from "@storybook/react"
 import Container from "@mui/material/Container"
 import {HomeScreen} from "../../screens/HomeScreen"
-import {LanguageSetter} from "@sequentech/ui-essentials"
+import {LanguageSetter, IAuditableBallot} from "@sequentech/ui-essentials"
 import {withRouter} from "storybook-addon-react-router-v6"
 import {IBallotService, provideBallotService} from "../../services/BallotService"
 import {within, userEvent} from "@storybook/testing-library"
@@ -46,8 +46,9 @@ export default {
 const getBallotServiceProvider = (): IBallotService => {
     const service = provideBallotService()
 
-    const decodeAuditableBallot = (auditableBallot: string): Array<IDecodedVoteContest> | null =>
-        null
+    const decodeAuditableBallot = (
+        auditableBallot: IAuditableBallot
+    ): Array<IDecodedVoteContest> | null => null
 
     return {
         ...service,

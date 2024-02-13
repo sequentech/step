@@ -6,13 +6,18 @@ import {
     decode_auditable_ballot_js,
     get_layout_properties_from_contest_js,
     get_candidate_points_js,
-    get_ballot_style_from_auditable_ballot_js,
     generate_sample_auditable_ballot_js,
     IDecodedVoteContest,
     IContestLayoutProperties,
     IDecodedVoteChoice,
 } from "sequent-core"
-import {IBallotStyle, IContest} from "@sequentech/ui-essentials"
+import {
+    IBallotStyle,
+    IContest,
+    IAuditableBallot,
+    IHashableBallot,
+    CandidatesOrder,
+} from "@sequentech/ui-essentials"
 //import PlaintextVote from "../fixtures/plaintext_vote.json"
 
 export interface IConfirmationBallot {
@@ -22,15 +27,14 @@ export interface IConfirmationBallot {
 }
 
 export interface IBallotService {
-    hashBallot512: (auditableBallot: string) => string
-    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
+    hashBallot512: (auditableBallot: IAuditableBallot) => string
+    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
-    getBallotStyleFromAuditableBallot: (auditableBallot: string) => IBallotStyle | null
-    generateSampleAuditableBallot: () => string | null
+    generateSampleAuditableBallot: () => IAuditableBallot | null
 }
 
-export const hashBallot512 = (auditableBallot: string): string => {
+export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
     } catch (e) {
@@ -40,21 +44,11 @@ export const hashBallot512 = (auditableBallot: string): string => {
 }
 
 export const decodeAuditableBallot = (
-    auditableBallot: string
+    auditableBallot: IAuditableBallot
 ): Array<IDecodedVoteContest> | null => {
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
         return decodedBallot as Array<IDecodedVoteContest>
-    } catch (error) {
-        console.log(error)
-        return null
-    }
-}
-
-export const getBallotStyleFromAuditableBallot = (auditableBallot: string): IBallotStyle | null => {
-    try {
-        let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IBallotStyle
-        return ballotStyle
     } catch (error) {
         console.log(error)
         return null
@@ -81,9 +75,9 @@ export const getPoints = (question: IContest, answer: IDecodedVoteChoice): numbe
     }
 }
 
-export const generateSampleAuditableBallot = (): string | null => {
+export const generateSampleAuditableBallot = (): IAuditableBallot | null => {
     try {
-        let auditableBallot: string = generate_sample_auditable_ballot_js()
+        let auditableBallot: IAuditableBallot = generate_sample_auditable_ballot_js()
         return auditableBallot
     } catch (error) {
         console.log(error)
@@ -96,6 +90,5 @@ export const provideBallotService = (): IBallotService => ({
     decodeAuditableBallot,
     getLayoutProperties,
     getPoints,
-    getBallotStyleFromAuditableBallot,
     generateSampleAuditableBallot,
 })

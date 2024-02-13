@@ -232,6 +232,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
+                ballotDesign: "Ballot Design",
             },
             field: {
                 name: "Name",
@@ -244,6 +245,11 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
+                hideAudit: "Disable Ballot Audit Support",
+                logoUrl: "Logo URL",
+                redirectFinishUrl: "Redirect Finish URL",
+                css: "Custom CSS",
+                skipElectionList: "Skip Election List Screen",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -359,6 +365,7 @@ const englishTranslation = {
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
+                numAllowedVotes: "Number of allowed votes",
             },
             field: {
                 name: "Name",
@@ -722,7 +729,9 @@ const englishTranslation = {
                     "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
-                errorMinTrustees:
+                errorMinTrustees_one:
+                    "You selected only {{selected}} trustee, but you must select at least {{threshold}}.",
+                errorMinTrustees_other:
                     "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorThreshold:
                     "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
@@ -791,9 +800,10 @@ const englishTranslation = {
                 title: "Check your Encrypted Private Key Backups",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
-                errorUploading: "Upload error: {{error}}",
+                errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
+                downloaded: "Encripted Private Key generated successfully.",
             },
         },
         tally: {
@@ -1094,6 +1104,10 @@ const englishTranslation = {
             error: {
                 title: "Title is required",
                 document: "Document is required",
+            },
+            fields: {
+                isHidden: "Is Hidden",
+                publicUrl: "Public URL",
             },
         },
     },
