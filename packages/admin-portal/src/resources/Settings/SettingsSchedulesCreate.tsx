@@ -13,7 +13,7 @@ import {
     TextInput,
     useRefresh,
     useNotify,
-    DateInput,
+    DateTimeInput,
     useUpdate,
     useGetOne,
 } from "react-admin"
@@ -91,7 +91,7 @@ export const SettingsSchedulesCreate: React.FC<CreateProps> = (props) => {
                     }))}
                 />
                 <TextInput source="name" />
-                <DateInput source="date" />
+                <DateTimeInput source="date" />
             </SimpleForm>
         </Create>
     )

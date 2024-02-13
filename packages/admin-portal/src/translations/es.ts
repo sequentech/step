@@ -181,7 +181,7 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
-                schedules: "HORARIOS",
+                schedules: "EVENTOS PROGRAMADOS",
             },
         },
         "scheduleScreen": {

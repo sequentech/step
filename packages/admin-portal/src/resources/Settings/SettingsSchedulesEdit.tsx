@@ -15,7 +15,7 @@ import {
     useUpdate,
     useGetOne,
     SelectInput,
-    DateInput,
+    DateTimeInput,
     RaRecord,
     Toolbar,
 } from "react-admin"
@@ -108,7 +108,7 @@ export const SettingsSchedulesEdit: React.FC<EditProps> = (props) => {
                 }))}
             />
             <TextInput source="name" />
-            <DateInput source="date" />
+            <DateTimeInput source="date" />
         </SimpleForm>
     )
 }
