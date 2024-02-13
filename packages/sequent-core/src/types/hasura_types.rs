@@ -139,3 +139,21 @@ pub struct ElectionType {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
 }
+/*
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct CastVote {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_id: Uuid,
+    pub area_id: Uuid,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub content: Option<String>,
+    pub cast_ballot_signature: Vec<u8>,
+    pub voter_id_string: Option<String>,
+    pub election_event_id: String,
+    pub ballot_id: Option<String>,
+}
+*/

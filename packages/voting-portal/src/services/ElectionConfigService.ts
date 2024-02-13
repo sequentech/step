@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ICandidate, IContest} from "sequent-core"
+import {CandidatesOrder, ICandidate, IContest} from "@sequentech/ui-essentials"
 
 export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
     answer.presentation?.urls?.find((url) => urlTitle === url.title)?.url
@@ -26,11 +26,11 @@ export const checkPositionIsTop = (answer: ICandidate): boolean =>
 export const checkAllowWriteIns = (question: IContest): boolean =>
     !!question.presentation?.allow_writeins
 
+export const checkCustomCandidatesOrder = (contest: IContest): boolean =>
+    contest.presentation?.candidates_order === CandidatesOrder.CUSTOM
+
 export const checkShuffleCategories = (question: IContest): boolean =>
     !!question.presentation?.shuffle_categories
-
-export const checkShuffleAllOptions = (question: IContest): boolean =>
-    !!question.presentation?.shuffle_all_options
 
 export const checkShuffleCategoryList = (question: IContest): Array<string> =>
     question.presentation?.shuffle_category_list || []

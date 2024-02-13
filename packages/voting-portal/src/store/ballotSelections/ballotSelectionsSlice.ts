@@ -19,6 +19,10 @@ export const ballotSelectionsSlice = createSlice({
     name: "ballotSelections",
     initialState,
     reducers: {
+        clearBallot: (state): BallotSelectionsState => {
+            state = initialState
+            return initialState
+        },
         setBallotSelection: (
             state,
             action: PayloadAction<{
@@ -38,20 +42,42 @@ export const ballotSelectionsSlice = createSlice({
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
                 force?: boolean
+                contestId?: string
             }>
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
-                    action.payload.ballotStyle.ballot_eml.contests.map((question) => ({
-                        contest_id: question.id,
-                        is_explicit_invalid: false,
-                        invalid_errors: [],
-                        choices: question.candidates.map((answer) => ({
-                            id: answer.id,
-                            selected: -1,
-                        })),
-                    }))
+                    action.payload.ballotStyle.ballot_eml.contests.map(
+                        (question): IDecodedVoteContest => {
+                            let currentContestValue = state[
+                                action.payload.ballotStyle.election_id
+                            ]?.find((contest) => contest.contest_id === question.id)
+
+                            if (
+                                currentContestValue &&
+                                action.payload.contestId &&
+                                action.payload.contestId !== question.id
+                            ) {
+                                return {
+                                    contest_id: currentContestValue.contest_id,
+                                    is_explicit_invalid: currentContestValue.is_explicit_invalid,
+                                    invalid_errors: currentContestValue.invalid_errors,
+                                    choices: currentContestValue.choices,
+                                }
+                            }
+
+                            return {
+                                contest_id: question.id,
+                                is_explicit_invalid: false,
+                                invalid_errors: [],
+                                choices: question.candidates.map((answer) => ({
+                                    id: answer.id,
+                                    selected: -1,
+                                })),
+                            }
+                        }
+                    )
             }
 
             return state
@@ -60,20 +86,22 @@ export const ballotSelectionsSlice = createSlice({
             state,
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
-                questionIndex: number
+                contestId: string
                 isExplicitInvalid: boolean
             }>
         ): BallotSelectionsState => {
+            const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
+                (contest) => contest.id === action.payload.contestId
+            )
             // check bounds
-            if (
-                action.payload.questionIndex >=
-                action.payload.ballotStyle.ballot_eml.contests.length
-            ) {
+            if (isUndefined(ballotEmlContest)) {
                 return state
             }
             // find question
             let currentElection = state[action.payload.ballotStyle.election_id]
-            let currentQuestion = currentElection?.[action.payload.questionIndex]
+            let currentQuestion = currentElection?.find(
+                (contest) => contest.contest_id === action.payload.contestId
+            )
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
@@ -84,26 +112,29 @@ export const ballotSelectionsSlice = createSlice({
             state,
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
-                questionIndex: number
+                contestId: string
                 voteChoice: IDecodedVoteChoice
             }>
         ): BallotSelectionsState => {
+            const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
+                (contest) => contest.id === action.payload.contestId
+            )
             // check bounds
-            if (
-                action.payload.questionIndex >=
-                action.payload.ballotStyle.ballot_eml.contests.length
-            ) {
+            if (isUndefined(ballotEmlContest)) {
                 return state
             }
             let currentElection = state[action.payload.ballotStyle.election_id]
-            let currentChoiceIndex = currentElection?.[
-                action.payload.questionIndex
-            ]?.choices.findIndex((choice) => action.payload.voteChoice.id === choice.id)
+            let currentQuestion = currentElection?.find(
+                (contest) => contest.contest_id === action.payload.contestId
+            )
+            let currentChoiceIndex = currentQuestion?.choices.findIndex(
+                (choice) => action.payload.voteChoice.id === choice.id
+            )
             const currentChoice =
                 !isUndefined(currentElection) &&
                 !isUndefined(currentChoiceIndex) &&
                 currentChoiceIndex > -1
-                    ? currentElection[action.payload.questionIndex]?.choices[currentChoiceIndex]
+                    ? currentQuestion?.choices[currentChoiceIndex]
                     : undefined
 
             // check election state
@@ -112,13 +143,8 @@ export const ballotSelectionsSlice = createSlice({
             }
 
             // modify
-            currentElection = state[action.payload.ballotStyle.election_id]
-            currentChoiceIndex = currentElection?.[action.payload.questionIndex]?.choices.findIndex(
-                (choice) => action.payload.voteChoice.id === choice.id
-            )
-            if (currentElection && !isUndefined(currentChoiceIndex)) {
-                currentElection[action.payload.questionIndex].choices[currentChoiceIndex] =
-                    action.payload.voteChoice
+            if (currentQuestion && !isUndefined(currentChoiceIndex)) {
+                currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
             }
 
             return state
@@ -141,6 +167,7 @@ export const ballotSelectionsSlice = createSlice({
 })
 
 export const {
+    clearBallot,
     setBallotSelection,
     resetBallotSelection,
     setBallotSelectionInvalidVote,
@@ -148,14 +175,14 @@ export const {
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =
-    (electionId: string, questionIndex: number, answerIndex: string) => (state: RootState) =>
-        state.ballotSelections[electionId]?.[questionIndex]?.choices.find(
-            (choice) => answerIndex === choice.id
-        )
+    (electionId: string, contestId: string, answerIndex: string) => (state: RootState) =>
+        state.ballotSelections[electionId]
+            ?.find((contest) => contest.contest_id === contestId)
+            ?.choices.find((choice) => answerIndex === choice.id)
 
 export const selectBallotSelectionQuestion =
-    (electionId: string, questionIndex: number) => (state: RootState) =>
-        state.ballotSelections[electionId]?.[questionIndex]
+    (electionId: string, contestId: string) => (state: RootState) =>
+        state.ballotSelections[electionId]?.find((contest) => contest.contest_id === contestId)
 
 export const selectBallotSelectionByElectionId = (electionId: string) => (state: RootState) =>
     state.ballotSelections[electionId]

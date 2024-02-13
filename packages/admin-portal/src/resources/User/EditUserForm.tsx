@@ -244,6 +244,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const validatePassword = (value: any) => {
+        /*TODO: we should validate only to the extent that these policies are 
+        in place in keycloak
         if (!value || value.length == 0) {
             return
         }
@@ -272,7 +274,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         if (!hasSpecialChar) {
             return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
-        }
+        }*/
     }
 
     const equalToPassword = (value: any, allValues: any) => {
@@ -328,7 +330,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <FormStyles.PasswordInput
                         label={t("usersAndRolesScreen.users.fields.password")}
                         source="password"
-                        validate={validatePassword}
                         onChange={handleChange}
                     />
                     <FormStyles.PasswordInput
@@ -356,6 +357,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
                             <Select
                                 name="area"
+                                className="select-voter-area"
                                 defaultValue={defaultAreaId}
                                 value={defaultAreaId}
                                 onChange={handleSelectArea}

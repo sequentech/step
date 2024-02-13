@@ -6,7 +6,6 @@ import {Box, Button, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
-    BreadCrumbSteps,
     Dialog,
     IconButton,
     PageLimit,
@@ -17,22 +16,20 @@ import {
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
+    IBallotStyle as IElectionDTO,
+    isUndefined,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     IBallotStyle,
+    selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    IElection,
-    selectElectionById,
-    setElection,
-    selectElectionIds,
-} from "../store/elections/electionsSlice"
+import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useNavigate, useParams} from "react-router-dom"
@@ -44,7 +41,6 @@ import {
     GetElectionEventQuery,
     GetElectionsQuery,
 } from "../gql/graphql"
-import {IBallotStyle as IElectionDTO} from "sequent-core"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -56,6 +52,8 @@ import {
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
+import Stepper from "../components/Stepper"
+import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -78,16 +76,19 @@ const ElectionContainer = styled(Box)`
 
 interface ElectionWrapperProps {
     electionId: string
+    bypassChooser: boolean
 }
 
-const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
+const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChooser}) => {
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
-    const {eventId} = useParams<TenantEventType>()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const election = useAppSelector(selectElectionById(electionId))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
 
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
@@ -95,24 +96,38 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
     const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
-    const canVote = castVotes.length < (election?.num_allowed_revotes ?? 1) && isVotingOpen
+    const canVote = () =>
+        castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
 
     const onClickToVote = () => {
-        navigate(`../election/${electionId}/start`)
+        if (!canVote()) {
+            return
+        }
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
     }
 
     const handleClickBallotLocator = () => {
         navigate(`../election/${electionId}/ballot-locator`)
     }
 
+    useEffect(() => {
+        if (visitedBypassChooser) {
+            return
+        }
+        if (bypassChooser && ballotStyle) {
+            setVisitedBypassChooser(true)
+            onClickToVote()
+        }
+    }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
+
     return (
         <SelectElection
-            isActive={canVote}
+            isActive={canVote()}
             isOpen={isVotingOpen}
-            title={translateElection(election, "name", i18n.language) || ""}
+            title={translateElection(election, "name", i18n.language) || "-"}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={castVotes.length > 0}
-            onClickToVote={canVote ? onClickToVote : undefined}
+            onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
         />
     )
@@ -184,25 +199,6 @@ const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: App
     }
 }
 
-const convertToElection = (input: IElectionDTO): IElection => ({
-    id: input.id,
-    annotations: null,
-    created_at: null,
-    dates: null,
-    description: input.description,
-    election_event_id: input.id,
-    eml: JSON.stringify(input),
-    is_consolidated_ballot_encoding: false,
-    labels: null,
-    last_updated_at: null,
-    name: input.description,
-    num_allowed_revotes: 1,
-    presentation: null,
-    spoil_ballot_option: true,
-    status: "OPEN",
-    tenant_id: input.id,
-})
-
 export const ElectionSelectionScreen: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -212,10 +208,13 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const dispatch = useAppDispatch()
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
+
+    const bypassChooser = useAppSelector(selectBypassChooser())
 
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -239,7 +238,7 @@ export const ElectionSelectionScreen: React.FC = () => {
         }
     )
 
-    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
+    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
     const hasNoResults = electionIds.length === 0
 
@@ -279,25 +278,27 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
-        if (!castVotes?.sequent_backend_cast_vote) {
-            return
+        if (castVotes?.sequent_backend_cast_vote) {
+            dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
         }
-
-        dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
     }, [castVotes, dispatch])
+
+    useEffect(() => {
+        const newBypassChooser =
+            1 === electionIds.length &&
+            !errorCastVote &&
+            !isUndefined(castVotes) &&
+            !!electionEvent &&
+            !!dataElections
+        if (newBypassChooser && !bypassChooser) {
+            dispatch(setBypassChooser(newBypassChooser))
+        }
+    }, [castVotes, electionIds, errorCastVote, castVotes, electionEvent, dataElections])
 
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="48px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={0}
-                />
+                <Stepper selected={0} />
             </Box>
             <Box
                 sx={{
@@ -338,7 +339,11 @@ export const ElectionSelectionScreen: React.FC = () => {
             <ElectionContainer className="elections-list">
                 {!hasNoResults ? (
                     electionIds.map((electionId) => (
-                        <ElectionWrapper electionId={electionId} key={electionId} />
+                        <ElectionWrapper
+                            electionId={electionId}
+                            key={electionId}
+                            bypassChooser={bypassChooser}
+                        />
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>

@@ -68,7 +68,6 @@ pub fn get_encrypt_decoded_test_fixture(
                  ],
                  "extra_options":{
                     "shuffle_categories":true,
-                    "shuffle_all_options":true,
                     "shuffle_category_list":[
                        
                     ],

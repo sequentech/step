@@ -16,6 +16,7 @@ export interface GlobalSettings {
     HASURA_URL: string
     APP_VERSION: string
     PUBLIC_BUCKET_URL: string
+    KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: number
 }
 
 interface SettingsContextValues {
@@ -36,6 +37,7 @@ const defaultSettingsValues: SettingsContextValues = {
         APP_VERSION: "10.0.0",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
+        KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
     },
 }
 

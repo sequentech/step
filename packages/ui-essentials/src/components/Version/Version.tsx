@@ -20,14 +20,21 @@ const StyledButton = styled(Button)(`
 `)
 
 const Version: React.FC<VersionProps> = ({version}) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
 
     return (
-        <StyledButton variant="actionbar" disabled={true}>
-            <Box component="span" sx={{display: {xs: "none", lg: "block"}}}>
-                {t("version.header")}
+        <StyledButton
+            variant="actionbar"
+            disabled={true}
+            sx={{display: {xs: "none", sm: "block"}}}
+            className="app-version"
+        >
+            <Box sx={{width: "100%", display: "flex", flexDirection: "row", alignItems: "center"}}>
+                <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
+                    {t("version.header")}
+                </Box>
+                <Box component="span">{version["main"]}</Box>
             </Box>
-            <Box component="span">{version["main"]}</Box>
         </StyledButton>
     )
 }

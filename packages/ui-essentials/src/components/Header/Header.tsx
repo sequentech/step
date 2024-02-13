@@ -38,8 +38,10 @@ const StyledLink = styled.a`
 `
 
 const StyledImage = styled(Image)`
-    max-height: 100%;
-    min-width: 200px;
+    height: 47px !important;
+    @media (max-width: ${theme.breakpoints.values.md}px) {
+        height: 37px !important;
+    }
 `
 
 type ApplicationVersion = {
@@ -57,13 +59,17 @@ export interface HeaderProps {
     appVersion?: ApplicationVersion
     logoLink?: string
     userProfile?: UserProfile
+    logoUrl?: string
+    languagesList?: Array<string>
 }
 
 export default function Header({
     userProfile,
     appVersion,
     logoutFn,
-    logoLink = "//sequentech.io/",
+    logoLink,
+    logoUrl,
+    languagesList,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -90,7 +96,7 @@ export default function Header({
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
                         <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={LogoImg} duration={100} alt="Logo Image" />
+                            <StyledImage src={logoUrl ?? LogoImg} duration={100} alt="Logo Image" />
                         </StyledLink>
                         <Box
                             display="flex"
@@ -98,7 +104,7 @@ export default function Header({
                             sx={{gap: {xs: "11px", lg: "31px"}}}
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
-                            <LanguageMenu />
+                            <LanguageMenu languagesList={languagesList} />
                             {userProfile && (
                                 <div>
                                     <IconButton

@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {MutableRefObject, useContext, useEffect, useState} from "react"
-import {Box, Button, CircularProgress} from "@mui/material"
+import React, {useContext, useEffect, useState} from "react"
+import {Box, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"

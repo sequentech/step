@@ -2,31 +2,34 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useEffect} from "react"
-import {useTranslation} from "react-i18next"
 import {
-    PageLimit,
-    BreadCrumbSteps,
+    Dialog,
     Icon,
     IconButton,
+    PageLimit,
+    QRCode,
     stringToHtml,
     theme,
-    QRCode,
-    Dialog,
 } from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
-import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
-import Button from "@mui/material/Button"
-import {useNavigate, useParams} from "react-router-dom"
-import Link from "@mui/material/Link"
+import React, {useEffect, useState} from "react"
+import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {faCheck, faCircleQuestion, faPrint} from "@fortawesome/free-solid-svg-icons"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {provideBallotService} from "../services/BallotService"
-import {hasVotedAllElections} from "../store/castVotes/castVotesSlice"
+import {useNavigate, useParams} from "react-router-dom"
+
+import {AuthContext} from "../providers/AuthContextProvider"
+import Button from "@mui/material/Button"
+import Link from "@mui/material/Link"
+import Stepper from "../components/Stepper"
 import {TenantEventType} from ".."
-import {useRootBackLink} from "../hooks/root-back-link"
-import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {provideBallotService} from "../services/BallotService"
+import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {styled} from "@mui/material/styles"
+import {useContext} from "react"
+import {useRootBackLink} from "../hooks/root-back-link"
+import {useTranslation} from "react-i18next"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -94,7 +97,7 @@ const QRContainer = styled(Box)`
     margin: 15px auto;
 `
 
-const ActionLink = styled(Link)`ç
+const ActionLink = styled(Link)`
     text-decoration: none;
     &:hover {
         text-decoration: none;
@@ -108,24 +111,24 @@ interface ActionButtonsProps {
 const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const castVotes = useAppSelector(hasVotedAllElections(String(electionId)))
+    const canVote = useAppSelector(canVoteSomeElection())
     const triggerPrint = () => window.print()
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
+    const {logout} = useContext(AuthContext)
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
 
+    const onClickRedirect = () => {
+        logout("https://google.com")
+    }
+
     useEffect(() => {
         if (ballotStyle) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                })
-            )
+            dispatch(clearBallot())
         }
     }, [ballotStyle, dispatch])
 
@@ -139,12 +142,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("confirmationScreen.printButton")}</Box>
             </StyledButton>
-            {castVotes ? (
-                <ActionLink
-                    href="https://sequentech.io"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    <StyledButton className="finish-button" sx={{width: {xs: "100%", sm: "200px"}}}>
+            {!canVote ? (
+                <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton
+                        onClick={onClickRedirect}
+                        className="finish-button"
+                        sx={{width: {xs: "100%", sm: "200px"}}}
+                    >
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
                 </ActionLink>
@@ -185,15 +189,7 @@ export const ConfirmationScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg">
             <Box marginTop="24px">
-                <BreadCrumbSteps
-                    labels={[
-                        "breadcrumbSteps.electionList",
-                        "breadcrumbSteps.ballot",
-                        "breadcrumbSteps.review",
-                        "breadcrumbSteps.confirmation",
-                    ]}
-                    selected={3}
-                />
+                <Stepper selected={3} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
                 <Box>{t("confirmationScreen.title")}</Box>

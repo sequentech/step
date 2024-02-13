@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetList, useGetOne} from "react-admin"
 
 import {
@@ -26,6 +26,8 @@ import {
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -41,67 +43,38 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const tallyData = useAtomValue(tallyQueryData)
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
 
-    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
-        id: electionId,
-        meta: {
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-            election_id: electionId,
-        },
-    })
+    const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_candidate?.filter(
+                (candidate) => contestId === candidate.contest_id
+            ),
+        [tallyData?.sequent_backend_candidate, contestId]
+    )
 
-    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {
-            contest_id: contestId,
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-        },
-    })
-
-    const {data: general} = useGetList<Sequent_Backend_Results_Contest>(
-        "sequent_backend_results_contest",
-        {
-            pagination: {page: 1, perPage: 1},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_contest?.filter(
+                (resultsContest) =>
+                    contestId === resultsContest.contest_id &&
+                    electionId === resultsContest.election_id
+            ),
+        [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
     console.log("TallyResultsGlobalCandidates :: general", general)
 
-    const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
-        "sequent_backend_results_contest_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {
-                contest_id: contestId,
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                election_id: electionId,
-                results_event_id: resultsEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
+    const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
+        () =>
+            tallyData?.sequent_backend_results_contest_candidate?.filter(
+                (resultsContestCandidate) =>
+                    contestId === resultsContestCandidate.contest_id &&
+                    electionId === resultsContestCandidate.election_id
+            ),
+        [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 
     useEffect(() => {

@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+# nightwatch generated stuff
+/logs
+/tests_output
 
 # production
 /build

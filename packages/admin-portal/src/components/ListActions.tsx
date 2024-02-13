@@ -3,11 +3,11 @@ import React, {useEffect, useState} from "react"
 import {Drawer} from "@mui/material"
 import {Add} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
-import {ImportButton, ImportConfig} from "react-admin-import-csv"
+import {ImportConfig} from "react-admin-import-csv"
 import DownloadIcon from "@mui/icons-material/Download"
 import UploadIcon from "@mui/icons-material/Upload"
 
-import {Button, TopToolbar, ExportButton, FilterButton, SelectColumnsButton} from "react-admin"
+import {Button, TopToolbar, FilterButton, SelectColumnsButton} from "react-admin"
 
 interface ListActionsProps {
     withColumns?: boolean
@@ -68,7 +68,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
 
                 {Component && (
                     <>
-                        <Button onClick={() => setOpen(true)} label={t("common.label.add")}>
+                        <Button
+                            className="add-button"
+                            onClick={() => setOpen(true)}
+                            label={t("common.label.add")}
+                        >
                             <Add />
                         </Button>
 

@@ -3,17 +3,24 @@ use uuid::Uuid;
 
 use super::candidates;
 
+#[allow(unused)]
 pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &Uuid) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
+        created_at: None,
         id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
-        name: Some("Secretario General".into()),
+        name: Some("Secretario <strong><em>General</em></strong>".into()),
         description: Some(
-            "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
+            "<strong>Elige</strong> quien quieres que sea tu Secretario General en tu municipio.<br/>Hello,<br>World!"
+                .into(),
         ),
+        name_i18n: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         max_votes: 1,
         min_votes: 0,
         winning_candidates_num: 1,
@@ -33,14 +40,15 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             invalid_vote_policy: "allowed".into(),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
-            shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }),
     }
 }
 
+#[allow(unused)]
 pub fn get_contest_min_max_votes(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -50,6 +58,7 @@ pub fn get_contest_min_max_votes(
 ) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
+        created_at: None,
         id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
@@ -58,6 +67,10 @@ pub fn get_contest_min_max_votes(
         description: Some(
             "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
         ),
+        name_i18n: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
         max_votes: max_votes as i64,
         min_votes: min_votes as i64,
         winning_candidates_num: 1,
@@ -77,10 +90,10 @@ pub fn get_contest_min_max_votes(
             invalid_vote_policy: "allowed".into(),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: true,
-            shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
             enable_checkable_lists: None,
+            candidates_order: None,
         }),
     }
 }

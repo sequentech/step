@@ -1,7 +1,13 @@
 {
     "themes": [
         {
-            "name": "sequent",
+            "name": "sequent.admin-portal",
+            "types": [
+                "login"
+            ]
+        },
+        {
+            "name": "sequent.voting-portal",
             "types": [
                 "login"
             ]

@@ -90,7 +90,7 @@ const App: React.FC<AppProps> = () => {
             i18nProvider={adminI18nProvider}
         >
             <CustomRoutes>
-                <Route path="/logs" element={<Logs />} />
+                {/*<Route path="/logs" element={<Logs />} />*/}
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/settings" element={<SettingsScreen />} />

@@ -9,7 +9,7 @@ use std::io::Write;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
-use tracing::{debug, info, instrument};
+use tracing::{info, instrument};
 
 #[instrument(skip_all, err)]
 fn print_to_pdf(

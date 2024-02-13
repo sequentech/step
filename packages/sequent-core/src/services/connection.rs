@@ -5,6 +5,7 @@ use crate::services::jwt::*;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
+use tracing::{event, instrument, Level};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
@@ -50,7 +51,13 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => Outcome::Success(decode_jwt(token).unwrap()),
+                    Some(token) => match decode_jwt(token) {
+                        Ok(jwt) => Outcome::Success(jwt),
+                        Err(err) => {
+                            event!(Level::WARN, "decode_jwt error {:?}", err);
+                            Outcome::Error((Status::Unauthorized, ()))
+                        }
+                    },
                     None => Outcome::Error((Status::Unauthorized, ())),
                 }
             }

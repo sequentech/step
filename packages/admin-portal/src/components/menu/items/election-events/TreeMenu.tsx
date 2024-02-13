@@ -2,31 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
-import {NavLink} from "react-router-dom"
-import {useGetOne, useSidebarState} from "react-admin"
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import ChevronRightIcon from "@mui/icons-material/ChevronRight"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
-import AddIcon from "@mui/icons-material/Add"
-import {cn} from "@/lib/utils"
-
 import {
-    mapDataChildren,
-    ResourceName,
+    CandidateType,
+    ContestType,
     DataTreeMenuType,
     DynEntityType,
     ElectionType,
-    ContestType,
-    CandidateType,
+    ResourceName,
+    mapDataChildren,
 } from "../ElectionEvents"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import {translate, translateElection} from "@sequentech/ui-essentials"
+import {useGetOne, useSidebarState} from "react-admin"
 
-import {useTranslation} from "react-i18next"
-
+import AddIcon from "@mui/icons-material/Add"
+import ChevronRightIcon from "@mui/icons-material/ChevronRight"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import MenuActions from "./MenuActions"
+import {NavLink} from "react-router-dom"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {cn} from "@/lib/utils"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {useTranslation} from "react-i18next"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -81,7 +80,12 @@ function TreeLeaves({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+
+    useEffect(() => {
+        const dir = i18n.dir(i18n.language)
+        document.documentElement.dir = dir
+    }, [i18n, i18n.language, data])
 
     const {canCreateElectionEvent} = useActionPermissions()
 
@@ -97,7 +101,13 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={resource.name}
+                                name={
+                                    translateElection(resource, "alias", i18n.language) ||
+                                    translateElection(resource, "name", i18n.language) ||
+                                    resource.alias ||
+                                    resource.name ||
+                                    "-"
+                                }
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 canCreateElectionEvent={canCreateElectionEvent}
@@ -106,14 +116,31 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && canCreateElectionEvent && (
-                    <div className="flex items-center space-x-2 text-secondary">
-                        <AddIcon className="flex-none"></AddIcon>
+                    <div
+                        className="flex items-center space-x-2 text-secondary"
+                        style={{
+                            justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                        }}
+                    >
+                        <AddIcon
+                            className="flex-none"
+                            style={{
+                                display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
+                            }}
+                        />
                         <NavLink
                             className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
+                            style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                         </NavLink>
+                        <AddIcon
+                            className="flex-none"
+                            style={{
+                                display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
+                            }}
+                        />
                         <div className="flex-none w-6 h-6 invisible"></div>
                     </div>
                 )}
@@ -144,6 +171,7 @@ function TreeMenuItem({
     canCreateElectionEvent,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
+    const {i18n} = useTranslation()
 
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
@@ -195,8 +223,7 @@ function TreeMenuItem({
                 <img
                     width={24}
                     height={24}
-                    src={`http://localhost:9000/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
-                    alt={`tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                    src={`http://localhost:9002/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
                 <span>{name}</span>
             </p>
@@ -206,11 +233,26 @@ function TreeMenuItem({
     }
 
     return (
-        <div className="bg-white">
+        <div className="bg-white menu-tree">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext && canCreateElectionEvent ? (
-                    <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
-                        {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
+                    <div
+                        className={`flex-none w-6 h-6 cursor-pointer text-black menu-item-toggle-${treeResourceNames[0]}`}
+                        onClick={onClick}
+                    >
+                        {open ? (
+                            <ExpandMoreIcon className="menu-item-expanded" />
+                        ) : (
+                            <ChevronRightIcon
+                                className="menu-item-collapsed"
+                                style={{
+                                    transform:
+                                        i18n.dir(i18n.language) === "rtl"
+                                            ? "rotate(180deg)"
+                                            : "rotate(0)",
+                                }}
+                            />
+                        )}
                     </div>
                 ) : (
                     <div className={cn("flex-none h-6", canCreateElectionEvent && "w-6")}></div>
@@ -221,10 +263,12 @@ function TreeMenuItem({
                         className={({isActive}) =>
                             cn(
                                 "grow py-1.5 text-black border-b-2 border-white hover:border-brand-color truncate cursor-pointer",
-                                isActive && "border-b-2 border-brand-color"
+                                isActive && "menu-item-active border-b-2 border-brand-color",
+                                `menu-item-${treeResourceNames[0]}`
                             )
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
+                        style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
                         {item}
                     </NavLink>
@@ -301,7 +345,7 @@ export function TreeMenu({
                     {t("sideMenu.archived")}
                 </li>
             </ul>
-            <div className="mx-5 py-2">
+            <div className="py-2">
                 {isEmpty ? (
                     <div className="p-4 bg-white">No result</div>
                 ) : (

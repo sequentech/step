@@ -8,12 +8,11 @@ import {
     get_candidate_points_js,
     get_ballot_style_from_auditable_ballot_js,
     generate_sample_auditable_ballot_js,
-    IBallotStyle,
     IDecodedVoteContest,
-    IContest,
     IContestLayoutProperties,
     IDecodedVoteChoice,
 } from "sequent-core"
+import {IBallotStyle, IContest} from "@sequentech/ui-essentials"
 //import PlaintextVote from "../fixtures/plaintext_vote.json"
 
 export interface IConfirmationBallot {

@@ -152,6 +152,7 @@ const englishTranslation = {
             },
         },
         electionTypeScreen: {
+            noPermissions: "You don't have permission to access settings.",
             common: {
                 title: "Election Type",
                 subtitle: "Election type configuration",
@@ -357,6 +358,7 @@ const englishTranslation = {
             createError: "Error creating customer",
         },
         usersAndRolesScreen: {
+            noPermissions: "You don't have permission to access users or roles.",
             common: {
                 title: "Users and Roles",
                 subtitle: "General configuration",
@@ -374,6 +376,7 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
+                    has_voted: "Voted",
                     username: "Username",
                     first_name: "First Name",
                     last_name: "Last Name",
@@ -503,6 +506,12 @@ const englishTranslation = {
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "tally-sheet-create": "Create Tally Sheet",
+                "trustee-ceremony": "Trustee Ceremony",
+                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-view": "View Tally Sheet",
+                "admin-ceremony": "Admin Ceremony",
+                "tally-sheet-delete": "Delete Tally Sheet",
             },
         },
         common: {
@@ -660,7 +669,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
-                "random-answers": "Random Answers",
+                "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
@@ -995,6 +1004,7 @@ const englishTranslation = {
             },
         },
         communicationTemplate: {
+            noPermissions: "You don't have permission to access communication templates.",
             title: "Communication Templates",
             subtitle: "List of communication templates",
             empty: {

@@ -60,10 +60,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus}: any) => (
+    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus, className}: any) => (
         <Button
             onClick={onClick}
             label={t(label)}
+            className={className}
             style={
                 disabledStatus?.includes(status)
                     ? {
@@ -100,6 +101,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         handleEvent(handleOnChange(EPublishStatushChanges.Open))
                                     }
                                     label={t("publish.action.start")}
+                                    className="publish-action-start-button"
                                     st={EPublishStatus.Started}
                                     Icon={PlayCircle}
                                     disabledStatus={[
@@ -116,6 +118,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         handleEvent(handleOnChange(EPublishStatushChanges.Paused))
                                     }
                                     label={t("publish.action.pause")}
+                                    className="publish-action-pause-button"
                                     st={EPublishStatus.Paused}
                                     Icon={PauseCircle}
                                     disabledStatus={[
@@ -134,6 +137,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         handleEvent(handleOnChange(EPublishStatushChanges.Closed))
                                     }
                                     label={t("publish.action.stop")}
+                                    className="publish-action-stop-button"
                                     st={EPublishStatus.Stopped}
                                     Icon={StopCircle}
                                     disabledStatus={[
@@ -151,6 +155,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     onClick={onGenerate}
                                     st={EPublishStatus.Generated}
                                     label={t("publish.action.publish")}
+                                    className="publish-action-publish-button"
                                     disabledStatus={[EPublishStatus.Stopped]}
                                 />
                             )}
@@ -163,6 +168,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     disabledStatus={[]}
                                     st={EPublishStatus.Generated}
                                     label={t("publish.action.generate")}
+                                    className="publish-action-generate-button"
                                     onClick={() => handleEvent(onGenerate)}
                                 />
                             )}

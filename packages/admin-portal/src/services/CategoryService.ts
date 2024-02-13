@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ICandidate, IContest} from "sequent-core"
-import {shuffle, splitList} from "@sequentech/ui-essentials"
+import {shuffle, splitList, ICandidate, IContest} from "@sequentech/ui-essentials"
 import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
 
 export interface ICategory {
@@ -50,28 +49,4 @@ export const categorizeCandidates = (question: IContest): ICategorizedCandidates
         noCategoryCandidates: nonCategoryCandidates,
         categoriesMap: categoriesMap,
     }
-}
-
-export const getShuffledCategories = (
-    categories: CategoriesMap,
-    shuffleAllOptions: boolean,
-    shuffleCategories: boolean,
-    shuffleCategoryList: Array<string>
-): CategoriesMap => {
-    const shuffledCategories: CategoriesMap = {}
-
-    let categoryKeys = shuffleCategories
-        ? shuffle(Object.keys(categories))
-        : Object.keys(categories)
-    for (let categoryKey of categoryKeys) {
-        let category = categories[categoryKey]
-
-        if (shuffleAllOptions || shuffleCategoryList.includes(categoryKey)) {
-            category.candidates = shuffle(category.candidates)
-        }
-
-        shuffledCategories[categoryKey] = category
-    }
-
-    return shuffledCategories
 }

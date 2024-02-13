@@ -33,9 +33,9 @@
   "registrationEmailAsUsername" : false,
   "rememberMe" : false,
   "verifyEmail" : false,
-  "loginWithEmailAllowed" : true,
+  "loginWithEmailAllowed" : false,
   "duplicateEmailsAllowed" : false,
-  "resetPasswordAllowed" : true,
+  "resetPasswordAllowed" : false,
   "editUsernameAllowed" : false,
   "bruteForceProtected" : true,
   "permanentLockout" : false,
@@ -363,7 +363,6 @@
     "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30"
   },
   "requiredCredentials" : [ "password" ],
-  "passwordPolicy" : "length(8) and specialChars(1) and upperCase(1) and lowerCase(1) and digits(1)",
   "otpPolicyType" : "totp",
   "otpPolicyAlgorithm" : "HmacSHA1",
   "otpPolicyInitialCounter" : 0,
@@ -371,7 +370,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
+  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -392,38 +391,6 @@
   "webAuthnPolicyPasswordlessCreateTimeout" : 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister" : false,
   "webAuthnPolicyPasswordlessAcceptableAaguids" : [ ],
-  "users" : [ {
-    "id" : "c9365265-7c6f-40b3-8b94-b2603e9a7a36",
-    "createdTimestamp" : 1700618692601,
-    "username" : "felix",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : true,
-    "email" : "felix@sequentech.io",
-    "attributes" : {
-      "sequent.read-only.mobile-number" : [ "+34666000222" ],
-      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
-    },
-    "credentials" : [ {
-      "id" : "19f5adbc-93ef-4ecf-b3b5-fc6e016aa33e",
-      "type" : "password",
-      "userLabel" : "My password",
-      "createdDate" : 1701013300288,
-      "secretData" : "{\"value\":\"IWVbCXtJNqzMp2drtcsvG5neVc1DUsHMwmx2s1Ut8II=\",\"salt\":\"TcRqjCUDCiklXQZqTXQxjg==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    }, {
-      "id" : "21e6d6e8-e7c2-429c-843f-b6df53e0571c",
-      "type" : "message-otp",
-      "createdDate" : 1703255678759,
-      "secretData" : "{\"nothing\":\"nothing\"}",
-      "credentialData" : "{\"setup\":true}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
     "roles" : [ "offline_access" ]
@@ -1337,7 +1304,7 @@
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
   "smtpServer" : { },
-  "loginTheme" : "sequent",
+  "loginTheme" : "sequent.voting-portal",
   "accountTheme" : "",
   "adminTheme" : "",
   "emailTheme" : "",
@@ -1356,7 +1323,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-user-property-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-attribute-mapper" ]
       }
     }, {
       "id" : "a26aaeed-f109-40ab-ada2-c2cec32986bf",
@@ -1390,7 +1357,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "saml-role-list-mapper", "oidc-usermodel-property-mapper", "oidc-address-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-sha256-pairwise-sub-mapper", "saml-role-list-mapper", "oidc-address-mapper", "oidc-full-name-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper" ]
       }
     }, {
       "id" : "0d7794fa-2e22-499b-8aa6-7fde4d9c446d",
@@ -1424,8 +1391,8 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "config-pieces-count" : [ "1" ],
-        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ]
+        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ],
+        "config-pieces-count" : [ "1" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -1475,7 +1442,7 @@
     } ]
   },
   "internationalizationEnabled" : true,
-  "supportedLocales" : [ "en", "es" ],
+  "supportedLocales" : [ "en" ],
   "defaultLocale" : "en",
   "authenticationFlows" : [ {
     "id" : "673f4038-bec0-4598-b60f-f3231fad3ff7",
@@ -2125,14 +2092,14 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
+      "requirement" : "DISABLED",
       "priority" : 23,
       "autheticatorFlow" : true,
       "flowAlias" : "forgot-password-subflow",
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
+      "requirement" : "DISABLED",
       "priority" : 24,
       "autheticatorFlow" : true,
       "flowAlias" : "message-otp-subflow",
@@ -2335,7 +2302,7 @@
     "config" : {
       "userClientLimit" : "0",
       "behavior" : "Deny new session",
-      "userRealmLimit" : "1"
+      "userRealmLimit" : "10"
     }
   }, {
     "id" : "139477b4-0b84-4182-9230-b6dc67853849",
@@ -2368,7 +2335,7 @@
     "alias" : "UPDATE_PASSWORD",
     "name" : "Update Password",
     "providerId" : "UPDATE_PASSWORD",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 20,
     "config" : { }
@@ -2376,7 +2343,7 @@
     "alias" : "UPDATE_PROFILE",
     "name" : "Update Profile",
     "providerId" : "UPDATE_PROFILE",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 30,
     "config" : { }
@@ -2384,7 +2351,7 @@
     "alias" : "VERIFY_EMAIL",
     "name" : "Verify Email",
     "providerId" : "VERIFY_EMAIL",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 40,
     "config" : { }
@@ -2400,7 +2367,7 @@
     "alias" : "CONFIGURE_RECOVERY_AUTHN_CODES",
     "name" : "Recovery Authentication Codes",
     "providerId" : "CONFIGURE_RECOVERY_AUTHN_CODES",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 60,
     "config" : { }
@@ -2408,7 +2375,7 @@
     "alias" : "CONFIGURE_TOTP",
     "name" : "Configure OTP",
     "providerId" : "CONFIGURE_TOTP",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 70,
     "config" : { }
@@ -2416,7 +2383,7 @@
     "alias" : "security-question-ra",
     "name" : "Security Question",
     "providerId" : "security-question-ra",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 70,
     "config" : { }
@@ -2424,7 +2391,7 @@
     "alias" : "UPDATE_EMAIL",
     "name" : "Update Email",
     "providerId" : "UPDATE_EMAIL",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 70,
     "config" : { }
@@ -2432,7 +2399,7 @@
     "alias" : "webauthn-register",
     "name" : "Webauthn Register",
     "providerId" : "webauthn-register",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 80,
     "config" : { }
@@ -2440,7 +2407,7 @@
     "alias" : "webauthn-register-passwordless",
     "name" : "Webauthn Register Passwordless",
     "providerId" : "webauthn-register-passwordless",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1000,
     "config" : { }
@@ -2448,7 +2415,7 @@
     "alias" : "mfa-method-selector",
     "name" : "Configure MFA method to use",
     "providerId" : "mfa-method-selector",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1001,
     "config" : { }
@@ -2456,7 +2423,7 @@
     "alias" : "update_user_locale",
     "name" : "Update User Locale",
     "providerId" : "update_user_locale",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1002,
     "config" : { }
@@ -2464,7 +2431,7 @@
     "alias" : "message-otp-ra",
     "name" : "Reset Message OTP",
     "providerId" : "message-otp-ra",
-    "enabled" : true,
+    "enabled" : false,
     "defaultAction" : false,
     "priority" : 1003,
     "config" : { }

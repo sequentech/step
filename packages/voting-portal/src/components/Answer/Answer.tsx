@@ -1,35 +1,38 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
-import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     Candidate,
-    stringToHtml,
+    ICandidate,
+    IContest,
     isUndefined,
     normalizeWriteInText,
+    stringToHtml,
     translate,
 } from "@sequentech/ui-essentials"
-import {ICandidate} from "sequent-core"
-import Image from "mui-image"
-import {
-    selectBallotSelectionQuestion,
-    selectBallotSelectionVoteChoice,
-    setBallotSelectionInvalidVote,
-    setBallotSelectionVoteChoice,
-} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {
     checkAllowWriteIns,
     checkIsWriteIn,
     getImageUrl,
     getLinkUrl,
 } from "../../services/ElectionConfigService"
+import {
+    resetBallotSelection,
+    selectBallotSelectionQuestion,
+    selectBallotSelectionVoteChoice,
+    setBallotSelectionInvalidVote,
+    setBallotSelectionVoteChoice,
+} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useAppDispatch, useAppSelector} from "../../store/hooks"
+
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import Image from "mui-image"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import {useTranslation} from "react-i18next"
 
 export interface IAnswerProps {
     answer: ICandidate
-    questionIndex: number
+    contestId: string
     index: number
     ballotStyle: IBallotStyle
     hasCategory?: boolean
@@ -37,26 +40,29 @@ export interface IAnswerProps {
     isReview: boolean
     isInvalidVote?: boolean
     isInvalidWriteIns?: boolean
+    isUniqChecked?: boolean
+    contest: IContest
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
     answer,
-    questionIndex,
+    contestId,
     ballotStyle,
     hasCategory,
     isActive,
     isReview,
     isInvalidVote,
     isInvalidWriteIns,
-    index,
+    isUniqChecked,
+    contest,
 }) => {
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
+        selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
     )
     const questionState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex)
+        selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
-    const question = ballotStyle.ballot_eml.contests[questionIndex]
+    const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
@@ -73,7 +79,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         dispatch(
             setBallotSelectionInvalidVote({
                 ballotStyle,
-                questionIndex,
+                contestId,
                 isExplicitInvalid: value,
             })
         )
@@ -86,12 +92,24 @@ export const Answer: React.FC<IAnswerProps> = ({
             setInvalidVote(value)
             return
         }
+
         let cleanedText =
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
+
+        if (isUniqChecked) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                    contestId: contest.id,
+                })
+            )
+        }
+
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
-                questionIndex,
+                contestId,
                 voteChoice: {
                     id: answer.id,
                     selected: value ? 0 : -1,
@@ -102,17 +120,18 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const isWriteIn = checkIsWriteIn(answer)
-    const allowWriteIns = checkAllowWriteIns(question)
+    const allowWriteIns = question && checkAllowWriteIns(question)
 
     const setWriteInText = (writeInText: string): void => {
         if (!isWriteIn || !allowWriteIns || !isActive || isReview) {
             return
         }
         let cleanedText = normalizeWriteInText(writeInText)
+
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
-                questionIndex,
+                contestId,
                 voteChoice: {
                     id: answer.id,
                     selected: isUndefined(selectionState) ? -1 : selectionState.selected,
