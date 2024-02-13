@@ -133,6 +133,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("create a publish", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
         )
@@ -164,6 +165,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("publish view can go back", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
         )
@@ -196,6 +198,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("publish can start election", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
         )
@@ -229,6 +232,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("publish can pause election", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
         )
@@ -265,6 +269,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("publish can stop election", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
         )
