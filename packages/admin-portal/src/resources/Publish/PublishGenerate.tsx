@@ -10,6 +10,7 @@ import {ArrowBackIosNew, Publish} from "@mui/icons-material"
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
 import {EPublishActionsType} from "./EPublishType"
+import {EPublishStatus} from "./EPublishStatus"
 
 const PublishGenerateStyled = {
     Container: styled.div`
@@ -44,7 +45,7 @@ const PublishGenerateStyled = {
 export type TPublishGenerate = {
     data: any
     readOnly: boolean
-    status: string
+    status: EPublishStatus
     electionId?: string
     onBack: () => void
     onPublish: () => void

@@ -19,7 +19,7 @@ export enum EPublishStatushChanges {
     NotStarted = "NOT_STARTED",
 }
 
-export const PUBLISH_STATUS_CONVERT: {[key: string]: string} = {
+export const PUBLISH_STATUS_CONVERT = {
     [EPublishStatushChanges.NotStarted]: EPublishStatus.Void,
     [EPublishStatushChanges.Open]: EPublishStatus.Started,
     [EPublishStatushChanges.Paused]: EPublishStatus.Paused,

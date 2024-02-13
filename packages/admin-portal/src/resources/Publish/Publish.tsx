@@ -7,7 +7,7 @@ import {useGetOne, useNotify, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
-import {EPublishStatus, PUBLISH_STATUS_CONVERT} from "./EPublishStatus"
+import {EPublishStatus, EPublishStatushChanges, PUBLISH_STATUS_CONVERT} from "./EPublishStatus"
 import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
 import {GET_BALLOT_PUBLICATION_CHANGE} from "@/queries/GetBallotPublicationChanges"
 
@@ -50,7 +50,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const {t} = useTranslation()
         const [tenantId] = useTenantStore()
         const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
-        const [status, setStatus] = useState<string>(EPublishStatus.Void)
+        const [status, setStatus] = useState<EPublishStatus>(EPublishStatus.Void)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
@@ -145,8 +145,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeStatus = (status: string) => {
-            handleSetStatus(PUBLISH_STATUS_CONVERT[status] + 0.1)
+        const onChangeStatus = (status: EPublishStatushChanges) => {
+            let statusValue = PUBLISH_STATUS_CONVERT[status]
+            let statusIndex = Object.values(EPublishStatus).indexOf(statusValue)
+            let newStatus: EPublishStatus = Object.values(EPublishStatus)[statusIndex + 1]
+            handleSetStatus(newStatus)
 
             if (type === EPublishType.Election) {
                 onChangeElectionStatus(status)
@@ -155,7 +158,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeElectionStatus = async (status: string) => {
+        const onChangeElectionStatus = async (status: EPublishStatushChanges) => {
             try {
                 await updateStatusElection({
                     variables: {
@@ -177,7 +180,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeEventStatus = async (status: string) => {
+        const onChangeEventStatus = async (status: EPublishStatushChanges) => {
             try {
                 await updateStatusEvent({
                     variables: {
@@ -211,7 +214,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             setGenerateData(data)
         }
 
-        const handleSetStatus = (flag: string) => {
+        const handleSetStatus = (flag: EPublishStatus) => {
             if (status !== EPublishStatus.Stopped) {
                 setStatus(flag)
             }

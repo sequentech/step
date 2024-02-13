@@ -24,10 +24,10 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
-    status: string
+    status: EPublishStatus
     onPublish?: () => void
     onGenerate: () => void
-    onChangeStatus?: (status: string) => void
+    onChangeStatus?: (status: EPublishStatushChanges) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -85,7 +85,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         setCurrentCallback(() => callback)
     }
 
-    const handleOnChange = (status: string) => () => onChangeStatus(status)
+    const handleOnChange = (status: EPublishStatushChanges) => () => onChangeStatus(status)
 
     return (
         <>
