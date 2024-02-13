@@ -156,6 +156,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const CreateButton = () => (
         <Button
             onClick={() => setShowCeremony(true)}
+            className="keys-add-button"
             disabled={!keysCeremonies || keysCeremonies?.length > 0}
         >
             <ResourceListStyles.CreateIcon icon={faPlus} />

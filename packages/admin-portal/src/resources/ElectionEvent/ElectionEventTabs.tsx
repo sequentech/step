@@ -120,6 +120,7 @@ export const ElectionEventTabs: React.FC = () => {
                 {showKeys ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.keys")}
+                        className="election-keys-tab"
                         onClick={() => {
                             setShowKeysList(Date.now().toString())
                         }}
