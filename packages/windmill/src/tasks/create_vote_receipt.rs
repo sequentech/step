@@ -44,7 +44,7 @@ async fn get_template() -> Result<()> {
     let query = hasura_transaction
         .prepare(
             r#"
-            SELECT receipts FROM election WHERE id = $1;
+            SELECT receipts FROM sequent_backend.election WHERE id = $1;
             "#,
         )
         .await?;
@@ -57,13 +57,17 @@ async fn get_template() -> Result<()> {
         )
         .await?;
 
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let total_distinct_voters: i64 = if rows.len() == 0 {
-        0
-    } else {
-        rows[0].try_get::<&str, i64>("total_distinct_voters")?
-    };
+    let results: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|row| -> Result<serde_json::Value> {
+            Ok(row
+                .try_get::<_, serde_json::Value>("receipts")
+                .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+        })
+        .collect::<Result<Vec<serde_json::Value>>>()
+        .map_err(|err| anyhow!("Error getting the receipts: {}", err))?;
+
+    dbg!(&results);
 
     Ok(())
 }
