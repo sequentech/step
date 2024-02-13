@@ -9,10 +9,13 @@ import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/ico
 import {Button, FilterButton, SelectColumnsButton} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
-import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
+import {EPublishStatus, EPublishStatushChanges, nextStatus} from "./EPublishStatus"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import SvgIcon from "@mui/material/SvgIcon"
+
+type SvgIconComponent = typeof SvgIcon
 
 const PublishActionsStyled = {
     Container: styled.div`
@@ -52,16 +55,27 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
-    const IconOrProgress = ({st, Icon}: any) => {
-        return status === st?.toUpperCase().includes("LOADING") &&
-            status !== EPublishStatus.Void ? (
+    const IconOrProgress = ({st, Icon}: {st: EPublishStatus; Icon: SvgIconComponent}) => {
+        return nextStatus(st) === status && status !== EPublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
             <Icon width={24} />
         )
     }
 
-    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus}: any) => (
+    const ButtonDisabledOrNot = ({
+        st,
+        label,
+        onClick,
+        Icon,
+        disabledStatus,
+    }: {
+        st: EPublishStatus
+        label: string
+        onClick: () => void
+        Icon: SvgIconComponent
+        disabledStatus: Array<EPublishStatus>
+    }) => (
         <Button
             onClick={onClick}
             label={t(label)}

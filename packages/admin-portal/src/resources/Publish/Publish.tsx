@@ -7,7 +7,12 @@ import {useGetOne, useNotify, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
-import {EPublishStatus, EPublishStatushChanges, PUBLISH_STATUS_CONVERT} from "./EPublishStatus"
+import {
+    EPublishStatus,
+    EPublishStatushChanges,
+    PUBLISH_STATUS_CONVERT,
+    nextStatus,
+} from "./EPublishStatus"
 import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
 import {GET_BALLOT_PUBLICATION_CHANGE} from "@/queries/GetBallotPublicationChanges"
 
@@ -147,8 +152,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onChangeStatus = (status: EPublishStatushChanges) => {
             let statusValue = PUBLISH_STATUS_CONVERT[status]
-            let statusIndex = Object.values(EPublishStatus).indexOf(statusValue)
-            let newStatus: EPublishStatus = Object.values(EPublishStatus)[statusIndex + 1]
+            let newStatus: EPublishStatus = nextStatus(statusValue)
             handleSetStatus(newStatus)
 
             if (type === EPublishType.Election) {

@@ -12,6 +12,11 @@ export enum EPublishStatus {
     GeneratedLoading = "GENERATED_LOADING",
 }
 
+export const nextStatus = (statusValue: EPublishStatus): EPublishStatus => {
+    let statusIndex = Object.values(EPublishStatus).indexOf(statusValue)
+    return Object.values(EPublishStatus)[statusIndex + 1]
+}
+
 export enum EPublishStatushChanges {
     Open = "OPEN",
     Paused = "PAUSED",
