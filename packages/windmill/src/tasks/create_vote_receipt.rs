@@ -32,46 +32,28 @@ pub struct TemplateData {
 }
 
 async fn get_template() -> Result<()> {
-    println!("1");
     let toto = get_hasura_pool().await;
 
-    println!("1 bis");
     let mut hasura_db_client: DbClient = toto.get().await.map_err(|err| anyhow!("{}", err))?;
 
-    println!("2");
     let mut hasura_transaction = hasura_db_client
         .transaction()
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
-    println!("3");
-    let total_distinct_voters_statement = hasura_transaction
+    let query = hasura_transaction
         .prepare(
             r#"
-            SELECT
-                COUNT(DISTINCT voter_id_string) AS total_distinct_voters
-            FROM
-                sequent_backend.cast_vote
-            WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                election_id = $3;
+            SELECT receipts FROM election WHERE id = $1;
             "#,
         )
         .await?;
 
-    println!("4");
     let rows: Vec<Row> = hasura_transaction
         .query(
-            &total_distinct_voters_statement,
-            &[
-                &Uuid::parse_str("90505c8a-23a9-4cdf-a26b-4e19f6a097d5")
-                    .map_err(|err| anyhow!("{}", err))?,
-                &Uuid::parse_str("c9cf798a-e3cd-4b52-9d0d-dd536750fc94")
-                    .map_err(|err| anyhow!("{}", err))?,
-                &Uuid::parse_str("5207a1e1-e1f3-4758-a4f5-fe5cdab469dd")
-                    .map_err(|err| anyhow!("{}", err))?,
-            ],
+            &query,
+            &[&Uuid::parse_str("5207a1e1-e1f3-4758-a4f5-fe5cdab469dd")
+                .map_err(|err| anyhow!("{}", err))?],
         )
         .await?;
 
@@ -82,10 +64,6 @@ async fn get_template() -> Result<()> {
     } else {
         rows[0].try_get::<&str, i64>("total_distinct_voters")?
     };
-
-    dbg!(&total_distinct_voters);
-
-    println!("1234");
 
     Ok(())
 }
@@ -102,10 +80,7 @@ pub async fn create_vote_receipt(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    // SELECT receipts FROM election WHERE id = ?;
-    println!("ABC");
     let toto = get_template().await?;
-    println!("ABCDEF");
 
     let mut map = Map::new();
     map.insert(
