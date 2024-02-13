@@ -32,9 +32,11 @@ pub struct TemplateData {
 }
 
 async fn get_template() -> Result<()> {
-    let toto = get_hasura_pool().await;
-
-    let mut hasura_db_client: DbClient = toto.get().await.map_err(|err| anyhow!("{}", err))?;
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
 
     let mut hasura_transaction = hasura_db_client
         .transaction()
@@ -52,8 +54,10 @@ async fn get_template() -> Result<()> {
     let rows: Vec<Row> = hasura_transaction
         .query(
             &query,
-            &[&Uuid::parse_str("5207a1e1-e1f3-4758-a4f5-fe5cdab469dd")
-                .map_err(|err| anyhow!("{}", err))?],
+            &[
+                &Uuid::parse_str("5207a1e1-e1f3-4758-a4f5-fe5cdab469dd") // TODO: update id
+                    .map_err(|err| anyhow!("{}", err))?,
+            ],
         )
         .await?;
 
@@ -62,12 +66,45 @@ async fn get_template() -> Result<()> {
         .map(|row| -> Result<serde_json::Value> {
             Ok(row
                 .try_get::<_, serde_json::Value>("receipts")
-                .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                .map_err(|err| anyhow!("Error getting the receipts of a row: {}", err))?)
         })
         .collect::<Result<Vec<serde_json::Value>>>()
         .map_err(|err| anyhow!("Error getting the receipts: {}", err))?;
 
-    dbg!(&results);
+    let template_id = results[0]
+        .get("DOCUMENTS")
+        .and_then(|doc| doc.get("template"));
+
+    if let Some(id) = template_id {
+        if let Some(id) = id.as_str() {
+            let query = hasura_transaction
+                .prepare(
+                    r#"
+                    SELECT template FROM sequent_backend.communication_template WHERE id = $1;
+                "#,
+                )
+                .await?;
+
+            let rows: Vec<Row> = hasura_transaction
+                .query(
+                    &query,
+                    &[&Uuid::parse_str(id).map_err(|err| anyhow!("{}", err))?],
+                )
+                .await?;
+
+            let results: Vec<serde_json::Value> = rows
+                .into_iter()
+                .map(|row| -> Result<serde_json::Value> {
+                    Ok(row
+                        .try_get::<_, serde_json::Value>("template")
+                        .map_err(|err| anyhow!("Error getting the template of a row: {}", err))?)
+                })
+                .collect::<Result<Vec<serde_json::Value>>>()
+                .map_err(|err| anyhow!("Error getting the template: {}", err))?;
+
+            dbg!(&results);
+        }
+    }
 
     Ok(())
 }
