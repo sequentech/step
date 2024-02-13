@@ -41,6 +41,8 @@ import {IPermissions} from "@/types/keycloak"
 import {SettingsSchedulesEdit} from "./SettingsSchedulesEdit"
 import {SettingsSchedulesCreate} from "./SettingsSchedulesCreate"
 import {ISchedule} from "./constants"
+import {Sequent_Backend_Tenant} from "@/gql/graphql"
+import {ITenantScheduledEvent, ITenantSettings} from "@/types/settings"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -73,17 +75,21 @@ export const SettingsSchedules: React.FC = () => {
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [scheduleData, setScheduleData] = React.useState<Array<RaRecord<Identifier>>>([])
+    const [scheduleData, setScheduleData] = React.useState<Array<ITenantScheduledEvent>>([])
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
-    const {data, isLoading, refetch} = useGetOne("sequent_backend_tenant", {id: tenantId})
-    const [update, {isLoading: isLoadingDelete}] = useUpdate("sequent_backend_tenant")
+    const {data, isLoading, refetch} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
+        id: tenantId,
+    })
+    const [update, {isLoading: isLoadingDelete}] =
+        useUpdate<Sequent_Backend_Tenant>("sequent_backend_tenant")
     const listContext = useList({data: scheduleData})
 
     useEffect(() => {
-        const temp = data?.settings?.schedules ?? []
+        let settings = data?.settings as ITenantSettings | undefined
+        const temp = settings?.schedules ?? []
         setScheduleData(temp)
     }, [data])
 
@@ -126,11 +132,12 @@ export const SettingsSchedules: React.FC = () => {
     }
 
     const confirmDeleteAction = () => {
-        const filteredData = scheduleData.filter((s: RaRecord<Identifier>) => s.id !== deleteId)
+        const filteredData = scheduleData.filter((s) => s.id !== deleteId)
+        let settings = data?.settings as ITenantSettings | undefined
         const sendData = {
             ...data,
             settings: {
-                ...data.settings,
+                ...settings,
                 schedules: filteredData,
             },
         }
