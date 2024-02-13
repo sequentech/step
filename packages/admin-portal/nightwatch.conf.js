@@ -34,7 +34,7 @@ module.exports = {
     webdriver: {},
 
     test_workers: {
-        enabled: true,
+        enabled: false,
     },
 
     test_settings: {
