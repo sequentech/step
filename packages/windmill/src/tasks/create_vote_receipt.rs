@@ -32,17 +32,19 @@ pub struct TemplateData {
 }
 
 async fn get_template() -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    println!("1");
+    let toto = get_hasura_pool().await;
 
+    println!("1 bis");
+    let mut hasura_db_client: DbClient = toto.get().await.map_err(|err| anyhow!("{}", err))?;
+
+    println!("2");
     let mut hasura_transaction = hasura_db_client
         .transaction()
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
+    println!("3");
     let total_distinct_voters_statement = hasura_transaction
         .prepare(
             r#"
@@ -58,6 +60,7 @@ async fn get_template() -> Result<()> {
         )
         .await?;
 
+    println!("4");
     let rows: Vec<Row> = hasura_transaction
         .query(
             &total_distinct_voters_statement,
@@ -82,6 +85,8 @@ async fn get_template() -> Result<()> {
 
     dbg!(&total_distinct_voters);
 
+    println!("1234");
+
     Ok(())
 }
 
@@ -98,7 +103,9 @@ pub async fn create_vote_receipt(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     // SELECT receipts FROM election WHERE id = ?;
-    get_template();
+    println!("ABC");
+    let toto = get_template().await?;
+    println!("ABCDEF");
 
     let mut map = Map::new();
     map.insert(
