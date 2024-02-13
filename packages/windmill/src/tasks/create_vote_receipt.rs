@@ -31,7 +31,7 @@ pub struct TemplateData {
     ballot_tracker_url: String,
 }
 
-async fn get_template() -> Result<()> {
+async fn get_template() -> Result<Option<String>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -72,13 +72,8 @@ async fn get_template() -> Result<()> {
         .map_err(|err| anyhow!("Error getting the receipts: {}", err))?;
 
     let template_id = results[0]
-        .get("DOCUMENTS")
+        .get("DOCUMENT")
         .and_then(|doc| doc.get("template"));
-
-    let toto = results[0].get("DOCUMENTS");
-    
-    dbg!(&toto);
-    dbg!(&template_id);
 
     if let Some(id) = template_id {
         if let Some(id) = id.as_str() {
@@ -107,11 +102,15 @@ async fn get_template() -> Result<()> {
                 .collect::<Result<Vec<serde_json::Value>>>()
                 .map_err(|err| anyhow!("Error getting the template: {}", err))?;
 
-            dbg!(&results);
+            let template = results[0].get("sms");
+
+            return Ok(template
+                .and_then(|t| t.as_str())
+                .and_then(|s| Some(s.to_string())));
         }
     }
 
-    Ok(())
+    Ok(None)
 }
 
 #[instrument(err)]
@@ -126,7 +125,9 @@ pub async fn create_vote_receipt(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let toto = get_template().await?;
+    let template = get_template().await?;
+
+    dbg!(&template);
 
     let mut map = Map::new();
     map.insert(
