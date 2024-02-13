@@ -5,14 +5,14 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
-        "breadcrumbSteps": {
+        breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Ballot",
             review: "Review",
             confirmation: "Confirmation",
             audit: "Auditar",
         },
-        "votingScreen": {
+        votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
             ballotHelpDialog: {
@@ -22,7 +22,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        "startScreen": {
+        startScreen: {
             startButton: "Empezar a votar",
             instructionsTitle: "Instrucciones",
             instructionsDescription: "Seguirá estos pasos al emitir tu voto:",
@@ -36,7 +36,7 @@ const spanishTranslation: TranslationType = {
             step3Description:
                 "Puede enviar su voto a la urna electrónica para que sea debidamente registrado.",
         },
-        "reviewScreen": {
+        reviewScreen: {
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
@@ -64,7 +64,7 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
         },
-        "logsScreen": {
+        logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",
             subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
@@ -79,7 +79,7 @@ const spanishTranslation: TranslationType = {
                 title: "Bitácora de Base de Datos de IAM",
             },
         },
-        "confirmationScreen": {
+        confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:
                 "El código de confirmación que aparece a continuación verifica que <b>su voto se ha emitido correctamente</b>. Puede utilizar este código para verificar que su voto ha sido contabilizado.",
@@ -102,7 +102,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        "auditScreen": {
+        auditScreen: {
             printButton: "Imprimir",
             restartButton: "Iniciar votación",
             title: "Audite su Papeleta",
@@ -129,7 +129,7 @@ const spanishTranslation: TranslationType = {
             bottomWarning:
                 "Por motivos de seguridad, cuando audite su papeleta, deberá invalidarla. Para continuar con el proceso de votación, haga clic en ‘<b>Iniciar votación/b>’.",
         },
-        "electionSelectionScreen": {
+        electionSelectionScreen: {
             title: "Lista de Votaciones",
             description: "Seleccione la votación que desea votar",
             chooserHelpDialog: {
@@ -139,7 +139,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        "areas": {
+        areas: {
             common: {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
@@ -153,7 +153,7 @@ const spanishTranslation: TranslationType = {
                 action: "Crear un Área",
             },
         },
-        "electionTypeScreen": {
+        electionTypeScreen: {
             noPermissions: "No tienes permiso para acceder a la configuración.",
             common: {
                 title: "Tipo de Elección",
@@ -184,7 +184,7 @@ const spanishTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
             },
         },
-        "scheduleScreen": {
+        scheduleScreen: {
             noPermissions: "No tienes permiso para acceder a la configuración.",
             createScheduleSuccess: "Fecha creada",
             createScheduleError: "Error creando fecha",
@@ -205,12 +205,26 @@ const spanishTranslation: TranslationType = {
             edit: {
                 title: "Editar fecha",
             },
+            eventTypes: {
+                SYSTEM_LOCKDOWN_FOR_INTERNET_VOTING_SETTINGS:
+                    "Bloqueo del sistema para la finalización de la configuración de votación por Internet",
+                START_PRE_REGISTRATION_OVCS: "Inicio de la preinscripción para OVCS",
+                END_PRE_REGISTRATION_OVCS: "Fin de la preinscripción para OVCS",
+                START_TEST_VOTING_PERIOD: "Inicio del período de votación de prueba",
+                END_TEST_VOTING_PERIOD: "Fin del período de votación de prueba",
+                START_INTERNET_VOTING_PERIOD: "Inicio del período de votación por Internet",
+                END_INTERNET_VOTING_PERIOD: "Fin del período de votación por Internet",
+                LAB_TEST: "Prueba de laboratorio",
+                FIELD_TEST: "Prueba de campo",
+                MOCK_ELECTIONS: "Elecciones simuladas",
+                FTS: "FTS",
+            },
         },
-        "dashboard": {
+        dashboard: {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
         },
-        "electionEventScreen": {
+        electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento Electoral.",
             },
@@ -332,7 +346,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
         },
-        "electionScreen": {
+        electionScreen: {
             common: {
                 title: "Elección",
                 subtitle: "Configuración de la elección.",
@@ -372,7 +386,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Logs",
             },
         },
-        "tenantScreen": {
+        tenantScreen: {
             common: {
                 title: "Cliente",
             },
@@ -382,7 +396,7 @@ const spanishTranslation: TranslationType = {
             createSuccess: "Cliente creado",
             createError: "Error creando cliente",
         },
-        "usersAndRolesScreen": {
+        usersAndRolesScreen: {
             noPermissions: "No tienes permiso para acceder a los usuarios o roles.",
             common: {
                 title: "Usuarios y Roles",
@@ -539,7 +553,7 @@ const spanishTranslation: TranslationType = {
                 "tally-sheet-delete": "Borrar Acta de Recuento",
             },
         },
-        "common": {
+        common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
             resources: {
                 electionEvent: "Evento Electoral",
@@ -588,13 +602,13 @@ const spanishTranslation: TranslationType = {
                 delete: "¿Estás seguro que quieres borrar este elemento?",
             },
         },
-        "createResource": {
+        createResource: {
             electionEvent: "Crear un Evento Electoral",
             election: "Crear una Elección",
             contest: "Crear un Concurso",
             candidate: "Crear un Candidato",
         },
-        "sideMenu": {
+        sideMenu: {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
@@ -646,7 +660,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
         },
-        "candidateScreen": {
+        candidateScreen: {
             common: {
                 subtitle: "Configuración de candidatos.",
             },
@@ -674,7 +688,7 @@ const spanishTranslation: TranslationType = {
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Error creating candidato",
         },
-        "contestScreen": {
+        contestScreen: {
             common: {
                 subtitle: "Configuración de pregunta.",
             },
@@ -702,7 +716,7 @@ const spanishTranslation: TranslationType = {
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",
         },
-        "keysGeneration": {
+        keysGeneration: {
             configureStep: {
                 create: "Crear Ceremonia de Claves",
                 title: "Crear Ceremonia de Claves del Evento Electoral",
@@ -784,7 +798,7 @@ const spanishTranslation: TranslationType = {
                 verified: "Copia de seguridad verificada correctamente.",
             },
         },
-        "tally": {
+        tally: {
             ceremonyTitle: "Elecciones para el Recuento",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
@@ -874,7 +888,7 @@ const spanishTranslation: TranslationType = {
                 winning_position: "Winning position",
             },
         },
-        "publish": {
+        publish: {
             header: {
                 change: "Cambios a Publicar",
                 viewChange: "Ver Publicación",
@@ -913,14 +927,14 @@ const spanishTranslation: TranslationType = {
                 change_status: "Votación cambiada de estado",
             },
         },
-        "emailEditor": {
+        emailEditor: {
             subject: "Asunto del Email",
             tabs: {
                 plaintext: "Cuerpo de Texto Plano",
                 richtext: "Cuerpo de Texto Enriquecido",
             },
         },
-        "sendCommunication": {
+        sendCommunication: {
             send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
@@ -963,7 +977,7 @@ const spanishTranslation: TranslationType = {
                 subject: "Subject",
             },
         },
-        "tallysheet": {
+        tallysheet: {
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
             allFieldsRequired: "Todos los campos son obligatorios",
@@ -1029,7 +1043,7 @@ const spanishTranslation: TranslationType = {
             },
         },
 
-        "communicationTemplate": {
+        communicationTemplate: {
             noPermissions: "No tienes permisos para acceder a las Plantillas de Comunicación.",
             title: "Plantillas de Comunicación",
             subtitle: "Listado de plantillas de comunicación",
@@ -1071,7 +1085,7 @@ const spanishTranslation: TranslationType = {
                 sms: "SMS",
             },
         },
-        "materials": {
+        materials: {
             createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Error creando material de soporte",
             updateMaterialSuccess: "Material de soporte actualizado",
@@ -1085,16 +1099,6 @@ const spanishTranslation: TranslationType = {
                 document: "El documento es obligatorio",
             },
         },
-        "System lockdown for finalization of Internet voting settings":
-            "Bloqueo del sistema para la finalización de la configuración de votación por Internet",
-        "Start and end of pre-registration for OVCS": "Inicio y fin de la preinscripción para OVCS",
-        "Start and end of test voting period": "Inicio y fin del período de votación de prueba",
-        "Start and end of Internet voting period":
-            "Inicio y fin del período de votación por Internet",
-        "Lab test": "Prueba de laboratorio",
-        "Field test": "Prueba de campo",
-        "Mock elections": "Elecciones simuladas",
-        "FTS": "FTS",
     },
 }
 

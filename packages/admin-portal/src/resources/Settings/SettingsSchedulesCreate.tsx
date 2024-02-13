@@ -21,8 +21,8 @@ import {
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {SCHEDULE_NAMES_LIST} from "./constants"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
+import {ScheduledEvents} from "./constants"
 
 interface CreateProps {
     close?: () => void
@@ -85,9 +85,9 @@ export const SettingsSchedulesCreate: React.FC<CreateProps> = (props) => {
                 </Typography>
                 <SelectInput
                     source="name"
-                    choices={SCHEDULE_NAMES_LIST.map((item) => ({
-                        id: item,
-                        name: t(item),
+                    choices={Object.entries(ScheduledEvents).map(([_key, value]) => ({
+                        id: t(`scheduleScreen.eventTypes.${value}`),
+                        name: t(`scheduleScreen.eventTypes.${value}`),
                     }))}
                 />
                 <TextInput source="name" />

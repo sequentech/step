@@ -23,7 +23,7 @@ import {
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ISchedule, SCHEDULE_NAMES_LIST} from "./constants"
+import {ISchedule, ScheduledEvents} from "./constants"
 import {Typography} from "@mui/material"
 
 interface EditProps {
@@ -102,9 +102,9 @@ export const SettingsSchedulesEdit: React.FC<EditProps> = (props) => {
             </Typography>
             <SelectInput
                 source="name"
-                choices={SCHEDULE_NAMES_LIST.map((item) => ({
-                    id: item,
-                    name: t(item),
+                choices={Object.entries(ScheduledEvents).map(([_key, value]) => ({
+                    id: t(`scheduleScreen.eventTypes.${value}`),
+                    name: t(`scheduleScreen.eventTypes.${value}`),
                 }))}
             />
             <TextInput source="name" />

@@ -190,27 +190,6 @@ export const SettingsSchedules: React.FC = () => {
 
     return (
         <>
-            {/* <List
-                filters={Filters}
-                actions={
-                    <ListActions
-                        custom
-                        withFilter
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={<SettingsSchedulesCreate close={handleCloseCreateDrawer} />}
-                    />
-                }
-                empty={<Empty />}
-            >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                <TextField source="name" />
-                    <TextField source="date" />
-
-                    <ActionsColumn actions={actions} />
-                </DatagridConfigurable>
-            </List> */}
-
             <ListContextProvider value={listContext}>
                 {scheduleData.length > 0 && (
                     <Box display="flex" justifyContent="flex-end" mb={2}>
