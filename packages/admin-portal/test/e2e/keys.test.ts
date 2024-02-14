@@ -207,8 +207,9 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
                 }
-                browser.assert.visible("input[id=trusteeNames_trustee1]").click()
-                browser.assert.visible("input[id=trusteeNames_trustee2]")
+                browser.pause(200)
+                browser.assert.visible("#trusteeNames_trustee1").click("#trusteeNames_trustee1")
+                browser.assert.visible("#trusteeNames_trustee2")
                 browser.assert
                     .enabled("button.keys-create-button")
                     .click("button.keys-create-button")
