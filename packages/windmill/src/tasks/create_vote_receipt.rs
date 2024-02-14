@@ -29,6 +29,7 @@ use uuid::Uuid;
 pub struct TemplateData {
     ballot_id: String,
     ballot_tracker_url: String,
+    qrcode: String,
 }
 
 async fn get_template() -> Result<Option<String>> {
@@ -126,9 +127,9 @@ pub async fn create_vote_receipt(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let mut map = Map::new();
-    
+
     let template = get_template().await?;
-    
+
     let render = match template {
         Some(template) => {
             map.insert(
@@ -136,6 +137,7 @@ pub async fn create_vote_receipt(
                 serde_json::to_value(TemplateData {
                     ballot_id: ballot_id.clone(),
                     ballot_tracker_url,
+                    qrcode: "<div id=\"qrcode\"></div>".to_string(),
                 })
                 .map_err(|err| anyhow!("{}", err))?,
             );
@@ -151,6 +153,7 @@ pub async fn create_vote_receipt(
                 serde_json::to_value(TemplateData {
                     ballot_id: ballot_id.clone(),
                     ballot_tracker_url,
+                    qrcode: "<div id=\"qrcode\"></div>".to_string(),
                 })
                 .map_err(|err| anyhow!("{}", err))?,
             );
