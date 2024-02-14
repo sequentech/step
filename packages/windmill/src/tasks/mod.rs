@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod create_keys;
+pub mod create_vote_receipt;
 pub mod execute_tally_session;
 pub mod export_users;
 pub mod import_users;
@@ -17,4 +18,3 @@ pub mod send_communication;
 pub mod set_public_key;
 pub mod update_election_event_ballot_styles;
 pub mod update_voting_status;
-pub mod create_vote_receipt;

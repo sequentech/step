@@ -9,6 +9,7 @@ use std;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::create_keys::create_keys;
+use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_users::export_users;
 use crate::tasks::import_users::import_users;
@@ -17,7 +18,6 @@ use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
-use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::set_public_key::set_public_key;
