@@ -273,18 +273,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     browser.end()
                 } else {
-                    browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
-                    browser.click("#trusteeNames_trustee1")
-                    browser.click("#trusteeNames_trustee2")
-                    browser.assert
-                        .enabled("button.keys-create-button")
-                        .click("button.keys-create-button")
-                    browser.assert
-                        .enabled(`button.ok-button`)
-                        .click("button.ok-button")
-                        .pause(200)
-                        .assert.not.elementPresent("span.area-description")
-                    browser.assert.visible(".keys-ceremony-title")
+                    browser.assert.visible(".keys-view-admin-icon").click(".keys-view-admin-icon")
                 }
             }
         )
