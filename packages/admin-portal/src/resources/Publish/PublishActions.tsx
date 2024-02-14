@@ -9,10 +9,13 @@ import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/ico
 import {Button, FilterButton, SelectColumnsButton} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
-import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
+import {EPublishStatus, EPublishStatushChanges, nextStatus} from "./EPublishStatus"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import SvgIcon from "@mui/material/SvgIcon"
+
+type SvgIconComponent = typeof SvgIcon
 
 const PublishActionsStyled = {
     Container: styled.div`
@@ -24,10 +27,10 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
-    status: number
+    status: EPublishStatus
     onPublish?: () => void
     onGenerate: () => void
-    onChangeStatus?: (status: string) => void
+    onChangeStatus?: (status: EPublishStatushChanges) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -52,15 +55,29 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
-    const IconOrProgress = ({st, Icon}: any) => {
-        return status === st + 0.1 && status !== EPublishStatus.Void ? (
+    const IconOrProgress = ({st, Icon}: {st: EPublishStatus; Icon: SvgIconComponent}) => {
+        return nextStatus(st) === status && status !== EPublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
             <Icon width={24} />
         )
     }
 
-    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus, className}: any) => (
+    const ButtonDisabledOrNot = ({
+        st,
+        label,
+        onClick,
+        Icon,
+        disabledStatus,
+        className,
+    }: {
+        st: EPublishStatus
+        label: string
+        onClick: () => void
+        Icon: SvgIconComponent
+        disabledStatus: Array<EPublishStatus>
+        className?: string
+    }) => (
         <Button
             onClick={onClick}
             label={t(label)}
@@ -85,7 +102,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         setCurrentCallback(() => callback)
     }
 
-    const handleOnChange = (status: string) => () => onChangeStatus(status)
+    const handleOnChange = (status: EPublishStatushChanges) => () => onChangeStatus(status)
 
     return (
         <>

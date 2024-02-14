@@ -179,6 +179,43 @@ const englishTranslation = {
                 electionTypes: "ELECTION TYPES",
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
+                schedules: "SCHEDULED EVENTS",
+            },
+        },
+        scheduleScreen: {
+            noPermissions: "You don't have permission to access settings.",
+            createScheduleSuccess: "Schedule created",
+            createScheduleError: "Error creating schedule",
+            deleteScheduleSuccess: "Schedule deleted",
+            deleteScheduleError: "Error deleting schedule",
+            common: {
+                title: "Scheduled",
+                subtitle: "Schedules configuration",
+                createNew: "Create Schedule",
+                emptyHeader: "No Schedule yet.",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Schedule",
+                selectSchedule:
+                    "Select one schedule from the predefined list or write a custom one",
+            },
+            edit: {
+                title: "Edit Schedule",
+            },
+            eventTypes: {
+                SYSTEM_LOCKDOWN_FOR_INTERNET_VOTING_SETTINGS:
+                    "System lockdown for finalization of Internet voting settings",
+                START_PRE_REGISTRATION_OVCS: "Start and end of pre-registration for OVCS",
+                END_PRE_REGISTRATION_OVCS: "End of pre-registration for OVCS",
+                START_TEST_VOTING_PERIOD: "Start of test voting period",
+                END_TEST_VOTING_PERIOD: "End of test voting period",
+                START_INTERNET_VOTING_PERIOD: "Start of Internet voting period",
+                END_INTERNET_VOTING_PERIOD: "End of Internet voting period",
+                LAB_TEST: "Lab test",
+                FIELD_TEST: "Field test",
+                MOCK_ELECTIONS: "Mock elections",
+                FTS: "FTS",
             },
         },
         dashboard: {
