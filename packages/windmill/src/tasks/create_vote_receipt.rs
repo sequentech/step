@@ -25,14 +25,6 @@ use sequent_core::types::permissions::Permissions;
 use tokio_postgres::row::Row;
 use uuid::Uuid;
 
-// #[derive(Serialize, Deserialize, Debug, Clone)]
-// pub struct TemplateData {
-//     ballot_id: String,
-//     ballot_tracker_url: String,
-//     qrcode: String,
-//     template: Option<String>,
-// }
-
 async fn get_template(election_id: &str) -> Result<Option<String>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
