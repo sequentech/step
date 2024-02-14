@@ -125,24 +125,42 @@ pub async fn create_vote_receipt(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let template = get_template().await?;
-
-    dbg!(&template);
-
     let mut map = Map::new();
-    map.insert(
-        "data".to_string(),
-        serde_json::to_value(TemplateData {
-            ballot_id: ballot_id.clone(),
-            ballot_tracker_url,
-        })
-        .map_err(|err| anyhow!("{}", err))?,
-    );
+    
+    let template = get_template().await?;
+    
+    let render = match template {
+        Some(template) => {
+            map.insert(
+                "data".to_string(),
+                serde_json::to_value(TemplateData {
+                    ballot_id: ballot_id.clone(),
+                    ballot_tracker_url,
+                })
+                .map_err(|err| anyhow!("{}", err))?,
+            );
 
-    let default_html_template = include_str!("../resources/vote_receipt.hbs");
+            let custom_html_template = include_str!("../resources/vote_receipt_custom.hbs");
 
-    let render = reports::render_template_text(default_html_template, map)
-        .map_err(|err| anyhow!("{}", err))?;
+            reports::render_template_text(custom_html_template, map)
+                .map_err(|err| anyhow!("{}", err))?
+        }
+        None => {
+            map.insert(
+                "data".to_string(),
+                serde_json::to_value(TemplateData {
+                    ballot_id: ballot_id.clone(),
+                    ballot_tracker_url,
+                })
+                .map_err(|err| anyhow!("{}", err))?,
+            );
+
+            let default_html_template = include_str!("../resources/vote_receipt.hbs");
+
+            reports::render_template_text(default_html_template, map)
+                .map_err(|err| anyhow!("{}", err))?
+        }
+    };
 
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
 
