@@ -10,12 +10,14 @@ export const CREATE_VOTE_RECEIPT = gql`
         $ballot_tracker_url: String!
         $election_event_id: String!
         $tenant_id: String!
+        $election_id: String!
     ) {
         create_vote_receipt(
             ballot_id: $ballot_id
             ballot_tracker_url: $ballot_tracker_url
             election_event_id: $election_event_id
             tenant_id: $tenant_id
+            election_id: $election_id
         ) {
             id
             ballot_id

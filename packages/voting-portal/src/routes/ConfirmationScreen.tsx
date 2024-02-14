@@ -150,6 +150,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 ballot_tracker_url: ballotTrackerUrl,
                 election_event_id: eventId,
                 tenant_id: tenantId,
+                election_id: electionId,
             },
         })
 
