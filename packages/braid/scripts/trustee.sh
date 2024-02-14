@@ -10,7 +10,7 @@ if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
 fi
-SECRET_KEY_NAME="${TRUSTEE_NAME}:config"
+SECRET_KEY_NAME="secrets/${TRUSTEE_NAME}_config"
 
 if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
     if [ -z "$AWS_SM_KEY_PREFIX" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]
