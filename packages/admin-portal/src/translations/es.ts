@@ -1079,6 +1079,7 @@ const spanishTranslation: TranslationType = {
             },
             form: {
                 smsMessage: "Mensaje SMS",
+                document: "Documento",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
                 communicationType: "Tipo de Comunicación",

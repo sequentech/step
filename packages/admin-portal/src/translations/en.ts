@@ -1075,6 +1075,7 @@ const englishTranslation = {
             },
             form: {
                 smsMessage: "SMS Message",
+                document: "Document",
                 name: "Template Name",
                 alias: "Template Alias",
                 communicationType: "Communication Type",

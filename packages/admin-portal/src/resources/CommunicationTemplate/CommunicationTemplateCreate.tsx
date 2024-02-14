@@ -83,7 +83,7 @@ const ContentInput: React.FC<{
 
     if (communicationMethod === ICommunicationMethod.EMAIL) {
         return <EmailEditEditor record={parsedValue} />
-    } else {
+    } else if (communicationMethod === ICommunicationMethod.SMS) {
         return (
             <FormStyles.TextInput
                 minRows={4}
@@ -92,6 +92,17 @@ const ContentInput: React.FC<{
                 label={t("communicationTemplate.form.smsMessage")}
             />
         )
+    } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
+        return (
+            <FormStyles.TextInput
+                minRows={4}
+                multiline={true}
+                source="template.document"
+                label={t("communicationTemplate.form.document")}
+            />
+        )
+    } else {
+        return <></>
     }
 }
 
@@ -176,6 +187,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                     html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY["en"] ?? "",
                 },
                 sms: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
+                document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
             }
         }
         return temp

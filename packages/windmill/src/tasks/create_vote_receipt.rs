@@ -194,9 +194,7 @@ pub async fn create_vote_receipt(
         Some(element_id),
         true,
     )
-    // .await?;
-    .await
-    .unwrap();
+    .await?;
 
     Ok(())
 }
