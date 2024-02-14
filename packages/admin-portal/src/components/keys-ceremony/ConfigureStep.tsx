@@ -246,6 +246,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         {trusteeList ? (
                             <CheckboxGroupInput
                                 validate={validateTrusteeList}
+                                className="keys-trustees-input"
                                 label={t("keysGeneration.configureStep.trusteeList")}
                                 source="trusteeNames"
                                 choices={trusteeList}

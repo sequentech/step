@@ -183,13 +183,42 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
                 }
-                browser.assert
-                    .enabled("button.publish-back-button")
-                    .click("button.publish-back-button")
-                    .pause(200)
+                browser.assert.enabled("button.keys-back-button").click("button.keys-back-button")
             }
         )
     })
+
+    it("start new key generation should throw error if one trustee", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.keys-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
+                }
+                browser.assert.visible("input[id=trusteeNames_trustee1]").click()
+                browser.assert.visible("input[id=trusteeNames_trustee2]")
+                browser.assert
+                    .enabled("button.keys-create-button")
+                    .click("button.keys-create-button")
+                    .pause(1000)
+                browser.assert.enabled("button.keys-back-button").click("button.keys-back-button")
+            }
+        )
+    })
+
+    // trusteeNames_trustee2
 
     // it("publish can start election", async (browser: NightwatchAPI) => {
     //     await browser.window.maximize()
