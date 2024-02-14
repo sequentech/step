@@ -10,15 +10,17 @@ use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
-use serde_json::{json, Map};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use tracing::instrument;
 
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use tokio_postgres::row::Row;
 use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 
+#[instrument(err)]
 pub async fn get_template(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -91,6 +93,29 @@ pub async fn get_template(
     Ok(None)
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VoteReceiptData {
+    pub ballot_id: String,
+    pub ballot_tracker_url: String,
+    pub qrcode: String,
+    pub template: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VoteReceiptRoot {
+    pub data: VoteReceiptData,
+}
+
+impl VoteReceiptRoot {
+    pub fn to_map(self) -> Result<Map<String, Value>> {
+        let Value::Object(map) = serde_json::to_value(self.clone())? else {
+            return Err(anyhow!("Can't convert VoteReceiptRoot to Map"));
+        };
+        Ok(map)
+    }
+}
+
+#[instrument(err)]
 pub async fn create_vote_receipt(
     transaction: &Transaction<'_>,
     element_id: &str,
@@ -102,56 +127,29 @@ pub async fn create_vote_receipt(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
-    let mut map = Map::new();
+    let template_opt = get_template(transaction, tenant_id, election_id).await?;
 
-    let template = get_template(transaction, tenant_id, election_id).await?;
-
-    let render = match template {
-        Some(template) => {
-            let mut sub_map = Map::new();
-            sub_map.insert(
-                "data".to_string(),
-                json!({
-                    "ballot_id": ballot_id.clone(),
-                    "ballot_tracker_url": ballot_tracker_url,
-                    "qrcode": QR_CODE_TEMPLATE
-                }),
-            );
-
-            map.insert(
-                "data".to_string(),
-                json!({
-                    "ballot_id": ballot_id.clone(),
-                    "ballot_tracker_url": ballot_tracker_url,
-                    "qrcode": QR_CODE_TEMPLATE,
-                    "template": Some(
-                        reports::render_template_text(&template, sub_map)
-                            .map_err(|err| anyhow!("{}", err))?,
-                    ),
-                }),
-            );
-
-            let custom_html_template = include_str!("../resources/vote_receipt_custom.hbs");
-
-            reports::render_template_text(custom_html_template, map)
-                .map_err(|err| anyhow!("{}", err))?
-        }
-        None => {
-            map.insert(
-                "data".to_string(),
-                json!({
-                    "ballot_id": ballot_id.clone(),
-                    "ballot_tracker_url": ballot_tracker_url,
-                    "qrcode": QR_CODE_TEMPLATE,
-                }),
-            );
-
-            let default_html_template = include_str!("../resources/vote_receipt.hbs");
-
-            reports::render_template_text(default_html_template, map)
-                .map_err(|err| anyhow!("{}", err))?
-        }
+    let mut data = VoteReceiptData {
+        ballot_id: ballot_id.to_string(),
+        ballot_tracker_url: ballot_tracker_url.to_string(),
+        qrcode: QR_CODE_TEMPLATE.to_string(),
+        template: None,
     };
+    let sub_map = VoteReceiptRoot { data: data.clone() }.to_map()?;
+
+    let template = template_opt
+        .map(|template| {
+            reports::render_template_text(&template, sub_map).map_err(|err| anyhow!("{}", err))
+        })
+        .transpose()?;
+
+    data.template = template;
+
+    let map = VoteReceiptRoot { data: data.clone() }.to_map()?;
+
+    let custom_html_template = include_str!("../resources/vote_receipt_custom.hbs");
+
+    let render = reports::render_template_text(custom_html_template, map)?;
 
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
 
