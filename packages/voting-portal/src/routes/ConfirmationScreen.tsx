@@ -127,6 +127,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
+    const [documentUrl, setDocumentUrl] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
 
     const onClickToScreen = () => {
@@ -144,6 +145,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }, [ballotStyle, dispatch])
 
     async function printVoteReceipt() {
+        if (documentUrl) {
+            return window.open(documentUrl, "_blank")
+        }
+
         const res = await createVoteReceipt({
             variables: {
                 ballot_id: ballotId,
@@ -199,6 +204,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 documentId!,
                 documentData?.sequent_backend_document[0]?.name
             )
+
+            setDocumentUrl(documentUrl)
 
             window.open(documentUrl, "_blank")
         }
