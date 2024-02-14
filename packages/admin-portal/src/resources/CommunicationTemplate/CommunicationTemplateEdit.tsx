@@ -96,7 +96,7 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
 
         if (communicationMethod === ICommunicationMethod.EMAIL) {
             return <EmailEditEditor record={parsedValue} />
-        } else {
+        } else if (communicationMethod === ICommunicationMethod.SMS) {
             return (
                 <FormStyles.TextInput
                     minRows={4}
@@ -105,6 +105,17 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
                     label={t("communicationTemplate.form.smsMessage")}
                 />
             )
+        } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
+            return (
+                <FormStyles.TextInput
+                    minRows={4}
+                    multiline={true}
+                    source="template.document"
+                    label={t("communicationTemplate.form.document")}
+                />
+            )
+        } else {
+            return <></>
         }
     }
 
