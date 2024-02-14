@@ -10,6 +10,7 @@ use strand::hash::Hash;
 use strand::serialization::StrandDeserialize;
 use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
+use strand::signature::StrandSignatureSk;
 
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -191,16 +192,41 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         });
     }
 
+    let pseudonym = "TODO";
+    let sk = StrandSignatureSk::gen()
+        .map_err(|e| 
+        BallotError::Serialization(format!("Could not generate signature signing key: {}", e)))?;
+    
+    let csr_der_b64 = sk.csr_der_b64(pseudonym)
+        .map_err(|e| 
+        BallotError::Serialization(format!("Could not generate signing key csr: {}", e)))?;
+
     let mut auditable_ballot = AuditableBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
         contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        ballot_signature_b64: "".to_string(),
+        voter_csr_b64: csr_der_b64,
     };
 
     let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
-    auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
+    let sha512_hash = hash_ballot_sha512(&hashable_ballot)
+        .map_err(|error| BallotError::Serialization(error.to_string()))?;
+    
+    let signature = sk.sign(&sha512_hash)
+        .map_err(|e| 
+        BallotError::Serialization(format!("Could not sign ballot hash: {}", e)))?;
+
+    let signature_b64 = signature.to_b64_string()
+        .map_err(|e| 
+        BallotError::Serialization(format!("Could not encode ballot signature: {}", e)))?;
+    
+    let short_hash = shorten_hash(&sha512_hash);
+    let hex_hash = hex::encode(short_hash);
+    auditable_ballot.ballot_hash = hex_hash;
+    auditable_ballot.ballot_signature_b64 = signature_b64;
 
     Ok(auditable_ballot)
 }
@@ -218,18 +244,6 @@ pub fn shorten_hash(hash: &Hash) -> ShortHash {
     let mut shortened: ShortHash = [0u8; SHORT_SHA512_HASH_LENGTH_BYTES];
     shortened.copy_from_slice(&hash[0..32]);
     shortened
-}
-
-// hash ballot:
-// serialize ballot into string, then hash to sha512, truncate to
-// 256 bits and serialize to hexadecimal
-pub fn hash_ballot(
-    hashable_ballot: &HashableBallot,
-) -> Result<String, BallotError> {
-    let sha512_hash = hash_ballot_sha512(hashable_ballot)
-        .map_err(|error| BallotError::Serialization(error.to_string()))?;
-    let short_hash = shorten_hash(&sha512_hash);
-    Ok(hex::encode(short_hash))
 }
 
 #[cfg(test)]

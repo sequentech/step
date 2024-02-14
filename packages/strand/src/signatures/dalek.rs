@@ -221,7 +221,7 @@ impl StrandSignatureSk {
     }
 
     /// Returns a pkcs#10 csr der representation.
-    pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
+    pub fn csr_der(&self, name: &str) -> Result<Vec<u8>, StrandError> {
         let cert_sk_der = self.to_der()?;
         let cert_kp = rcgen::KeyPair::from_der_and_sign_algo(
             &cert_sk_der,
@@ -233,7 +233,7 @@ impl StrandSignatureSk {
         let mut dn = rcgen::DistinguishedName::new();
         dn.push(
             rcgen::DnType::CommonName,
-            rcgen::DnValue::PrintableString(name),
+            rcgen::DnValue::PrintableString(name.to_string()),
         );
         cert_params.distinguished_name = dn;
 
@@ -241,6 +241,12 @@ impl StrandSignatureSk {
         let csr_der = cert.serialize_request_der()?;
 
         Ok(csr_der)
+    }
+
+    /// Returns a base64 encoded pkcs#10 csr der representation.
+    pub fn csr_der_b64(&self, name: &str) -> Result<String, StrandError> {
+        let bytes = self.csr_der(name)?;
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
 
     /// Signs a certificate git and returns a x509 der representation.
@@ -597,7 +603,7 @@ pub(crate) mod tests {
 
         // Generate new certificate
         let cert_sk = StrandSignatureSk::gen().unwrap();
-        let csr_der = cert_sk.csr_der("TEST".to_string()).unwrap();
+        let csr_der = cert_sk.csr_der("TEST").unwrap();
         // Sign generated certificate with CA
         let der = ca_sk.sign_csr(&ca_der, &csr_der).unwrap();
 

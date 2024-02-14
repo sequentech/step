@@ -65,6 +65,8 @@ pub struct AuditableBallot {
     pub config: BallotStyle,
     pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
+    pub ballot_signature_b64: String,
+    pub voter_csr_b64: String,
 }
 
 impl AuditableBallot {
