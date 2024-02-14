@@ -9,8 +9,15 @@ export const GET_UPLOAD_URL = gql`
         $media_type: String!
         $size: Int!
         $is_public: Boolean! = true
+        $election_event_id: String
     ) {
-        get_upload_url(name: $name, media_type: $media_type, size: $size, is_public: $is_public) {
+        get_upload_url(
+            name: $name
+            media_type: $media_type
+            size: $size
+            is_public: $is_public
+            election_event_id: $election_event_id
+        ) {
             url
             document_id
         }

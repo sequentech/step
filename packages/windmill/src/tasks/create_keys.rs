@@ -12,6 +12,7 @@ use anyhow::Context;
 use celery::error::TaskError;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -47,7 +48,7 @@ pub async fn create_keys(
 
     // check config is not already created
     let status: Option<ElectionEventStatus> = match election_event.status.clone() {
-        Some(value) => serde_json::from_value(value)?,
+        Some(value) => deserialize_value(value)?,
         None => None,
     };
     if status.map(|val| val.is_config_created()).unwrap_or(false) {

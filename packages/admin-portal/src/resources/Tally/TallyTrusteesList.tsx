@@ -100,7 +100,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         {
             field: "active",
             headerName: "Fragment",
-            flex: 1,
+            width: 100,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) =>
                 props.value ? <CheckCircleIcon sx={{color: "#0F054C"}} /> : <CachedIcon />,

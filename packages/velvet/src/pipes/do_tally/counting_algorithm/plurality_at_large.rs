@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashMap;
-use tracing::instrument;
-
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{tally::Tally, CandidateResult, ContestResult, InvalidVotes};
+use std::cmp;
+use std::collections::HashMap;
+use tracing::instrument;
 
 use super::Result;
 
@@ -75,11 +75,11 @@ impl CountingAlgorithm for PluralityAtLarge {
                     .ok_or(Error::CandidateNotFound(id))?;
 
                 let percentage_votes =
-                    (total_count as f64 / (count_valid - count_blank) as f64) * 100.0;
+                    (total_count as f64 / cmp::max(1, count_valid - count_blank) as f64) * 100.0;
 
                 Ok(CandidateResult {
                     candidate,
-                    percentage_votes,
+                    percentage_votes: percentage_votes.clamp(0.0, 100.0),
                     total_count,
                 })
             })
@@ -117,24 +117,30 @@ impl CountingAlgorithm for PluralityAtLarge {
             .collect();
         let result = result?;
 
-        let census = self.tally.census;
+        let census_base = cmp::max(1, self.tally.census) as f64;
+        let percentage_total_votes = ((count_valid + count_invalid) as f64) * 100.0 / census_base;
+        let percentage_total_valid_votes = (count_valid as f64 * 100.0) / census_base;
+        let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / census_base;
+        let percentage_total_blank_votes = (count_blank as f64 * 100.0) / census_base;
+        let percentage_invalid_votes_explicit =
+            (count_invalid_votes.explicit as f64 * 100.0) / census_base;
+        let percentage_invalid_votes_implicit =
+            (count_invalid_votes.implicit as f64 * 100.0) / census_base;
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
             census: self.tally.census,
             percentage_census: 100.0,
             total_votes: count_valid + count_invalid,
-            percentage_total_votes: ((count_valid + count_invalid) as f64) * 100.0 / census as f64,
+            percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,
-            percentage_total_valid_votes: (count_valid as f64 * 100.0) / census as f64,
+            percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),
             total_invalid_votes: count_invalid,
-            percentage_total_invalid_votes: (count_invalid as f64 * 100.0) / census as f64,
+            percentage_total_invalid_votes: percentage_total_invalid_votes.clamp(0.0, 100.0),
             total_blank_votes: count_blank,
-            percentage_total_blank_votes: (count_blank as f64 * 100.0) / census as f64,
-            percentage_invalid_votes_explicit: (count_invalid_votes.explicit as f64 * 100.0)
-                / census as f64,
-            percentage_invalid_votes_implicit: (count_invalid_votes.implicit as f64 * 100.0)
-                / census as f64,
+            percentage_total_blank_votes: percentage_total_blank_votes.clamp(0.0, 100.0),
+            percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
+            percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
             invalid_votes: count_invalid_votes,
             candidate_result: result,
         };

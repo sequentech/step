@@ -8,6 +8,7 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
@@ -87,7 +88,7 @@ pub async fn insert_ballots(
 
     // check config is already created
     let status: Option<ElectionEventStatus> = match election_event.status.clone() {
-        Some(value) => serde_json::from_value(value)?,
+        Some(value) => deserialize_value(value)?,
         None => None,
     };
     if !status
@@ -133,10 +134,10 @@ pub async fn insert_ballots(
                 .map(|ballot_str| {
                     event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
 
-                    let hashable_ballot: HashableBallot<RistrettoCtx> =
-                        Base64Deserialize::deserialize(ballot_str).unwrap();
-                    hashable_ballot
-                        .contests
+                    let hashable_ballot: HashableBallot =
+                        serde_json::from_str(&ballot_str).unwrap();
+                    let contests = hashable_ballot.deserialize_contests().unwrap();
+                    contests
                         .iter()
                         .find(|contest| contest.contest_id == tally_session_contest.contest_id)
                         .map(|contest| contest.ciphertext.clone())

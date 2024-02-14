@@ -16,6 +16,7 @@ export interface GlobalSettings {
     DEFAULT_EMAIL_HTML_BODY: {[langCode: string]: string}
     DEFAULT_EMAIL_PLAINTEXT_BODY: {[langCode: string]: string}
     DEFAULT_SMS_MESSAGE: {[langCode: string]: string}
+    PUBLIC_BUCKET_URL: string
 }
 
 interface SettingsContextValues {
@@ -42,6 +43,7 @@ const defaultSettingsValues: SettingsContextValues = {
         DEFAULT_SMS_MESSAGE: {
             en: "Enter in {{vote_url}} to vote",
         },
+        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
     },
 }
 

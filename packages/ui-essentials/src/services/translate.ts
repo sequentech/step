@@ -1,4 +1,4 @@
-type TranslationDict = {[lang: string]: string}
+export type TranslationDict = {[lang: string]: string}
 
 export const translate = <T, K extends keyof T>(
     input: T,

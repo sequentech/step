@@ -79,7 +79,7 @@ export function ErrorPage() {
     }
 
     return (
-        <Box sx={{minHeight: "100vh"}}>
+        <Box sx={{minHeight: "100vh"}} className="error-screen screen">
             <Header appVersion={{main: globalSettings.APP_VERSION}} />
             <Box
                 id="error-page"

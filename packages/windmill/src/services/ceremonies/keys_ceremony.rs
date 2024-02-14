@@ -16,6 +16,7 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
@@ -30,7 +31,7 @@ use uuid::Uuid;
 pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> {
     input
         .map(|value| {
-            from_value(value)
+            deserialize_value(value)
                 .map_err(|err| anyhow!("Error parsing keys ceremony status: {:?}", err))
         })
         .ok_or(anyhow!("Missing keys ceremony status"))
@@ -71,7 +72,7 @@ pub async fn get_private_key(
     }
 
     // get ceremony status
-    let current_status: CeremonyStatus = serde_json::from_value(
+    let current_status: CeremonyStatus = deserialize_value(
         keys_ceremony
             .status
             .clone()
@@ -227,7 +228,7 @@ pub async fn check_private_key(
     }
 
     // get ceremony status
-    let current_status: CeremonyStatus = serde_json::from_value(
+    let current_status: CeremonyStatus = deserialize_value(
         keys_ceremony
             .status
             .clone()

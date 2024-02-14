@@ -177,22 +177,28 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         if (!isNumber(intValue) || isNaN(intValue) || intValue < 2 || intValue > max) {
             return t("keysGeneration.configureStep.errorThreshold", {
                 selected: intValue,
-                min: 0,
+                min: 2,
                 max: max,
             })
         }
     }
 
     // validates selected trustees
-    const trusteeListValidator = (values: any): any => {
-        const length = values && values.length ? values.length : 0
+    const trusteeListValidator = (value: any): any => {
+        const length = value && value ? value.length : 0
         if (length < threshold) {
             return t("keysGeneration.configureStep.errorMinTrustees", {
                 selected: length,
                 threshold: threshold,
+                count: length,
             })
+        } else {
+            return undefined
         }
     }
+
+    const validateTrusteeList = [trusteeListValidator]
+    const validateThreshold = [thresholdValidator]
 
     return (
         <>
@@ -225,7 +231,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             source="threshold"
                             label={t("keysGeneration.configureStep.threshold")}
                             value={threshold}
-                            validate={thresholdValidator}
+                            validate={validateThreshold}
                             type="number"
                             InputLabelProps={{
                                 shrink: true,
@@ -234,7 +240,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         />
                         {trusteeList ? (
                             <CheckboxGroupInput
-                                validate={trusteeListValidator}
+                                validate={validateTrusteeList}
                                 label={t("keysGeneration.configureStep.trusteeList")}
                                 source="trusteeNames"
                                 choices={trusteeList}

@@ -56,9 +56,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         () =>
             tallyData?.sequent_backend_results_area_contest?.filter(
                 (areaContest) =>
-                    contestId === areaContest.contest_id && electionId === areaContest.election_id
+                    contestId === areaContest.contest_id &&
+                    electionId === areaContest.election_id &&
+                    areaId === areaContest.area_id
             ),
-        [tallyData?.sequent_backend_results_area_contest, contestId, electionId]
+        [tallyData?.sequent_backend_results_area_contest, contestId, electionId, areaId]
     )
 
     const results: Array<Sequent_Backend_Results_Area_Contest_Candidate> | undefined = useMemo(
