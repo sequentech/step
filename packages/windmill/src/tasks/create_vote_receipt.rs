@@ -30,6 +30,7 @@ pub struct TemplateData {
     ballot_id: String,
     ballot_tracker_url: String,
     qrcode: String,
+    template: Option<String>,
 }
 
 async fn get_template(election_id: &str) -> Result<Option<String>> {
@@ -136,6 +137,7 @@ pub async fn create_vote_receipt(
                     ballot_id: ballot_id.clone(),
                     ballot_tracker_url,
                     qrcode: "<div id=\"qrcode\"></div>".to_string(),
+                    template: Some(template),
                 })
                 .map_err(|err| anyhow!("{}", err))?,
             );
@@ -152,6 +154,7 @@ pub async fn create_vote_receipt(
                     ballot_id: ballot_id.clone(),
                     ballot_tracker_url,
                     qrcode: "<div id=\"qrcode\"></div>".to_string(),
+                    template: None,
                 })
                 .map_err(|err| anyhow!("{}", err))?,
             );
