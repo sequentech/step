@@ -101,7 +101,7 @@ async fn get_template(election_id: &str) -> Result<Option<String>> {
                 .collect::<Result<Vec<serde_json::Value>>>()
                 .map_err(|err| anyhow!("Error getting the template: {}", err))?;
 
-            let template = results[0].get("sms");
+            let template = results[0].get("document");
 
             return Ok(template
                 .and_then(|t| t.as_str())
