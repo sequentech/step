@@ -86,7 +86,7 @@ const App: React.FC<AppProps> = () => {
                 {/*<Route path="/logs" element={<Logs />} />*/}
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/messages" element={<Messages />} />
-                <Route path="/settings" element={<SettingsScreen />} />
+                <Route path="/settings/" element={<SettingsScreen />} />
             </CustomRoutes>
 
             <Resource
