@@ -113,7 +113,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         />
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>
-                        <Typography variant="body2">
+                        <Typography variant="body2" className="keys-ceremony-title">
                             {t("keysGeneration.ceremonyStep.description")}
                         </Typography>
                         <TableContainer component={Paper}>

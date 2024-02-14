@@ -257,7 +257,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             />
                         ) : null}
                         {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
+                            <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}

@@ -24,6 +24,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
     this.candidateLink = "sequent_backend_candidate"
 
     before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser.window.maximize()
         browser.navigateTo(this.testUrl!)
         // perform login
         browser
@@ -206,19 +207,53 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
             (result) => {
                 if (result.value) {
                     browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
+                    browser.click("#trusteeNames_trustee1")
+                    browser.assert
+                        .enabled("button.keys-create-button")
+                        .click("button.keys-create-button")
+                    browser.assert.textEquals(
+                        ".keys-error",
+                        "You selected only 1 trustee, but you must select at least 2."
+                    )
                 }
-                browser.pause(200)
-                browser.assert.visible("#trusteeNames_trustee1").click("#trusteeNames_trustee1")
-                browser.assert.visible("#trusteeNames_trustee2")
-                browser.assert
-                    .enabled("button.keys-create-button")
-                    .click("button.keys-create-button")
-                    .pause(1000)
-                browser.assert.enabled("button.keys-back-button").click("button.keys-back-button")
             }
         )
     })
 
+    it("start new key generation should continue if two trustees", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.keys-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
+                    browser.click("#trusteeNames_trustee1")
+                    browser.click("#trusteeNames_trustee2")
+                    browser.assert.textEquals(".keys-error", "")
+                    browser.assert
+                        .enabled("button.keys-create-button")
+                        .click("button.keys-create-button")
+                    browser.assert
+                        .enabled(`button.ok-button`)
+                        .click("button.ok-button")
+                        .pause(200)
+                        .assert.not.elementPresent("span.area-description")
+                    browser.assert.visible(".keys-ceremony-title")
+                }
+            }
+        )
+    })
     // trusteeNames_trustee2
 
     // it("publish can start election", async (browser: NightwatchAPI) => {

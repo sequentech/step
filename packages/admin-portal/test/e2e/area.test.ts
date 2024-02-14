@@ -274,7 +274,7 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
                     browser.assert
                         .enabled(`button.ok-button`)
                         .click("button.ok-button")
-                        .pause(1000)
+                        .pause(200)
                         .assert.not.elementPresent("span.area-description")
                 }
             }
