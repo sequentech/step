@@ -181,6 +181,43 @@ const spanishTranslation: TranslationType = {
                 electionTypes: "TIPOS DE ELECCIÓN",
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
+                schedules: "EVENTOS PROGRAMADOS",
+            },
+        },
+        scheduleScreen: {
+            noPermissions: "No tienes permiso para acceder a la configuración.",
+            createScheduleSuccess: "Fecha creada",
+            createScheduleError: "Error creando fecha",
+            deleteScheduleSuccess: "Fecha borrada",
+            deleteScheduleError: "Error borrando fecha",
+            common: {
+                title: "Programado",
+                subtitle: "Configuración de fechas",
+                createNew: "Crear fecha",
+                emptyHeader: "Aún no hay fechas.",
+                emptyBody: "¿Quieres crear uno?",
+            },
+            create: {
+                title: "Crear fecha",
+                selectSchedule:
+                    "Seleccione un horario de la lista predefinida o escriba uno personalizado",
+            },
+            edit: {
+                title: "Editar fecha",
+            },
+            eventTypes: {
+                SYSTEM_LOCKDOWN_FOR_INTERNET_VOTING_SETTINGS:
+                    "Bloqueo del sistema para la finalización de la configuración de votación por Internet",
+                START_PRE_REGISTRATION_OVCS: "Inicio de la preinscripción para OVCS",
+                END_PRE_REGISTRATION_OVCS: "Fin de la preinscripción para OVCS",
+                START_TEST_VOTING_PERIOD: "Inicio del período de votación de prueba",
+                END_TEST_VOTING_PERIOD: "Fin del período de votación de prueba",
+                START_INTERNET_VOTING_PERIOD: "Inicio del período de votación por Internet",
+                END_INTERNET_VOTING_PERIOD: "Fin del período de votación por Internet",
+                LAB_TEST: "Prueba de laboratorio",
+                FIELD_TEST: "Prueba de campo",
+                MOCK_ELECTIONS: "Elecciones simuladas",
+                FTS: "FTS",
             },
         },
         dashboard: {
@@ -197,6 +234,7 @@ const spanishTranslation: TranslationType = {
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
+                ballotDesign: "Diseño de la Papeleta",
             },
             field: {
                 name: "Nombre",
@@ -209,6 +247,11 @@ const spanishTranslation: TranslationType = {
                 materialActivated: "Materiales de Soporte activados",
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
+                hideAudit: "Deshabilitar Soporte de Auditoría de la Papeleta",
+                logoUrl: "Logo URL",
+                redirectFinishUrl: "URL de redirección al finalizar",
+                css: "CSS personalizado",
+                skipElectionList: "Saltar pantalla para escoger elección",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -324,6 +367,7 @@ const spanishTranslation: TranslationType = {
                 receipts: "Comprobantes",
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
+                numAllowedVotes: "Número de votos permitidos",
             },
             field: {
                 name: "Nombre",
@@ -687,7 +731,9 @@ const spanishTranslation: TranslationType = {
                     "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
                 trusteeList: "Autoridades",
                 threshold: "Umbral",
-                errorMinTrustees:
+                errorMinTrustees_one:
+                    "Seleccionaste sólo {{selected}} autoridad, pero debe seleccionar al menos {{threshold}}.",
+                errorMinTrustees_other:
                     "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
                 errorThreshold:
                     "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
@@ -756,9 +802,11 @@ const spanishTranslation: TranslationType = {
                 title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
                 subtitle:
                     "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
-                errorUploading: "Error de subida: {{error}}",
+                errorUploading:
+                    "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
+                downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
         tally: {
@@ -1060,6 +1108,10 @@ const spanishTranslation: TranslationType = {
             error: {
                 title: "El título es obligatorio",
                 document: "El documento es obligatorio",
+            },
+            fields: {
+                isHidden: "Oculto",
+                publicUrl: "Enlace público",
             },
         },
     },

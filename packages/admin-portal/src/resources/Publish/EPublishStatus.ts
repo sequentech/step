@@ -1,15 +1,20 @@
 export enum EPublishStatus {
-    Void = 0,
-    Started = 1,
-    StartedLoading = 1.1,
-    Paused = 2,
-    PausedLoading = 2.1,
-    Stopped = 3,
-    StoppedLoading = 3.1,
-    Published = 4,
-    PublishedLoading = 4.1,
-    Generated = 5,
-    GeneratedLoading = 5.1,
+    Void = "VOID",
+    Started = "STARTED",
+    StartedLoading = "STARTED_LOADING",
+    Paused = "PAUSED",
+    PausedLoading = "PAUSED_LOADING",
+    Stopped = "STOPPED",
+    StoppedLoading = "STOPPED_LOADING",
+    Published = "PUBLISHED",
+    PublishedLoading = "PUBLISHED_LOADING",
+    Generated = "GENERATED",
+    GeneratedLoading = "GENERATED_LOADING",
+}
+
+export const nextStatus = (statusValue: EPublishStatus): EPublishStatus => {
+    let statusIndex = Object.values(EPublishStatus).indexOf(statusValue)
+    return Object.values(EPublishStatus)[statusIndex + 1]
 }
 
 export enum EPublishStatushChanges {
@@ -19,7 +24,7 @@ export enum EPublishStatushChanges {
     NotStarted = "NOT_STARTED",
 }
 
-export const PUBLICH_STATUS_CONVERT: {[key: string]: number} = {
+export const PUBLISH_STATUS_CONVERT = {
     [EPublishStatushChanges.NotStarted]: EPublishStatus.Void,
     [EPublishStatushChanges.Open]: EPublishStatus.Started,
     [EPublishStatushChanges.Paused]: EPublishStatus.Paused,

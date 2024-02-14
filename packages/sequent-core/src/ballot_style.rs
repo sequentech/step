@@ -4,9 +4,10 @@
 
 use crate::ballot::{
     self, CandidatePresentation, CandidatesOrder, ContestPresentation,
-    I18nContent,
+    ElectionEventPresentation, I18nContent,
 };
 use crate::types::hasura_types;
+use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::str::FromStr;
 
@@ -34,11 +35,21 @@ pub fn create_ballot_style(
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
-) -> ballot::BallotStyle {
+) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests.clone();
     sorted_contests.sort_by_key(|k| k.id.clone());
 
-    ballot::BallotStyle {
+    let election_event_presentation: ElectionEventPresentation = election_event
+        .presentation
+        .clone()
+        .map(|presentation| serde_json::from_value(presentation))
+        .transpose()
+        .map_err(|err| {
+            anyhow!("Error parsing election Event presentation {:?}", err)
+        })?
+        .unwrap_or(Default::default());
+
+    Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
         election_event_id: election.election_event_id,
@@ -70,7 +81,8 @@ pub fn create_ballot_style(
                 create_contest(contest, election_candidates)
             })
             .collect(),
-    }
+        election_event_presentation: Some(election_event_presentation.clone()),
+    })
 }
 
 fn create_contest(

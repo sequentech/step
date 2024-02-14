@@ -98,7 +98,7 @@ export const StartScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="start-screen">
+        <PageLimit maxWidth="lg" className="start-screen screen">
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>

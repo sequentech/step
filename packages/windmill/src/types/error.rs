@@ -56,6 +56,12 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl From<serde_path_to_error::Error<serde_json::Error>> for Error {
+    fn from(err: serde_path_to_error::Error<serde_json::Error>) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
 impl From<celery::error::CeleryError> for Error {
     fn from(err: celery::error::CeleryError) -> Self {
         Error::String(format!("{:?}", err))

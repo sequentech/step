@@ -18,6 +18,7 @@ import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
+    checkIsRadioSelection,
     checkPositionIsTop,
     checkShuffleCategories,
     checkShuffleCategoryList,
@@ -51,7 +52,6 @@ export interface IQuestionProps {
     question: IContest
     isReview: boolean
     setDisableNext?: (value: boolean) => void
-    isUniqChecked?: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -59,7 +59,6 @@ export const Question: React.FC<IQuestionProps> = ({
     question,
     isReview,
     setDisableNext,
-    isUniqChecked,
 }) => {
     const {i18n} = useTranslation()
 
@@ -103,6 +102,10 @@ export const Question: React.FC<IQuestionProps> = ({
         setDisableNext?.(value)
     }
 
+    // when isRadioChecked is true, clicking on another option works as a radio button:
+    // it deselects the previously selected option to select the new one
+    const isRadioSelection = checkIsRadioSelection(question)
+
     return (
         <Box>
             <StyledTitle className="contest-title" variant="h5">
@@ -130,7 +133,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
-                        isUniqChecked={isUniqChecked}
+                        isRadioSelection={isRadioSelection}
                         contest={question}
                     />
                 ))}
@@ -148,7 +151,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 contestId={question.id}
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
-                                isUniqChecked={isUniqChecked}
+                                isRadioSelection={isRadioSelection}
                                 contest={question}
                             />
                         )
@@ -165,7 +168,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             key={answerIndex}
                             isActive={!isReview}
                             isReview={isReview}
-                            isUniqChecked={isUniqChecked}
+                            isRadioSelection={isRadioSelection}
                             contest={question}
                         />
                     ))}
@@ -180,7 +183,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isReview={isReview}
                         isInvalidVote={true}
                         isInvalidWriteIns={false}
-                        isUniqChecked={isUniqChecked}
+                        isRadioSelection={isRadioSelection}
                         contest={question}
                     />
                 ))}
