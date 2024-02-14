@@ -69,7 +69,7 @@ pub async fn upload_and_return_document(
 
     s3::upload_file_to_s3(
         /* key */ document_s3_key,
-        /* is_public */ is_public,
+        /* is_public: always false because it's windmill that upload the file */ false,
         /* s3_bucket */ bucket,
         /* media_type */ media_type,
         /* file_path */ file_path,
