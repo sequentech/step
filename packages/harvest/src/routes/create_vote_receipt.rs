@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize_voter;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -82,23 +82,9 @@ pub async fn create_vote_receipt(
         duration.as_millis()
     );
 
-    let out = serde_json::from_value(json!({
-        "id": element_id,
-        "ballot_id": input.ballot_id,
-        "status": "pending"
+    Ok(Json(CreateVoteReceiptOutput {
+        id: element_id,
+        ballot_id: input.ballot_id,
+        status: "pending".to_string(),
     }))
-    .map_err(|e| {
-        let duration = start.elapsed();
-        event!(
-            Level::INFO,
-            "create-vote-receipt took {} ms to complete but failed",
-            duration.as_millis()
-        );
-        (
-            Status::InternalServerError,
-            format!("Error building serde_json::Value: {:?}", e),
-        )
-    })?;
-
-    Ok(Json(out))
 }
