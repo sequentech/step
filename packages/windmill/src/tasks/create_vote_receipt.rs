@@ -137,7 +137,9 @@ pub async fn create_vote_receipt(
             sub_map.insert(
                 "data".to_string(),
                 json!({
-                  "qrcode": QR_CODE_TEMPLATE
+                    "ballot_id": ballot_id.clone(),
+                    "ballot_tracker_url": ballot_tracker_url,
+                    "qrcode": QR_CODE_TEMPLATE
                 }),
             );
 
