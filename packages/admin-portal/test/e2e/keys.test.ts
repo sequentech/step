@@ -212,7 +212,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                         .enabled("button.keys-create-button")
                         .click("button.keys-create-button")
                     browser.assert.textEquals(
-                        ".keys-error",
+                        ".keys-trustees-input > p",
                         "You selected only 1 trustee, but you must select at least 2."
                     )
                 }
@@ -240,7 +240,6 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                     browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
                     browser.click("#trusteeNames_trustee1")
                     browser.click("#trusteeNames_trustee2")
-                    browser.assert.textEquals(".keys-error", "")
                     browser.assert
                         .enabled("button.keys-create-button")
                         .click("button.keys-create-button")
@@ -254,113 +253,40 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
             }
         )
     })
-    // trusteeNames_trustee2
 
-    // it("publish can start election", async (browser: NightwatchAPI) => {
-    //     await browser.window.maximize()
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.publish-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".publish-visibility-icon")
-    //                 browser.assert
-    //                     .enabled("button.publish-action-start-button")
-    //                     .click("button.publish-action-start-button")
-    //                     .pause(200)
-    //                 browser.assert.enabled("button.ok-button").click("button.ok-button")
-    //             }
-    //             browser.assert.not
-    //                 .enabled("button.publish-action-start-button")
-    //                 .assert.enabled("button.publish-action-pause-button")
-    //                 .assert.enabled("button.publish-action-stop-button")
-    //         }
-    //     )
-    // })
-    //
-    // it("publish can pause election", async (browser: NightwatchAPI) => {
-    //     await browser.window.maximize()
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.publish-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".publish-visibility-icon")
-    //                 browser.assert
-    //                     .enabled("button.publish-action-start-button")
-    //                     .click("button.publish-action-start-button")
-    //                 browser.assert.enabled("button.ok-button").click("button.ok-button")
-    //                 browser.assert
-    //                     .enabled("button.publish-action-pause-button")
-    //                     .click("button.publish-action-pause-button")
-    //                 browser.assert.enabled("button.ok-button").click("button.ok-button")
-    //             }
-    //             browser.assert
-    //                 .enabled("button.publish-action-start-button")
-    //                 .assert.not.enabled("button.publish-action-pause-button")
-    //                 .assert.enabled("button.publish-action-stop-button")
-    //         }
-    //     )
-    // })
-    //
-    // it("publish can stop election", async (browser: NightwatchAPI) => {
-    //     await browser.window.maximize()
-    //     const resultElement = await browser.element.findAll(
-    //         `a.menu-item-${this.electionEventLink!}`
-    //     )
-    //     resultElement[resultElement.length - 1].click()
-    //
-    //     browser.assert.visible("a.election-event-publish-tab").click("a.election-event-publish-tab")
-    //
-    //     browser.isPresent(
-    //         {
-    //             selector: "button.publish-add-button",
-    //             suppressNotFoundErrors: true,
-    //             timeout: 1000,
-    //         },
-    //         (result) => {
-    //             if (result.value) {
-    //                 browser.end()
-    //             } else {
-    //                 browser.assert.visible(".publish-visibility-icon")
-    //                 browser.assert
-    //                     .enabled("button.publish-action-start-button")
-    //                     .click("button.publish-action-start-button")
-    //                 browser.assert.enabled("button.ok-button").click("button.ok-button")
-    //                 browser.assert
-    //                     .enabled("button.publish-action-stop-button")
-    //                     .click("button.publish-action-stop-button")
-    //                 browser.assert.enabled("button.ok-button").click("button.ok-button")
-    //             }
-    //             browser.assert.not
-    //                 .enabled("button.publish-action-start-button")
-    //                 .assert.not.enabled("button.publish-action-pause-button")
-    //                 .assert.not.enabled("button.publish-action-stop-button")
-    //         }
-    //     )
-    // })
+    it("has list of keys", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.keys-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible("button.keys-add-button").click("button.keys-add-button")
+                    browser.click("#trusteeNames_trustee1")
+                    browser.click("#trusteeNames_trustee2")
+                    browser.assert
+                        .enabled("button.keys-create-button")
+                        .click("button.keys-create-button")
+                    browser.assert
+                        .enabled(`button.ok-button`)
+                        .click("button.ok-button")
+                        .pause(200)
+                        .assert.not.elementPresent("span.area-description")
+                    browser.assert.visible(".keys-ceremony-title")
+                }
+            }
+        )
+    })
 })
