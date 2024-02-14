@@ -14,7 +14,7 @@ use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use tracing::instrument;
 
 use deadpool_postgres::Client as DbClient;
@@ -131,13 +131,24 @@ pub async fn create_vote_receipt(
 
     let render = match template {
         Some(template) => {
+            let mut sub_map = Map::new();
+            sub_map.insert(
+                "data".to_string(),
+                json!({
+                  "qrcode" : "<div id=\"qrcode\"></div>"
+                }),
+            );
+
             map.insert(
                 "data".to_string(),
                 serde_json::to_value(TemplateData {
                     ballot_id: ballot_id.clone(),
                     ballot_tracker_url,
                     qrcode: "<div id=\"qrcode\"></div>".to_string(),
-                    template: Some(template),
+                    template: Some(
+                        reports::render_template_text(&template, sub_map)
+                            .map_err(|err| anyhow!("{}", err))?,
+                    ),
                 })
                 .map_err(|err| anyhow!("{}", err))?,
             );
