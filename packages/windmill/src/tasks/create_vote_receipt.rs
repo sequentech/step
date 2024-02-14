@@ -25,13 +25,13 @@ use sequent_core::types::permissions::Permissions;
 use tokio_postgres::row::Row;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TemplateData {
-    ballot_id: String,
-    ballot_tracker_url: String,
-    qrcode: String,
-    template: Option<String>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// pub struct TemplateData {
+//     ballot_id: String,
+//     ballot_tracker_url: String,
+//     qrcode: String,
+//     template: Option<String>,
+// }
 
 async fn get_template(election_id: &str) -> Result<Option<String>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -123,6 +123,8 @@ pub async fn create_vote_receipt(
     election_event_id: String,
     election_id: String,
 ) -> Result<()> {
+    const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
+
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let mut map = Map::new();
@@ -135,22 +137,21 @@ pub async fn create_vote_receipt(
             sub_map.insert(
                 "data".to_string(),
                 json!({
-                  "qrcode" : "<div id=\"qrcode\"></div>"
+                  "qrcode": QR_CODE_TEMPLATE
                 }),
             );
 
             map.insert(
                 "data".to_string(),
-                serde_json::to_value(TemplateData {
-                    ballot_id: ballot_id.clone(),
-                    ballot_tracker_url,
-                    qrcode: "<div id=\"qrcode\"></div>".to_string(),
-                    template: Some(
+                json!({
+                    "ballot_id": ballot_id.clone(),
+                    "ballot_tracker_url": ballot_tracker_url,
+                    "qrcode": QR_CODE_TEMPLATE,
+                    "template": Some(
                         reports::render_template_text(&template, sub_map)
                             .map_err(|err| anyhow!("{}", err))?,
                     ),
-                })
-                .map_err(|err| anyhow!("{}", err))?,
+                }),
             );
 
             let custom_html_template = include_str!("../resources/vote_receipt_custom.hbs");
@@ -161,13 +162,11 @@ pub async fn create_vote_receipt(
         None => {
             map.insert(
                 "data".to_string(),
-                serde_json::to_value(TemplateData {
-                    ballot_id: ballot_id.clone(),
-                    ballot_tracker_url,
-                    qrcode: "<div id=\"qrcode\"></div>".to_string(),
-                    template: None,
-                })
-                .map_err(|err| anyhow!("{}", err))?,
+                json!({
+                    "ballot_id": ballot_id.clone(),
+                    "ballot_tracker_url": ballot_tracker_url,
+                    "qrcode": QR_CODE_TEMPLATE,
+                }),
             );
 
             let default_html_template = include_str!("../resources/vote_receipt.hbs");
