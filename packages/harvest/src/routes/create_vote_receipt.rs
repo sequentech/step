@@ -21,6 +21,7 @@ pub struct CreateVoteReceiptInput {
     ballot_tracker_url: String,
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,6 +51,7 @@ pub async fn create_vote_receipt(
                 input.ballot_tracker_url,
                 input.tenant_id,
                 input.election_event_id,
+                input.election_id,
             ),
         )
         .await

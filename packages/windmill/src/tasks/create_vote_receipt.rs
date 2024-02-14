@@ -32,7 +32,7 @@ pub struct TemplateData {
     qrcode: String,
 }
 
-async fn get_template() -> Result<Option<String>> {
+async fn get_template(election_id: &str) -> Result<Option<String>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -55,10 +55,7 @@ async fn get_template() -> Result<Option<String>> {
     let rows: Vec<Row> = hasura_transaction
         .query(
             &query,
-            &[
-                &Uuid::parse_str("5207a1e1-e1f3-4758-a4f5-fe5cdab469dd") // TODO: update id
-                    .map_err(|err| anyhow!("{}", err))?,
-            ],
+            &[&Uuid::parse_str(election_id).map_err(|err| anyhow!("{}", err))?],
         )
         .await?;
 
@@ -123,12 +120,13 @@ pub async fn create_vote_receipt(
     ballot_tracker_url: String,
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let mut map = Map::new();
 
-    let template = get_template().await?;
+    let template = get_template(&election_id).await?;
 
     let render = match template {
         Some(template) => {
@@ -182,7 +180,9 @@ pub async fn create_vote_receipt(
         Some(element_id),
         true,
     )
-    .await?;
+    // .await?;
+    .await
+    .unwrap();
 
     Ok(())
 }
