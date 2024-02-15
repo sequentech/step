@@ -69,8 +69,9 @@ pub async fn get_template(
 
     Ok(communication_template
         .template
-        .as_str()
-        .map(|val| val.to_string()))
+        .get("document")
+        .and_then(|doc| doc.as_str())
+        .map(|s| s.to_string()))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
