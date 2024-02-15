@@ -129,8 +129,13 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
                     browser.assert
+                        .visible("button.keys-start-next-button")
+                        .click("button.keys-start-next-button")
+                    browser.assert
                         .visible("button.keys-download-back-button")
                         .click("button.keys-download-back-button")
+
+                    browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
                     browser.assert.visible(".keys-view-trustee-icon")
                 }
             }
@@ -158,6 +163,9 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
+                    browser.assert
+                        .visible("button.keys-start-next-button")
+                        .click("button.keys-start-next-button")
                     browser.assert
                         .visible("button.keys-download-download-button")
                         .click("button.keys-download-download-button")
