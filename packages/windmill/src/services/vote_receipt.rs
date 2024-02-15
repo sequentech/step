@@ -20,7 +20,7 @@ const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Receipt {
     pub allowed: bool,
-    pub template: String,
+    pub template: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

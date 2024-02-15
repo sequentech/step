@@ -12,8 +12,10 @@ pub struct ElectionWrapper(pub Election);
 
 impl TryFrom<Row> for ElectionWrapper {
     type Error = anyhow::Error;
+
     fn try_from(item: Row) -> Result<Self> {
         let num_allowed_revotes: Option<i32> = item.try_get("num_allowed_revotes")?;
+
         Ok(ElectionWrapper(Election {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
