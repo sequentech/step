@@ -62,6 +62,11 @@ pub struct Election {
     pub is_consolidated_ballot_encoding: Option<bool>,
     pub spoil_ballot_option: Option<bool>,
     pub is_kiosk: Option<bool>,
+    pub alias: Option<String>,
+    pub voting_channels: Option<Value>,
+    pub image_document_id: Option<String>,
+    pub statistics: Option<Value>,
+    pub receipts: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

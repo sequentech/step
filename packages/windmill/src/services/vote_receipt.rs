@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
@@ -18,6 +19,19 @@ use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Receipt {
+    pub allowed: bool,
+    pub template: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ReceiptsRoot {
+    pub SMS: Option<Receipt>,
+    pub EMAIL: Option<Receipt>,
+    pub DOCUMENT: Option<Receipt>,
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template(
     hasura_transaction: &Transaction<'_>,
@@ -25,18 +39,38 @@ pub async fn get_template(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Option<String>> {
+    let Some(election) = election::get_election_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+
+    let Some(receipts_json) = election.receipts else {
+        return Ok(None);
+    };
+
+    let receipts: ReceiptsRoot = serde_json::from_value(receipts_json)?;
+    let Some(template_id) = receipts.DOCUMENT.map(|document| document.template) else {
+        return Ok(None);
+    };
+    let id = template_id.as_str();
     let query = hasura_transaction
         .prepare(
             r#"
-            SELECT receipts FROM sequent_backend.election WHERE id = $1;
-            "#,
+            SELECT template FROM sequent_backend.communication_template WHERE id = $1;
+        "#,
         )
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
             &query,
-            &[&Uuid::parse_str(election_id).map_err(|err| anyhow!("{}", err))?],
+            &[&Uuid::parse_str(id).map_err(|err| anyhow!("{}", err))?],
         )
         .await?;
 
@@ -44,52 +78,17 @@ pub async fn get_template(
         .into_iter()
         .map(|row| -> Result<serde_json::Value> {
             Ok(row
-                .try_get::<_, serde_json::Value>("receipts")
-                .map_err(|err| anyhow!("Error getting the receipts of a row: {}", err))?)
+                .try_get::<_, serde_json::Value>("template")
+                .map_err(|err| anyhow!("Error getting the template of a row: {}", err))?)
         })
         .collect::<Result<Vec<serde_json::Value>>>()
-        .map_err(|err| anyhow!("Error getting the receipts: {}", err))?;
+        .map_err(|err| anyhow!("Error getting the template: {}", err))?;
 
-    let template_id = results[0]
-        .get("DOCUMENT")
-        .and_then(|doc| doc.get("template"));
+    let template = results[0].get("document");
 
-    if let Some(id) = template_id {
-        if let Some(id) = id.as_str() {
-            let query = hasura_transaction
-                .prepare(
-                    r#"
-                    SELECT template FROM sequent_backend.communication_template WHERE id = $1;
-                "#,
-                )
-                .await?;
-
-            let rows: Vec<Row> = hasura_transaction
-                .query(
-                    &query,
-                    &[&Uuid::parse_str(id).map_err(|err| anyhow!("{}", err))?],
-                )
-                .await?;
-
-            let results: Vec<serde_json::Value> = rows
-                .into_iter()
-                .map(|row| -> Result<serde_json::Value> {
-                    Ok(row
-                        .try_get::<_, serde_json::Value>("template")
-                        .map_err(|err| anyhow!("Error getting the template of a row: {}", err))?)
-                })
-                .collect::<Result<Vec<serde_json::Value>>>()
-                .map_err(|err| anyhow!("Error getting the template: {}", err))?;
-
-            let template = results[0].get("document");
-
-            return Ok(template
-                .and_then(|t| t.as_str())
-                .and_then(|s| Some(s.to_string())));
-        }
-    }
-
-    Ok(None)
+    return Ok(template
+        .and_then(|t| t.as_str())
+        .and_then(|s| Some(s.to_string())));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -124,7 +123,6 @@ pub async fn create_vote_receipt(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let template_opt = get_template(
         hasura_transaction,
         tenant_id,
@@ -157,6 +155,7 @@ pub async fn create_vote_receipt(
         write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".html")
             .with_context(|| "Error writing to file")?;
 
+    let auth_headers = keycloak::get_client_credentials().await?;
     let _document = upload_and_return_document(
         temp_path_string,
         file_size,
