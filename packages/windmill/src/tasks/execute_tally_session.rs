@@ -35,6 +35,7 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::BallotStyle;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
@@ -64,7 +65,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .sequent_backend_ballot_style
         .iter()
         .map(|ballot_style_row| {
-            let ballot_style_res: Result<BallotStyle, Error> = serde_json::from_str(
+            let ballot_style_res: Result<BallotStyle, Error> = deserialize_str(
                 ballot_style_row
                     .ballot_eml
                     .clone()

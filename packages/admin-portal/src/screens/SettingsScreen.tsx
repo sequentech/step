@@ -14,6 +14,8 @@ import {IPermissions} from "@/types/keycloak"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
+import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
+import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -68,6 +70,18 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.languages"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLanguages} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.schedules"),
+                        component: () => (
+                            <Resource
+                                name="sequent_backend_tenant"
+                                list={SettingsSchedules}
+                                create={SettingsSchedulesCreate}
+                                edit={SettingsSchedulesCreate}
+                                show={SettingsSchedulesCreate}
+                            />
                         ),
                     },
                 ]}

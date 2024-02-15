@@ -16,6 +16,7 @@ import {
     Dialog,
     EVotingStatus,
     IElectionEventStatus,
+    IAuditableBallot,
     sortContestByCreationDate,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -79,7 +80,7 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
-    auditableBallot: string
+    auditableBallot: IAuditableBallot
     hideAudit: boolean
 }
 
@@ -135,7 +136,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                 variables: {
                     electionId: ballotStyle.election_id,
                     ballotId,
-                    content: hashableBallot,
+                    content: JSON.stringify(hashableBallot),
                 },
             })
             let newCastVote = result.data?.insert_cast_vote
@@ -212,13 +213,12 @@ export const ReviewScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
-    const {hashBallot} = provideBallotService()
-    const ballotHash = auditableBallot && hashBallot(auditableBallot)
+    const ballotHash = auditableBallot?.ballot_hash
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    const hideAudit = true
+    const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
 
     const selectionState = useAppSelector(
@@ -254,7 +254,7 @@ export const ReviewScreen: React.FC = () => {
     const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="review-screen screen">
             {hideAudit ? null : (
                 <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}

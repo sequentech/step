@@ -195,9 +195,7 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const startMs = Date.now()
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-            const endMs = Date.now()
 
             dispatch(
                 setAuditableBallot({
@@ -257,7 +255,7 @@ const VotingScreen: React.FC = () => {
     const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
     return (
-        <PageLimit maxWidth="lg">
+        <PageLimit maxWidth="lg" className="voting-screen screen">
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>
@@ -293,7 +291,6 @@ const VotingScreen: React.FC = () => {
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
-                    isUniqChecked={true} // TODO: make it configurable
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} />

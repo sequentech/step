@@ -22,6 +22,7 @@ use celery::error::TaskError;
 use handlebars::RenderError;
 use lettre::message::MultiPart;
 use lettre::Message;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::communications::{
@@ -91,7 +92,7 @@ impl SmsSender {
     #[instrument(err)]
     async fn new() -> Result<Self> {
         let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
-            .map_err(|err| anyhow!("SMS_TRANSPORT_NAME env var missing"))?;
+            .map_err(|_err| anyhow!("SMS_TRANSPORT_NAME env var missing"))?;
 
         event!(
             Level::INFO,
@@ -103,7 +104,7 @@ impl SmsSender {
                     let shared_config = get_from_env_aws_config().await?;
                     let client = AwsSnsClient::new(&shared_config);
 
-                    let base_message_attributes: HashMap<String, String> = serde_json::from_str(
+                    let base_message_attributes: HashMap<String, String> = deserialize_str(
                         &std::env::var("AWS_SNS_ATTRIBUTES")
                             .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
                     )

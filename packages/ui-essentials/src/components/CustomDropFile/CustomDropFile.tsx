@@ -80,6 +80,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
             e.stopPropagation()
             setDragActive(false)
             if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                setFileName(e.dataTransfer.files[0].name)
                 handleFiles(e.dataTransfer.files)
             }
         }
@@ -94,6 +95,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         }
         // triggers the input when the button is clicked
         const onButtonClick = () => {
+            setFileName("")
             innerRef.current?.click()
         }
 
@@ -123,14 +125,17 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         />
                     )}
                 </StyledForm>
-                {fileName !== "" ? (
-                    <Typography
-                        variant="h6"
-                        sx={{fontSize: "18px", margin: "8px 0", color: theme.palette.brandSuccess}}
-                    >
-                        {fileName}
-                    </Typography>
-                ) : null}
+                <Typography
+                    variant="h6"
+                    sx={{
+                        fontSize: "16px",
+                        margin: "8px 0",
+                        height: "24px",
+                        color: theme.palette.brandSuccess,
+                    }}
+                >
+                    {fileName}
+                </Typography>
             </>
         )
     }
