@@ -1,11 +1,47 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{Context, Result};
+use anyhow::Result;
 use deadpool_postgres::Transaction;
+use sequent_core::types::hasura_types::Election;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+pub struct ElectionWrapper(pub Election);
+
+impl TryFrom<Row> for ElectionWrapper {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        let num_allowed_revotes: Option<i32> = item.try_get("num_allowed_revotes")?;
+
+        Ok(ElectionWrapper(Election {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            created_at: item.get("created_at"),
+            last_updated_at: item.get("last_updated_at"),
+            labels: item.try_get("labels")?,
+            annotations: item.try_get("annotations")?,
+            name: item.try_get("name")?,
+            description: item.try_get("description")?,
+            presentation: item.try_get("presentation")?,
+            dates: item.try_get("dates")?,
+            status: item.try_get("status")?,
+            eml: item.try_get("eml")?,
+            num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
+            is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
+            spoil_ballot_option: item.try_get("spoil_ballot_option")?,
+            is_kiosk: item.try_get("is_kiosk")?,
+            alias: item.try_get("alias")?,
+            voting_channels: item.try_get("voting_channels")?,
+            image_document_id: item.try_get("image_document_id")?,
+            statistics: item.try_get("statistics")?,
+            receipts: item.try_get("receipts")?,
+        }))
+    }
+}
 
 /**
  * Returns a vector of areas per election event, with the posibility of
@@ -58,4 +94,71 @@ pub async fn get_election_max_revotes(
     let data = revotes.get(0).unwrap_or(&1).clone();
 
     Ok(data)
+}
+
+/* Returns election */
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_election_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Option<Election>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                id,
+                tenant_id,
+                election_event_id,
+                created_at,
+                last_updated_at,
+                labels,
+                annotations,
+                name,
+                description,
+                presentation,
+                dates,
+                status,
+                eml,
+                num_allowed_revotes,
+                is_consolidated_ballot_encoding,
+                spoil_ballot_option,
+                alias,
+                voting_channels,
+                is_kiosk,
+                image_document_id,
+                statistics,
+                receipts
+            FROM
+                sequent_backend.election
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await?;
+
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(elections.get(0).map(|election| election.clone()))
 }

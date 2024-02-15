@@ -69,7 +69,12 @@ query GetBallotStyleArea(
     num_allowed_revotes
     is_consolidated_ballot_encoding
     spoil_ballot_option
+    alias
+    voting_channels
     is_kiosk
+    image_document_id
+    statistics
+    receipts
   }
   sequent_backend_area_contest(
       where: {

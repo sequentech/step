@@ -1075,6 +1075,7 @@ const englishTranslation = {
             },
             form: {
                 smsMessage: "SMS Message",
+                document: "Document",
                 name: "Template Name",
                 alias: "Template Alias",
                 communicationType: "Communication Type",
@@ -1090,6 +1091,7 @@ const englishTranslation = {
             method: {
                 email: "Email",
                 sms: "SMS",
+                document: "Document",
             },
         },
         materials: {

@@ -47,5 +47,5 @@ pub async fn fetch_document(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(GetDocumentUrlResponse { url: url }))
+    Ok(Json(GetDocumentUrlResponse { url }))
 }
