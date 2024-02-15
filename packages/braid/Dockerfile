@@ -40,7 +40,6 @@ RUN cp /app/target/release/gen_trustee_config /usr/bin/
 RUN cp /app/target/release/main /usr/bin/trustee
 RUN cp /app/braid/scripts/*.sh /usr/bin/
 RUN mkdir -p /opt/braid/
-RUN cp /app/braid/scripts/*.toml /opt/braid/
 
 # init index db
 RUN mkdir /tmp/cache

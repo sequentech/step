@@ -60,7 +60,6 @@ COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
 COPY --from=builder /app/target/release/main /usr/bin/trustee
 COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
 RUN mkdir -p /opt/braid/
-COPY --from=builder /app/braid/scripts/*.toml /opt/braid/
 
 # init index db
 RUN mkdir /tmp/cache
