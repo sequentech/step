@@ -8,9 +8,9 @@ export const CREATE_VOTE_RECEIPT = gql`
     mutation CreateVoteReceipt(
         $ballot_id: String!
         $ballot_tracker_url: String!
-        $election_event_id: String!
-        $tenant_id: String!
-        $election_id: String!
+        $election_event_id: uuid!
+        $tenant_id: uuid!
+        $election_id: uuid!
     ) {
         create_vote_receipt(
             ballot_id: $ballot_id
