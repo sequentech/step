@@ -162,3 +162,17 @@ pub struct CastVote {
     pub ballot_id: Option<String>,
 }
 */
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct CommunicationTemplate {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub template: Value,
+    pub created_by: String,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub communication_method: String,
+    pub communication_type: String,
+}

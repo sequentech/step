@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election;
+use crate::postgres::{communication_template, election};
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
@@ -56,6 +56,16 @@ pub async fn get_template(
 
     let receipts: ReceiptsRoot = serde_json::from_value(receipts_json)?;
     let Some(template_id) = receipts.DOCUMENT.map(|document| document.template) else {
+        return Ok(None);
+    };
+
+    let Some(communication_template) = communication_template::get_communication_template_by_id(
+        hasura_transaction,
+        tenant_id,
+        &template_id,
+    )
+    .await?
+    else {
         return Ok(None);
     };
     let id = template_id.as_str();

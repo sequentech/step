@@ -4,6 +4,7 @@
 
 pub mod area;
 pub mod cast_vote;
+pub mod communication_template;
 pub mod document;
 pub mod election;
 pub mod keycloak_realm;
