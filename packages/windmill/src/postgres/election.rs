@@ -13,6 +13,7 @@ pub struct ElectionWrapper(pub Election);
 impl TryFrom<Row> for ElectionWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
+        let num_allowed_revotes: Option<i32> = item.try_get("num_allowed_revotes")?;
         Ok(ElectionWrapper(Election {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
@@ -27,7 +28,7 @@ impl TryFrom<Row> for ElectionWrapper {
             dates: item.try_get("dates")?,
             status: item.try_get("status")?,
             eml: item.try_get("eml")?,
-            num_allowed_revotes: item.try_get("num_allowed_revotes")?,
+            num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
             spoil_ballot_option: item.try_get("spoil_ballot_option")?,
             is_kiosk: item.try_get("is_kiosk")?,

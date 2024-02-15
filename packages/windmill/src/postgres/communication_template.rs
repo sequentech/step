@@ -36,7 +36,7 @@ impl TryFrom<Row> for CommunicationTemplateWrapper {
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
             created_at: item.get("created_at"),
-            updated_at: item.get("last_updated_at"),
+            updated_at: item.get("updated_at"),
             communication_method: item.try_get("communication_method")?,
             communication_type: item.try_get("communication_type")?,
         }))
