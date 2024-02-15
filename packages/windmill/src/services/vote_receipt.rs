@@ -53,7 +53,7 @@ pub async fn get_template(
     };
 
     let receipts: ReceiptsRoot = serde_json::from_value(receipts_json)?;
-    let Some(template_id) = receipts.DOCUMENT.map(|document| document.template) else {
+    let Some(template_id) = receipts.DOCUMENT.and_then(|document| document.template) else {
         return Ok(None);
     };
 
