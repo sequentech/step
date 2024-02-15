@@ -68,37 +68,11 @@ pub async fn get_template(
     else {
         return Ok(None);
     };
-    let id = template_id.as_str();
-    let query = hasura_transaction
-        .prepare(
-            r#"
-            SELECT template FROM sequent_backend.communication_template WHERE id = $1;
-        "#,
-        )
-        .await?;
 
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &query,
-            &[&Uuid::parse_str(id).map_err(|err| anyhow!("{}", err))?],
-        )
-        .await?;
-
-    let results: Vec<serde_json::Value> = rows
-        .into_iter()
-        .map(|row| -> Result<serde_json::Value> {
-            Ok(row
-                .try_get::<_, serde_json::Value>("template")
-                .map_err(|err| anyhow!("Error getting the template of a row: {}", err))?)
-        })
-        .collect::<Result<Vec<serde_json::Value>>>()
-        .map_err(|err| anyhow!("Error getting the template: {}", err))?;
-
-    let template = results[0].get("document");
-
-    return Ok(template
-        .and_then(|t| t.as_str())
-        .and_then(|s| Some(s.to_string())));
+    Ok(communication_template
+        .template
+        .as_str()
+        .map(|val| val.to_string()))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
