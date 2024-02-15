@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::{
-    database::get_hasura_pool, documents::upload_and_return_document,
-    temp_path::write_into_named_temp_file,
+    documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
-use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
@@ -20,10 +18,11 @@ use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 
-#[instrument(err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_template(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     election_id: &str,
 ) -> Result<Option<String>> {
     let query = hasura_transaction
@@ -115,9 +114,9 @@ impl VoteReceiptRoot {
     }
 }
 
-#[instrument(err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn create_vote_receipt(
-    transaction: &Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
     element_id: &str,
     ballot_id: &str,
     ballot_tracker_url: &str,
@@ -126,8 +125,13 @@ pub async fn create_vote_receipt(
     election_id: &str,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-
-    let template_opt = get_template(transaction, tenant_id, election_id).await?;
+    let template_opt = get_template(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?;
 
     let mut data = VoteReceiptData {
         ballot_id: ballot_id.to_string(),
@@ -138,17 +142,13 @@ pub async fn create_vote_receipt(
     let sub_map = VoteReceiptRoot { data: data.clone() }.to_map()?;
 
     let template = template_opt
-        .map(|template| {
-            reports::render_template_text(&template, sub_map).map_err(|err| anyhow!("{}", err))
-        })
+        .map(|template| reports::render_template_text(&template, sub_map))
         .transpose()?;
 
     data.template = template;
 
     let map = VoteReceiptRoot { data: data.clone() }.to_map()?;
-
     let custom_html_template = include_str!("../resources/vote_receipt_custom.hbs");
-
     let render = reports::render_template_text(custom_html_template, map)?;
 
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
