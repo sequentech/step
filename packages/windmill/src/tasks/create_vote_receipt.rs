@@ -4,7 +4,7 @@
 
 use crate::services::vote_receipt;
 use crate::{services::database::get_hasura_pool, types::error::Result};
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use tracing::instrument;
 
@@ -43,6 +43,12 @@ pub async fn create_vote_receipt(
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Error committing create_vote_receipt transaction")
+        .map_err(|err| anyhow!("{}", err))?;
 
     Ok(())
 }

@@ -14,8 +14,6 @@ use serde_json::{Map, Value};
 use tracing::instrument;
 
 use deadpool_postgres::Transaction;
-use tokio_postgres::row::Row;
-use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 
