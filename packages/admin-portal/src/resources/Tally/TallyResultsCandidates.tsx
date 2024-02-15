@@ -150,7 +150,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             <TableRow>
                                 <TableCell></TableCell>
                                 <TableCell align="right">{t("tally.table.total")}</TableCell>
-                                <TableCell align="right">{t("tally.table.turnout")}</TableCell>
+                                <TableCell align="right" width="300px">
+                                    {t("tally.table.turnout")}
+                                </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
