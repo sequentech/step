@@ -62,7 +62,7 @@ jobs:
       push: true
   
   trigger-deployer:
-    needs: [release]
+    needs: [release, build-and-push]
     runs-on: ubuntu-latest
     steps:
     - name: Trigger Deployer Workflow
