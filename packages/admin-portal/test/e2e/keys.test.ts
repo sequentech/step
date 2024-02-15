@@ -274,6 +274,45 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                     browser.end()
                 } else {
                     browser.assert.visible(".keys-view-admin-icon").click(".keys-view-admin-icon")
+                    browser.waitUntil(async () => {
+                        const status = await browser
+                            .element(".keys-ceremony-status > span")
+                            .getText()
+                        return status.includes("NOT_STARTED")
+                    })
+                    browser.assert.textContains(".keys-ceremony-status > span", "NOT_STARTED")
+                }
+            }
+        )
+    })
+
+    it("keys status is in process", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.keys-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert.visible(".keys-view-admin-icon").click(".keys-view-admin-icon")
+                    browser.waitUntil(async () => {
+                        const status = await browser
+                            .element(".keys-ceremony-status > span")
+                            .getText()
+                        return status.includes("IN_PROCESS")
+                    })
+                    browser.assert.textContains(".keys-ceremony-status > span", "IN_PROCESS")
                 }
             }
         )
