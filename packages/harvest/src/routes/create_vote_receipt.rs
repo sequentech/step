@@ -56,31 +56,11 @@ pub async fn create_vote_receipt(
         )
         .await
         .map_err(|e| {
-            let duration = start.elapsed();
-            event!(
-                Level::INFO,
-                "create-vote-receipt took {} ms to complete but failed",
-                duration.as_millis()
-            );
             (
                 Status::InternalServerError,
                 format!("Error creating vote receipt: {:?}", e),
             )
         })?;
-
-    event!(
-        Level::INFO,
-        "Sent CREATE_VOTE_RECEIPT task {}",
-        task.task_id
-    );
-
-    let duration = start.elapsed();
-
-    event!(
-        Level::INFO,
-        "create-vote-receipt took {} ms to complete",
-        duration.as_millis()
-    );
 
     Ok(Json(CreateVoteReceiptOutput {
         id: element_id,

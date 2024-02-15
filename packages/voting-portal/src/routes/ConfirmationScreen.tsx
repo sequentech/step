@@ -12,6 +12,7 @@ import {
     theme,
     QRCode,
     Dialog,
+    IElectionEventPresentation,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -22,6 +23,7 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -121,6 +123,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const dispatch = useAppDispatch()
 
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
@@ -130,12 +133,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [documentUrl, setDocumentUrl] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
 
+    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
     }
 
     const onClickRedirect = () => {
-        logout("https://google.com")
+        logout(presentation?.redirect_finish_url ?? undefined)
     }
 
     useEffect(() => {

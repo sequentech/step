@@ -1091,7 +1091,7 @@ const englishTranslation = {
             method: {
                 email: "Email",
                 sms: "SMS",
-                document: "DOCUMENT",
+                document: "Document",
             },
         },
         materials: {
