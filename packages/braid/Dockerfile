@@ -16,9 +16,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libprotobuf-dev \
     m4 \
     make \
+    unzip \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 RUN rustup default nightly
 
+ARG VAULT_VERSION=1.15.5
+#install vault
+RUN if [ "${VAULT_VERSION}" = "latest" ]; then \
+        VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
+    fi \
+    && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
+    && unzip vault.zip -d /usr/local/bin/ \
+    && rm -f vault.zip
 # build projects
 WORKDIR /app/immu-board
 RUN cargo build --release
@@ -30,7 +40,6 @@ RUN cp /app/target/release/gen_trustee_config /usr/bin/
 RUN cp /app/target/release/main /usr/bin/trustee
 RUN cp /app/braid/scripts/*.sh /usr/bin/
 RUN mkdir -p /opt/braid/
-RUN cp /app/braid/scripts/*.toml /opt/braid/
 
 # init index db
 RUN mkdir /tmp/cache
