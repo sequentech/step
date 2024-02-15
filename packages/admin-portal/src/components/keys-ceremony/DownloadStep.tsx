@@ -107,7 +107,11 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                             values={{name: authContext.username}}
                         ></Trans>
                     </Typography>
-                    <WizardStyles.DownloadButton color="primary" onClick={download}>
+                    <WizardStyles.DownloadButton
+                        color="primary"
+                        onClick={download}
+                        className="keys-download-download-button"
+                    >
                         <DownloadIcon />
                         {t("keysGeneration.downloadStep.downloadButton")}
                     </WizardStyles.DownloadButton>
@@ -128,7 +132,11 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             </WizardStyles.ContentBox>
 
             <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-download-back-button"
+                >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>

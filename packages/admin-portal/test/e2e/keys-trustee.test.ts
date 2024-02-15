@@ -68,17 +68,15 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
                     browser.assert
-                        .visible(".keys-start-back-button")
-                        .click(".keys-start-back-button")
-                    browser.assert
-                        .visible(".keys-view-trustee-icon")
-                        .click(".keys-view-trustee-icon")
+                        .visible("button.keys-start-back-button")
+                        .click("button.keys-start-back-button")
+                    browser.assert.visible(".keys-view-trustee-icon")
                 }
             }
         )
     })
 
-    it("has list of keys next button", async (browser: NightwatchAPI) => {
+    it("has list of keys start next button", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
             `a.menu-item-${this.electionEventLink!}`
@@ -101,8 +99,68 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
                     browser.assert
-                        .visible(".keys-start-next-button")
-                        .click(".keys-start-next-button")
+                        .visible("button.keys-start-next-button")
+                        .click("button.keys-start-next-button")
+                }
+            }
+        )
+    })
+
+    it("has list of keys download back button", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.keys-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert
+                        .visible(".keys-view-trustee-icon")
+                        .click(".keys-view-trustee-icon")
+                    browser.assert
+                        .visible("button.keys-download-back-button")
+                        .click("button.keys-download-back-button")
+                    browser.assert.visible(".keys-view-trustee-icon")
+                }
+            }
+        )
+    })
+    it("has list of keys download button", async (browser: NightwatchAPI) => {
+        await browser.window.maximize()
+        const resultElement = await browser.element.findAll(
+            `a.menu-item-${this.electionEventLink!}`
+        )
+        resultElement[resultElement.length - 1].click()
+
+        browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+
+        browser.isPresent(
+            {
+                selector: "button.keys-add-button",
+                suppressNotFoundErrors: true,
+                timeout: 1000,
+            },
+            (result) => {
+                if (result.value) {
+                    browser.end()
+                } else {
+                    browser.assert
+                        .visible(".keys-view-trustee-icon")
+                        .click(".keys-view-trustee-icon")
+                    browser.assert
+                        .visible("button.keys-download-download-button")
+                        .click("button.keys-download-download-button")
                 }
             }
         )
