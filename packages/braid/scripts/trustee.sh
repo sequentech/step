@@ -65,10 +65,9 @@ handle_trustee_config() {
         config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || true
     fi
 
-
     if [ -z "$config_content" ]; then
-        log "Config does not exists, generating..."
-        if [ -z $TRUSTEE_CONFIG_DATA ]; then
+        log "Config does not exist, generating..."
+        if [ -z "$TRUSTEE_CONFIG_DATA" ]; then
             config_content=$(gen_trustee_config)
         else
             config_content=$TRUSTEE_CONFIG_DATA
@@ -82,7 +81,9 @@ handle_trustee_config() {
     else
         log "Config exists, using existing configuration"
     fi
-    echo "$config_content" > "$TRUSTEE_CONFIG_PATH"
+    if [ -z "$TRUSTEE_CONFIG_DATA" ]; then
+        echo "$config_content" > "$TRUSTEE_CONFIG_PATH"
+    fi
     cat "$TRUSTEE_CONFIG_PATH"
 }
 
