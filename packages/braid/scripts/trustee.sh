@@ -52,31 +52,37 @@ store_secret_vault() {
 
 # Main function to handle the config
 handle_trustee_config() {
-    if [ -f "$TRUSTEE_CONFIG_PATH" ]; then
-        # Configuration file exists, so just use it directly without storing it in the secrets service
-        log "TRUSTEE_CONFIG was provided and exists, using it directly"
-    else
-        local config_content
-        log "Querying secrets service for config..."
-        if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
-            config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || true
-        else
-            config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || true
-        fi
+    local config_content
+    log "Querying secrets service for config..."
 
-        if [ -z "$config_content" ]; then
-            log "Config does not exists, generating..."
+    if [ -f $TRUSTEE_CONFIG_PATH ]; then
+        TRUSTEE_CONFIG_DATA=$(<$TRUSTEE_CONFIG_PATH);
+    fi
+
+    if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
+        config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || true
+    else
+        config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || true
+    fi
+
+
+    if [ -z "$config_content" ]; then
+        log "Config does not exists, generating..."
+        if [ -z $TRUSTEE_CONFIG_DATA ]; then
             config_content=$(gen_trustee_config)
-            if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
-                store_secret_aws "$SECRET_KEY_NAME" "$config_content"
-            else
-                store_secret_vault "$SECRET_KEY_NAME" "$config_content"
-            fi
         else
-            log "Config exists, using existing configuration"
+            config_content=$TRUSTEE_CONFIG_DATA
         fi
-        echo "$config_content" > "$TRUSTEE_CONFIG_PATH"
-    fi        
+        
+        if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
+            store_secret_aws "$SECRET_KEY_NAME" "$config_content"
+        else
+            store_secret_vault "$SECRET_KEY_NAME" "$config_content"
+        fi
+    else
+        log "Config exists, using existing configuration"
+    fi
+    echo "$config_content" > "$TRUSTEE_CONFIG_PATH"
     cat "$TRUSTEE_CONFIG_PATH"
 }
 
