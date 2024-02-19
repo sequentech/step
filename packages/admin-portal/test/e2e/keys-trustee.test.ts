@@ -64,9 +64,8 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 if (result.value) {
                     browser.end()
                 } else {
-                    browser.assert
-                        .visible(".keys-view-trustee-icon")
-                        .click(".keys-view-trustee-icon")
+                    browser.assert.visible(".keys-view-trustee-icon")
+                    click(".keys-view-trustee-icon")
                     browser.assert
                         .visible("button.keys-start-back-button")
                         .click("button.keys-start-back-button")
