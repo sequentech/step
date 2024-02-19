@@ -141,6 +141,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
             }
         )
     })
+
     it("has list of keys download button", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
@@ -169,8 +170,43 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                     browser.assert
                         .visible("button.keys-download-download-button")
                         .click("button.keys-download-download-button")
+                    browser.assert.visible(".keys-download-success")
+                    browser.isEnabled("button.keys-download-next-button").pause(2000)
                 }
             }
         )
     })
+
+    // it("has list of keys press download button", async (browser: NightwatchAPI) => {
+    //     await browser.window.maximize()
+    //     const resultElement = await browser.element.findAll(
+    //         `a.menu-item-${this.electionEventLink!}`
+    //     )
+    //     resultElement[resultElement.length - 1].click()
+    //
+    //     browser.assert.visible("a.election-keys-tab").click("a.election-keys-tab")
+    //
+    //     browser.isPresent(
+    //         {
+    //             selector: "button.keys-add-button",
+    //             suppressNotFoundErrors: true,
+    //             timeout: 1000,
+    //         },
+    //         (result) => {
+    //             if (result.value) {
+    //                 browser.end()
+    //             } else {
+    //                 browser.assert
+    //                     .visible(".keys-view-trustee-icon")
+    //                     .click(".keys-view-trustee-icon")
+    //                 browser.assert
+    //                     .visible("button.keys-start-next-button")
+    //                     .click("button.keys-start-next-button")
+    //                 browser.assert
+    //                     .visible("button.keys-download-download-button")
+    //                     .click("button.keys-download-download-button")
+    //             }
+    //         }
+    //     )
+    // })
 })

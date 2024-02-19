@@ -150,6 +150,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     disabled={!downloaded}
                     color="info"
                     onClick={() => setOpenConfirmationModal(true)}
+                    className="keys-download-next-button"
                 >
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
