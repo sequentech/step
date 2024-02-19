@@ -179,12 +179,20 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                 <Logs logs={status?.logs} />
             </WizardStyles.ContentBox>
             <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-ceremony-back-button"
+                >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
                 {!!goNext && (
-                    <WizardStyles.NextButton color="info" onClick={goNext}>
+                    <WizardStyles.NextButton
+                        color="info"
+                        onClick={goNext}
+                        className="keys-ceremony-next-button"
+                    >
                         <ArrowForwardIosIcon />
                         {t("common.label.next")}
                     </WizardStyles.NextButton>
