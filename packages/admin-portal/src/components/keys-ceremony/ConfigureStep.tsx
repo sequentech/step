@@ -18,6 +18,7 @@ import {
     CheckboxGroupInput,
     useGetOne,
     useNotify,
+    ValidationErrorMessage,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -164,7 +165,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     })
 
     // validates threshold is within the limits
-    const thresholdValidator = (value: string): any => {
+    const thresholdValidator = (value: string): ValidationErrorMessage | null => {
         const thresholdInput = Number(value)
         const max = trusteeList?.length ?? 0
 
@@ -175,10 +176,12 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 max: max,
             })
         }
+
+        return null
     }
 
     // validates selected trustees
-    const trusteeListValidator = (value: string[]): any => {
+    const trusteeListValidator = (value: string[]): ValidationErrorMessage | null => {
         console.log("LS -> src/components/keys-ceremony/ConfigureStep.tsx:181 -> value: ", value)
         const length = value && value ? value.length : 0
         if (length < threshold) {
@@ -188,7 +191,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 count: length,
             })
         } else {
-            return undefined
+            return null
         }
     }
 
