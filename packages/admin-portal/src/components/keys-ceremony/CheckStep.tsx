@@ -120,11 +120,20 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
             </WizardStyles.ContentBox>
 
             <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-check-back-button"
+                >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
-                <WizardStyles.NextButton disabled={!verified} color="info" onClick={goNext}>
+                <WizardStyles.NextButton
+                    disabled={!verified}
+                    color="info"
+                    onClick={goNext}
+                    className="keys-check-next-button"
+                >
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>
