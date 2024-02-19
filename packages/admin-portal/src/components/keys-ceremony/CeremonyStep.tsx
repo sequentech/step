@@ -30,14 +30,14 @@ import {useGetOne} from "react-admin"
 import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
-export const statusColor: (status: string) => string = (status) => {
-    if (status == EStatus.NOT_STARTED) {
+export const statusColor: (status: EStatus) => string = (status) => {
+    if (status === EStatus.NOT_STARTED) {
         return theme.palette.warning.light
-    } else if (status == EStatus.IN_PROCESS) {
+    } else if (status === EStatus.IN_PROCESS) {
         return theme.palette.info.main
-    } else if (status == EStatus.SUCCESS) {
+    } else if (status === EStatus.SUCCESS) {
         return theme.palette.brandSuccess
-    } else if (status == EStatus.CANCELLED) {
+    } else if (status === EStatus.CANCELLED) {
         return theme.palette.errorColor
     } else {
         return theme.palette.errorColor
@@ -63,7 +63,6 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
-    const [logsExpanded, setLogsExpanded] = useState(true)
 
     console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
 
@@ -85,7 +84,15 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     //    )
     //}
     // const status: IExecutionStatus = currentCeremony?.status
+
     const status: IExecutionStatus = ceremony?.status
+
+    console.log(
+        "LS -> src/components/keys-ceremony/CeremonyStep.tsx:88 -> ceremony?.status: ",
+        ceremony
+    )
+
+    console.log("LS -> src/components/keys-ceremony/CeremonyStep.tsx:88 -> status: ", status)
 
     return (
         <>
@@ -103,7 +110,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
-                                    ceremony?.execution_status ?? EStatus.NOT_STARTED
+                                    (ceremony?.execution_status as EStatus) ?? EStatus.NOT_STARTED
                                 ),
                                 color: theme.palette.background.default,
                             }}
@@ -151,17 +158,17 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
-                                                {trustee.status == TStatus.WAITING ||
-                                                trustee.status == TStatus.KEY_GENERATED ? (
+                                                {trustee.status === TStatus.WAITING ||
+                                                trustee.status === TStatus.KEY_GENERATED ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
                                                     <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
-                                                {trustee.status == TStatus.WAITING ||
-                                                trustee.status == TStatus.KEY_GENERATED ||
-                                                trustee.status == TStatus.KEY_RETRIEVED ? (
+                                                {trustee.status === TStatus.WAITING ||
+                                                trustee.status === TStatus.KEY_GENERATED ||
+                                                trustee.status === TStatus.KEY_RETRIEVED ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
                                                     <WizardStyles.DoneIcon />
