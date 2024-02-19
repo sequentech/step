@@ -66,7 +66,7 @@ pub struct AuditableBallot {
     pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
     pub ballot_signature_b64: String,
-    pub voter_csr_b64: String,
+    pub voter_csr_der_b64: String,
 }
 
 impl AuditableBallot {
@@ -113,6 +113,8 @@ pub struct HashableBallot {
     pub issue_date: String,
     pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
     pub config: BallotStyle,
+    pub ballot_signature_b64: String,
+    pub voter_csr_der_b64: String,
 }
 
 impl HashableBallot {
@@ -188,6 +190,8 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
                 &hashable_ballot_contest,
             )?,
             config: value.config.clone(),
+            ballot_signature_b64: value.ballot_signature_b64.clone(),
+            voter_csr_der_b64: value.voter_csr_der_b64.clone(),
         })
     }
 }

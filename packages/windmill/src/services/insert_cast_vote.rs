@@ -35,7 +35,7 @@ use serde_json::Value;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk, StrandSignature};
 use strand::util::StrandError;
 use strand::zkp::Zkp;
 use tracing::{event, instrument, Level};
@@ -78,7 +78,7 @@ pub async fn try_insert_cast_vote(
 
     let hashable_ballot: HashableBallot = serde_json::from_str(&input.content)
         .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
-
+    
     let pseudonym_h =
         hash_voter_id(voter_id).map_err(|err| anyhow!("Error hashing voter id: {:?}", err))?;
     let vote_h = hash_ballot_sha512(&hashable_ballot)
@@ -116,9 +116,30 @@ pub async fn try_insert_cast_vote(
         &hasura_transaction,
     );
 
+    // Verify the voter's csr, generate their x509 certificate, and verify their ballot signature.
+    // TODO get the protocol manager certificate
+    let self_der = vec![];
+    // TODO should we use the voter_id here or its hash (pseudonym_h)?
+    let voter_der = signing_key.sign_csr_b64(&self_der, &hashable_ballot.voter_csr_der_b64, voter_id)?;
+    let voter_pk = StrandSignaturePk::verify_x509_der(&voter_der, None)?;
+    
+    let signature = StrandSignature::from_b64_string(&hashable_ballot.ballot_signature_b64)?;
+    let hashable = HashableBallot {
+        ballot_signature_b64: "".to_string(),
+        voter_csr_der_b64: "".to_string(),
+        ..hashable_ballot
+    };
+    let hashed = hash_ballot_sha512(&hashable)?;
+    let _ = voter_pk.verify(&signature, &hashed)?;
+    
+    // TODO 
+    // do something with the voter cerificate (voter_der)
+
+    // Sign the voter's cast vote
     // TODO signature must include more information
     let ballot_signature = signing_key.sign(input.content.as_bytes())?;
     let ballot_signature = ballot_signature.to_bytes().to_vec();
+    
     let tenant_uuid = Uuid::parse_str(tenant_id)?;
     let election_event_uuid = Uuid::parse_str(election_event_id)?;
     let election_uuid = Uuid::parse_str(election_id)?;

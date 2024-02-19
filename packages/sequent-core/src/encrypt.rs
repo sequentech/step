@@ -208,7 +208,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         ballot_hash: String::from(""),
         config: config.clone(),
         ballot_signature_b64: "".to_string(),
-        voter_csr_b64: csr_der_b64,
+        voter_csr_der_b64: "".to_string(),
     };
 
     let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
@@ -227,6 +227,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     let hex_hash = hex::encode(short_hash);
     auditable_ballot.ballot_hash = hex_hash;
     auditable_ballot.ballot_signature_b64 = signature_b64;
+    auditable_ballot.voter_csr_der_b64 = csr_der_b64;
 
     Ok(auditable_ballot)
 }

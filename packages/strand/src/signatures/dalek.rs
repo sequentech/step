@@ -249,11 +249,22 @@ impl StrandSignatureSk {
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 
-    /// Signs a certificate git and returns a x509 der representation.
+    pub fn sign_csr_b64(
+        &self,
+        self_der: &[u8],
+        csr_der_b64: &str,
+        expected_cn: &str,
+    ) -> Result<Vec<u8>, StrandError> {
+        let csr_der: Vec<u8> = general_purpose::STANDARD.decode(csr_der_b64)?;
+        self.sign_csr(self_der, &csr_der, expected_cn)
+    }
+
+    /// Signs a certificate der and returns a x509 der representation.
     pub fn sign_csr(
         &self,
         self_der: &[u8],
         csr_der: &[u8],
+        expected_cn: &str,
     ) -> Result<Vec<u8>, StrandError> {
         let sk_der = self.to_der()?;
         let self_kp = rcgen::KeyPair::from_der(&sk_der)?;
@@ -262,6 +273,16 @@ impl StrandSignatureSk {
         let self_ca = rcgen::Certificate::from_params(self_params)?;
 
         let csr = rcgen::CertificateSigningRequest::from_der(&csr_der)?;
+        let dn = csr.params.distinguished_name.clone();
+        let cn = dn.get(&rcgen::DnType::CommonName).ok_or(StrandError::Generic("Common Name not found in csr".to_string()))?;
+        let rcgen::DnValue::PrintableString(cn) = cn else {
+            return Err(StrandError::Generic("Unexpected Common Name type in csr".to_string()))
+        };
+
+        if cn != expected_cn {
+            return Err(StrandError::Generic("Mismatched Common Name value in csr".to_string()))
+        }
+
         /* csr.params.serial_number = Some(5555.into());
         let now = OffsetDateTime::now_utc();
         csr.params.not_before = now;
@@ -604,8 +625,13 @@ pub(crate) mod tests {
         // Generate new certificate
         let cert_sk = StrandSignatureSk::gen().unwrap();
         let csr_der = cert_sk.csr_der("TEST").unwrap();
+        
+        // Mismatched name fails
+        let der = ca_sk.sign_csr(&ca_der, &csr_der, "wrong");
+        assert!(der.is_err());
+        
         // Sign generated certificate with CA
-        let der = ca_sk.sign_csr(&ca_der, &csr_der).unwrap();
+        let der = ca_sk.sign_csr(&ca_der, &csr_der, "TEST").unwrap();
 
         // Parse and validate the certificate we just generated with respect to
         // the CA pk
