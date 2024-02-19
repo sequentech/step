@@ -18,7 +18,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -64,8 +64,6 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
 
-    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
-
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
@@ -77,22 +75,8 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     )
 
     const confirmCancelCeremony = () => {}
-    //const cancellable = () => {
-    //    return (
-    //        currentCeremony?.execution_status == EStatus.NOT_STARTED ||
-    //        currentCeremony?.execution_status == EStatus.IN_PROCESS
-    //    )
-    //}
-    // const status: IExecutionStatus = currentCeremony?.status
 
     const status: IExecutionStatus = ceremony?.status
-
-    console.log(
-        "LS -> src/components/keys-ceremony/CeremonyStep.tsx:88 -> ceremony?.status: ",
-        ceremony
-    )
-
-    console.log("LS -> src/components/keys-ceremony/CeremonyStep.tsx:88 -> status: ", status)
 
     return (
         <>
@@ -142,40 +126,44 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {status?.trustees?.map((trustee) => (
-                                        <TableRow
-                                            key={trustee.name as any}
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {trustee.name}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {!electionEvent.public_key ? (
-                                                    <HourglassEmptyIcon />
-                                                ) : (
-                                                    <WizardStyles.DoneIcon />
-                                                )}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {trustee.status === TStatus.WAITING ||
-                                                trustee.status === TStatus.KEY_GENERATED ? (
-                                                    <HourglassEmptyIcon />
-                                                ) : (
-                                                    <WizardStyles.DoneIcon />
-                                                )}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {trustee.status === TStatus.WAITING ||
-                                                trustee.status === TStatus.KEY_GENERATED ||
-                                                trustee.status === TStatus.KEY_RETRIEVED ? (
-                                                    <HourglassEmptyIcon />
-                                                ) : (
-                                                    <WizardStyles.DoneIcon />
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    )) ?? null}
+                                    {status?.trustees?.map((trustee) => {
+                                        return (
+                                            <TableRow
+                                                key={trustee.name as any}
+                                                sx={{
+                                                    "&:last-child td, &:last-child th": {border: 0},
+                                                }}
+                                            >
+                                                <TableCell component="th" scope="row">
+                                                    {trustee.name}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {trustee.status === TStatus.WAITING ? (
+                                                        <HourglassEmptyIcon />
+                                                    ) : (
+                                                        <WizardStyles.DoneIcon />
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {trustee.status === TStatus.WAITING ||
+                                                    trustee.status === TStatus.KEY_GENERATED ? (
+                                                        <HourglassEmptyIcon />
+                                                    ) : (
+                                                        <WizardStyles.DoneIcon />
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {trustee.status === TStatus.WAITING ||
+                                                    trustee.status === TStatus.KEY_GENERATED ||
+                                                    trustee.status === TStatus.KEY_RETRIEVED ? (
+                                                        <HourglassEmptyIcon />
+                                                    ) : (
+                                                        <WizardStyles.DoneIcon />
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    }) ?? null}
                                 </TableBody>
                             </Table>
                         </TableContainer>
