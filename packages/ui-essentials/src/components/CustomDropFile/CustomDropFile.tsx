@@ -101,7 +101,11 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
 
         return (
             <>
-                <StyledForm onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+                <StyledForm
+                    onDragEnter={handleDrag}
+                    onSubmit={(e) => e.preventDefault()}
+                    className="drop-file-dropzone"
+                >
                     <StyledInput
                         ref={innerRef}
                         type="file"

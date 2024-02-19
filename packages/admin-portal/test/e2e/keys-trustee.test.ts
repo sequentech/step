@@ -171,13 +171,26 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                         .visible("button.keys-download-download-button")
                         .click("button.keys-download-download-button")
                     browser.assert.visible(".keys-download-success")
-                    browser.isEnabled("button.keys-download-next-button").pause(2000)
+                    browser
+                        .isEnabled("button.keys-download-next-button")
+                        .click("button.keys-download-next-button")
+                    browser.assert
+                        .visible(".keys-download-first-checkbox")
+                        .click(".keys-download-first-checkbox > input[type=checkbox]")
+                    browser.assert
+                        .visible(".keys-download-second-checkbox")
+                        .click(".keys-download-second-checkbox > input[type=checkbox]")
+                    browser.assert
+                        .visible("button.ok-button")
+                        .click("button.ok-button")
+
+                        .pause(2000)
                 }
             }
         )
     })
 
-    // it("has list of keys press download button", async (browser: NightwatchAPI) => {
+    // it("has list of keys download button", async (browser: NightwatchAPI) => {
     //     await browser.window.maximize()
     //     const resultElement = await browser.element.findAll(
     //         `a.menu-item-${this.electionEventLink!}`
@@ -205,8 +218,11 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
     //                 browser.assert
     //                     .visible("button.keys-download-download-button")
     //                     .click("button.keys-download-download-button")
+    //                 browser.assert.visible(".keys-download-success")
+    //                 browser.isEnabled("button.keys-download-next-button").pause(2000)
     //             }
     //         }
     //     )
     // })
+    //
 })
