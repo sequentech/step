@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
+import React from "react"
 import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
@@ -14,7 +14,6 @@ import {useTranslation} from "react-i18next"
 import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
 import MailIcon from "@mui/icons-material/Mail"
-import ChecklistIcon from "@mui/icons-material/Checklist"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -37,6 +36,8 @@ const StyledMenu = styled(Menu)<{open: boolean}>`
     margin-right: 4px;
     box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+    height: 100%;
     overflow-y: scroll;
     overflow-x: hidden;
     top: 80px;

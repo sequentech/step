@@ -70,6 +70,8 @@ pub async fn render_report(
             tenant_id,
             election_event_id,
             input.name,
+            None,
+            false,
         )
         .await?;
     } else {
@@ -87,6 +89,8 @@ pub async fn render_report(
             tenant_id,
             election_event_id,
             input.name,
+            None,
+            false,
         )
         .await?;
     }

@@ -9,6 +9,7 @@ export enum ICommunicationType {
 export enum ICommunicationMethod {
     EMAIL = "EMAIL",
     SMS = "SMS",
+    DOCUMENT = "DOCUMENT",
 }
 
 export interface IEmail {

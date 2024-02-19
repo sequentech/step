@@ -1,0 +1,89 @@
+name: Automated Release Process
+run-name: ${{ format('Automated Release Process - {0}', inputs.releaseType )}}
+on:
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: 'Release Type (major, minor, patch)'
+        required: true
+        type: choice
+        default: 'patch'
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.Release.outputs.VERSION }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Install release-it
+      run: npm install --global release-it
+
+    - name: Release
+      id: Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        release-it --ci --increment=${{ github.event.inputs.releaseType }}
+        # Capture the Release Version
+        echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+
+
+
+  # Build & Push the images
+
+  build-and-push:
+    uses: ./.github/workflows/reusable_build_push.yml
+    needs: release
+    secrets: inherit
+    with:
+      tag: ${{ needs.release.outputs.VERSION }}
+      push: true
+  
+  trigger-deployer:
+    needs: [release, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger Deployer Workflow
+      run: |
+        curl -f -X POST \
+          -H "Authorization: token ${{ secrets.PAT }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "${{ secrets.GH_API_URL }}" \
+          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "backend-services"}}'
+
+#TODO: post failure stage, undo / delete the release
+  # cleanup:
+  #   if: ${{ failure() }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+
+  #     - name: Delete Release
+  #       run: |
+  #         RELEASE_ID=$(gh release view "${{ github.ref }}" --json id -q '.id')
+  #         gh release delete $RELEASE_ID -y
+  #       env:
+  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

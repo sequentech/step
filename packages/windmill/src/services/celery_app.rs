@@ -9,6 +9,7 @@ use std;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::create_keys::create_keys;
+use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_users::export_users;
 use crate::tasks::import_users::import_users;
@@ -69,6 +70,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             review_boards,
             process_board,
             render_report,
+            create_vote_receipt,
             set_public_key,
             execute_tally_session,
             update_election_event_ballot_styles,
@@ -86,6 +88,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "review_boards" => "beat",
             "process_board" => "beat",
             "render_report" => "reports_queue",
+            "create_vote_receipt" => "reports_queue",
             "set_public_key" => "short_queue",
             "execute_tally_session" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
