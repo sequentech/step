@@ -17,6 +17,7 @@ import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
+import {formatPercentOne} from "@sequentech/ui-essentials"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
@@ -131,7 +132,7 @@ export const TallyElectionsProgress: React.FC = () => {
                             color="text.secondary"
                             sx={{marginLeft: "1rem", display: "flex", justifyContent: "end"}}
                         >
-                            {election_data?.progress ?? 0}%
+                            {formatPercentOne((election_data?.progress ?? 0) / 100)}
                         </Typography>
                     </ProgressBarDiv>
                 )

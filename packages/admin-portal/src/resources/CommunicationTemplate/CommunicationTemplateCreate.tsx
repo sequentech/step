@@ -1,4 +1,4 @@
-import React, {useContext} from "react"
+import React, {useContext, useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -75,6 +75,37 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
+const ContentInput: React.FC<{
+    parsedValue: Sequent_Backend_Communication_Template
+}> = ({parsedValue}) => {
+    const {t} = useTranslation()
+    const communicationMethod = useWatch({name: "communication_method"})
+
+    if (communicationMethod === ICommunicationMethod.EMAIL) {
+        return <EmailEditEditor record={parsedValue} />
+    } else if (communicationMethod === ICommunicationMethod.SMS) {
+        return (
+            <FormStyles.TextInput
+                minRows={4}
+                multiline={true}
+                source="template.sms"
+                label={t("communicationTemplate.form.smsMessage")}
+            />
+        )
+    } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
+        return (
+            <FormStyles.TextInput
+                minRows={4}
+                multiline={true}
+                source="template.document"
+                label={t("communicationTemplate.form.document")}
+            />
+        )
+    } else {
+        return <></>
+    }
+}
+
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = ({close}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -82,23 +113,14 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     const [createCommunicationTemplate] = useMutation(INSERT_COMMUNICATION_TEMPLATE)
     const {globalSettings} = useContext(SettingsContext)
 
-    const EmailSmsComponents: React.FC<{
-        parsedValue: Sequent_Backend_Communication_Template
-    }> = ({parsedValue}) => {
-        const communicationMethod = useWatch({name: "communication_method"})
+    const [selectedCommunicationType, setSelectedCommunicationType] = useState<{
+        name: string
+        value: ICommunicationType
+    }>()
 
-        if (communicationMethod === ICommunicationMethod.EMAIL) {
-            return <EmailEditEditor record={parsedValue} />
-        } else {
-            return (
-                <FormStyles.TextInput
-                    minRows={4}
-                    multiline={true}
-                    source="template.sms"
-                    label={t("communicationTemplate.form.smsMessage")}
-                />
-            )
-        }
+    function selectCommunicationType(event: any) {
+        const choice = event.target
+        setSelectedCommunicationType(choice)
     }
 
     const communicationTypeChoices = () => {
@@ -109,10 +131,16 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     }
 
     const communicationMethodChoices = () => {
-        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+        let res = (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
         }))
+
+        if (selectedCommunicationType?.value !== ICommunicationType.BALLOT_RECEIPT) {
+            res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
+        }
+
+        return res
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
@@ -159,6 +187,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                     html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY["en"] ?? "",
                 },
                 sms: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
+                document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
             }
         }
         return temp
@@ -171,7 +200,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                     {(incoming) => {
                         const parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id"> =
                             parseValues(incoming)
-                        // console.log("parsedValue :>> ", parsedValue)
 
                         return (
                             <SimpleForm record={parsedValue} onSubmit={onSubmit}>
@@ -200,6 +228,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                         <SelectInput
                                             source="communication_type"
                                             validate={required()}
+                                            onChange={selectCommunicationType}
                                             choices={communicationTypeChoices()}
                                         />
                                     </CommunicationTemplateTitleContainer>
@@ -224,7 +253,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
-                                            <EmailSmsComponents
+                                            <ContentInput
                                                 parsedValue={
                                                     parsedValue as Sequent_Backend_Communication_Template
                                                 }

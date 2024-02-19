@@ -50,6 +50,16 @@ type Mutation {
 }
 
 type Mutation {
+  create_vote_receipt (
+    ballot_id: String!
+    ballot_tracker_url: String!
+    tenant_id: uuid!
+    election_event_id: uuid!
+    election_id: uuid!
+  ): CreateVoteReceiptOutput
+}
+
+type Mutation {
   delete_permission (
     tenant_id: String!
     permission_name: String!
@@ -749,5 +759,11 @@ type InsertCastVoteOutput {
   voter_id_string : String
   election_event_id : uuid!
   ballot_id : String
+}
+
+type CreateVoteReceiptOutput {
+  id : uuid!
+  ballot_id : String
+  status : String
 }
 

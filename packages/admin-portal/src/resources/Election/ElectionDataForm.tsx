@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {
     BooleanInput,
     DateTimeInput,
@@ -21,16 +23,7 @@ import {
     NumberInput,
     useGetList,
 } from "react-admin"
-import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Tabs,
-    Tab,
-    Grid,
-    styled,
-    Box,
-} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Communication_Template,
@@ -40,7 +33,7 @@ import {
     Sequent_Backend_Tenant,
 } from "../../gql/graphql"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -53,9 +46,6 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
 
-const Hidden = styled(Box)`
-    display: none;
-`
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
@@ -72,8 +62,6 @@ export const ElectionDataForm: React.FC = () => {
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
-    const [defaultLangValue, setDefaultLangValue] = useState<string>("")
-    const [recepitsList, setReceiptsList] = useState<Sequent_Backend_Communication_Template[]>([])
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -101,29 +89,25 @@ export const ElectionDataForm: React.FC = () => {
         }
     )
 
-    useEffect(() => {
-        setReceiptsList(receipts || [])
-    }, [receipts])
-
     const [updateImage] = useUpdate()
-
-    const buildLanguageSettings = () => {
-        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
-
-        const temp = []
-        if (tempSettings) {
-            for (const item of tempSettings) {
-                const enabled_item: any = {}
-                enabled_item[item] = true
-                temp.push(enabled_item)
-            }
-        }
-
-        return temp
-    }
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
+            const buildLanguageSettings = () => {
+                const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+
+                const temp = []
+                if (tempSettings) {
+                    for (const item of tempSettings) {
+                        const enabled_item: any = {}
+                        enabled_item[item] = true
+                        temp.push(enabled_item)
+                    }
+                }
+
+                return temp
+            }
+
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
@@ -148,7 +132,6 @@ export const ElectionDataForm: React.FC = () => {
                 languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
 
                 // if presentation has lang then set from event
-                setDefaultLangValue(incoming?.presentation?.language_conf?.default_language_code)
                 temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
                 for (const setting of languageSettings) {
                     const enabled_item: any = {}
@@ -215,8 +198,9 @@ export const ElectionDataForm: React.FC = () => {
             if (temp.receipts) {
                 for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
                     const key = Object.keys(ICommunicationMethod)[value]
-                    allowed[key] = temp.receipts[key].allowed
-                    template[key] = temp.receipts[key].template
+
+                    allowed[key] = temp.receipts[key]?.allowed
+                    template[key] = temp.receipts[key]?.template
                 }
                 temp.allowed = allowed
                 temp.template = template
@@ -227,10 +211,10 @@ export const ElectionDataForm: React.FC = () => {
 
             return temp
         },
-        [data]
+        [data, tenantData?.voting_channels]
     )
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
 
@@ -332,7 +316,7 @@ export const ElectionDataForm: React.FC = () => {
         const theFile = files?.[0]
 
         if (theFile) {
-            let {data, errors} = await getUploadUrl({
+            let {data} = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
@@ -379,6 +363,7 @@ export const ElectionDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
+
                 return (
                     <SimpleForm
                         validate={formValidator}
@@ -521,15 +506,18 @@ export const ElectionDataForm: React.FC = () => {
                                             <SelectInput
                                                 source={`template.${choice.id}`}
                                                 label={choice.name}
-                                                choices={recepitsList
-                                                    .filter(
-                                                        (item) =>
-                                                            item.communication_method === choice.id
-                                                    )
-                                                    .map((type) => ({
-                                                        id: type.id,
-                                                        name: type.template.alias,
-                                                    }))}
+                                                choices={
+                                                    receipts
+                                                        ?.filter(
+                                                            (item) =>
+                                                                item.communication_method ===
+                                                                choice.id
+                                                        )
+                                                        .map((type) => ({
+                                                            id: type.id,
+                                                            name: type.template.alias,
+                                                        })) ?? []
+                                                }
                                             />
                                         </ElectionStyles.AccordionWrapper>
                                     ))}
