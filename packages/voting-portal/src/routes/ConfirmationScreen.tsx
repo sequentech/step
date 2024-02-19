@@ -5,9 +5,11 @@ import {Box, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {
-    PageLimit,
+    Dialog,
     Icon,
     IconButton,
+    PageLimit,
+    QRCode,
     stringToHtml,
     theme,
     QRCode,
@@ -29,6 +31,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
+
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
 import {GET_DOCUMENT} from "../queries/GetDocument"

@@ -203,6 +203,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         {contests ? (
                                             <CheckboxGroupInput
                                                 label={t("areas.sequent_backend_area_contest")}
+                                                className="area-contest"
                                                 source="area_contest_ids"
                                                 choices={contests}
                                                 optionText="name"

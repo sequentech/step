@@ -2,32 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
-import {NavLink} from "react-router-dom"
-import {useGetOne, useSidebarState} from "react-admin"
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import ChevronRightIcon from "@mui/icons-material/ChevronRight"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
-import AddIcon from "@mui/icons-material/Add"
-import {cn} from "@/lib/utils"
-
 import {
-    mapDataChildren,
-    ResourceName,
+    CandidateType,
+    ContestType,
     DataTreeMenuType,
     DynEntityType,
     ElectionType,
-    ContestType,
-    CandidateType,
+    ResourceName,
+    mapDataChildren,
 } from "../ElectionEvents"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import {translate, translateElection} from "@sequentech/ui-essentials"
+import {useGetOne, useSidebarState} from "react-admin"
 
-import {useTranslation} from "react-i18next"
-
+import AddIcon from "@mui/icons-material/Add"
+import ChevronRightIcon from "@mui/icons-material/ChevronRight"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import MenuActions from "./MenuActions"
+import {NavLink} from "react-router-dom"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {cn} from "@/lib/utils"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {translate, translateElection} from "@sequentech/ui-essentials"
+import {useTranslation} from "react-i18next"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -235,14 +233,18 @@ function TreeMenuItem({
     }
 
     return (
-        <div className="bg-white">
+        <div className="bg-white menu-tree">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext && canCreateElectionEvent ? (
-                    <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
+                    <div
+                        className={`flex-none w-6 h-6 cursor-pointer text-black menu-item-toggle-${treeResourceNames[0]}`}
+                        onClick={onClick}
+                    >
                         {open ? (
-                            <ExpandMoreIcon />
+                            <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
+                                className="menu-item-collapsed"
                                 style={{
                                     transform:
                                         i18n.dir(i18n.language) === "rtl"
@@ -261,7 +263,8 @@ function TreeMenuItem({
                         className={({isActive}) =>
                             cn(
                                 "grow py-1.5 text-black border-b-2 border-white hover:border-brand-color truncate cursor-pointer",
-                                isActive && "border-b-2 border-brand-color"
+                                isActive && "menu-item-active border-b-2 border-brand-color",
+                                `menu-item-${treeResourceNames[0]}`
                             )
                         }
                         to={`/${treeResourceNames[0]}/${id}`}

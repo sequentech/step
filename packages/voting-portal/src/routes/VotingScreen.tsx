@@ -2,32 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {Box} from "@mui/material"
 import {
-    PageLimit,
+    Dialog,
     Icon,
     IconButton,
-    theme,
-    stringToHtml,
+    PageLimit,
     isUndefined,
-    Dialog,
+    stringToHtml,
+    theme,
     translateElection,
     sortContestByCreationDate,
     IContest,
 } from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
-import Typography from "@mui/material/Typography"
-import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
-import {useTranslation} from "react-i18next"
-import Button from "@mui/material/Button"
+import React, {useContext, useEffect, useState} from "react"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {faAngleLeft, faAngleRight, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {
+    resetBallotSelection,
     selectBallotSelectionByElectionId,
     setBallotSelection,
-    resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -38,7 +32,21 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {Box} from "@mui/material"
+import Button from "@mui/material/Button"
+import {CircularProgress} from "@mui/material"
+import {Question} from "../components/Question/Question"
+import Stepper from "../components/Stepper"
+import Typography from "@mui/material/Typography"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {provideBallotService} from "../services/BallotService"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {selectElectionById} from "../store/elections/electionsSlice"
+import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {sortContestByCreationDate} from "../lib/utils"
+import {styled} from "@mui/material/styles"
+import {useRootBackLink} from "../hooks/root-back-link"
+import {useTranslation} from "react-i18next"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

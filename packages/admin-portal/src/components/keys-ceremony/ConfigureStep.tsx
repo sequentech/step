@@ -208,13 +208,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                     onSubmit={onSubmit}
                     toolbar={
                         <WizardStyles.Toolbar>
-                            <WizardStyles.BackButton color="info" onClick={goBack}>
+                            <WizardStyles.BackButton
+                                color="info"
+                                onClick={goBack}
+                                className="keys-back-button"
+                            >
                                 <ArrowBackIosIcon />
                                 {t("common.label.back")}
                             </WizardStyles.BackButton>
                             <WizardStyles.CreateButton
                                 icon={<ArrowForwardIosIcon />}
                                 label={t("keysGeneration.configureStep.create")}
+                                className="keys-create-button"
                             />
                         </WizardStyles.Toolbar>
                     }
@@ -241,6 +246,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         {trusteeList ? (
                             <CheckboxGroupInput
                                 validate={validateTrusteeList}
+                                className="keys-trustees-input"
                                 label={t("keysGeneration.configureStep.trusteeList")}
                                 source="trusteeNames"
                                 choices={trusteeList}
@@ -251,7 +257,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             />
                         ) : null}
                         {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
+                            <WizardStyles.ErrorMessage variant="body2" className="keys-error">
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}

@@ -191,12 +191,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             showAction: () => canSendCommunications,
         },
         {
-            icon: <EditIcon />,
+            icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
             showAction: () => canEditUsers,
         },
         {
-            icon: <DeleteIcon />,
+            icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
             showAction: () => canEditUsers,
         },
@@ -320,7 +320,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
                     </Typography>
                     <ResourceListStyles.EmptyButtonList>
-                        <Button onClick={() => setOpenNew(true)}>
+                        <Button onClick={() => setOpenNew(true)} className="voter-add-button">
                             <ResourceListStyles.CreateIcon icon={faPlus} />
                             {t(
                                 `usersAndRolesScreen.${
@@ -379,16 +379,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<BulkActions />}>
                     <TextField source="id" />
-                    <TextField source="email" />
+                    <TextField source="email" className="email" />
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
-                    <TextField source="first_name" />
+                    <TextField source="first_name" className="first_name" />
                     <TextField
                         label={t("usersAndRolesScreen.common.mobileNumber")}
                         source="attributes['sequent.read-only.mobile-number']"
                     />
-                    <TextField source="last_name" />
-                    <TextField source="username" />
+                    <TextField source="last_name" className="last_name" />
+                    <TextField source="username" className="username" />
                     {electionEventId && (
                         <FunctionField
                             label={t("usersAndRolesScreen.users.fields.area")}

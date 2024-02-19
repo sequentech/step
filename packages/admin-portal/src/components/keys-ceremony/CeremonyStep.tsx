@@ -107,13 +107,14 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 ),
                                 color: theme.palette.background.default,
                             }}
+                            className="keys-ceremony-status"
                             label={t("keysGeneration.ceremonyStep.executionStatus", {
                                 status: ceremony?.execution_status ?? EStatus.IN_PROCESS,
                             })}
                         />
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>
-                        <Typography variant="body2">
+                        <Typography variant="body2" className="keys-ceremony-title">
                             {t("keysGeneration.ceremonyStep.description")}
                         </Typography>
                         <TableContainer component={Paper}>
@@ -178,12 +179,20 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                 <Logs logs={status?.logs} />
             </WizardStyles.ContentBox>
             <WizardStyles.Toolbar>
-                <WizardStyles.BackButton color="info" onClick={goBack}>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-ceremony-back-button"
+                >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
                 {!!goNext && (
-                    <WizardStyles.NextButton color="info" onClick={goNext}>
+                    <WizardStyles.NextButton
+                        color="info"
+                        onClick={goNext}
+                        className="keys-ceremony-next-button"
+                    >
                         <ArrowForwardIosIcon />
                         {t("common.label.next")}
                     </WizardStyles.NextButton>

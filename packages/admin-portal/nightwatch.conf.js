@@ -34,7 +34,7 @@ module.exports = {
     webdriver: {},
 
     test_workers: {
-        enabled: true,
+        enabled: false,
     },
 
     test_settings: {
@@ -71,7 +71,11 @@ module.exports = {
                         //'--ignore-certificate-errors',
                         //'--allow-insecure-localhost',
                         //'--headless'
+                        "--start-maximized",
                     ],
+                },
+                "chromeOptions": {
+                    args: ["start-maximized"],
                 },
             },
 

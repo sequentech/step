@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, Typography} from "@mui/material"
-import React from "react"
-import {styled} from "@mui/material/styles"
-import emotionStyled from "@emotion/styled"
+import {faCheck, faTimes} from "@fortawesome/free-solid-svg-icons"
+
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
-import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
-import theme from "../../services/theme"
+import React from "react"
+import emotionStyled from "@emotion/styled"
 import {isUndefined} from "../../utils/typechecks"
+import {styled} from "@mui/material/styles"
+import theme from "../../services/theme"
 import {useTranslation} from "react-i18next"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`

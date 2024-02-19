@@ -101,6 +101,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     <Button
                         onClick={onBack}
                         label={t("publish.action.back")}
+                        className="publish-back-button"
                         style={{
                             backgroundColor: "#eee",
                             color: "#0f054c",
@@ -113,6 +114,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         <Button
                             onClick={onPublish}
                             label={t("publish.action.publish")}
+                            className="publish-publish-button"
                             style={{
                                 color: "#fff",
                             }}

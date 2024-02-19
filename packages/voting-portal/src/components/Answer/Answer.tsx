@@ -1,18 +1,18 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
-import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     Candidate,
-    stringToHtml,
-    isUndefined,
-    normalizeWriteInText,
-    translate,
     ICandidate,
     IContest,
+    isUndefined,
+    normalizeWriteInText,
+    stringToHtml,
+    translate,
 } from "@sequentech/ui-essentials"
-import Image from "mui-image"
+import {
+    checkAllowWriteIns,
+    checkIsWriteIn,
+    getImageUrl,
+    getLinkUrl,
+} from "../../services/ElectionConfigService"
 import {
     resetBallotSelection,
     selectBallotSelectionQuestion,
@@ -20,13 +20,14 @@ import {
     setBallotSelectionInvalidVote,
     setBallotSelectionVoteChoice,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
-import {
-    checkAllowWriteIns,
-    checkIsWriteIn,
-    getImageUrl,
-    getLinkUrl,
-} from "../../services/ElectionConfigService"
+import {useAppDispatch, useAppSelector} from "../../store/hooks"
+
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import Image from "mui-image"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import {useTranslation} from "react-i18next"
 
 export interface IAnswerProps {

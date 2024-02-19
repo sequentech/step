@@ -1,17 +1,5 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
-import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {Box} from "@mui/material"
+import AuthContextProvider, {AuthContext} from "../providers/AuthContextProvider"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    stringToHtml,
     BallotHash,
     Dialog,
     EVotingStatus,
@@ -19,20 +7,6 @@ import {
     IAuditableBallot,
     sortContestByCreationDate,
 } from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
-import Typography from "@mui/material/Typography"
-import {
-    faCircleQuestion,
-    faAngleLeft,
-    faAngleRight,
-    faFire,
-} from "@fortawesome/free-solid-svg-icons"
-import {useTranslation} from "react-i18next"
-import Button from "@mui/material/Button"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
-import {useMutation, useQuery} from "@apollo/client"
-import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
