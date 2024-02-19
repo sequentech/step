@@ -153,8 +153,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     // Called by the form. Saves the information and shows the confirmation
     // dialog
     const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames}) => {
-        console.log("zebi")
-        setThreshold(threshold)
+        setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
     }
@@ -182,7 +181,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     // validates selected trustees
     const trusteeListValidator = (value: string[]): ValidationErrorMessage | null => {
-        console.log("LS -> src/components/keys-ceremony/ConfigureStep.tsx:181 -> value: ", value)
         const length = value && value ? value.length : 0
         if (length < threshold) {
             return t("keysGeneration.configureStep.errorMinTrustees", {
