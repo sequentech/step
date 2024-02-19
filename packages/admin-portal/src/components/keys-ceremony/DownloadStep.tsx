@@ -118,12 +118,18 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     <WizardStyles.StatusBox>
                         {downloading ? <WizardStyles.DownloadProgress /> : null}
                         {downloaded ? (
-                            <WizardStyles.SucessMessage variant="body1">
+                            <WizardStyles.SucessMessage
+                                variant="body1"
+                                className="keys-download-success"
+                            >
                                 {t("keysGeneration.checkStep.downloaded")}
                             </WizardStyles.SucessMessage>
                         ) : null}
                         {errors ? (
-                            <WizardStyles.ErrorMessage variant="body2">
+                            <WizardStyles.ErrorMessage
+                                variant="body2"
+                                className="keys-download-error"
+                            >
                                 {errors}
                             </WizardStyles.ErrorMessage>
                         ) : null}
@@ -173,6 +179,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 checked={firstCheckbox}
                                 onChange={handleCheckboxChange}
                                 name="firstCheckbox"
+                                className="keys-download-first-checkbox"
                             />
                         }
                         label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
@@ -184,6 +191,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 checked={secondCheckbox}
                                 onChange={handleCheckboxChange}
                                 name="secondCheckbox"
+                                className="keys-download-second-checkbox"
                             />
                         }
                         label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}
