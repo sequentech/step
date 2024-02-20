@@ -25,9 +25,9 @@ pub struct Receipt {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReceiptsRoot {
-    pub SMS: Option<Receipt>,
-    pub EMAIL: Option<Receipt>,
-    pub DOCUMENT: Option<Receipt>,
+    pub sms: Option<Receipt>,
+    pub email: Option<Receipt>,
+    pub document: Option<Receipt>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -73,7 +73,7 @@ pub async fn get_template(
     };
 
     let receipts: ReceiptsRoot = serde_json::from_value(receipts_json)?;
-    let Some(template_id) = receipts.DOCUMENT.and_then(|document| document.template) else {
+    let Some(template_id) = receipts.document.and_then(|document| document.template) else {
         return Ok(None);
     };
 
