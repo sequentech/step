@@ -32,13 +32,13 @@ pub async fn insert_document(
     document_id: Option<String>,
 ) -> Result<Response<insert_document::ResponseData>> {
     let variables = insert_document::Variables {
-        tenant_id: tenant_id,
+        tenant_id,
         document_id: document_id.unwrap_or(UuidType::new_v4().to_string()),
-        election_event_id: election_event_id,
-        name: name,
-        media_type: media_type,
-        size: size,
-        is_public: is_public,
+        election_event_id,
+        name,
+        media_type,
+        size,
+        is_public,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

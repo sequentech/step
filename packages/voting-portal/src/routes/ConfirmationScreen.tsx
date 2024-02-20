@@ -23,13 +23,17 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import {clearBallot, resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {useLazyQuery, useMutation} from "@apollo/client"
+import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
+import {GET_DOCUMENT} from "../queries/GetDocument"
+import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
+import Stepper from "../components/Stepper"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -106,26 +110,30 @@ const ActionLink = styled(Link)`
 
 interface ActionButtonsProps {
     electionId?: string
+    ballotTrackerUrl?: string
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId}) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const triggerPrint = () => window.print()
     const navigate = useNavigate()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
 
-    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const {hashBallot} = provideBallotService()
+    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
+    const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
+    const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
+    const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
+    const [documentId, setDocumentId] = useState<string | null>(null)
+    const [documentUrl, setDocumentUrl] = useState<string | null>(null)
+    const {getDocumentUrl} = useGetPublicDocumentUrl()
 
-    useEffect(() => {
-        if (ballotStyle) {
-            dispatch(clearBallot())
-        }
-    }, [ballotStyle, dispatch])
+    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
     const onClickToScreen = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
@@ -135,10 +143,92 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({electionId}) => {
         logout(presentation?.redirect_finish_url ?? undefined)
     }
 
+    useEffect(() => {
+        if (ballotStyle) {
+            dispatch(clearBallot())
+        }
+    }, [ballotStyle, dispatch])
+
+    async function printVoteReceipt() {
+        if (documentUrl) {
+            return window.open(documentUrl, "_blank")
+        }
+
+        const res = await createVoteReceipt({
+            variables: {
+                ballot_id: ballotId,
+                ballot_tracker_url: ballotTrackerUrl,
+                election_event_id: eventId,
+                tenant_id: tenantId,
+                election_id: electionId,
+            },
+        })
+
+        let docId = res.data?.create_vote_receipt?.id
+
+        if (docId) {
+            setDocumentId(docId)
+            startPolling(docId)
+        }
+    }
+
+    function fetchData(documentId: string) {
+        getDocument({
+            variables: {
+                id: documentId,
+                tenantId,
+            },
+            fetchPolicy: "network-only",
+        })
+    }
+
+    function startPolling(documentId: string) {
+        if (!polling) {
+            fetchData(documentId)
+
+            const intervalId = setInterval(() => {
+                fetchData(documentId)
+            }, 1000)
+
+            setPolling(intervalId)
+        }
+    }
+
+    useEffect(() => {
+        function stopPolling() {
+            if (polling) {
+                clearInterval(polling)
+                setPolling(null)
+            }
+        }
+
+        if (documentData?.sequent_backend_document?.length > 0) {
+            stopPolling()
+
+            const documentUrl = getDocumentUrl(
+                documentId!,
+                documentData?.sequent_backend_document[0]?.name
+            )
+
+            setDocumentUrl(documentUrl)
+
+            window.open(documentUrl, "_blank")
+        }
+    }, [eventId, polling, documentData, documentId, getDocumentUrl])
+
+    useEffect(() => {
+        return () => {
+            if (polling) {
+                clearInterval(polling)
+            }
+        }
+    }, [polling])
+
     return (
         <ActionsContainer>
             <StyledButton
-                onClick={triggerPrint}
+                onClick={printVoteReceipt}
+                disabled={!!polling}
                 variant="secondary"
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
             >
@@ -276,7 +366,7 @@ export const ConfirmationScreen: React.FC = () => {
             <QRContainer>
                 <QRCode value={ballotTrackerUrl} />
             </QRContainer>
-            <ActionButtons electionId={electionId} />
+            <ActionButtons ballotTrackerUrl={ballotTrackerUrl} electionId={electionId} />
         </PageLimit>
     )
 }

@@ -80,7 +80,12 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
             num_allowed_revotes: election.num_allowed_revotes.clone(),
             is_consolidated_ballot_encoding: election.is_consolidated_ballot_encoding.clone(),
             spoil_ballot_option: election.spoil_ballot_option.clone(),
+            alias: election.alias.clone(),
+            voting_channels: election.voting_channels.clone(),
             is_kiosk: election.is_kiosk.clone(),
+            image_document_id: election.image_document_id.clone(),
+            statistics: election.statistics.clone(),
+            receipts: election.receipts.clone(),
         }
     }
 }
