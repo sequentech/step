@@ -45,27 +45,25 @@ const defaultSettingsValues: SettingsContextValues = {
             en: "Enter in {{vote_url}} to vote",
         },
         DEFAULT_DOCUMENT: {
-            en: `
-              <div>
-                <h2>Your vote has been cast</h2>
-                <p>
-                  The confirmation code bellow verifies that your ballot has been cast
-                  successfully. You can use this code to verify that your ballot has
-                  been counted.
-                </p>
-                <p>
-                  Your Ballot ID: <span class="id-content">{{data.ballot_id}}</span>
-                </p>
-              </div>
-              <div>
-                <h3>Verify that your ballot has been cast</h3>
-                <p>
-                  You can verify your ballot has been cast correctly at any moment using
-                  the following QR code:
-                </p>
-                <div id="qrcode"></div>
-              </div>
-          `,
+            en: `<div>
+  <h2>Your vote has been cast</h2>
+  <p>
+    The confirmation code bellow verifies that your ballot has been cast
+    successfully. You can use this code to verify that your ballot has
+    been counted.
+  </p>
+  <p>
+    Your Ballot ID: <span class="id-content">{{data.ballot_id}}</span>
+  </p>
+</div>
+<div>
+  <h3>Verify that your ballot has been cast</h3>
+  <p>
+    You can verify your ballot has been cast correctly at any moment using
+    the following QR code:
+  </p>
+  <div id="qrcode"></div>
+</div>`,
         },
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
     },
