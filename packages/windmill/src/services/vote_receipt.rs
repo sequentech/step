@@ -30,6 +30,26 @@ pub struct ReceiptsRoot {
     pub DOCUMENT: Option<Receipt>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CommunicationTemplateValue {
+    pub sms: String,
+    pub name: String,
+    pub alias: String,
+    pub email: EmailTemplate,
+    pub document: String,
+    pub schedule_now: Option<bool>,
+    pub schedule_date: Option<String>,
+    pub audience_selection: Option<String>,
+    pub audience_voter_ids: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct EmailTemplate {
+    subject: String,
+    html_body: String,
+    plaintext_body: String,
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template(
     hasura_transaction: &Transaction<'_>,
@@ -67,11 +87,10 @@ pub async fn get_template(
         return Ok(None);
     };
 
-    Ok(communication_template
-        .template
-        .get("document")
-        .and_then(|doc| doc.as_str())
-        .map(|s| s.to_string()))
+    let communication_template_value: CommunicationTemplateValue =
+        serde_json::from_value(communication_template.template)?;
+
+    Ok(Some(communication_template_value.document))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
