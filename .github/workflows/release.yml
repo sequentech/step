@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
@@ -90,3 +91,30 @@ jobs:
           gh release delete '${{ needs.release.outputs.VERSION }}' -y --cleanup-tag  || echo "Failed to delete release"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  slack-report:
+    needs: [release, build-and-push, trigger-deployer, cleanup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: always()
+    steps:
+      - name: Slack Workflow Notification
+        uses: Gamesight/slack-workflow-status@v1.2.0
+        with:
+          # Required Input
+          repo_token: ${{secrets.GITHUB_TOKEN}}
+          slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
+          # Optional Input
+          name: 'Github Actions'
+
+      - name: Slack additional info
+        # Don't send slack notification if cleanup job deleted the release
+        if: ${{ needs.cleanup.result != 'success' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "*Sequent Release Notification* :rocket:\n*Version:* ${{ needs.release.outputs.VERSION }}\n*View Release:* <https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.VERSION }}|${{ needs.release.outputs.VERSION }}>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
