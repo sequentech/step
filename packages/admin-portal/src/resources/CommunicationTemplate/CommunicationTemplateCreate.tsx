@@ -85,6 +85,7 @@ const ContentInput: React.FC<{
         case ICommunicationMethod.EMAIL:
             return (
                 <EmailEditEditor
+                    key={`editor-${communicationMethod}`}
                     sourceSubject="template.email.subject"
                     sourceBodyHTML="template.email.html_body"
                     sourceBodyPlainText="template.email.plaintext_body"
@@ -104,6 +105,7 @@ const ContentInput: React.FC<{
         case ICommunicationMethod.DOCUMENT:
             return (
                 <EmailEditEditor
+                    key={`editor-${communicationMethod}`}
                     sourceBodyHTML="template.document"
                     sourceBodyPlainText="template.document"
                 />
