@@ -82,7 +82,13 @@ const ContentInput: React.FC<{
     const communicationMethod = useWatch({name: "communication_method"})
 
     if (communicationMethod === ICommunicationMethod.EMAIL) {
-        return <EmailEditEditor record={parsedValue} />
+        return (
+            <EmailEditEditor
+                sourceSubject="template.email.subject"
+                sourceBodyHTML="template.email.html_body"
+                sourceBodyPlainText="template.email.plaintext_body"
+            />
+        )
     } else if (communicationMethod === ICommunicationMethod.SMS) {
         return (
             <FormStyles.TextInput
@@ -94,11 +100,9 @@ const ContentInput: React.FC<{
         )
     } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
         return (
-            <FormStyles.TextInput
-                minRows={4}
-                multiline={true}
-                source="template.document"
-                label={t("communicationTemplate.form.document")}
+            <EmailEditEditor
+                sourceBodyHTML="template.document"
+                sourceBodyPlainText="template.document"
             />
         )
     } else {
@@ -190,6 +194,11 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                 document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
             }
         }
+
+        console.log(
+            "LS -> src/resources/CommunicationTemplate/CommunicationTemplateCreate.tsx:208 -> temp: ",
+            temp
+        )
         return temp
     }
 
