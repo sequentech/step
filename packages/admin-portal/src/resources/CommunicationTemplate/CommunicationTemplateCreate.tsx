@@ -27,7 +27,7 @@ import {ICommunicationType, ICommunicationMethod} from "@/types/communications"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTemplate"
-import {useWatch} from "react-hook-form"
+import {useForm, useWatch} from "react-hook-form"
 import {Sequent_Backend_Communication_Template} from "@/gql/graphql"
 import EmailEditEditor from "@/components/EmailEditEditor"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -77,37 +77,40 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
 
 const ContentInput: React.FC<{
     parsedValue: Sequent_Backend_Communication_Template
-}> = ({parsedValue}) => {
+}> = () => {
     const {t} = useTranslation()
     const communicationMethod = useWatch({name: "communication_method"})
 
-    if (communicationMethod === ICommunicationMethod.EMAIL) {
-        return (
-            <EmailEditEditor
-                sourceSubject="template.email.subject"
-                sourceBodyHTML="template.email.html_body"
-                sourceBodyPlainText="template.email.plaintext_body"
-            />
-        )
-    } else if (communicationMethod === ICommunicationMethod.SMS) {
-        return (
-            <FormStyles.TextInput
-                minRows={4}
-                multiline={true}
-                source="template.sms"
-                label={t("communicationTemplate.form.smsMessage")}
-            />
-        )
-    } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
-        return (
-            <EmailEditEditor
-                sourceBodyHTML="template.document"
-                sourceBodyPlainText="template.document"
-            />
-        )
-    } else {
-        return <></>
+    switch (communicationMethod) {
+        case ICommunicationMethod.EMAIL:
+            return (
+                <EmailEditEditor
+                    sourceSubject="template.email.subject"
+                    sourceBodyHTML="template.email.html_body"
+                    sourceBodyPlainText="template.email.plaintext_body"
+                />
+            )
+
+        case ICommunicationMethod.SMS:
+            return (
+                <FormStyles.TextInput
+                    minRows={4}
+                    multiline={true}
+                    source="template.sms"
+                    label={t("communicationTemplate.form.smsMessage")}
+                />
+            )
+
+        case ICommunicationMethod.DOCUMENT:
+            return (
+                <EmailEditEditor
+                    sourceBodyHTML="template.document"
+                    sourceBodyPlainText="template.document"
+                />
+            )
     }
+
+    return <></>
 }
 
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = ({close}) => {
@@ -148,8 +151,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        console.log("Communication Template", data)
-
         const {data: created, errors} = await createCommunicationTemplate({
             variables: {
                 object: {
@@ -195,10 +196,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
             }
         }
 
-        console.log(
-            "LS -> src/resources/CommunicationTemplate/CommunicationTemplateCreate.tsx:208 -> temp: ",
-            temp
-        )
         return temp
     }
 
