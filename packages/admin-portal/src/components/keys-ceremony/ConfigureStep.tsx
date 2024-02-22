@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useEffect, useState} from "react"
 import {CircularProgress, Typography} from "@mui/material"
 import {
@@ -16,13 +18,13 @@ import {
     CheckboxGroupInput,
     useGetOne,
     useNotify,
+    ValidationErrorMessage,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
-import {isNumber} from "lodash"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {isNull, Dialog} from "@sequentech/ui-essentials"
@@ -55,12 +57,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const [threshold, setThreshold] = useState<number>(2)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
-    const {
-        data: trusteeList,
-        total,
-        isLoading: _,
-        error,
-    } = useGetList("sequent_backend_trustee", {
+    const {data: trusteeList, error} = useGetList("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 10},
         sort: {field: "last_updated_at", order: "DESC"},
         filter: {
@@ -112,8 +109,8 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         const {data, errors} = await createKeysCeremonyMutation({
             variables: {
                 electionEventId: electionEvent.id,
-                threshold: threshold,
-                trusteeNames: trusteeNames,
+                threshold,
+                trusteeNames,
             },
         })
         if (errors) {
@@ -155,7 +152,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     // Called by the form. Saves the information and shows the confirmation
     // dialog
     const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames}) => {
-        setThreshold(threshold)
+        setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
     }
@@ -166,25 +163,23 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     })
 
     // validates threshold is within the limits
-    const thresholdValidator = (value: any): any => {
-        const max = trusteeList ? trusteeList.length : 0
-        var intValue: number | null = null
-        try {
-            intValue = parseInt(value)
-        } catch {
-            intValue = null
-        }
-        if (!isNumber(intValue) || isNaN(intValue) || intValue < 2 || intValue > max) {
+    const thresholdValidator = (value: string): ValidationErrorMessage | null => {
+        const thresholdInput = Number(value)
+        const max = trusteeList?.length ?? 0
+
+        if (thresholdInput < 2 || thresholdInput > max) {
             return t("keysGeneration.configureStep.errorThreshold", {
-                selected: intValue,
+                selected: thresholdInput,
                 min: 2,
                 max: max,
             })
         }
+
+        return null
     }
 
     // validates selected trustees
-    const trusteeListValidator = (value: any): any => {
+    const trusteeListValidator = (value: string[]): ValidationErrorMessage | null => {
         const length = value && value ? value.length : 0
         if (length < threshold) {
             return t("keysGeneration.configureStep.errorMinTrustees", {
@@ -193,7 +188,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 count: length,
             })
         } else {
-            return undefined
+            return null
         }
     }
 
