@@ -75,9 +75,7 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
-const ContentInput: React.FC<{
-    parsedValue: Sequent_Backend_Communication_Template
-}> = () => {
+export const ContentInput: React.FC = () => {
     const {t} = useTranslation()
     const communicationMethod = useWatch({name: "communication_method"})
 
@@ -261,11 +259,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
-                                            <ContentInput
-                                                parsedValue={
-                                                    parsedValue as Sequent_Backend_Communication_Template
-                                                }
-                                            />
+                                            <ContentInput />
                                         </AccordionDetails>
                                     </FormStyles.AccordionExpanded>
                                 </FormControl>
