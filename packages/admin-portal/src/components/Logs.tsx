@@ -24,11 +24,19 @@ export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
 interface LogsProps {
     logs?: Array<IKeysCeremonyLog>
 }
+function usePreviousValue<T>(value: T): T {
+    const ref = useRef<T>(value)
+    useEffect(() => {
+        ref.current = value
+    })
+    return ref.current
+}
 
 export const Logs: React.FC<LogsProps> = ({logs}) => {
     const [logsExpanded, setLogsExpanded] = useState(true)
     const {t} = useTranslation()
     const myDivRef = useRef<HTMLDivElement>(null)
+    const prevLogs = usePreviousValue(logs)
     useEffect(() => {
         if (!logsExpanded) {
             return
@@ -50,7 +58,8 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
         }
         const {scrollTop, scrollHeight, clientHeight} = myDivRef.current
         const isNearBottom = scrollTop + clientHeight >= scrollHeight
-        if (isNearBottom) {
+        console.log(`isNearBottom ${isNearBottom} logs ${logs}`)
+        if (isNearBottom || (prevLogs && logs && prevLogs.length < logs.length)) {
             myDivRef.current.scroll({
                 top: myDivRef.current.scrollHeight,
                 behavior: "smooth",
