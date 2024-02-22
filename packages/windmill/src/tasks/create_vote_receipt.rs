@@ -21,6 +21,12 @@ pub async fn create_vote_receipt(
     election_event_id: String,
     election_id: String,
 ) -> Result<()> {
+    dbg!(&element_id);
+    dbg!(&ballot_id);
+    dbg!(&ballot_tracker_url);
+    dbg!(&tenant_id);
+    dbg!(&election_event_id);
+    dbg!(&election_id);
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()

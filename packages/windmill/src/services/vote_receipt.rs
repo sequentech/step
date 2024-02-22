@@ -149,10 +149,13 @@ pub async fn create_vote_receipt(
 
     let map = VoteReceiptRoot { data: data.clone() }.to_map()?;
     let custom_html_template = if data.template.is_some() {
-        include_str!("../resources/vote_receipt_custom.hbs")
+        // include_str!("../resources/vote_receipt_custom.hbs")
     } else {
-        include_str!("../resources/vote_receipt.hbs")
+        // include_str!("../resources/vote_receipt.hbs")
     };
+
+    let custom_html_template = "";
+
     let render = reports::render_template_text(custom_html_template, map)?;
 
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;

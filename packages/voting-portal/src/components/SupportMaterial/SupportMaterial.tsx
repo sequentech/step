@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, Button, Typography} from "@mui/material"
 import React, {useContext} from "react"
 import {styled} from "@mui/material/styles"

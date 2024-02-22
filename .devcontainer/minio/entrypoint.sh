@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 mc config host add myminio $MINIO_PRIVATE_URI $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD;
 mc mb -p myminio/$MINIO_PUBLIC_BUCKET;
 mc mb -p myminio/$MINIO_BUCKET;
