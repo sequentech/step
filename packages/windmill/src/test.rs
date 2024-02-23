@@ -11,11 +11,6 @@ use tracing::instrument;
 
 use deadpool_postgres::{Client as DbClient, Transaction};
 
-// PUBLIC_ASSETS_PATH="public-assets"
-// PUBLIC_ASSETS_LOGO_IMG="sequent-logo.svg"
-// PUBLIC_ASSETS_QRCODE_LIB="sequent-logo.svg"
-// PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE="vote_receipt.hbs"
-
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
