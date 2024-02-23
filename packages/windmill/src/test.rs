@@ -11,21 +11,30 @@ use tracing::instrument;
 
 use deadpool_postgres::{Client as DbClient, Transaction};
 
+// PUBLIC_ASSETS_PATH="public-assets"
+// PUBLIC_ASSETS_LOGO_IMG="sequent-logo.svg"
+// PUBLIC_ASSETS_QRCODE_LIB="sequent-logo.svg"
+// PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE="vote_receipt.hbs"
+
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
 pub async fn testing() -> Result<()> {
-    let vote_receipt_title = "Vote receipt - Sequentech";
-    let file_logo = "public-assets/sequent-logo.svg";
-    let file_qrcode_lib = "public-assets/qrcode.min.js";
-    let file_vote_receipt_template = "public-assets/vote_receipt_custom.hbs";
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let file_vote_receipt_template = env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?;
+    let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
+    let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
+    let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
 
     let minio_private_uri =
         env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = s3::get_public_bucket()?;
 
     let minio_endpoint_base = format!("{}/{}", minio_private_uri, bucket);
-    let vote_receipt_template = format!("{}/{}", minio_endpoint_base, file_vote_receipt_template);
+    let vote_receipt_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, file_vote_receipt_template
+    );
 
     let client = reqwest::Client::new();
     let response = client.get(vote_receipt_template).send().await?;
