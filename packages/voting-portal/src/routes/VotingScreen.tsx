@@ -231,21 +231,23 @@ const VotingScreen: React.FC = () => {
 
     useEffect(() => {
         let minMaxGlobal = false
+
         for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
-            let votes = 0
+            let countVotes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)
             for (let choice of selection?.choices ?? []) {
                 if (choice.selected > -1) {
-                    votes = choice.selected + 1
+                    countVotes += choice.selected + 1
                 }
             }
-            let outOfRange = votes < contest.min_votes || votes > contest.max_votes
+            let outOfRange = countVotes < contest.min_votes || countVotes > contest.max_votes
             minMaxGlobal = minMaxGlobal || outOfRange
         }
-        setDisableNext({
-            ...disableNext,
+
+        setDisableNext((state) => ({
+            ...state,
             minmax_global: minMaxGlobal,
-        })
+        }))
     }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {

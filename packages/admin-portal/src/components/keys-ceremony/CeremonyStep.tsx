@@ -18,7 +18,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -30,14 +30,14 @@ import {useGetOne} from "react-admin"
 import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
-export const statusColor: (status: string) => string = (status) => {
-    if (status == EStatus.NOT_STARTED) {
+export const statusColor: (status: EStatus) => string = (status) => {
+    if (status === EStatus.NOT_STARTED) {
         return theme.palette.warning.light
-    } else if (status == EStatus.IN_PROCESS) {
+    } else if (status === EStatus.IN_PROCESS) {
         return theme.palette.info.main
-    } else if (status == EStatus.SUCCESS) {
+    } else if (status === EStatus.SUCCESS) {
         return theme.palette.brandSuccess
-    } else if (status == EStatus.CANCELLED) {
+    } else if (status === EStatus.CANCELLED) {
         return theme.palette.errorColor
     } else {
         return theme.palette.errorColor
@@ -63,9 +63,6 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
-    const [logsExpanded, setLogsExpanded] = useState(true)
-
-    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
 
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -78,13 +75,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     )
 
     const confirmCancelCeremony = () => {}
-    //const cancellable = () => {
-    //    return (
-    //        currentCeremony?.execution_status == EStatus.NOT_STARTED ||
-    //        currentCeremony?.execution_status == EStatus.IN_PROCESS
-    //    )
-    //}
-    // const status: IExecutionStatus = currentCeremony?.status
+
     const status: IExecutionStatus = ceremony?.status
 
     return (
@@ -103,7 +94,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
-                                    ceremony?.execution_status ?? EStatus.NOT_STARTED
+                                    (ceremony?.execution_status as EStatus) ?? EStatus.NOT_STARTED
                                 ),
                                 color: theme.palette.background.default,
                             }}
@@ -135,40 +126,44 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {status?.trustees?.map((trustee) => (
-                                        <TableRow
-                                            key={trustee.name as any}
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {trustee.name}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {!electionEvent.public_key ? (
-                                                    <HourglassEmptyIcon />
-                                                ) : (
-                                                    <WizardStyles.DoneIcon />
-                                                )}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {trustee.status == TStatus.WAITING ||
-                                                trustee.status == TStatus.KEY_GENERATED ? (
-                                                    <HourglassEmptyIcon />
-                                                ) : (
-                                                    <WizardStyles.DoneIcon />
-                                                )}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {trustee.status == TStatus.WAITING ||
-                                                trustee.status == TStatus.KEY_GENERATED ||
-                                                trustee.status == TStatus.KEY_RETRIEVED ? (
-                                                    <HourglassEmptyIcon />
-                                                ) : (
-                                                    <WizardStyles.DoneIcon />
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    )) ?? null}
+                                    {status?.trustees?.map((trustee) => {
+                                        return (
+                                            <TableRow
+                                                key={trustee.name as any}
+                                                sx={{
+                                                    "&:last-child td, &:last-child th": {border: 0},
+                                                }}
+                                            >
+                                                <TableCell component="th" scope="row">
+                                                    {trustee.name}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {trustee.status === TStatus.WAITING ? (
+                                                        <HourglassEmptyIcon />
+                                                    ) : (
+                                                        <WizardStyles.DoneIcon />
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {trustee.status === TStatus.WAITING ||
+                                                    trustee.status === TStatus.KEY_GENERATED ? (
+                                                        <HourglassEmptyIcon />
+                                                    ) : (
+                                                        <WizardStyles.DoneIcon />
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {trustee.status === TStatus.WAITING ||
+                                                    trustee.status === TStatus.KEY_GENERATED ||
+                                                    trustee.status === TStatus.KEY_RETRIEVED ? (
+                                                        <HourglassEmptyIcon />
+                                                    ) : (
+                                                        <WizardStyles.DoneIcon />
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    }) ?? null}
                                 </TableBody>
                             </Table>
                         </TableContainer>
