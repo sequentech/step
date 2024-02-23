@@ -100,6 +100,9 @@ pub struct VoteReceiptData {
     pub ballot_tracker_url: String,
     pub qrcode: String,
     pub logo: String,
+    pub title: String,
+    pub file_logo: String,
+    pub file_qrcode_lib: String,
     pub template: Option<String>, // TODO remove this
 }
 
@@ -140,6 +143,9 @@ pub async fn create_vote_receipt(
         ballot_tracker_url: ballot_tracker_url.to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
         logo: LOGO_TEMPLATE.to_string(),
+        file_logo: "asdf".to_string(),
+        file_qrcode_lib: "asdf".to_string(),
+        title: "Sequentech - Vote Receipt".to_string(),
         template: None,
     };
     let sub_map = VoteReceiptRoot { data: data.clone() }.to_map()?;
