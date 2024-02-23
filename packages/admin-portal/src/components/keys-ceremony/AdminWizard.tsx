@@ -40,8 +40,8 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
         }
     }
 
-    const authContext = useContext(AuthContext)
     const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
+
     const openCeremonyStep = () => {
         setCurrentStep(1)
     }
@@ -58,7 +58,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
                 variant={BreadCrumbStepsVariant.Circle}
                 colorPreviousSteps={true}
             />
-            {currentStep == 0 && (
+            {currentStep === 0 && (
                 <ConfigureStep
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
