@@ -4,18 +4,14 @@
 
 import {TranslationDict} from "@root/services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
+import {IContestPresentation} from "./ContestPresentation"
+import {ICandidatePresentation} from "./CandidatePresentation"
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
     PAUSED = "PAUSED",
     CLOSED = "CLOSED",
-}
-
-export enum CandidatesOrder {
-    RANDOM = "random",
-    CUSTOM = "custom",
-    ALPHABETICAL = "alphabetical",
 }
 
 export interface IElectionEventStatus {
@@ -40,31 +36,6 @@ export interface IElectionStatistics {
     num_sms_sent: number
 }
 
-export enum EInvalidVotePolicy {
-    ALLOWED = "allowed",
-    WARN = "warn",
-    WARN_INVALID_IMPLICIT_AND_EXPLICIT = "warn-invalid-implicit-and-explicit",
-    NOT_ALLOWED = "not-allowed",
-}
-
-export enum ECandidatesSelectionPolicy {
-    RADIO = "radio", // if you select one, the previously selected one gets unselected
-    CUMULATIVE = "cumulative", // default behaviour
-}
-
-export interface IContestPresentation {
-    allow_writeins: boolean
-    base32_writeins: boolean
-    invalid_vote_policy: string
-    cumulative_number_of_checkboxes?: number
-    shuffle_categories: boolean
-    shuffle_category_list?: Array<string>
-    show_points: boolean
-    enable_checkable_lists?: string
-    candidates_order?: CandidatesOrder
-    candidates_selection_policy?: ECandidatesSelectionPolicy
-}
-
 export interface IContest {
     id: string
     tenant_id: string
@@ -85,22 +56,6 @@ export interface IContest {
     candidates: Array<ICandidate>
     presentation?: IContestPresentation
     created_at?: string
-}
-
-export interface ICandidateUrl {
-    url: string
-    kind?: string
-    title?: string
-    is_image: boolean
-}
-
-export interface ICandidatePresentation {
-    is_explicit_invalid: boolean
-    is_category_list: boolean
-    invalid_vote_position?: string
-    is_write_in: boolean
-    sort_order?: number
-    urls?: Array<ICandidateUrl>
 }
 
 export interface ICandidate {

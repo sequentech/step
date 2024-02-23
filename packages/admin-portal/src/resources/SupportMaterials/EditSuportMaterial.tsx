@@ -20,13 +20,14 @@ import {
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {Tabs} from "@/components/Tabs"
-import {DropFile} from "@sequentech/ui-essentials"
+import {DropFile, IElectionEventPresentation} from "@sequentech/ui-essentials"
 import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Support_Material,
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -99,10 +100,13 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
 
-    const {data: record} = useGetOne("sequent_backend_election_event", {
-        id: electionEventId,
-        meta: {tenant_id: tenantId},
-    })
+    const {data: record} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {
+            id: electionEventId,
+            meta: {tenant_id: tenantId},
+        }
+    )
 
     useEffect(() => {
         if (record) {
@@ -148,9 +152,15 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     const renderTabs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
         let tabNodes = []
 
+        if (!record) {
+            return []
+        }
+
         if (!valueMaterials) setValueMaterials({...parsedValue.data})
 
-        for (const lang of record.presentation.language_conf.enabled_language_codes) {
+        let presentation: IElectionEventPresentation = record.presentation
+
+        for (const lang of presentation?.language_conf?.enabled_language_codes ?? []) {
             // if (parsedValue?.enabled_languages[lang]) {
             tabNodes.push({
                 label: t(`common.language.${lang}`),

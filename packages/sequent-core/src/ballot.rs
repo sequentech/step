@@ -454,6 +454,7 @@ pub struct ElectionEventPresentation {
     Clone,
 )]
 pub struct ContestPresentation {
+    pub i18n: Option<I18nContent<I18nContent<String>>>,
     pub allow_writeins: bool,
     pub base32_writeins: bool,
     pub invalid_vote_policy: InvalidVotePolicy, /* allowed|warn|warn-invalid-implicit-and-explicit */
