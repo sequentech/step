@@ -12,6 +12,7 @@ use tracing::instrument;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
+const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
 pub async fn testing() -> Result<()> {
     let minio_private_uri =
@@ -37,7 +38,11 @@ pub async fn testing() -> Result<()> {
     let template_hbs: String = response.text().await?;
 
     let template = r#"
-    <div>{{logo}}</div>
+    <div>
+      ***********
+      {{{data.logo}}}
+      ***********
+    </div>
     <div>
       <h2>Your vote has been cast</h2>
       <p>
@@ -56,8 +61,9 @@ pub async fn testing() -> Result<()> {
         You can verify your ballot has been cast correctly at any moment using
         the following QR code:
       </p>
-      {{qrcode}}
-      <div id="qrcode"></div>
+      ***********
+      {{{data.qrcode}}}
+      ***********
     </div>
     "#;
 
@@ -65,16 +71,19 @@ pub async fn testing() -> Result<()> {
         ballot_id: "abc".to_string(),
         ballot_tracker_url: "https://localhost/".to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
+        logo: LOGO_TEMPLATE.to_string(),
         template: None,
     };
 
     let sub_map = VoteReceiptRoot { data: data.clone() }.to_map()?;
     let computed_template = reports::render_template_text(&template, sub_map)?;
+    dbg!(&computed_template);
+
+    data.template = Some(computed_template.clone());
 
     let map = VoteReceiptRoot { data: data.clone() }.to_map()?;
     let computed_template_final = reports::render_template_text(&template_hbs, map)?;
-
-    dbg!(&computed_template);
+    dbg!(&computed_template_final);
 
     Ok(())
 }

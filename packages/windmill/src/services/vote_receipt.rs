@@ -16,6 +16,7 @@ use tracing::instrument;
 use deadpool_postgres::Transaction;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
+const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Receipt {
@@ -98,7 +99,8 @@ pub struct VoteReceiptData {
     pub ballot_id: String,
     pub ballot_tracker_url: String,
     pub qrcode: String,
-    pub template: Option<String>,
+    pub logo: String,
+    pub template: Option<String>, // TODO remove this
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -137,6 +139,7 @@ pub async fn create_vote_receipt(
         ballot_id: ballot_id.to_string(),
         ballot_tracker_url: ballot_tracker_url.to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
+        logo: LOGO_TEMPLATE.to_string(),
         template: None,
     };
     let sub_map = VoteReceiptRoot { data: data.clone() }.to_map()?;
