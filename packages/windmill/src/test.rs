@@ -15,24 +15,23 @@ const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
 pub async fn testing() -> Result<()> {
-    let file_logo = "sequent-logo.svg";
-    let file_qrcode_lib = "qrcode.min.js";
     let vote_receipt_title = "Vote receipt - Sequentech";
+    let file_logo = "public-assets/sequent-logo.svg";
+    let file_qrcode_lib = "public-assets/qrcode.min.js";
+    let file_vote_receipt_template = "public-assets/vote_receipt_custom.hbs";
 
     let minio_private_uri =
         env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
-
     let bucket = s3::get_public_bucket()?;
 
-    let file = "public-assets/vote_receipt_custom.hbs";
-
-    let minio_endpoint = format!("{}/{}/{}", minio_private_uri, bucket, file);
+    let minio_endpoint_base = format!("{}/{}", minio_private_uri, bucket);
+    let vote_receipt_template = format!("{}/{}", minio_endpoint_base, file_vote_receipt_template);
 
     let client = reqwest::Client::new();
-    let response = client.get(minio_endpoint).send().await?;
+    let response = client.get(vote_receipt_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!("File not found: {}", file));
+        return Err(anyhow!("File not found: {}", file_vote_receipt_template));
     } else if !response.status().is_success() {
         return Err(anyhow!(
             "Unexpected response status: {:?}",
@@ -73,10 +72,10 @@ pub async fn testing() -> Result<()> {
         ballot_tracker_url: "https://localhost/".to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
         logo: LOGO_TEMPLATE.to_string(),
-        file_logo: file_logo.to_string(),
-        file_qrcode_lib: file_qrcode_lib.to_string(),
+        file_logo: format!("{}/{}", minio_endpoint_base, file_logo),
+        file_qrcode_lib: format!("{}/{}", minio_endpoint_base, file_qrcode_lib),
         title: vote_receipt_title.to_string(),
-        template: None,
+        template: None, // TODO
     };
 
     let sub_map = VoteReceiptRoot { data: data.clone() }.to_map()?;
