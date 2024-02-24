@@ -61,6 +61,20 @@ import {CandidateStyles} from "@/components/styles/CandidateStyles"
 import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
+const CandidateRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
+
+interface EnumChoice<T> {
+    id: T
+    name: string
+}
+
 export type Sequent_Backend_Contest_Extended = Sequent_Backend_Contest &
     RaRecord<Identifier> & {
         contest_candidates_order?: CandidatesOrder
@@ -116,11 +130,6 @@ export const ContestDataForm: React.FC = () => {
         setLanguageConf(presentation.language_conf)
     }, [electionEvent?.presentation?.language_conf])
 
-    interface EnumChoice<T> {
-        id: T
-        name: string
-    }
-
     const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
         return Object.values(IVotingType).map((value) => ({
             id: value,
@@ -149,26 +158,6 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
-    const buildLanguageSettings = () => {
-        const tempSettings =
-            electionEvent?.presentation?.language_conf?.enabled_language_codes || []
-        const temp = []
-        for (const item of tempSettings) {
-            const enabled_item: any = {}
-            enabled_item[item] = true
-            temp.push(enabled_item)
-        }
-        return temp
-    }
-    /*
-    tempSettings = ["en"]
-    temp = [
-        {
-            en: true
-        }
-    ]
-    */
-
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -188,9 +177,9 @@ export const ContestDataForm: React.FC = () => {
             if (!newContest.presentation.i18n.en) {
                 newContest.presentation.i18n.en = {}
             }
-            newContest.presentation.i18n.en.name = newContest.name
-            newContest.presentation.i18n.en.alias = newContest.alias
-            newContest.presentation.i18n.en.description = newContest.description
+            newContest.name = newContest.presentation.i18n.en.name
+            newContest.alias = newContest.presentation.i18n.en.alias
+            newContest.description = newContest.presentation.i18n.en.description
 
             // defaults
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
@@ -203,114 +192,7 @@ export const ContestDataForm: React.FC = () => {
 
             return newContest
         },
-        [languageConf, electionEvent, candidates, buildLanguageSettings]
-    )
-
-    const parseValues0 = useCallback(
-        (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
-            if (!electionEvent) {
-                return incoming as Sequent_Backend_Contest_Extended
-            }
-            const temp: Sequent_Backend_Contest_Extended = {...incoming}
-
-            let languageSettings
-
-            const votingSettings = electionEvent?.voting_channels
-
-            // languages
-            temp.enabled_languages = {}
-
-            if (
-                incoming?.presentation?.language_conf?.enabled_language_codes &&
-                incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-            ) {
-                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
-
-                // if presentation has lang then set from event
-                // setDefaultLangValue(incoming?.presentation?.language_conf?.default_language_code)
-                temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
-                for (const setting of languageSettings) {
-                    const enabled_item: any = {}
-
-                    const isInEnabled =
-                        incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-                            ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => setting === item
-                              )
-                            : false
-
-                    if (isInEnabled) {
-                        enabled_item[setting] = true
-                    } else {
-                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
-                    }
-
-                    temp.enabled_languages = {
-                        ...temp.enabled_languages,
-                        ...enabled_item,
-                    }
-                }
-            } else {
-                // if presentation has no lang then use always the default settings
-                languageSettings = buildLanguageSettings()
-
-                temp.defaultLanguage = ""
-                let enabled_items: any = {}
-                for (const item of languageSettings) {
-                    enabled_items = {...enabled_items, ...item}
-                }
-                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
-            }
-
-            // set english first lang always
-            if (temp.enabled_languages) {
-                const en = {en: temp.enabled_languages["en"]}
-                delete temp.enabled_languages.en
-                const rest = temp.enabled_languages
-                temp.enabled_languages = {...en, ...rest} // { en: true, ..}
-            }
-
-            // voting channels
-            const all_channels = {...incoming?.voting_channels}
-            delete incoming.voting_channels
-            temp.voting_channels = {}
-            for (const setting in votingSettings) {
-                const enabled_item: any = {}
-                enabled_item[setting] =
-                    setting in all_channels ? all_channels[setting] : votingSettings[setting]
-                temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-            }
-
-            // name, alias and description fields
-            if (!temp.presentation || !temp.presentation?.i18n) {
-                temp.presentation = {i18n: {en: {}}}
-            }
-            temp.presentation.i18n.en.name = temp.name
-            temp.presentation.i18n.en.alias = temp.alias
-            temp.presentation.i18n.en.description = temp.description
-
-            // defaults
-            temp.voting_type = temp.voting_type || IVotingType.NON_PREFERENTIAL
-            temp.counting_algorithm =
-                temp.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
-            temp.min_votes = temp.min_votes || 0
-            // temp.max_votes = temp.max_votes // || 1
-            // temp.winning_candidates_num = temp.winning_candidates_num // || 1
-
-            temp.presentation.candidates_order =
-                temp.presentation.candidates_order || CandidatesOrder.ALPHABETICAL
-
-            let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
-            if (temp.presentation.candidates_order === CandidatesOrder.CUSTOM) {
-                tempCandidates.sort(
-                    (a, b) => a.presentation?.sort_order - b.presentation?.sort_order
-                )
-            }
-            temp.candidatesOrder = tempCandidates
-
-            return temp
-        },
-        [electionEvent, candidates, buildLanguageSettings]
+        [languageConf, electionEvent, candidates]
     )
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -342,9 +224,10 @@ export const ContestDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const renderTabContent = () => {
+    const renderTabContent = (formData: Record<string, any>) => {
         let tabNodes: Array<ReactNode> = []
         let index = 0
+        let presentation: IContestPresentation | undefined = formData?.presentation
         languageConf.enabled_language_codes?.forEach((lang) => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
@@ -352,14 +235,32 @@ export const ContestDataForm: React.FC = () => {
                         <TextInput
                             source={`presentation.i18n[${lang}].name`}
                             label={t("electionEventScreen.field.name")}
+                            value={presentation?.i18n?.[lang]?.name}
+                            onChange={(event) => {
+                                if (presentation?.i18n?.[lang]) {
+                                    presentation.i18n[lang].name = event.target.value
+                                }
+                            }}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].alias`}
                             label={t("electionEventScreen.field.alias")}
+                            value={presentation?.i18n?.[lang]?.alias}
+                            onChange={(event) => {
+                                if (presentation?.i18n?.[lang]) {
+                                    presentation.i18n[lang].alias = event.target.value
+                                }
+                            }}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].description`}
                             label={t("electionEventScreen.field.description")}
+                            value={presentation?.i18n?.[lang]?.description}
+                            onChange={(event) => {
+                                if (presentation?.i18n?.[lang]) {
+                                    presentation.i18n[lang].description = event.target.value
+                                }
+                            }}
                         />
                     </div>
                 </CustomTabPanel>
@@ -368,15 +269,6 @@ export const ContestDataForm: React.FC = () => {
         })
         return tabNodes
     }
-
-    const CandidateRows = styled.div`
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        cursor: pointer;
-        margin-bottom: 0.1rem;
-        padding: 1rem;
-    `
 
     const handleFiles = async (files: FileList | null) => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
@@ -454,7 +346,9 @@ export const ContestDataForm: React.FC = () => {
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>
-                                {renderTabContent()}
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => renderTabContent(formData)}
+                                </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
 
@@ -505,20 +399,27 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
-                                <SelectInput
-                                    source="presentation.candidates_order"
-                                    choices={orderAnswerChoices()}
-                                    validate={required()}
-                                />
-
-                                <SelectInput
-                                    source="presentation.invalid_vote_policy"
-                                    choices={invalidVotePolicyChoices()}
-                                    validate={required()}
-                                />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => (
+                                        <SelectInput
+                                            source="presentation.candidates_order"
+                                            choices={orderAnswerChoices()}
+                                            validate={required()}
+                                            value={formData?.presentation?.candidates_order}
+                                            onChange={(event) => {
+                                                // Create a new presentation object with the updated candidates_order
+                                                formData.presentation = {
+                                                    ...formData.presentation,
+                                                    candidates_order: event.target.value,
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </FormDataConsumer>
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        return formData?.contest_candidates_order === "custom" ? (
+                                        return formData?.presentation?.candidates_order ===
+                                            CandidatesOrder.CUSTOM ? (
                                             <CandidateRows>
                                                 <Typography
                                                     variant="body1"
@@ -538,6 +439,12 @@ export const ContestDataForm: React.FC = () => {
                                         ) : null
                                     }}
                                 </FormDataConsumer>
+
+                                <SelectInput
+                                    source="presentation.invalid_vote_policy"
+                                    choices={invalidVotePolicyChoices()}
+                                    validate={required()}
+                                />
                             </AccordionDetails>
                         </Accordion>
 

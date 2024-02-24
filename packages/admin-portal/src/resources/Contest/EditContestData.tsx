@@ -29,20 +29,7 @@ export const EditContestData: React.FC = () => {
         // update candidates
         updateCandidatesOrder(data)
 
-        // save presentation object
-        // language_conf
-        const enabled_language_codes = []
-        for (const key in data.enabled_languages) {
-            if (typeof data.enabled_languages[key] === "boolean" && data.enabled_languages[key]) {
-                enabled_language_codes.push(key)
-            }
-        }
-        const language_conf = {
-            enabled_language_codes: enabled_language_codes,
-        }
-        // i18n
-        // is alll object, no change needed
-        delete data.enabled_languages
+        delete data.candidatesOrder
 
         // name, alias and description fields
         const fromPresentationName =
@@ -62,18 +49,7 @@ export const EditContestData: React.FC = () => {
         data.description = fromPresentationDescription
         // END name, alias and description fields
 
-        return {
-            ...data,
-            presentation: {
-                ...data.presentation,
-                ...data.configuration,
-                language_conf: {
-                    ...language_conf,
-                    default_language_code: data.defaultLanguage,
-                },
-                candidates_order: data.contest_candidates_order,
-            },
-        }
+        return data
     }
 
     return (

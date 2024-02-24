@@ -470,6 +470,7 @@ pub struct ContestPresentation {
 impl ContestPresentation {
     pub fn new() -> ContestPresentation {
         ContestPresentation {
+            i18n: None,
             allow_writeins: true,
             base32_writeins: true,
             invalid_vote_policy: InvalidVotePolicy::ALLOWED,

@@ -35,6 +35,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             candidates::get_candidate_4(tenant_id, election_event_id, election_id, &contest_id),
         ],
         presentation: Some(ContestPresentation {
+            i18n: None,
             allow_writeins: false,
             base32_writeins: true,
             invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -86,6 +87,7 @@ pub fn get_contest_min_max_votes(
             candidates::get_candidate_4(tenant_id, election_event_id, election_id, &contest_id),
         ],
         presentation: Some(ContestPresentation {
+            i18n: None,
             allow_writeins: false,
             base32_writeins: true,
             invalid_vote_policy: InvalidVotePolicy::ALLOWED,

@@ -166,6 +166,7 @@ fn get_contest_plurality() -> Contest {
             },
         ],
         presentation: Some(ContestPresentation {
+            i18n: None,
             allow_writeins: false,
             base32_writeins: true,
             invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -358,6 +359,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 },
             ],
             presentation: Some(ContestPresentation {
+                i18n: None,
                 allow_writeins: true,
                 base32_writeins: true,
                 invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -550,6 +552,7 @@ pub fn get_test_contest() -> Contest {
             }
         ],
         presentation: Some(ContestPresentation {
+            i18n: None,
             allow_writeins: true,
             base32_writeins: true,
             invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -757,6 +760,7 @@ pub(crate) fn get_configurable_contest(
             },
         ],
         presentation: Some(ContestPresentation {
+            i18n: None,
             allow_writeins: true,
             base32_writeins: true,
             invalid_vote_policy: InvalidVotePolicy::NOT_ALLOWED,
@@ -1000,6 +1004,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ],
                 presentation: Some(ContestPresentation {
+                    i18n: None,
                     allow_writeins: true,
                     base32_writeins: true,
                     invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -1158,6 +1163,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ],
                 presentation: Some(ContestPresentation {
+                    i18n: None,
                     allow_writeins: true,
                     base32_writeins: true,
                     invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -1306,6 +1312,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ],
                 presentation: Some(ContestPresentation {
+                    i18n: None,
                     allow_writeins: true,
                     base32_writeins: true,
                     invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -1443,6 +1450,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ],
                 presentation: Some(ContestPresentation {
+                    i18n: None,
                     allow_writeins: true,
                     base32_writeins: true,
                     invalid_vote_policy: InvalidVotePolicy::ALLOWED,
@@ -1580,6 +1588,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ],
                 presentation: Some(ContestPresentation {
+                    i18n: None,
                     allow_writeins: true,
                     base32_writeins: true,
                     invalid_vote_policy: InvalidVotePolicy::ALLOWED,
