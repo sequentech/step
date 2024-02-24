@@ -23,7 +23,7 @@ import {
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import React, {useCallback, useState} from "react"
+import React, {useCallback, useContext, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -33,6 +33,7 @@ import {DropFile} from "@sequentech/ui-essentials"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export type Sequent_Backend_Candidate_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -46,6 +47,7 @@ export const CandidateDataForm: React.FC = () => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
@@ -345,7 +347,7 @@ export const CandidateDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                                 alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                             />
                                         ) : null}

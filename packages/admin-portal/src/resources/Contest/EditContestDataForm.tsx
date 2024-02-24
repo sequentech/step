@@ -77,8 +77,6 @@ interface EnumChoice<T> {
 
 export type Sequent_Backend_Contest_Extended = Sequent_Backend_Contest &
     RaRecord<Identifier> & {
-        contest_candidates_order?: CandidatesOrder
-        contest_invalid_vote_policy: EInvalidVotePolicy
         candidatesOrder?: Array<Sequent_Backend_Candidate>
     }
 
