@@ -177,6 +177,18 @@ export const ContestDataForm: React.FC = () => {
             if (!newContest.presentation.i18n.en) {
                 newContest.presentation.i18n.en = {}
             }
+            if (!newContest.presentation.i18n.en.name && newContest.name) {
+                newContest.presentation.i18n.en.name = newContest.name
+            }
+            if (!newContest.presentation.i18n.en.name && newContest.name) {
+                newContest.presentation.i18n.en.name = newContest.name
+            }
+            if (!newContest.presentation.i18n.en.alias && newContest.alias) {
+                newContest.presentation.i18n.en.alias = newContest.alias
+            }
+            if (!newContest.presentation.i18n.en.description && newContest.description) {
+                newContest.presentation.i18n.en.description = newContest.description
+            }
             newContest.name = newContest.presentation.i18n.en.name
             newContest.alias = newContest.presentation.i18n.en.alias
             newContest.description = newContest.presentation.i18n.en.description
@@ -189,6 +201,10 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.candidates_order =
                 newContest.presentation.candidates_order || CandidatesOrder.ALPHABETICAL
+
+            newContest.presentation.invalid_vote_policy =
+                newContest.presentation.invalid_vote_policy ||
+                EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT
 
             return newContest
         },
@@ -224,10 +240,9 @@ export const ContestDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const renderTabContent = (formData: Record<string, any>) => {
+    const renderTabContent = () => {
         let tabNodes: Array<ReactNode> = []
         let index = 0
-        let presentation: IContestPresentation | undefined = formData?.presentation
         languageConf.enabled_language_codes?.forEach((lang) => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
@@ -235,32 +250,14 @@ export const ContestDataForm: React.FC = () => {
                         <TextInput
                             source={`presentation.i18n[${lang}].name`}
                             label={t("electionEventScreen.field.name")}
-                            value={presentation?.i18n?.[lang]?.name}
-                            onChange={(event) => {
-                                if (presentation?.i18n?.[lang]) {
-                                    presentation.i18n[lang].name = event.target.value
-                                }
-                            }}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].alias`}
                             label={t("electionEventScreen.field.alias")}
-                            value={presentation?.i18n?.[lang]?.alias}
-                            onChange={(event) => {
-                                if (presentation?.i18n?.[lang]) {
-                                    presentation.i18n[lang].alias = event.target.value
-                                }
-                            }}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].description`}
                             label={t("electionEventScreen.field.description")}
-                            value={presentation?.i18n?.[lang]?.description}
-                            onChange={(event) => {
-                                if (presentation?.i18n?.[lang]) {
-                                    presentation.i18n[lang].description = event.target.value
-                                }
-                            }}
                         />
                     </div>
                 </CustomTabPanel>
@@ -346,9 +343,7 @@ export const ContestDataForm: React.FC = () => {
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => renderTabContent(formData)}
-                                </FormDataConsumer>
+                                {renderTabContent()}
                             </AccordionDetails>
                         </Accordion>
 
@@ -399,23 +394,11 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => (
-                                        <SelectInput
-                                            source="presentation.candidates_order"
-                                            choices={orderAnswerChoices()}
-                                            validate={required()}
-                                            value={formData?.presentation?.candidates_order}
-                                            onChange={(event) => {
-                                                // Create a new presentation object with the updated candidates_order
-                                                formData.presentation = {
-                                                    ...formData.presentation,
-                                                    candidates_order: event.target.value,
-                                                }
-                                            }}
-                                        />
-                                    )}
-                                </FormDataConsumer>
+                                <SelectInput
+                                    source="presentation.candidates_order"
+                                    choices={orderAnswerChoices()}
+                                    validate={required()}
+                                />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
                                         return formData?.presentation?.candidates_order ===
