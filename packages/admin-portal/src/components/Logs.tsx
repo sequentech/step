@@ -58,7 +58,6 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
         }
         const {scrollTop, scrollHeight, clientHeight} = myDivRef.current
         const isNearBottom = scrollTop + clientHeight >= scrollHeight
-        console.log(`isNearBottom ${isNearBottom} logs ${logs}`)
         if (isNearBottom || (prevLogs && logs && prevLogs.length < logs.length)) {
             myDivRef.current.scroll({
                 top: myDivRef.current.scrollHeight,
