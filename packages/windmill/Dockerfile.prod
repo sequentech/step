@@ -26,9 +26,9 @@ RUN cargo build --release
 
 
 
-FROM debian:bullseye
+FROM debian:bookworm
 # Install any necessary runtime dependencies for production
-RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 chromium ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN update-ca-certificates
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
