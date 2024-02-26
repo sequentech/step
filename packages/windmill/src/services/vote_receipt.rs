@@ -35,8 +35,11 @@ pub struct Receipt {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReceiptsRoot {
+    #[serde(rename = "SMS")]
     pub sms: Option<Receipt>,
+    #[serde(rename = "EMAIL")]
     pub email: Option<Receipt>,
+    #[serde(rename = "DOCUMENT")]
     pub document: Option<Receipt>,
 }
 
