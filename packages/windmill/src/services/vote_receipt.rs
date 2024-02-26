@@ -98,12 +98,12 @@ pub async fn get_template(
     Ok(Some(communication_template_value.document))
 }
 
-fn get_minio_url() -> String {
+fn get_minio_url() -> Result<String> {
     let minio_private_uri =
         env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = s3::get_public_bucket()?;
 
-    format!("{}/{}", minio_private_uri, bucket)
+    Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
 async fn get_public_asset_vote_receipt_template() -> Result<String> {
