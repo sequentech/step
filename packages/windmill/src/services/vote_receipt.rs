@@ -240,6 +240,7 @@ pub async fn create_vote_receipt(
     let template = reports::render_template_text(&template, map)?;
 
     dbg!(&template);
+
     let map = VoteReceiptRootTemplate {
         data: VoteReceiptDataTemplate {
             template: Some(template),
@@ -260,7 +261,18 @@ pub async fn create_vote_receipt(
 
     dbg!(&render);
 
+    let file_path = "output.html";
+    std::fs::write(file_path, render.clone())
+        .map_err(|err| anyhow!("Failed to write PDF to file: {}", err))?;
+
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
+
+    // Gen pdf
+    let bytes_pdf = pdf::html_to_pdf(bytes_pdf).map_err(|err| anyhow!("{}", err))?;
+
+    let file_path = "output.pdf";
+    std::fs::write(file_path, bytes_pdf)
+        .map_err(|err| anyhow!("Failed to write PDF to file: {}", err))?;
 
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".pdf")
