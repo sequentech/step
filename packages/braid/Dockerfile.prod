@@ -31,13 +31,13 @@ RUN cargo build --release
 
 
 
-FROM debian:bullseye
+FROM debian:bookworm
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 # Installing also AWS CLI and Vault CLI for trustee configuration
 # Set the default Vault version (put 'latest' for automatic substitution)
 ARG VAULT_VERSION=1.15.5
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl1.1 \
+    libssl3 \
     ca-certificates \
     curl \
     unzip \
