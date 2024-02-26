@@ -183,7 +183,6 @@ pub async fn create_vote_receipt(
     let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
     let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
     let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
-    let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
 
     let template_opt = get_template(
         hasura_transaction,
