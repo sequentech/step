@@ -155,7 +155,11 @@ pub struct VoteReceiptData {
     pub title: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
-    pub template: Option<String>, // TODO: remove this
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VoteReceiptDataTemplate {
+    pub template: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -163,11 +167,31 @@ pub struct VoteReceiptRoot {
     pub data: VoteReceiptData,
 }
 
-impl VoteReceiptRoot {
-    pub fn to_map(self) -> Result<Map<String, Value>> {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VoteReceiptRootTemplate {
+    pub data: VoteReceiptDataTemplate,
+}
+
+trait ToMap {
+    fn to_map(&self) -> Result<Map<String, Value>>;
+}
+
+impl ToMap for VoteReceiptRoot {
+    fn to_map(&self) -> Result<Map<String, Value>> {
         let Value::Object(map) = serde_json::to_value(self.clone())? else {
             return Err(anyhow!("Can't convert VoteReceiptRoot to Map"));
         };
+
+        Ok(map)
+    }
+}
+
+impl ToMap for VoteReceiptRootTemplate {
+    fn to_map(&self) -> Result<Map<String, Value>> {
+        let Value::Object(map) = serde_json::to_value(self.clone())? else {
+            return Err(anyhow!("Can't convert VoteReceiptRootTemplate to Map"));
+        };
+
         Ok(map)
     }
 }
@@ -219,15 +243,17 @@ pub async fn create_vote_receipt(
             minio_endpoint_base, public_asset_path, file_qrcode_lib
         ),
         title: vote_receipt_title.to_string(),
-        template: None, // TODO: remove this
     };
     let map = VoteReceiptRoot { data: data.clone() }.to_map()?;
 
     let template = reports::render_template_text(&template, map)?;
 
-    data.template = Some(template.clone());
-
-    let map = VoteReceiptRoot { data: data.clone() }.to_map()?;
+    let map = VoteReceiptRootTemplate {
+        data: VoteReceiptDataTemplate {
+            template: Some(template),
+        },
+    }
+    .to_map()?;
 
     let render = reports::render_template_text(&template_hbs, map)?;
 
