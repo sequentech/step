@@ -121,7 +121,8 @@ async fn get_public_asset_vote_receipt_template() -> Result<String> {
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Err(anyhow!("File not found: {}", file_vote_receipt_template));
-    } else if !response.status().is_success() {
+    }
+    if !response.status().is_success() {
         return Err(anyhow!(
             "Unexpected response status: {:?}",
             response.status()
