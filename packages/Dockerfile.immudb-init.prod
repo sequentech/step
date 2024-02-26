@@ -26,9 +26,9 @@ COPY ./wrap-map-err ./wrap-map-err
 WORKDIR /app/immu-board
 RUN cargo build --release
 
-FROM debian:bullseye
+FROM debian:bookworm
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
-RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/bb_helper /usr/bin
 
