@@ -169,6 +169,7 @@ pub async fn create_vote_receipt(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<()> {
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
     let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
     let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
     let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
@@ -219,8 +220,14 @@ pub async fn create_vote_receipt(
         ballot_tracker_url: ballot_tracker_url.to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
         logo: LOGO_TEMPLATE.to_string(),
-        file_logo: format!("{}/{}", minio_endpoint_base, file_logo),
-        file_qrcode_lib: format!("{}/{}", minio_endpoint_base, file_qrcode_lib),
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_logo
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_qrcode_lib
+        ),
         title: vote_receipt_title.to_string(),
         template: None, // TODO: remove this
     };
