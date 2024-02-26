@@ -22,6 +22,11 @@ use deadpool_postgres::Transaction;
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
+enum TemplateType {
+    Root,
+    Content,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Receipt {
     pub allowed: bool,
@@ -106,9 +111,13 @@ fn get_minio_url() -> Result<String> {
     Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
-async fn get_public_asset_vote_receipt_template() -> Result<String> {
+async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Result<String> {
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
-    let file_vote_receipt_template = env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?;
+
+    let file_vote_receipt_template = match tpl_type {
+        TemplateType::Root => env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?,
+        TemplateType::Content => env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT")?,
+    };
 
     let minio_endpoint_base = get_minio_url()?;
     let vote_receipt_template = format!(
@@ -174,6 +183,7 @@ pub async fn create_vote_receipt(
     let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
     let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
     let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
+    let vote_receipt_title = env::var("VOTE_RECEIPT_TEMPLATE_TITLE")?;
 
     let template_opt = get_template(
         hasura_transaction,
@@ -183,36 +193,13 @@ pub async fn create_vote_receipt(
     )
     .await?;
 
-    let template_hbs = get_public_asset_vote_receipt_template().await?;
+    let template_hbs = get_public_asset_vote_receipt_template(TemplateType::Root).await?;
 
-    let template = template_opt.unwrap_or(
-        r#"
-            <div>
-            {{{data.logo}}}
-            </div>
-            <div>
-            <h2>Your vote has been cast</h2>
-            <p>
-                The confirmation code bellow verifies that your ballot has been cast
-                successfully. You can use this code to verify that your ballot has
-                been counted.
-            </p>
-            <p>
-                Your Ballot ID: <span class="id-content">{{data.ballot_id}}</span>
-            </p>
-            </div>
-
-            <div>
-            <h3>Verify that your ballot has been cast</h3>
-            <p>
-                You can verify your ballot has been cast correctly at any moment using
-                the following QR code:
-            </p>
-            {{{data.qrcode}}}
-            </div>
-        "#
-        .to_string(),
-    );
+    let template = if template_opt.is_some() {
+        template_opt.unwrap()
+    } else {
+        get_public_asset_vote_receipt_template(TemplateType::Content).await?
+    };
 
     let minio_endpoint_base = get_minio_url()?;
 
