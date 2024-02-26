@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -97,15 +98,19 @@ pub async fn get_template(
     Ok(Some(communication_template_value.document))
 }
 
-async fn get_public_asset_vote_receipt_template() -> Result<String> {
-    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
-    let file_vote_receipt_template = env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?;
-
+fn get_minio_url() -> String {
     let minio_private_uri =
         env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = s3::get_public_bucket()?;
 
-    let minio_endpoint_base = format!("{}/{}", minio_private_uri, bucket);
+    format!("{}/{}", minio_private_uri, bucket)
+}
+
+async fn get_public_asset_vote_receipt_template() -> Result<String> {
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let file_vote_receipt_template = env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?;
+
+    let minio_endpoint_base = get_minio_url();
     let vote_receipt_template = format!(
         "{}/{}/{}",
         minio_endpoint_base, public_asset_path, file_vote_receipt_template
@@ -207,13 +212,15 @@ pub async fn create_vote_receipt(
         .to_string(),
     );
 
+    let minio_endpoint_base = get_minio_url();
+
     let mut data = VoteReceiptData {
         ballot_id: ballot_id.to_string(),
         ballot_tracker_url: ballot_tracker_url.to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
         logo: LOGO_TEMPLATE.to_string(),
-        file_logo: file_logo.to_string(),
-        file_qrcode_lib: file_qrcode_lib.to_string(),
+        file_logo: format!("{}/{}", minio_endpoint_base, file_logo),
+        file_qrcode_lib: format!("{}/{}", minio_endpoint_base, file_qrcode_lib),
         title: vote_receipt_title.to_string(),
         template: None, // TODO: remove this
     };
