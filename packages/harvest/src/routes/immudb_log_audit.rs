@@ -3,19 +3,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::authorization::authorize;
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
 use immu_board::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
+use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use sequent_core::services::connection;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
-use strum_macros::{Display, EnumString, ToString};
+use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use windmill::services::database::PgConfig;
 
@@ -241,13 +244,9 @@ impl TryFrom<&Row> for PgAuditRow {
     }
 }
 
-#[instrument]
-#[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
-pub async fn list_pgaudit(
-    body: Json<GetPgauditBody>,
-    auth_headers: connection::AuthHeaders,
+async fn audit_list_service(
+    input: GetPgauditBody,
 ) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
-    let input = body.into_inner();
     let mut client = get_immudb_client().await?;
 
     client.open_session(&input.election_event_id).await?;
@@ -305,6 +304,25 @@ pub async fn list_pgaudit(
             aggregate: aggregate,
         },
     }))
+}
+
+#[instrument]
+#[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
+pub async fn list_pgaudit(
+    body: Json<GetPgauditBody>,
+    claims: JwtClaims,
+) -> Result<Json<DataList<PgAuditRow>>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::LOGS_READ],
+    )?;
+    let result = audit_list_service(input)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(result)
 }
 
 #[cfg(test)]

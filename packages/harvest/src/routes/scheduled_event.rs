@@ -45,8 +45,17 @@ pub async fn create_scheduled_event(
             authorize(
                 &claims,
                 true,
-                None,
+                Some(input.tenant_id.clone()),
                 vec![Permissions::NOTIFICATION_SEND],
+            )?;
+        }
+        EventProcessors::CREATE_REPORT => {
+            authorize(
+                &claims,
+                true,
+                Some(claims.hasura_claims.tenant_id.clone()),
+                vec![], /* TODO: task not being used at the moment, and it
+                         * has no specific perms yet */
             )?;
         }
         _ => {}

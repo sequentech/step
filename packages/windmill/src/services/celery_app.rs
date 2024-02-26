@@ -22,7 +22,6 @@ use crate::tasks::review_boards::review_boards;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
-use crate::tasks::update_voting_status::update_voting_status;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
@@ -74,7 +73,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             set_public_key,
             execute_tally_session,
             update_election_event_ballot_styles,
-            update_voting_status,
             insert_election_event_t,
             insert_tenant,
             send_communication,

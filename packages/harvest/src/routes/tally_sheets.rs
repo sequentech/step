@@ -8,12 +8,10 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::hasura::tally_sheet;
-use windmill::services::ceremonies::tally_ceremony;
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]

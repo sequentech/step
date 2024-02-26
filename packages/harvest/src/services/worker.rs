@@ -13,8 +13,6 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::render_report;
 use windmill::tasks::send_communication::*;
-use windmill::tasks::set_public_key::*;
-use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 
 #[instrument(skip(claims), err)]
@@ -39,37 +37,6 @@ pub async fn process_scheduled_event(
                 ))
                 .await?;
             event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
-        }
-        EventProcessors::UPDATE_VOTING_STATUS => {
-            let payload: update_voting_status::UpdateVotingStatusPayload =
-                deserialize_value(event.event_payload.clone())?;
-            let election_event_id = event
-                .election_event_id
-                .ok_or(anyhow!("empty election_event_id"))?;
-            let task = celery_app
-                .send_task(update_voting_status::update_voting_status::new(
-                    payload,
-                    event.tenant_id,
-                    election_event_id,
-                ))
-                .await?;
-            event!(
-                Level::INFO,
-                "Sent UPDATE_VOTING_STATUS task {}",
-                task.task_id
-            );
-        }
-        EventProcessors::SET_PUBLIC_KEY => {
-            let election_event_id = event
-                .election_event_id
-                .ok_or(anyhow!("empty election_event_id"))?;
-            let task = celery_app
-                .send_task(set_public_key::new(
-                    event.tenant_id,
-                    election_event_id,
-                ))
-                .await?;
-            event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
         }
         EventProcessors::SEND_COMMUNICATION => {
             let payload: SendCommunicationBody =
