@@ -50,8 +50,6 @@ async fn main() -> Result<()> {
 
     let opt = CeleryOpt::from_args();
 
-    windmill::test::testing().await.unwrap();
-
     match opt {
         CeleryOpt::Consume {
             queues,
