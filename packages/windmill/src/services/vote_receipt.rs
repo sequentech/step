@@ -110,7 +110,7 @@ async fn get_public_asset_vote_receipt_template() -> Result<String> {
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
     let file_vote_receipt_template = env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE")?;
 
-    let minio_endpoint_base = get_minio_url();
+    let minio_endpoint_base = get_minio_url()?;
     let vote_receipt_template = format!(
         "{}/{}/{}",
         minio_endpoint_base, public_asset_path, file_vote_receipt_template
@@ -212,7 +212,7 @@ pub async fn create_vote_receipt(
         .to_string(),
     );
 
-    let minio_endpoint_base = get_minio_url();
+    let minio_endpoint_base = get_minio_url()?;
 
     let mut data = VoteReceiptData {
         ballot_id: ballot_id.to_string(),
