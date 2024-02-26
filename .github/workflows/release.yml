@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
@@ -73,17 +74,47 @@ jobs:
           "${{ secrets.GH_API_URL }}" \
           --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "backend-services"}}'
 
-#TODO: post failure stage, undo / delete the release
-  # cleanup:
-  #   if: ${{ failure() }}
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+  cleanup:
+    if: failure()
+    # Here define the depenency jobs
+    needs: [release,build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history for all tags and branches
 
-  #     - name: Delete Release
-  #       run: |
-  #         RELEASE_ID=$(gh release view "${{ github.ref }}" --json id -q '.id')
-  #         gh release delete $RELEASE_ID -y
-  #       env:
-  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Delete Release
+        run: |
+          echo "Version received in cleanup job: ${{ needs.release.outputs.VERSION }}"
+          gh release delete '${{ needs.release.outputs.VERSION }}' -y --cleanup-tag  || echo "Failed to delete release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  slack-report:
+    needs: [release, build-and-push, trigger-deployer, cleanup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: always()
+    steps:
+      - name: Slack Workflow Notification
+        uses: Gamesight/slack-workflow-status@v1.2.0
+        with:
+          # Required Input
+          repo_token: ${{secrets.GITHUB_TOKEN}}
+          slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
+          # Optional Input
+          name: 'Github Actions'
+
+      - name: Slack additional info
+        # Don't send slack notification if cleanup job deleted the release
+        if: ${{ needs.cleanup.result != 'success' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "*Sequent Release Notification* :rocket:\n*Version:* ${{ needs.release.outputs.VERSION }}\n*View Release:* <https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.VERSION }}|${{ needs.release.outputs.VERSION }}>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
