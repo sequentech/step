@@ -243,20 +243,10 @@ pub async fn create_vote_receipt(
 
     dbg!(&render);
 
-    // let custom_html_template = if data.template.is_some() {
-    //     // include_str!("../resources/vote_receipt_custom.hbs")
-    // } else {
-    //     // include_str!("../resources/vote_receipt.hbs")
-    // };
-    //
-    // let custom_html_template = "";
-    //
-    // let render = reports::render_template_text(custom_html_template, map)?;
-
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
 
     let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".html")
+        write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".pdf")
             .with_context(|| "Error writing to file")?;
 
     let auth_headers = keycloak::get_client_credentials().await?;
