@@ -12,7 +12,10 @@ array_relationships:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
     columns:
     - alias
     - annotations
@@ -36,6 +39,35 @@ insert_permissions:
     - user_boards
     - voting_channels
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - statistics
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+  role: election-event-write
 - comment: ""
   permission:
     check: {}
@@ -88,8 +120,41 @@ select_permissions:
     - updated_at
     - user_boards
     - voting_channels
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - statistics
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: election-event-read
 - comment: ""
   permission:
     allow_aggregations: true
@@ -170,8 +235,41 @@ update_permissions:
     - updated_at
     - user_boards
     - voting_channels
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - statistics
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     check: {}
@@ -202,9 +300,19 @@ update_permissions:
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: election-event-write

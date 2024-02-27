@@ -67,7 +67,7 @@ insert_permissions:
     - election_event_id
     - id
     - tenant_id
-  role: table-area-write
+  role: area-write
 select_permissions:
 - comment: ""
   permission:
@@ -138,7 +138,7 @@ select_permissions:
       _and:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
-  role: table-area-read
+  role: area-read
 update_permissions:
 - comment: ""
   permission:
@@ -190,7 +190,7 @@ update_permissions:
       _and:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
-  role: table-area-write
+  role: area-write
 delete_permissions:
 - comment: ""
   permission:
@@ -209,4 +209,4 @@ delete_permissions:
       _and:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
-  role: table-area-write
+  role: area-write

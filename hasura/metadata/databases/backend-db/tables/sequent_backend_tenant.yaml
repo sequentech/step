@@ -15,7 +15,7 @@ insert_permissions:
     - slug
     - updated_at
     - voting_channels
-  role: admin-user
+  role: tenant-write
 - comment: ""
   permission:
     check: {}
@@ -45,6 +45,24 @@ select_permissions:
     - updated_at
     - voting_channels
     filter: {}
+  role: tenant-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - created_at
+    - id
+    - is_active
+    - labels
+    - settings
+    - slug
+    - updated_at
+    - voting_channels
+    filter:
+      _and:
+      - id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -91,8 +109,26 @@ update_permissions:
     - created_at
     - updated_at
     - id
-    filter: {}
+    filter:
+      _and:
+      - id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - settings
+    - voting_channels
+    - slug
+    - created_at
+    - updated_at
+    - id
+    filter: {}
+  role: tenant-write
 - comment: ""
   permission:
     check: {}
@@ -112,7 +148,7 @@ delete_permissions:
 - comment: ""
   permission:
     filter: {}
-  role: admin-user
+  role: tenant-write
 - comment: ""
   permission:
     filter: {}

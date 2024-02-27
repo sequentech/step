@@ -4,7 +4,10 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - created_at
@@ -18,6 +21,25 @@ insert_permissions:
     - size
     - tenant_id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+    columns:
+    - annotations
+    - created_at
+    - election_event_id
+    - id
+    - is_public
+    - labels
+    - last_updated_at
+    - media_type
+    - name
+    - size
+    - tenant_id
+  role: document-write
 - comment: ""
   permission:
     check: {}
@@ -50,8 +72,31 @@ select_permissions:
     - name
     - size
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - created_at
+    - election_event_id
+    - id
+    - is_public
+    - labels
+    - last_updated_at
+    - media_type
+    - name
+    - size
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: document-read
 - comment: ""
   permission:
     allow_aggregations: true
@@ -102,8 +147,31 @@ update_permissions:
     - name
     - size
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - created_at
+    - election_event_id
+    - id
+    - is_public
+    - labels
+    - last_updated_at
+    - media_type
+    - name
+    - size
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: document-write
 - comment: ""
   permission:
     check: {}
@@ -124,9 +192,19 @@ update_permissions:
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: document-write

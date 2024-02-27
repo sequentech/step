@@ -4,7 +4,10 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
     columns:
     - cast_votes
     - points
@@ -65,8 +68,36 @@ select_permissions:
     - id
     - results_event_id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - annotations
+    - documents
+    - labels
+    - cast_votes_percent
+    - created_at
+    - last_updated_at
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: tally-results-read
 - comment: ""
   permission:
     allow_aggregations: true
@@ -110,7 +141,10 @@ update_permissions:
     - id
     - results_event_id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:

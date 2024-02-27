@@ -4,7 +4,10 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
     columns:
     - elegible_census
     - total_voters
@@ -59,8 +62,34 @@ select_permissions:
     - id
     - results_event_id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - elegible_census
+    - total_voters
+    - annotations
+    - documents
+    - labels
+    - total_voters_percent
+    - name
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: tally-results-read
 - comment: ""
   permission:
     allow_aggregations: true
@@ -100,7 +129,10 @@ update_permissions:
     - id
     - results_event_id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:

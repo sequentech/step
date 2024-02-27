@@ -58,7 +58,7 @@ insert_permissions:
     - labels
     - published_at
     - tenant_id
-  role: table-ballot-style-write
+  role: publish-write
 select_permissions:
 - comment: ""
   permission:
@@ -119,7 +119,7 @@ select_permissions:
       _and:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
-  role: table-ballot-style-read
+  role: publish-read
 update_permissions:
 - comment: ""
   permission:
@@ -180,4 +180,4 @@ update_permissions:
       _and:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
-  role: table-ballot-style-write
+  role: publish-write
