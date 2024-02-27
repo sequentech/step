@@ -22,7 +22,10 @@ object_relationships:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - labels
@@ -48,6 +51,23 @@ insert_permissions:
     - id
     - tenant_id
   role: service-account
+- comment: ""
+  permission:
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+    columns:
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+  role: table-area-write
 select_permissions:
 - comment: ""
   permission:
@@ -62,7 +82,10 @@ select_permissions:
     - election_event_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -98,6 +121,24 @@ select_permissions:
       - area_id:
           _eq: X-Hasura-Area-Id
   role: user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: table-area-read
 update_permissions:
 - comment: ""
   permission:
@@ -112,7 +153,10 @@ update_permissions:
     - election_event_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -129,12 +173,40 @@ update_permissions:
     - tenant_id
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - area_id
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: table-area-write
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: table-area-write

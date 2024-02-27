@@ -4,7 +4,10 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - created_at
@@ -36,6 +39,26 @@ insert_permissions:
     - id
     - tenant_id
   role: service-account
+- comment: ""
+  permission:
+    check:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+    columns:
+    - annotations
+    - created_at
+    - created_by_user_id
+    - deleted_at
+    - election_event_id
+    - election_id
+    - election_ids
+    - id
+    - is_generated
+    - labels
+    - published_at
+    - tenant_id
+  role: table-ballot-style-write
 select_permissions:
 - comment: ""
   permission:
@@ -53,7 +76,10 @@ select_permissions:
     - election_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -73,6 +99,27 @@ select_permissions:
     - tenant_id
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - election_ids
+    - is_generated
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - published_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: table-ballot-style-read
 update_permissions:
 - comment: ""
   permission:
@@ -90,7 +137,10 @@ update_permissions:
     - election_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -110,3 +160,24 @@ update_permissions:
     - tenant_id
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - election_ids
+    - is_generated
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - published_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+  role: table-ballot-style-write
