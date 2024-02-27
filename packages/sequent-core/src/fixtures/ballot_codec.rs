@@ -63,6 +63,7 @@ fn get_contest_plurality() -> Contest {
                 description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(0),
@@ -86,6 +87,7 @@ fn get_contest_plurality() -> Contest {
                 description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(1),
@@ -109,6 +111,7 @@ fn get_contest_plurality() -> Contest {
                 description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(2),
@@ -133,6 +136,7 @@ fn get_contest_plurality() -> Contest {
 
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(3),
@@ -156,6 +160,7 @@ fn get_contest_plurality() -> Contest {
                 description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(4),
@@ -264,6 +269,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
+                        i18n: None,
                         is_explicit_invalid: false,
                         is_write_in: false,
                         sort_order: Some(0),
@@ -290,6 +296,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
+                        i18n: None,
                         is_explicit_invalid: false,
                         is_write_in: false,
                         sort_order: Some(1),
@@ -326,6 +333,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
+                        i18n: None,
                         is_explicit_invalid: false,
                         is_write_in: true,
                         sort_order: Some(2),
@@ -349,6 +357,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     description_i18n: None,
                     candidate_type: None,
                     presentation: Some(CandidatePresentation {
+                        i18n: None,
                         is_explicit_invalid: false,
                         is_write_in: true,
                         sort_order: Some(3),
@@ -480,6 +489,7 @@ pub fn get_test_contest() -> Contest {
         description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(0),
@@ -508,6 +518,7 @@ pub fn get_test_contest() -> Contest {
         description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(1),
@@ -542,6 +553,7 @@ pub fn get_test_contest() -> Contest {
         description_i18n: None,
                 candidate_type: None,
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(2),
@@ -612,6 +624,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(0),
@@ -635,6 +648,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(1),
@@ -658,6 +672,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(2),
@@ -681,6 +696,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(3),
@@ -704,6 +720,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(4),
@@ -727,6 +744,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(5),
@@ -750,6 +768,7 @@ pub(crate) fn get_configurable_contest(
                 description_i18n: None,
                 candidate_type: Some("Candidaturas no agrupadas".into()),
                 presentation: Some(CandidatePresentation {
+                    i18n: None,
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(6),
@@ -931,6 +950,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(0),
@@ -952,6 +972,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(1),
@@ -973,6 +994,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(2),
@@ -994,6 +1016,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: true,
                             is_write_in: false,
                             sort_order: Some(3),
@@ -1090,6 +1113,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(0),
@@ -1111,6 +1135,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(1),
@@ -1132,6 +1157,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(2),
@@ -1153,6 +1179,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: true,
                             is_write_in: false,
                             sort_order: Some(3),
@@ -1239,6 +1266,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(0),
@@ -1260,6 +1288,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(1),
@@ -1281,6 +1310,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(2),
@@ -1302,6 +1332,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: true,
                             is_write_in: false,
                             sort_order: Some(3),
@@ -1398,6 +1429,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(0),
@@ -1419,6 +1451,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(1),
@@ -1440,6 +1473,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(2),
@@ -1536,6 +1570,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(0),
@@ -1557,6 +1592,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(1),
@@ -1578,6 +1614,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                         candidate_type: None,
                         presentation: Some(CandidatePresentation {
+                            i18n: None,
                             is_explicit_invalid: false,
                             is_write_in: false,
                             sort_order: Some(2),

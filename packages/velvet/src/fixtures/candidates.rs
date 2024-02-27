@@ -22,6 +22,7 @@ pub fn get_candidate_0(
         alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
+            i18n: None,
             is_explicit_invalid: false,
             is_write_in: false,
             sort_order: Some(0),
@@ -53,6 +54,7 @@ pub fn get_candidate_1(
         alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
+            i18n: None,
             is_explicit_invalid: false,
             is_write_in: false,
             sort_order: Some(1),
@@ -84,6 +86,7 @@ pub fn get_candidate_2(
         alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
+            i18n: None,
             is_explicit_invalid: false,
             is_write_in: false,
             sort_order: Some(2),
@@ -115,6 +118,7 @@ pub fn get_candidate_3(
         alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
+            i18n: None,
             is_explicit_invalid: false,
             is_write_in: false,
             sort_order: Some(3),
@@ -146,6 +150,7 @@ pub fn get_candidate_4(
         alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
+            i18n: None,
             is_explicit_invalid: false,
             is_write_in: false,
             sort_order: Some(4),
@@ -177,6 +182,7 @@ pub fn get_candidate_5(
         alias_i18n: None,
         candidate_type: None,
         presentation: Some(CandidatePresentation {
+            i18n: None,
             is_explicit_invalid: false,
             is_write_in: false,
             sort_order: Some(5),
