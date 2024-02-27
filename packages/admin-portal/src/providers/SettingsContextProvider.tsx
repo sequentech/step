@@ -46,23 +46,34 @@ const defaultSettingsValues: SettingsContextValues = {
         },
         DEFAULT_DOCUMENT: {
             en: `<div>
+  {{{data.logo}}}
+</div>
+<div>
   <h2>Your vote has been cast</h2>
   <p>
     The confirmation code bellow verifies that your ballot has been cast
-    successfully. You can use this code to verify that your ballot has
-    been counted.
+    successfully. You can use this code to verify that your ballot has been
+    counted.
   </p>
-  <p>
-    Your Ballot ID: <span class="id-content">{{data.ballot_id}}</span>
-  </p>
+  <div class="info">
+    <p>
+      Your Ballot ID:
+      <span class="id-content">{{data.ballot_id}}</span>
+    </p>
+    <p>
+      Ballot tracker link:
+      <a href="{{data.ballot_tracker_url}}">Click here</a>
+    </p>
+  </div>
 </div>
+
 <div>
-  <h3>Verify that your ballot has been cast</h3>
+  <h2>Verify that your ballot has been cast</h2>
   <p>
-    You can verify your ballot has been cast correctly at any moment using
-    the following QR code:
+    You can verify your ballot has been cast correctly at any moment using the
+    following QR code:
   </p>
-  <div id="qrcode"></div>
+  {{{data.qrcode}}}
 </div>`,
         },
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
