@@ -160,6 +160,7 @@ pub struct VoteReceiptDataTemplate {
     pub title: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
+    pub ballot_tracker_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -239,8 +240,6 @@ pub async fn create_vote_receipt(
 
     let template = reports::render_template_text(&template, map)?;
 
-    dbg!(&template);
-
     let map = VoteReceiptRootTemplate {
         data: VoteReceiptDataTemplate {
             template: Some(template),
@@ -253,24 +252,15 @@ pub async fn create_vote_receipt(
                 minio_endpoint_base, public_asset_path, file_qrcode_lib
             ),
             title: vote_receipt_title.to_string(),
+            ballot_tracker_url: ballot_tracker_url.to_string(),
         },
     }
     .to_map()?;
 
     let render = reports::render_template_text(&template_hbs, map)?;
 
-    dbg!(&render);
-
-    let file_path = "output.html";
-    std::fs::write(file_path, render.clone())
-        .map_err(|err| anyhow!("Failed to write PDF to file: {}", err))?;
-
     // Gen pdf
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
-
-    let file_path = "output.pdf";
-    std::fs::write(file_path, bytes_pdf.clone())
-        .map_err(|err| anyhow!("Failed to write PDF to file: {}", err))?;
 
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "vote-receipt-", ".pdf")
