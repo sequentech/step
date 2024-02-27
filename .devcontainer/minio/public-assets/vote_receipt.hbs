@@ -9,11 +9,16 @@
     body {
       font-family: Arial, sans-serif;
       margin: auto;
-      max-width: 768px;
+      max-width: 640px;
+    }
+
+    h1, h2, h3, h4 {
+      margin-top: 48px;
+      margin-bottom: 48px;
     }
 
     .logo {
-      content: url("{{data.file_logo}}");
+      content: url("http://minio:9000/public/public-assets/sequent-logo.svg");
       text-align: center;
       margin: 16px auto;
     }
@@ -33,6 +38,13 @@
       color: #191d23;
       border-radius: 4px;
     }
+      
+    .info {
+      margin: 32px 0;
+    }
+    .info p {
+      margin: 12px 0;
+    }
 
     #qrcode {
       margin-top: 32px;
@@ -51,8 +63,8 @@
 <script>
   const qrcode = new QRCode(document.getElementById("qrcode"), {
     text: "{{data.ballot_tracker_url}}",
-    width: 256,
-    height: 256,
+    width: 180,
+    height: 180,
     colorDark: "#000000",
     colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H,
