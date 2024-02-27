@@ -265,13 +265,11 @@ pub async fn create_vote_receipt(
     std::fs::write(file_path, render.clone())
         .map_err(|err| anyhow!("Failed to write PDF to file: {}", err))?;
 
+    // Gen pdf
     let bytes_pdf = pdf::html_to_pdf(render).map_err(|err| anyhow!("{}", err))?;
 
-    // Gen pdf
-    let bytes_pdf = pdf::html_to_pdf(bytes_pdf).map_err(|err| anyhow!("{}", err))?;
-
     let file_path = "output.pdf";
-    std::fs::write(file_path, bytes_pdf)
+    std::fs::write(file_path, bytes_pdf.clone())
         .map_err(|err| anyhow!("Failed to write PDF to file: {}", err))?;
 
     let (_temp_path, temp_path_string, file_size) =
