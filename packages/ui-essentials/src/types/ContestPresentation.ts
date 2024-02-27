@@ -22,13 +22,13 @@ export enum EInvalidVotePolicy {
 
 export interface IContestPresentation {
     i18n?: Record<string, Record<string, string>>
-    allow_writeins: boolean
-    base32_writeins: boolean
-    invalid_vote_policy: EInvalidVotePolicy
+    allow_writeins?: boolean
+    base32_writeins?: boolean
+    invalid_vote_policy?: EInvalidVotePolicy
     cumulative_number_of_checkboxes?: number
-    shuffle_categories: boolean
+    shuffle_categories?: boolean
     shuffle_category_list?: Array<string>
-    show_points: boolean
+    show_points?: boolean
     enable_checkable_lists?: string
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy

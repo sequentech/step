@@ -23,12 +23,12 @@ pub fn get_candidate_0(
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_write_in: false,
+            is_explicit_invalid: Some(false),
+            is_write_in: Some(false),
             sort_order: Some(0),
             urls: None,
             invalid_vote_position: None,
-            is_category_list: false,
+            is_category_list: Some(false),
         }),
     }
 }
@@ -55,12 +55,12 @@ pub fn get_candidate_1(
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_write_in: false,
+            is_explicit_invalid: Some(false),
+            is_write_in: Some(false),
             sort_order: Some(1),
             urls: None,
             invalid_vote_position: None,
-            is_category_list: false,
+            is_category_list: Some(false),
         }),
     }
 }
@@ -87,12 +87,12 @@ pub fn get_candidate_2(
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_write_in: false,
+            is_explicit_invalid: Some(false),
+            is_write_in: Some(false),
             sort_order: Some(2),
             urls: None,
             invalid_vote_position: None,
-            is_category_list: false,
+            is_category_list: Some(false),
         }),
     }
 }
@@ -119,12 +119,12 @@ pub fn get_candidate_3(
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_write_in: false,
+            is_explicit_invalid: Some(false),
+            is_write_in: Some(false),
             sort_order: Some(3),
             urls: None,
             invalid_vote_position: None,
-            is_category_list: false,
+            is_category_list: Some(false),
         }),
     }
 }
@@ -151,12 +151,12 @@ pub fn get_candidate_4(
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_write_in: false,
+            is_explicit_invalid: Some(false),
+            is_write_in: Some(false),
             sort_order: Some(4),
             urls: None,
             invalid_vote_position: None,
-            is_category_list: false,
+            is_category_list: Some(false),
         }),
     }
 }
@@ -183,12 +183,12 @@ pub fn get_candidate_5(
         candidate_type: None,
         presentation: Some(CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_write_in: false,
+            is_explicit_invalid: Some(false),
+            is_write_in: Some(false),
             sort_order: Some(5),
             urls: None,
             invalid_vote_position: None,
-            is_category_list: false,
+            is_category_list: Some(false),
         }),
     }
 }

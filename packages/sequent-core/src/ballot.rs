@@ -221,10 +221,10 @@ pub struct CandidateUrl {
 )]
 pub struct CandidatePresentation {
     pub i18n: Option<I18nContent<I18nContent<String>>>,
-    pub is_explicit_invalid: bool,
-    pub is_category_list: bool,
+    pub is_explicit_invalid: Option<bool>,
+    pub is_category_list: Option<bool>,
     pub invalid_vote_position: Option<String>, // top|bottom
-    pub is_write_in: bool,
+    pub is_write_in: Option<bool>,
     pub sort_order: Option<i64>,
     pub urls: Option<Vec<CandidateUrl>>,
 }
@@ -233,10 +233,10 @@ impl CandidatePresentation {
     pub fn new() -> CandidatePresentation {
         CandidatePresentation {
             i18n: None,
-            is_explicit_invalid: false,
-            is_category_list: false,
+            is_explicit_invalid: Some(false),
+            is_category_list: Some(false),
             invalid_vote_position: None,
-            is_write_in: false,
+            is_write_in: Some(false),
             sort_order: None,
             urls: None,
         }
@@ -281,6 +281,7 @@ impl Candidate {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_category_list)
+            .flatten()
             .unwrap_or(false)
     }
 
@@ -288,6 +289,7 @@ impl Candidate {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_explicit_invalid)
+            .flatten()
             .unwrap_or(false)
     }
 
@@ -295,6 +297,7 @@ impl Candidate {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_write_in)
+            .flatten()
             .unwrap_or(false)
     }
 
@@ -302,14 +305,14 @@ impl Candidate {
         let mut presentation =
             self.presentation.clone().unwrap_or(CandidatePresentation {
                 i18n: None,
-                is_explicit_invalid: false,
-                is_category_list: false,
-                is_write_in: false,
+                is_explicit_invalid: Some(false),
+                is_category_list: Some(false),
+                is_write_in: Some(false),
                 sort_order: Some(0),
                 urls: None,
                 invalid_vote_position: None,
             });
-        presentation.is_write_in = is_write_in;
+        presentation.is_write_in = Some(is_write_in);
         self.presentation = Some(presentation);
     }
 }
@@ -458,13 +461,13 @@ pub struct ElectionEventPresentation {
 )]
 pub struct ContestPresentation {
     pub i18n: Option<I18nContent<I18nContent<String>>>,
-    pub allow_writeins: bool,
-    pub base32_writeins: bool,
-    pub invalid_vote_policy: InvalidVotePolicy, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub allow_writeins: Option<bool>,
+    pub base32_writeins: Option<bool>,
+    pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub cumulative_number_of_checkboxes: Option<u64>,
-    pub shuffle_categories: bool,
+    pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
-    pub show_points: bool,
+    pub show_points: Option<bool>,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
@@ -474,13 +477,13 @@ impl ContestPresentation {
     pub fn new() -> ContestPresentation {
         ContestPresentation {
             i18n: None,
-            allow_writeins: true,
-            base32_writeins: true,
-            invalid_vote_policy: InvalidVotePolicy::ALLOWED,
+            allow_writeins: Some(true),
+            base32_writeins: Some(true),
+            invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             cumulative_number_of_checkboxes: None,
-            shuffle_categories: false,
+            shuffle_categories: Some(false),
             shuffle_category_list: None,
-            show_points: false,
+            show_points: Some(false),
             enable_checkable_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
@@ -532,6 +535,7 @@ impl Contest {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.allow_writeins)
+            .flatten()
             .unwrap_or(false)
     }
 
@@ -545,21 +549,24 @@ impl Contest {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.base32_writeins)
+            .flatten()
             .unwrap_or(true)
     }
 
     pub fn allow_explicit_invalid(&self) -> bool {
-        self.presentation
-            .as_ref()
-            .map(|presentation| {
-                [
-                    InvalidVotePolicy::ALLOWED,
-                    InvalidVotePolicy::WARN,
-                    InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
-                ]
-                .contains(&presentation.invalid_vote_policy)
-            })
-            .unwrap_or(false)
+        let invalid_vote_policy = self
+            .presentation
+            .clone()
+            .unwrap_or(ContestPresentation::new())
+            .invalid_vote_policy
+            .unwrap_or(InvalidVotePolicy::ALLOWED);
+
+        [
+            InvalidVotePolicy::ALLOWED,
+            InvalidVotePolicy::WARN,
+            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+        ]
+        .contains(&invalid_vote_policy)
     }
 
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
@@ -575,6 +582,7 @@ impl Contest {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.show_points)
+            .flatten()
             .unwrap_or(false)
     }
 

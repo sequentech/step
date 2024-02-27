@@ -14,7 +14,7 @@ use crate::types::error::Result;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(max_retries = 0)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: String,
     election_event_id: String,
