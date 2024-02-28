@@ -1,4 +1,4 @@
-import React, {ComponentType, useContext, useEffect, useRef, useState} from "react"
+import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
 
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
@@ -35,7 +35,6 @@ import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatu
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ApolloContext} from "@/providers/ApolloContextProvider"
 
 export type TPublish = {
     electionId?: string
@@ -205,7 +204,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const getPublishChanges = async () => {
+        const getPublishChanges = useCallback(async () => {
             const {
                 data: {get_ballot_publication_changes: data},
             } = (await getBallotPublicationChanges({
@@ -216,19 +215,27 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             })) as any
 
             setGenerateData(data)
-        }
+        }, [ballotPublicationId, electionEventId, getBallotPublicationChanges])
 
-        const handleSetStatus = (flag: EPublishStatus) => {
-            if (status !== EPublishStatus.Stopped) {
-                setStatus(flag)
-            }
-        }
+        const handleSetStatus = useCallback(
+            (flag: EPublishStatus) => {
+                if (status !== EPublishStatus.Stopped) {
+                    setStatus(flag)
+                }
+            },
+            [status]
+        )
 
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
                 getPublishChanges()
             }
-        }, [ballotPublicationId, ballotPublication?.is_generated])
+        }, [
+            ballotPublicationId,
+            ballotPublication?.is_generated,
+            electionEventId,
+            getPublishChanges,
+        ])
 
         useEffect(() => {
             console.log("PUBLISH :: BALLOT PUBLICATION ID", ballotPublicationId)
@@ -237,7 +244,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     refetch()
                 }, 3000)
             }
-        }, [ballotPublicationId])
+        }, [refetch, ballotPublicationId])
 
         useEffect(() => {
             if (generateData) {
@@ -249,7 +256,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     })
                 }
             }
-        }, [generateData])
+        }, [t, notify, viewMode, handleSetStatus, generateData])
 
         useEffect(() => {
             const status = record?.status as IElectionEventStatus | undefined
@@ -259,7 +266,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     ? PUBLISH_STATUS_CONVERT?.[status?.voting_status]
                     : EPublishStatus.Void
             )
-        }, [record])
+        }, [record, handleSetStatus])
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
