@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        loadingDataProvider: "Cargando proveedor de datos...",
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Ballot",

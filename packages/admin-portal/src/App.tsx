@@ -56,7 +56,7 @@ interface AppProps {}
 const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
-    const {i18n} = useTranslation()
+    const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
 
@@ -73,7 +73,7 @@ const App: React.FC<AppProps> = () => {
         buildDataProvider()
     }, [])
 
-    if (!dataProvider) return <p>Loading data provider...</p>
+    if (!dataProvider) return <p>{t("loadingDataProvider")}</p>
 
     return (
         <Admin

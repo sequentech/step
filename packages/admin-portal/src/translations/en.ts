@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        loadingDataProvider: "Loading data provider...",
         breadcrumbSteps: {
             electionList: "Election List",
             ballot: "Ballot",
