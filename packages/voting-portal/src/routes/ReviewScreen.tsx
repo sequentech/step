@@ -92,8 +92,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
-    const ballotId = hashBallot(auditableBallot)
     const submit = useSubmit()
+
+    const ballotId = auditableBallot.ballot_hash
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -132,6 +133,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             }
 
             const hashableBallot = toHashableBallot(auditableBallot)
+
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotStyle.election_id,
@@ -213,13 +215,13 @@ export const ReviewScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
-    const ballotHash = auditableBallot?.ballot_hash
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
+    const ballotHash = auditableBallot?.ballot_hash
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
