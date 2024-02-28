@@ -34,6 +34,7 @@ import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 import Stepper from "../components/Stepper"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -129,6 +130,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [documentId, setDocumentId] = useState<string | null>(null)
     const [documentUrl, setDocumentUrl] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
+    const {globalSettings} = useContext(SettingsContext)
 
     const ballotId = auditableBallot?.ballot_hash
 
@@ -182,8 +184,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }
 
     function startPolling(documentId: string) {
-        const TIMEOUT = 12 * 1000 // 12s
-
         if (!polling) {
             fetchData(documentId)
 
@@ -192,7 +192,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             }, 1000)
 
             setPolling(intervalId)
-            setTimeout(() => setPolling(null), TIMEOUT)
+            setTimeout(() => setPolling(null), globalSettings.POLLING_DURATION_TIMEOUT)
         }
     }
 
