@@ -234,7 +234,7 @@ mod tests {
         let bytes_large = result.len();
 
         let mut presentation = contest.presentation.as_ref().unwrap().clone();
-        presentation.base32_writeins = true;
+        presentation.base32_writeins = Some(true);
         contest.presentation = Some(presentation);
 
         let result =

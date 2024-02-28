@@ -52,7 +52,6 @@ export const PublishList: React.FC<TPublishList> = ({
     setBallotPublicationId = () => null,
 }) => {
     const {t} = useTranslation()
-    console.log(`has electionId=${electionId}`)
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>

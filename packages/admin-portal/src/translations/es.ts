@@ -719,6 +719,12 @@ const spanishTranslation: TranslationType = {
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
+            invalidVotePolicy: {
+                "allowed": "Permitido",
+                "warn": "Advertencia",
+                "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
+                "not-allowed": "No Permitido",
+            },
             error: {},
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",

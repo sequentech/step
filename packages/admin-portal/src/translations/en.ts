@@ -717,6 +717,12 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            invalidVotePolicy: {
+                "allowed": "Allowed",
+                "warn": "Warn",
+                "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
+                "not-allowed": "Not Allowed",
+            },
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",

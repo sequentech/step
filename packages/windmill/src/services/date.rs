@@ -28,7 +28,7 @@ impl ISO8601 {
 
     pub fn timestamp_ms_utc_to_date(millis: i64) -> DateTime<Local> {
         // Convert Unix timestamp in milliseconds to DateTime<Utc>
-        let date_time_utc = Utc.timestamp_millis(millis);
+        let date_time_utc = Utc.timestamp_millis_opt(millis).unwrap();
 
         // Convert Utc DateTime to Local DateTime
         date_time_utc.with_timezone(&Local)

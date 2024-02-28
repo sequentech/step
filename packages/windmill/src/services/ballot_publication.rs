@@ -222,6 +222,7 @@ async fn get_publication_json(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    election_id: Option<String>,
 ) -> Result<Value> {
     let ballot_style_strings: Vec<Option<String>> = get_publication_ballot_styles(
         auth_headers,
@@ -234,6 +235,12 @@ async fn get_publication_json(
     .with_context(|| "can't find ballot styles")?
     .sequent_backend_ballot_style
     .into_iter()
+    .filter(|ballot_style| {
+        election_id
+            .clone()
+            .map(|id| ballot_style.election_id == id)
+            .unwrap_or(true)
+    })
     .map(|style| style.ballot_eml.clone())
     .collect();
 
@@ -266,11 +273,6 @@ pub async fn get_ballot_publication_diff(
     ballot_publication_id: String,
 ) -> Result<PublicationDiff> {
     let auth_headers = get_client_credentials().await?;
-
-    let p = PublicationStyles {
-        ballot_publication_id: ballot_publication_id.clone(),
-        ballot_styles: deserialize_str("{}").unwrap(),
-    };
 
     let ballot_publication = get_ballot_publication_by_id(
         auth_headers.clone(),
@@ -313,6 +315,7 @@ pub async fn get_ballot_publication_diff(
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication.id.clone(),
+        ballot_publication.election_id.clone(),
     )
     .await?;
 
@@ -327,6 +330,7 @@ pub async fn get_ballot_publication_diff(
             tenant_id.clone(),
             election_event_id.clone(),
             previous_publication_id.clone(),
+            ballot_publication.election_id.clone(),
         )
         .await?;
 
