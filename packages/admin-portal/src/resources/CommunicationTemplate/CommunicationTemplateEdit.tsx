@@ -32,6 +32,7 @@ import EmailEditEditor from "@/components/EmailEditEditor"
 import {Sequent_Backend_Communication_Template} from "@/gql/graphql"
 import {useWatch} from "react-hook-form"
 import {UPDATE_COMMUNICATION_TEMPLATE} from "@/queries/UpdateCommunicationTemplate"
+import {ContentInput} from "./CommunicationTemplateCreate"
 
 const CommunicationTemplateCreateStyle = {
     Box: styled.div`
@@ -88,36 +89,6 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
     const notify = useNotify()
 
     const [UpdateCommunicationTemplate] = useMutation(UPDATE_COMMUNICATION_TEMPLATE)
-
-    const EmailSmsComponents: React.FC<{
-        parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
-    }> = ({parsedValue}) => {
-        const communicationMethod = useWatch({name: "communication_method"})
-
-        if (communicationMethod === ICommunicationMethod.EMAIL) {
-            return <EmailEditEditor record={parsedValue} />
-        } else if (communicationMethod === ICommunicationMethod.SMS) {
-            return (
-                <FormStyles.TextInput
-                    minRows={4}
-                    multiline={true}
-                    source="template.sms"
-                    label={t("communicationTemplate.form.smsMessage")}
-                />
-            )
-        } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
-            return (
-                <FormStyles.TextInput
-                    minRows={4}
-                    multiline={true}
-                    source="template.document"
-                    label={t("communicationTemplate.form.document")}
-                />
-            )
-        } else {
-            return <></>
-        }
-    }
 
     const communicationTypeChoices = () => {
         return (Object.values(ICommunicationType) as ICommunicationType[]).map((value) => ({
@@ -252,7 +223,7 @@ export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = (
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
-                                            <EmailSmsComponents parsedValue={parsedValue} />
+                                            <ContentInput />
                                         </AccordionDetails>
                                     </FormStyles.AccordionExpanded>
                                 </FormControl>

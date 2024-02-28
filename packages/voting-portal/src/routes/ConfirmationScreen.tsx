@@ -182,6 +182,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }
 
     function startPolling(documentId: string) {
+        const TIMEOUT = 12 * 1000 // 12s
+
         if (!polling) {
             fetchData(documentId)
 
@@ -190,6 +192,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             }, 1000)
 
             setPolling(intervalId)
+            setTimeout(() => setPolling(null), TIMEOUT)
         }
     }
 

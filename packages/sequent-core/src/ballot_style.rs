@@ -13,21 +13,6 @@ use std::str::FromStr;
 
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
 
-fn parse_i18n_field(i18n_value: &Value, field: &str) -> Option<I18nContent> {
-    let i18n = i18n_value.as_object()?;
-    let mut content = I18nContent::new();
-
-    for (lang, details) in i18n {
-        if let Some(field_value) = details.get(field)?.as_str() {
-            content.insert(lang.to_string(), field_value.to_string());
-        } else {
-            return None;
-        }
-    }
-
-    Some(content)
-}
-
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area
@@ -49,6 +34,19 @@ pub fn create_ballot_style(
         })?
         .unwrap_or(Default::default());
 
+    let contests: Vec<ballot::Contest> = sorted_contests
+        .into_iter()
+        .map(|contest| {
+            let election_candidates = candidates
+                .clone()
+                .into_iter()
+                .filter(|c| c.contest_id == Some(contest.id.clone()))
+                .collect::<Vec<hasura_types::Candidate>>();
+
+            create_contest(contest, election_candidates)
+        })
+        .collect::<Result<Vec<ballot::Contest>>>()?;
+
     Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
@@ -69,18 +67,7 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
-        contests: sorted_contests
-            .into_iter()
-            .map(|contest| {
-                let election_candidates = candidates
-                    .clone()
-                    .into_iter()
-                    .filter(|c| c.contest_id == Some(contest.id.clone()))
-                    .collect::<Vec<hasura_types::Candidate>>();
-
-                create_contest(contest, election_candidates)
-            })
-            .collect(),
+        contests: contests,
         election_event_presentation: Some(election_event_presentation.clone()),
     })
 }
@@ -88,30 +75,68 @@ pub fn create_ballot_style(
 fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
-) -> ballot::Contest {
+) -> Result<ballot::Contest> {
     let mut sorted_candidates = candidates.clone();
     sorted_candidates.sort_by_key(|k| k.id.clone());
 
-    let mut cp = ContestPresentation::new();
-    let mut name_i18n = None;
-    let mut description_i18n = None;
+    let contest_presentation = contest
+        .presentation
+        .clone()
+        .map(|presentation_value| serde_json::from_value(presentation_value))
+        .unwrap_or(Ok(ContestPresentation::new()))?;
+    let name_i18n = contest_presentation
+        .i18n
+        .clone()
+        .map(|i18n| i18n.get("name").map(|val| val.clone()))
+        .flatten();
+    let description_i18n = contest_presentation
+        .i18n
+        .clone()
+        .map(|i18n| i18n.get("description").map(|val| val.clone()))
+        .flatten();
 
-    if let Some(incoming_cp) = contest.presentation {
-        if let Some(val) =
-            incoming_cp.get("candidates_order").and_then(Value::as_str)
-        {
-            if let Ok(val) = CandidatesOrder::from_str(val) {
-                cp.candidates_order = Some(val)
-            }
-        }
+    let candidates: Vec<ballot::Candidate> = sorted_candidates
+        .iter()
+        .enumerate()
+        .map(|(_i, candidate)| {
+            let candidate_presentation = candidate
+                .presentation
+                .clone()
+                .map(|presentation_value| {
+                    serde_json::from_value(presentation_value)
+                })
+                .unwrap_or(Ok(CandidatePresentation::new()))?;
 
-        if let Some(val) = incoming_cp.get("i18n") {
-            name_i18n = parse_i18n_field(val, "name");
-            description_i18n = parse_i18n_field(val, "description");
-        }
-    }
+            let name_i18n = candidate_presentation
+                .i18n
+                .clone()
+                .map(|i18n| i18n.get("name").map(|val| val.clone()))
+                .flatten();
+            let description_i18n = candidate_presentation
+                .i18n
+                .clone()
+                .map(|i18n| i18n.get("description").map(|val| val.clone()))
+                .flatten();
 
-    ballot::Contest {
+            Ok(ballot::Candidate {
+                id: candidate.id.clone(),
+                tenant_id: candidate.tenant_id.clone(),
+                election_event_id: candidate.election_event_id.clone(),
+                election_id: contest.election_id.clone(),
+                contest_id: contest.id.clone(),
+                name: candidate.name.clone(),
+                name_i18n,
+                description: candidate.description.clone(),
+                description_i18n,
+                alias: None,
+                alias_i18n: None,
+                candidate_type: candidate.r#type.clone(),
+                presentation: Some(candidate_presentation),
+            })
+        })
+        .collect::<Result<Vec<ballot::Candidate>>>()?;
+
+    Ok(ballot::Contest {
         id: contest.id.clone(),
         tenant_id: contest.tenant_id,
         election_event_id: contest.election_event_id,
@@ -128,45 +153,8 @@ fn create_contest(
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,
         is_encrypted: contest.is_encrypted.unwrap_or(false),
-        candidates: sorted_candidates
-            .iter()
-            .enumerate()
-            .map(|(_i, candidate)| {
-                let mut cp = CandidatePresentation::new();
-                let mut name_i18n = None;
-                let mut description_i18n = None;
-
-                if let Some(incoming_cp) = candidate.presentation.clone() {
-                    if let Some(val) =
-                        incoming_cp.get("sort_order").and_then(Value::as_i64)
-                    {
-                        cp.sort_order = Some(val);
-                    }
-
-                    if let Some(val) = incoming_cp.get("i18n") {
-                        name_i18n = parse_i18n_field(val, "name");
-                        description_i18n = parse_i18n_field(val, "description");
-                    }
-                }
-
-                ballot::Candidate {
-                    id: candidate.id.clone(),
-                    tenant_id: candidate.tenant_id.clone(),
-                    election_event_id: candidate.election_event_id.clone(),
-                    election_id: contest.election_id.clone(),
-                    contest_id: contest.id.clone(),
-                    name: candidate.name.clone(),
-                    name_i18n,
-                    description: candidate.description.clone(),
-                    description_i18n,
-                    alias: None,
-                    alias_i18n: None,
-                    candidate_type: candidate.r#type.clone(),
-                    presentation: Some(cp),
-                }
-            })
-            .collect(),
-        presentation: Some(cp),
+        candidates: candidates,
+        presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),
-    }
+    })
 }

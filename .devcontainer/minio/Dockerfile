@@ -1,7 +1,6 @@
 FROM minio/mc
 
 WORKDIR /scripts
-COPY ./* ./
+COPY . .
 
 ENTRYPOINT ["/scripts/entrypoint.sh"]
-

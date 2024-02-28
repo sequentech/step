@@ -28,6 +28,7 @@ import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {translate, translateElection} from "@sequentech/ui-essentials"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -174,6 +175,7 @@ function TreeMenuItem({
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
@@ -225,7 +227,7 @@ function TreeMenuItem({
                 <img
                     width={24}
                     height={24}
-                    src={`http://localhost:9002/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                    src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
                 <span>{name}</span>
             </p>

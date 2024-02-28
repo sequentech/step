@@ -27,8 +27,9 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::tasks::execute_tally_session::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySession;
 use crate::types::error::{Error, Result};
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
@@ -287,6 +288,18 @@ pub async fn get_eligible_voters(
     Ok(census as u64)
 }
 
+fn get_tally_session_created_at_timestamp_secs(
+    tally_session: &GetLastTallySessionExecutionSequentBackendTallySession,
+) -> Result<i64> {
+    let Some(created_at) = &tally_session.created_at.clone() else {
+        return Err(Error::String(format!(
+            "Missing created_at for tally_session"
+        )));
+    };
+    let tally_session_created_at = ISO8601::to_date(&created_at)?;
+    Ok(tally_session_created_at.timestamp())
+}
+
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
     auth_headers: AuthHeaders,
@@ -356,6 +369,8 @@ async fn map_plaintext_data(
     .expect("expected data");
 
     let tally_session = &tally_session_data.sequent_backend_tally_session[0];
+    let tally_session_created_at_timestamp_secs =
+        get_tally_session_created_at_timestamp_secs(tally_session)? as u64;
 
     let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
     else {
@@ -399,16 +414,17 @@ async fn map_plaintext_data(
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
-    if next_new_board_message_opt.is_none() {
+    let Some(next_new_board_message) = next_new_board_message_opt else {
         event!(Level::INFO, "Board has no new messages",);
         return Ok(None);
-    }
+    };
 
     // find the timestamp of the new board message.
     // We do this because once we convert into a Message, we lose the link to the board message id
-    let next_timestamp = Message::strand_deserialize(&next_new_board_message_opt.unwrap().message)?
+    let mut next_timestamp = Message::strand_deserialize(&next_new_board_message.message)?
         .statement
         .get_timestamp();
+    next_timestamp = std::cmp::max(tally_session_created_at_timestamp_secs, next_timestamp);
 
     // get the batch ids that are linked to this tally session
     let batch_ids = tally_session_data

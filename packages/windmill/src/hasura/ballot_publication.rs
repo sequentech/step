@@ -255,7 +255,7 @@ pub async fn get_previous_publication_election(
 )]
 pub struct GetPreviousPublication;
 
-#[instrument(skip_all, err)]
+#[instrument(skip(auth_headers), err, ret)]
 pub async fn get_previous_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
