@@ -3,17 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vote receipt - Sequentech</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <title>{{data.title}}</title>
+  <script src="{{data.file_qrcode_lib}}"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: auto;
-      max-width: 768px;
+      max-width: 640px;
+    }
+
+    h1, h2, h3, h4 {
+      margin-top: 48px;
+      margin-bottom: 48px;
     }
 
     .logo {
-      content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
+      content: url("{{data.file_logo}}");
       text-align: center;
       margin: 16px auto;
     }
@@ -27,11 +32,20 @@
     }
 
     .id-content {
+      print-color-adjust: exact;
       font-family: monospace;
+      font-size:11px;
       padding: 6px 12px;
       background: #ecfdf5;
       color: #191d23;
       border-radius: 4px;
+    }
+      
+    .info {
+      margin: 32px 0;
+    }
+    .info p {
+      margin: 12px 0;
     }
 
     #qrcode {
@@ -43,8 +57,6 @@
 </head>
 
 <body>
-  <div class="logo"></div>
-
   <main class="main">
       {{{data.template}}}
   </main>
@@ -53,8 +65,8 @@
 <script>
   const qrcode = new QRCode(document.getElementById("qrcode"), {
     text: "{{data.ballot_tracker_url}}",
-    width: 256,
-    height: 256,
+    width: 180,
+    height: 180,
     colorDark: "#000000",
     colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H,
