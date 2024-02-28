@@ -629,6 +629,6 @@ Examples:
 - logo
 - vendor to generate QR code
 - HTML / HBS template
-
+ 
 These assets are located here: `backend-services/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
 
