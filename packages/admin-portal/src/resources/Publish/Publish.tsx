@@ -224,10 +224,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             (status: PublishStatus) => {
                 if (publishStatus !== PublishStatus.Stopped) {
                     setPublishStatus(status)
-                    console.log(
-                        "LS -> src/resources/Publish/Publish.tsx:224 -> publish status set: ",
-                        status
-                    )
                 }
             },
             [publishStatus]
@@ -278,13 +274,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [updateStatusEventError, handleSetPublishStatus, record])
 
         useEffect(() => {
-            // record
             const status = record?.status as IElectionEventStatus | undefined
-
-            console.log(
-                "LS -> src/resources/Publish/Publish.tsx:279 -> status: ",
-                status?.voting_status
-            )
 
             handleSetPublishStatus(
                 status?.voting_status
