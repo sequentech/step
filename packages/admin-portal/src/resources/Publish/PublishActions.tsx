@@ -9,7 +9,7 @@ import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/ico
 import {Button, FilterButton, SelectColumnsButton} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
-import {EPublishStatus, EPublishStatushChanges, nextStatus} from "./EPublishStatus"
+import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -27,10 +27,10 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
-    status: EPublishStatus
+    status: PublishStatus
     onPublish?: () => void
     onGenerate: () => void
-    onChangeStatus?: (status: EPublishStatushChanges) => void
+    onChangeStatus?: (status: ElectionEventStatus) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -55,8 +55,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
-    const IconOrProgress = ({st, Icon}: {st: EPublishStatus; Icon: SvgIconComponent}) => {
-        return nextStatus(st) === status && status !== EPublishStatus.Void ? (
+    const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
+        return nextStatus(st) === status && status !== PublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
             <Icon width={24} />
@@ -70,11 +70,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         Icon,
         disabledStatus,
     }: {
-        st: EPublishStatus
+        st: PublishStatus
         label: string
         onClick: () => void
         Icon: SvgIconComponent
-        disabledStatus: Array<EPublishStatus>
+        disabledStatus: Array<PublishStatus>
     }) => (
         <Button
             onClick={onClick}
@@ -99,7 +99,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         setCurrentCallback(() => callback)
     }
 
-    const handleOnChange = (status: EPublishStatushChanges) => () => onChangeStatus(status)
+    const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 
     return (
         <>
@@ -112,15 +112,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={() =>
-                                        handleEvent(handleOnChange(EPublishStatushChanges.Open))
+                                        handleEvent(handleOnChange(ElectionEventStatus.Open))
                                     }
                                     label={t("publish.action.start")}
-                                    st={EPublishStatus.Started}
+                                    st={PublishStatus.Started}
                                     Icon={PlayCircle}
                                     disabledStatus={[
-                                        EPublishStatus.Stopped,
-                                        EPublishStatus.Started,
-                                        EPublishStatus.GeneratedLoading,
+                                        PublishStatus.Stopped,
+                                        PublishStatus.Started,
+                                        PublishStatus.GeneratedLoading,
                                     ]}
                                 />
                             )}
@@ -128,17 +128,17 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={() =>
-                                        handleEvent(handleOnChange(EPublishStatushChanges.Paused))
+                                        handleEvent(handleOnChange(ElectionEventStatus.Paused))
                                     }
                                     label={t("publish.action.pause")}
-                                    st={EPublishStatus.Paused}
+                                    st={PublishStatus.Paused}
                                     Icon={PauseCircle}
                                     disabledStatus={[
-                                        EPublishStatus.Void,
-                                        EPublishStatus.Paused,
-                                        EPublishStatus.Stopped,
-                                        EPublishStatus.Generated,
-                                        EPublishStatus.GeneratedLoading,
+                                        PublishStatus.Void,
+                                        PublishStatus.Paused,
+                                        PublishStatus.Stopped,
+                                        PublishStatus.Generated,
+                                        PublishStatus.GeneratedLoading,
                                     ]}
                                 />
                             )}
@@ -146,16 +146,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={() =>
-                                        handleEvent(handleOnChange(EPublishStatushChanges.Closed))
+                                        handleEvent(handleOnChange(ElectionEventStatus.Closed))
                                     }
                                     label={t("publish.action.stop")}
-                                    st={EPublishStatus.Stopped}
+                                    st={PublishStatus.Stopped}
                                     Icon={StopCircle}
                                     disabledStatus={[
-                                        EPublishStatus.Void,
-                                        EPublishStatus.Stopped,
-                                        EPublishStatus.Generated,
-                                        EPublishStatus.GeneratedLoading,
+                                        PublishStatus.Void,
+                                        PublishStatus.Stopped,
+                                        PublishStatus.Generated,
+                                        PublishStatus.GeneratedLoading,
                                     ]}
                                 />
                             )}
@@ -164,9 +164,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 <ButtonDisabledOrNot
                                     Icon={Publish}
                                     onClick={onGenerate}
-                                    st={EPublishStatus.Generated}
+                                    st={PublishStatus.Generated}
                                     label={t("publish.action.publish")}
-                                    disabledStatus={[EPublishStatus.Stopped]}
+                                    disabledStatus={[PublishStatus.Stopped]}
                                 />
                             )}
                         </>
@@ -176,7 +176,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 <ButtonDisabledOrNot
                                     Icon={RotateLeft}
                                     disabledStatus={[]}
-                                    st={EPublishStatus.Generated}
+                                    st={PublishStatus.Generated}
                                     label={t("publish.action.generate")}
                                     onClick={() => handleEvent(onGenerate)}
                                 />

@@ -16,7 +16,7 @@ import {
     DatagridConfigurable,
 } from "react-admin"
 
-import {EPublishStatushChanges, EPublishStatus} from "./EPublishStatus"
+import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
 import {PublishActions} from "./PublishActions"
 import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
@@ -31,13 +31,13 @@ const filters: Array<ReactElement> = [
 ]
 
 type TPublishList = {
-    status: EPublishStatus
+    status: PublishStatus
     electionId?: number | string
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
     onGenerate: () => void
-    onChangeStatus: (status: EPublishStatushChanges) => void
+    onChangeStatus: (status: ElectionEventStatus) => void
     setBallotPublicationId: (id: string | Identifier) => void
 }
 
