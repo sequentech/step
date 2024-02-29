@@ -193,10 +193,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
 
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
-                console.log(
-                    "LS -> src/resources/Publish/Publish.tsx:174 -> status: ",
-                    electionEventStatus
-                )
 
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
@@ -225,7 +221,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             (status: PublishStatus) => {
                 if (publishStatus !== PublishStatus.Stopped) {
                     setPublishStatus(status)
-                    console.log("LS -> src/resources/Publish/Publish.tsx:224 -> publish status set: ", status)
+                    console.log(
+                        "LS -> src/resources/Publish/Publish.tsx:224 -> publish status set: ",
+                        status
+                    )
                 }
             },
             [publishStatus]
@@ -253,6 +252,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (generateData) {
+                console.log(
+                    "LS -> src/resources/Publish/Publish.tsx:254 -> generateData: ABC je genere de la data",
+                    generateData
+                )
+
                 handleSetPublishStatus(PublishStatus.Generated)
 
                 if (!viewMode) {
@@ -263,15 +267,16 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }, [t, notify, viewMode, handleSetPublishStatus, generateData])
 
-        useEffect(() => {
-            const status = record?.status as IElectionEventStatus | undefined
-
-            handleSetPublishStatus(
-                status?.voting_status
-                    ? MAP_ELECTION_EVENT_STATUS_PUBLISH?.[status?.voting_status]
-                    : PublishStatus.Void
-            )
-        }, [record, handleSetPublishStatus])
+        // useEffect(() => {
+        //     const status = record?.status as IElectionEventStatus | undefined
+        //     console.log("LS -> src/resources/Publish/Publish.tsx:271 -> status: DEF vive le record ", status)
+        //
+        //     handleSetPublishStatus(
+        //         status?.voting_status
+        //             ? MAP_ELECTION_EVENT_STATUS_PUBLISH?.[status?.voting_status]
+        //             : PublishStatus.Void
+        //     )
+        // }, [record, handleSetPublishStatus])
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
