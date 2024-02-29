@@ -3,7 +3,7 @@ import React, {ComponentType, useCallback, useContext, useEffect, useState} from
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
-import {useGetOne, useNotify, useRecordContext, Identifier} from "react-admin"
+import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
@@ -63,6 +63,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
+        const refresh = useRefresh()
+
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
             null
         )
@@ -171,6 +173,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
 
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[status])
+                refresh()
 
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
@@ -192,6 +195,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
 
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
+                refresh()
 
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
@@ -251,11 +255,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (generateData) {
-                console.log(
-                    "LS -> src/resources/Publish/Publish.tsx:254 -> generateData: ABC je genere de la data",
-                    generateData
-                )
-
                 handleSetPublishStatus(PublishStatus.Generated)
 
                 if (!viewMode) {
@@ -278,16 +277,21 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }, [updateStatusEventError, handleSetPublishStatus, record])
 
-        // useEffect(() => {
-        //     const status = record?.status as IElectionEventStatus | undefined
-        //     console.log("LS -> src/resources/Publish/Publish.tsx:271 -> status: DEF vive le record ", status)
-        //
-        //     handleSetPublishStatus(
-        //         status?.voting_status
-        //             ? MAP_ELECTION_EVENT_STATUS_PUBLISH?.[status?.voting_status]
-        //             : PublishStatus.Void
-        //     )
-        // }, [record, handleSetPublishStatus])
+        useEffect(() => {
+            // record
+            const status = record?.status as IElectionEventStatus | undefined
+
+            console.log(
+                "LS -> src/resources/Publish/Publish.tsx:279 -> status: ",
+                status?.voting_status
+            )
+
+            handleSetPublishStatus(
+                status?.voting_status
+                    ? MAP_ELECTION_EVENT_STATUS_PUBLISH?.[status?.voting_status]
+                    : PublishStatus.Void
+            )
+        }, [record, handleSetPublishStatus])
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
