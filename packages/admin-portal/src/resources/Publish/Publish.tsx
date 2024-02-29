@@ -29,12 +29,12 @@ import {
 
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
-import {IElectionEventStatus} from "@sequentech/ui-essentials"
 import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
 import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatus"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IElectionEventStatus} from "@sequentech/ui-essentials"
 
 export type TPublish = {
     electionId?: string
@@ -76,9 +76,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             GENERATE_BALLOT_PUBLICATION
         )
 
-        const [updateStatusEvent] = useMutation<UpdateEventVotingStatusOutput>(
-            UPDATE_EVENT_VOTING_STATUS
-        )
+        const [updateStatusEvent, {error: updateStatusEventError}] =
+            useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
 
         const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(
             UPDATE_ELECTION_VOTING_STATUS
@@ -266,6 +265,18 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 }
             }
         }, [t, notify, viewMode, handleSetPublishStatus, generateData])
+
+        useEffect(() => {
+            if (updateStatusEventError) {
+                const status = record?.status as IElectionEventStatus | undefined
+
+                handleSetPublishStatus(
+                    status?.voting_status
+                        ? MAP_ELECTION_EVENT_STATUS_PUBLISH?.[status?.voting_status]
+                        : PublishStatus.Void
+                )
+            }
+        }, [updateStatusEventError, handleSetPublishStatus, record])
 
         // useEffect(() => {
         //     const status = record?.status as IElectionEventStatus | undefined
