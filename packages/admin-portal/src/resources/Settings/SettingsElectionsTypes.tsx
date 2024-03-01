@@ -154,6 +154,17 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
 
             <Drawer
                 anchor="right"
+                open={openDrawer}
+                onClose={handleCloseCreateDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />
+            </Drawer>
+
+            <Drawer
+                anchor="right"
                 open={open}
                 onClose={handleCloseEditDrawer}
                 PaperProps={{
