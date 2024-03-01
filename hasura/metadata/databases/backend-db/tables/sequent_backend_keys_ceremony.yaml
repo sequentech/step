@@ -67,6 +67,7 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - trustee_ids
     - threshold
@@ -85,6 +86,7 @@ select_permissions:
   role: admin-ceremony
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - trustee_ids
     - threshold

@@ -116,6 +116,7 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - is_public
     - name

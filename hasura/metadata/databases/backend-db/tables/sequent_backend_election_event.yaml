@@ -184,6 +184,7 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - alias
     - annotations

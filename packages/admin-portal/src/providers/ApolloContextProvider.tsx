@@ -9,6 +9,7 @@ import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "./SettingsContextProvider"
+import {getOperationRole} from "@/services/Permissions"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -44,15 +45,17 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             uri: globalSettings.HASURA_URL,
         })
 
-        const authLink = setContext((_, {headers}) => {
+        const authLink = setContext((operation, {headers}) => {
             // get the authentication token from local storage if it exists
             const token = getAccessToken()
             // return the headers to the context so httpLink can read them
+            const operationRole = getOperationRole(operation)
+            console.log(`operation ${operation.operationName} operationRole ${operationRole}`)
             return {
                 headers: {
                     ...headers,
                     "authorization": token ? `Bearer ${token}` : "",
-                    "x-hasura-role": role,
+                    "x-hasura-role": operationRole,
                 },
             }
         })

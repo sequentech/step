@@ -91,6 +91,7 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - name
     - type
@@ -109,6 +110,7 @@ select_permissions:
   role: area-read
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - name
     - type
