@@ -33,7 +33,7 @@ import {
     Sequent_Backend_Tenant,
 } from "../../gql/graphql"
 
-import React, {useCallback, useState} from "react"
+import React, {useCallback, useContext, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -45,6 +45,7 @@ import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -62,6 +63,7 @@ export const ElectionDataForm: React.FC = () => {
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
+    const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -547,7 +549,7 @@ export const ElectionDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                                 alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                             />
                                         ) : null}

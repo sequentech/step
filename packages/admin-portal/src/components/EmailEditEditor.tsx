@@ -3,10 +3,12 @@ import {useTranslation} from "react-i18next"
 import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import {Identifier, RaRecord, TextInput, useInput} from "react-admin"
+import {TextInput, useInput} from "react-admin"
 
 type EmailEditEditorProps = {
-    record: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
+    sourceSubject?: string
+    sourceBodyPlainText: string
+    sourceBodyHTML: string
 }
 
 const CustomRichTextEditor: React.FC<{source: string; label?: string}> = ({source}) => {
@@ -22,9 +24,12 @@ const CustomRichTextEditor: React.FC<{source: string; label?: string}> = ({sourc
     return <Editor editorRef={editorRef} value={field.value} onEditorChange={handleHtmlChange} />
 }
 
-export default function EmailEditEditor({record}: EmailEditEditorProps) {
+export default function EmailEditEditor({
+    sourceSubject,
+    sourceBodyHTML,
+    sourceBodyPlainText,
+}: EmailEditEditorProps) {
     const {t} = useTranslation()
-
     const [tab, setTab] = useState<number>(0)
 
     const changeTab = (_event: React.SyntheticEvent, newValue: number) => {
@@ -33,7 +38,7 @@ export default function EmailEditEditor({record}: EmailEditEditorProps) {
 
     return (
         <>
-            <TextInput label={t("emailEditor.subject")} source="template.email.subject" />
+            {sourceSubject && <TextInput label={t("emailEditor.subject")} source={sourceSubject} />}
             <Tabs value={tab} onChange={changeTab}>
                 <Tab key="plaintext" label={t("emailEditor.tabs.plaintext")} id="plaintext" />
                 <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" />
@@ -41,13 +46,13 @@ export default function EmailEditEditor({record}: EmailEditEditorProps) {
             <CustomTabPanel key="plaintext" value={tab} index={0}>
                 <TextInput
                     label={t("emailEditor.tabs.plaintext")}
-                    source="template.email.plaintext_body"
+                    source={sourceBodyPlainText}
                     multiline={true}
                     minRows={6}
                 />
             </CustomTabPanel>
             <CustomTabPanel key="richtext" value={tab} index={1}>
-                <CustomRichTextEditor source="template.email.html_body" />
+                <CustomRichTextEditor source={sourceBodyHTML} />
             </CustomTabPanel>
         </>
     )

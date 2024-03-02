@@ -64,9 +64,6 @@ pub async fn upload_and_return_document(
         }
     };
 
-    dbg!(&bucket);
-    dbg!(&document_s3_key);
-
     s3::upload_file_to_s3(
         /* key */ document_s3_key,
         /* is_public: always false because it's windmill that uploads the file */ false,

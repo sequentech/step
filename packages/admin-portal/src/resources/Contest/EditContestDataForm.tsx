@@ -33,17 +33,25 @@ import {
 } from "@mui/material"
 import {
     GetUploadUrlMutation,
+    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import React, {useCallback, useState} from "react"
+import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
-
+import {cloneDeep} from "lodash"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
-import {CandidatesOrder, DropFile} from "@sequentech/ui-essentials"
+import {
+    CandidatesOrder,
+    DropFile,
+    EInvalidVotePolicy,
+    IContestPresentation,
+    IElectionEventLanguageConf,
+    IElectionEventPresentation,
+} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -51,16 +59,36 @@ import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
 import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
-export type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
-    enabled_languages?: {[key: string]: boolean}
-    defaultLanguage?: string
+const CandidateRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
+
+interface EnumChoice<T> {
+    id: T
+    name: string
 }
+
+export type Sequent_Backend_Contest_Extended = Sequent_Backend_Contest &
+    RaRecord<Identifier> & {
+        candidatesOrder?: Array<Sequent_Backend_Candidate>
+    }
 
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
+    const [languageConf, setLanguageConf] = useState<IElectionEventLanguageConf>({
+        enabled_language_codes: ["en"],
+        default_language_code: "en",
+    })
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -68,9 +96,12 @@ export const ContestDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
 
-    const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
-        id: record.election_event_id,
-    })
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {
+            id: record.election_event_id,
+        }
+    )
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
@@ -86,143 +117,96 @@ export const ContestDataForm: React.FC = () => {
         filter: {contest_id: record.id},
     })
 
-    const votingTypesChoices = () => {
-        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
-            id: value,
-            name: t(`contestScreen.options.${value.toLowerCase()}`),
-        }))
-    }
-
-    const countingAlgorithmChoices = () => {
-        return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
-            id: value,
-            name: t(`contestScreen.options.${value.toLowerCase()}`),
-        }))
-    }
-
-    const orderAnswerChoices = () => {
-        return (Object.values(CandidatesOrder) as CandidatesOrder[]).map((value) => ({
-            id: value,
-            name: t(`contestScreen.options.${value.toLowerCase()}`),
-        }))
-    }
-
-    const buildLanguageSettings = () => {
-        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
-        const temp = []
-        for (const item of tempSettings) {
-            const enabled_item: any = {}
-            enabled_item[item] = true
-            temp.push(enabled_item)
+    useEffect(() => {
+        if (!electionEvent) {
+            return
         }
-        return temp
+        let presentation = electionEvent.presentation as IElectionEventPresentation | undefined
+        if (!presentation?.language_conf) {
+            return
+        }
+        setLanguageConf(presentation.language_conf)
+    }, [electionEvent?.presentation?.language_conf])
+
+    const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
+        return Object.values(IVotingType).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const countingAlgorithmChoices = (): Array<EnumChoice<ICountingAlgorithm>> => {
+        return Object.values(ICountingAlgorithm).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const orderAnswerChoices = (): Array<EnumChoice<CandidatesOrder>> => {
+        return Object.values(CandidatesOrder).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const invalidVotePolicyChoices = (): Array<EnumChoice<EInvalidVotePolicy>> => {
+        return Object.values(EInvalidVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.invalidVotePolicy.${value.toLowerCase()}`),
+        }))
     }
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
-            if (!data) {
-                return incoming as Sequent_Backend_Contest_Extended
+            if (!electionEvent) {
+                return incoming
             }
-            const temp: Sequent_Backend_Contest_Extended = {...incoming}
+            const newContest: Sequent_Backend_Contest_Extended = cloneDeep(incoming)
+            const newPresentation = (newContest.presentation ?? {}) as IContestPresentation
 
-            let languageSettings
-
-            const votingSettings = data?.voting_channels
-
-            // languages
-            temp.enabled_languages = {}
-
-            if (
-                incoming?.presentation?.language_conf?.enabled_language_codes &&
-                incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-            ) {
-                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
-
-                // if presentation has lang then set from event
-                // setDefaultLangValue(incoming?.presentation?.language_conf?.default_language_code)
-                temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
-                for (const setting of languageSettings) {
-                    const enabled_item: any = {}
-
-                    const isInEnabled =
-                        incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-                            ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => setting === item
-                              )
-                            : false
-
-                    if (isInEnabled) {
-                        enabled_item[setting] = true
-                    } else {
-                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
-                    }
-
-                    temp.enabled_languages = {
-                        ...temp.enabled_languages,
-                        ...enabled_item,
-                    }
-                }
-            } else {
-                // if presentation has no lang then use always de default settings
-                languageSettings = buildLanguageSettings()
-
-                temp.defaultLanguage = ""
-                let enabled_items: any = {}
-                for (const item of languageSettings) {
-                    enabled_items = {...enabled_items, ...item}
-                }
-                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
-            }
-
-            // set english first lang always
-            if (temp.enabled_languages) {
-                const en = {en: temp.enabled_languages["en"]}
-                delete temp.enabled_languages.en
-                const rest = temp.enabled_languages
-                temp.enabled_languages = {...en, ...rest}
-            }
-
-            // voting channels
-            const all_channels = {...incoming?.voting_channels}
-            delete incoming.voting_channels
-            temp.voting_channels = {}
-            for (const setting in votingSettings) {
-                const enabled_item: any = {}
-                enabled_item[setting] =
-                    setting in all_channels ? all_channels[setting] : votingSettings[setting]
-                temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-            }
-
+            newContest.presentation = newPresentation
             // name, alias and description fields
-            if (!temp.presentation || !temp.presentation?.i18n) {
-                temp.presentation = {i18n: {en: {}}}
+            if (!newContest.presentation) {
+                newContest.presentation = {i18n: {en: {}}}
             }
-            temp.presentation.i18n.en.name = temp.name
-            temp.presentation.i18n.en.alias = temp.alias
-            temp.presentation.i18n.en.description = temp.description
+            if (!newContest.presentation.i18n) {
+                newContest.presentation.i18n = {en: {}}
+            }
+            if (!newContest.presentation.i18n.en) {
+                newContest.presentation.i18n.en = {}
+            }
+            if (!newContest.presentation.i18n.en.name && newContest.name) {
+                newContest.presentation.i18n.en.name = newContest.name
+            }
+            if (!newContest.presentation.i18n.en.name && newContest.name) {
+                newContest.presentation.i18n.en.name = newContest.name
+            }
+            if (!newContest.presentation.i18n.en.alias && newContest.alias) {
+                newContest.presentation.i18n.en.alias = newContest.alias
+            }
+            if (!newContest.presentation.i18n.en.description && newContest.description) {
+                newContest.presentation.i18n.en.description = newContest.description
+            }
+            newContest.name = newContest.presentation.i18n.en.name
+            newContest.alias = newContest.presentation.i18n.en.alias
+            newContest.description = newContest.presentation.i18n.en.description
 
             // defaults
-            temp.voting_type = temp.voting_type || IVotingType.NON_PREFERENTIAL
-            temp.counting_algorithm =
-                temp.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
-            temp.min_votes = temp.min_votes || 0
-            // temp.max_votes = temp.max_votes // || 1
-            // temp.winning_candidates_num = temp.winning_candidates_num // || 1
+            newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
+            newContest.counting_algorithm =
+                newContest.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
+            newContest.min_votes = newContest.min_votes || 0
 
-            temp.contest_candidates_order =
-                temp.presentation?.candidates_order || CandidatesOrder.ALPHABETICAL
+            newContest.presentation.candidates_order =
+                newContest.presentation.candidates_order || CandidatesOrder.ALPHABETICAL
 
-            let tempCandidates = candidates && candidates.length > 0 ? [...candidates] : []
-            if (temp.contest_candidates_order === CandidatesOrder.CUSTOM) {
-                tempCandidates.sort(
-                    (a, b) => a.presentation?.sort_order - b.presentation?.sort_order
-                )
-            }
-            temp.candidatesOrder = tempCandidates
+            newContest.presentation.invalid_vote_policy =
+                newContest.presentation.invalid_vote_policy ||
+                EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT
 
-            return temp
+            return newContest
         },
-        [data, candidates, buildLanguageSettings]
+        [languageConf, electionEvent, candidates]
     )
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -239,14 +223,12 @@ export const ContestDataForm: React.FC = () => {
         return errors
     }
 
-    const renderTabs = (parsedValue: any) => {
-        let tabNodes = []
+    const renderTabs = () => {
+        let tabNodes: Array<ReactNode> = []
 
-        for (const lang in parsedValue?.enabled_languages) {
-            if (parsedValue?.enabled_languages[lang]) {
-                tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
-            }
-        }
+        languageConf.enabled_language_codes?.forEach((lang) => {
+            tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+        })
 
         // reset actived tab to first tab if only one
         if (tabNodes.length === 1) {
@@ -256,43 +238,32 @@ export const ContestDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const renderTabContent = (parsedValue: any) => {
-        let tabNodes = []
+    const renderTabContent = () => {
+        let tabNodes: Array<ReactNode> = []
         let index = 0
-        for (const lang in parsedValue?.enabled_languages) {
-            if (parsedValue?.enabled_languages[lang]) {
-                tabNodes.push(
-                    <CustomTabPanel key={lang} value={value} index={index}>
-                        <div style={{marginTop: "16px"}}>
-                            <TextInput
-                                source={`presentation.i18n[${lang}].name`}
-                                label={t("electionEventScreen.field.name")}
-                            />
-                            <TextInput
-                                source={`presentation.i18n[${lang}].alias`}
-                                label={t("electionEventScreen.field.alias")}
-                            />
-                            <TextInput
-                                source={`presentation.i18n[${lang}].description`}
-                                label={t("electionEventScreen.field.description")}
-                            />
-                        </div>
-                    </CustomTabPanel>
-                )
-                index++
-            }
-        }
+        languageConf.enabled_language_codes?.forEach((lang) => {
+            tabNodes.push(
+                <CustomTabPanel key={lang} value={value} index={index}>
+                    <div style={{marginTop: "16px"}}>
+                        <TextInput
+                            source={`presentation.i18n[${lang}].name`}
+                            label={t("electionEventScreen.field.name")}
+                        />
+                        <TextInput
+                            source={`presentation.i18n[${lang}].alias`}
+                            label={t("electionEventScreen.field.alias")}
+                        />
+                        <TextInput
+                            source={`presentation.i18n[${lang}].description`}
+                            label={t("electionEventScreen.field.description")}
+                        />
+                    </div>
+                </CustomTabPanel>
+            )
+            index++
+        })
         return tabNodes
     }
-
-    const CandidateRows = styled.div`
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        cursor: pointer;
-        margin-bottom: 0.1rem;
-        padding: 1rem;
-    `
 
     const handleFiles = async (files: FileList | null) => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
@@ -336,7 +307,7 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
-    return data ? (
+    return electionEvent ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
@@ -368,9 +339,9 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs(parsedValue)}
+                                    {renderTabs()}
                                 </Tabs>
-                                {renderTabContent(parsedValue)}
+                                {renderTabContent()}
                             </AccordionDetails>
                         </Accordion>
 
@@ -416,21 +387,20 @@ export const ContestDataForm: React.FC = () => {
                                     </ContestStyles.Title>
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
-                            {/* <AccordionDetails sx={{maxHeight: "800px", overflowY: "scroll"}}> */}
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
-                                    source="contest_candidates_order"
+                                    source="presentation.candidates_order"
                                     choices={orderAnswerChoices()}
                                     validate={required()}
                                 />
-
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        return formData?.contest_candidates_order === "custom" ? (
+                                        return formData?.presentation?.candidates_order ===
+                                            CandidatesOrder.CUSTOM ? (
                                             <CandidateRows>
                                                 <Typography
                                                     variant="body1"
@@ -450,6 +420,12 @@ export const ContestDataForm: React.FC = () => {
                                         ) : null
                                     }}
                                 </FormDataConsumer>
+
+                                <SelectInput
+                                    source="presentation.invalid_vote_policy"
+                                    choices={invalidVotePolicyChoices()}
+                                    validate={required()}
+                                />
                             </AccordionDetails>
                         </Accordion>
 
@@ -475,7 +451,7 @@ export const ContestDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                                 alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                             />
                                         ) : null}

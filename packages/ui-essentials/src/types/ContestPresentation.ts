@@ -1,0 +1,35 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+export enum CandidatesOrder {
+    RANDOM = "random",
+    CUSTOM = "custom",
+    ALPHABETICAL = "alphabetical",
+}
+
+export enum ECandidatesSelectionPolicy {
+    RADIO = "radio", // if you select one, the previously selected one gets unselected
+    CUMULATIVE = "cumulative", // default behaviour
+}
+
+export enum EInvalidVotePolicy {
+    ALLOWED = "allowed",
+    WARN = "warn",
+    WARN_INVALID_IMPLICIT_AND_EXPLICIT = "warn-invalid-implicit-and-explicit",
+    NOT_ALLOWED = "not-allowed",
+}
+
+export interface IContestPresentation {
+    i18n?: Record<string, Record<string, string>>
+    allow_writeins?: boolean
+    base32_writeins?: boolean
+    invalid_vote_policy?: EInvalidVotePolicy
+    cumulative_number_of_checkboxes?: number
+    shuffle_categories?: boolean
+    shuffle_category_list?: Array<string>
+    show_points?: boolean
+    enable_checkable_lists?: string
+    candidates_order?: CandidatesOrder
+    candidates_selection_policy?: ECandidatesSelectionPolicy
+}

@@ -619,3 +619,16 @@ cargo clean
 
 [cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html
 [yarn workspace]: https://yarnpkg.com/features/workspaces
+
+## Public assets
+
+### Vote receipt
+
+The user can create a vote receipt in PDF from the confirmation screen on the `voting-portal`. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
+Examples: 
+- logo
+- vendor to generate QR code
+- HTML / HBS template
+ 
+These assets are located here: `backend-services/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
+

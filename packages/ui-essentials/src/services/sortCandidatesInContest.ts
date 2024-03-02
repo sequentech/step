@@ -1,4 +1,5 @@
-import {CandidatesOrder, ICandidate} from "@root/types/CoreTypes"
+import {ICandidate} from "@root/types/CoreTypes"
+import {CandidatesOrder} from "@root/types/ContestPresentation"
 import {cloneDeep} from "lodash"
 import {shuffle} from "moderndash"
 

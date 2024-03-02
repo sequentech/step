@@ -75,35 +75,42 @@ const CommunicationTemplateTitleContainer: React.FC<any> = ({children, title}) =
     )
 }
 
-const ContentInput: React.FC<{
-    parsedValue: Sequent_Backend_Communication_Template
-}> = ({parsedValue}) => {
+export const ContentInput: React.FC = () => {
     const {t} = useTranslation()
     const communicationMethod = useWatch({name: "communication_method"})
 
-    if (communicationMethod === ICommunicationMethod.EMAIL) {
-        return <EmailEditEditor record={parsedValue} />
-    } else if (communicationMethod === ICommunicationMethod.SMS) {
-        return (
-            <FormStyles.TextInput
-                minRows={4}
-                multiline={true}
-                source="template.sms"
-                label={t("communicationTemplate.form.smsMessage")}
-            />
-        )
-    } else if (communicationMethod === ICommunicationMethod.DOCUMENT) {
-        return (
-            <FormStyles.TextInput
-                minRows={4}
-                multiline={true}
-                source="template.document"
-                label={t("communicationTemplate.form.document")}
-            />
-        )
-    } else {
-        return <></>
+    switch (communicationMethod) {
+        case ICommunicationMethod.EMAIL:
+            return (
+                <EmailEditEditor
+                    key={`editor-${communicationMethod}`}
+                    sourceSubject="template.email.subject"
+                    sourceBodyHTML="template.email.html_body"
+                    sourceBodyPlainText="template.email.plaintext_body"
+                />
+            )
+
+        case ICommunicationMethod.SMS:
+            return (
+                <FormStyles.TextInput
+                    minRows={4}
+                    multiline={true}
+                    source="template.sms"
+                    label={t("communicationTemplate.form.smsMessage")}
+                />
+            )
+
+        case ICommunicationMethod.DOCUMENT:
+            return (
+                <EmailEditEditor
+                    key={`editor-${communicationMethod}`}
+                    sourceBodyHTML="template.document"
+                    sourceBodyPlainText="template.document"
+                />
+            )
     }
+
+    return <></>
 }
 
 export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate> = ({close}) => {
@@ -144,8 +151,6 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        console.log("Communication Template", data)
-
         const {data: created, errors} = await createCommunicationTemplate({
             variables: {
                 object: {
@@ -190,6 +195,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                 document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
             }
         }
+
         return temp
     }
 
@@ -253,11 +259,7 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
                                                 validate={required()}
                                                 choices={communicationMethodChoices()}
                                             />
-                                            <ContentInput
-                                                parsedValue={
-                                                    parsedValue as Sequent_Backend_Communication_Template
-                                                }
-                                            />
+                                            <ContentInput />
                                         </AccordionDetails>
                                     </FormStyles.AccordionExpanded>
                                 </FormControl>

@@ -54,10 +54,19 @@ export const customBuildQuery =
             raFetchType === "GET_LIST"
         ) {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
-            if (!params?.filter?.election_id && ret?.variables?.where?._and) {
-                ret.variables.where._and.push({
-                    election_id: {_is_null: true},
-                })
+            if (ret?.variables?.where?._and) {
+                if (!params?.filter?.election_id) {
+                    ret.variables.where._and.push({
+                        election_id: {_is_null: true},
+                    })
+                } else {
+                    let indexToReplace = ret.variables.where._and.findIndex(
+                        (el: {election_id?: any}) => el?.election_id
+                    )
+                    ret.variables.where._and[indexToReplace] = {
+                        election_ids: {_contains: [params?.filter?.election_id]},
+                    }
+                }
             }
             return ret
         } else if (resourceName === "user" && raFetchType === "GET_LIST") {
