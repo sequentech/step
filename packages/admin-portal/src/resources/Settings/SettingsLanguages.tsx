@@ -10,6 +10,7 @@ import {useTranslation} from "react-i18next"
 import {useEditController} from "react-admin"
 
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ILanguageConf, ITenantSettings, getLanguages} from "@sequentech/ui-essentials"
 
 const SettingsLanguagesStyles = {
     Wrapper: styled.div`
@@ -29,7 +30,8 @@ const SettingsLanguagesStyles = {
 
 export const SettingsLanguages: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+    const listLangs = getLanguages(i18n)
     const {record, save, isLoading} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
@@ -37,25 +39,39 @@ export const SettingsLanguages: React.FC<void> = () => {
         undoable: false,
     })
 
-    const [setting, setSetting] = useState<any>({
-        english: record?.settings?.english || true,
-        spanish: record?.settings?.spanish || false,
-    })
+    const defaultLanguageConf: ILanguageConf = {
+        enabled_language_codes: ["en"],
+        default_language_code: "en",
+    }
 
-    const handleToggle = (method: any) => {
-        const updatedSetting = {
-            ...setting,
-            [method]: !setting[method],
+    const [languageConf, setLanguageConf] = useState<ILanguageConf>(
+        (record?.settings as ITenantSettings | undefined)?.language_conf ?? defaultLanguageConf
+    )
+
+    const checkIncludesLang = (lang: string) =>
+        languageConf.enabled_language_codes?.includes(lang) ?? false
+
+    const handleToggle = (lang: string) => {
+        const includesLang = checkIncludesLang(lang)
+
+        const currentLangs = languageConf.enabled_language_codes ?? []
+
+        const enabledLangs = includesLang
+            ? currentLangs.filter((code) => code !== lang)
+            : [...currentLangs, lang]
+
+        const updatedLanguageConf = {
+            ...languageConf,
+            enabled_language_codes: enabledLangs,
         }
 
-        setSetting(updatedSetting)
+        setLanguageConf(updatedLanguageConf)
 
         if (save) {
             save({
                 settings: {
-                    ...(record?.settings ? record.settings : {}),
-                    english: updatedSetting.english,
-                    spanish: updatedSetting.spanish,
+                    ...((record?.settings as ITenantSettings | undefined) ?? {}),
+                    language_conf: updatedLanguageConf,
                 },
             })
         }
@@ -63,10 +79,10 @@ export const SettingsLanguages: React.FC<void> = () => {
 
     useEffect(() => {
         if (record.settings) {
-            setSetting({
-                english: record?.settings?.english || true,
-                spanish: record?.settings?.spanish || false,
-            })
+            setLanguageConf(
+                (record?.settings as ITenantSettings | undefined)?.language_conf ??
+                    defaultLanguageConf
+            )
         }
     }, [record])
 
@@ -74,16 +90,13 @@ export const SettingsLanguages: React.FC<void> = () => {
 
     return (
         <SettingsLanguagesStyles.Wrapper>
-            {Object.keys(setting).map((method: string) => (
-                <SettingsLanguagesStyles.Content key={method}>
+            {listLangs.map((lang: string) => (
+                <SettingsLanguagesStyles.Content key={lang}>
                     <SettingsLanguagesStyles.Text>
-                        {t(`electionTypeScreen.common.${method}`)}
+                        {t("language", {lng: lang})}
                     </SettingsLanguagesStyles.Text>
 
-                    <Switch
-                        checked={setting?.[method] || false}
-                        onChange={() => handleToggle(method)}
-                    />
+                    <Switch checked={checkIncludesLang(lang)} onChange={() => handleToggle(lang)} />
                 </SettingsLanguagesStyles.Content>
             ))}
         </SettingsLanguagesStyles.Wrapper>

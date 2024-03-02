@@ -163,8 +163,6 @@ const englishTranslation = {
                 settingSubtitle: "General Configuration",
                 sms: "SMS",
                 mail: "Mails",
-                spanish: "Spanish",
-                english: "English",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",

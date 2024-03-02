@@ -49,7 +49,7 @@ import {
     DropFile,
     EInvalidVotePolicy,
     IContestPresentation,
-    IElectionEventLanguageConf,
+    ILanguageConf,
     IElectionEventPresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -85,7 +85,7 @@ export const ContestDataForm: React.FC = () => {
 
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [languageConf, setLanguageConf] = useState<IElectionEventLanguageConf>({
+    const [languageConf, setLanguageConf] = useState<ILanguageConf>({
         enabled_language_codes: ["en"],
         default_language_code: "en",
     })

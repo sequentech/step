@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
+import {Admin, CustomRoutes, DataProvider, Resource, useGetOne} from "react-admin"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
@@ -50,6 +50,8 @@ import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/Commu
 import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
 import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
+import {TenantContext} from "./providers/TenantContextProvider"
+import {Sequent_Backend_Tenant} from "./gql/graphql"
 
 interface AppProps {}
 

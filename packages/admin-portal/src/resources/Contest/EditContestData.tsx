@@ -1,5 +1,5 @@
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import {CandidatesOrder} from "@sequentech/ui-essentials"
+import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-essentials"
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
@@ -31,21 +31,16 @@ export const EditContestData: React.FC = () => {
 
         delete data.candidatesOrder
 
+        const presentation = data?.presentation as IContestPresentation | undefined
+        const i18n = presentation?.i18n ?? {}
+
         // name, alias and description fields
-        const fromPresentationName =
-            data?.presentation?.i18n?.en?.name ||
-            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].name ||
-            ""
+        const fromPresentationName = i18n?.en?.name || i18n[Object.keys(i18n)[0]]?.name || ""
         data.name = fromPresentationName
-        const fromPresentationAlias =
-            data?.presentation?.i18n?.en?.alias ||
-            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].alias ||
-            ""
+        const fromPresentationAlias = i18n?.en?.alias || i18n[Object.keys(i18n)[0]]?.alias || ""
         data.alias = fromPresentationAlias
         const fromPresentationDescription =
-            data?.presentation?.i18n?.en?.description ||
-            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].description ||
-            ""
+            i18n?.en?.description || i18n[Object.keys(i18n)[0]]?.description || ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
 

@@ -30,7 +30,7 @@ import {
     useNotify,
 } from "react-admin"
 
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, ITenantScheduledEvent, ITenantSettings} from "@sequentech/ui-essentials"
 import {IconButton} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ActionsColumn} from "@/components/ActionButons"
@@ -42,7 +42,6 @@ import {SettingsSchedulesEdit} from "./SettingsSchedulesEdit"
 import {SettingsSchedulesCreate} from "./SettingsSchedulesCreate"
 import {ISchedule} from "./constants"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
-import {ITenantScheduledEvent, ITenantSettings} from "@/types/settings"
 
 const EmptyBox = styled(Box)`
     display: flex;

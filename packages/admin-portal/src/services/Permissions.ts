@@ -148,8 +148,8 @@ const AdminOperationMap: Record<string, string> = {
     // trustee
     sequent_backend_trustee: "trustee-read",
     sequent_backend_trustees: "trustee-read",
-    insert_sequent_backend_trustee: "trustee-write",
-    insert_sequent_backend_trustees: "trustee-write",
+    insert_sequent_backend_trustee: "admin-user", //"trustee-write",
+    insert_sequent_backend_trustees: "admin-user", //"trustee-write",
     update_sequent_backend_trustee: "trustee-write",
     update_sequent_backend_trustees: "trustee-write",
     delete_sequent_backend_trustee: "trustee-write",

@@ -2,13 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export interface IElectionLanguageConf {
-    enabled_language_codes?: Array<string>
-    default_language_code: string
-}
+import {ILanguageConf} from "./LanguageConf"
 
 export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
-    language_conf?: IElectionLanguageConf
+    language_conf?: ILanguageConf
     // more missing
 }
