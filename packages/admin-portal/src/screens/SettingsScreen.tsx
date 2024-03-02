@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
 import {Box} from "@mui/system"
 import {Resource} from "react-admin"
@@ -16,6 +19,7 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
 import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
 import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
+import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -82,6 +86,12 @@ export const SettingsScreen: React.FC = () => {
                                 edit={SettingsSchedulesCreate}
                                 show={SettingsSchedulesCreate}
                             />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.trustees"),
+                        component: () => (
+                            <Resource name="sequent_backend_trustee" list={SettingsTrustees} />
                         ),
                     },
                 ]}

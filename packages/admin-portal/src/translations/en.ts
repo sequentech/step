@@ -181,6 +181,7 @@ const englishTranslation = {
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
                 schedules: "SCHEDULED EVENTS",
+                trustees: "TRUSTEES",
             },
         },
         scheduleScreen: {

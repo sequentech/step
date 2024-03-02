@@ -183,6 +183,7 @@ const spanishTranslation: TranslationType = {
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
                 schedules: "EVENTOS PROGRAMADOS",
+                trustees: "AUTORIDADES",
             },
         },
         scheduleScreen: {
