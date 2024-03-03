@@ -16,9 +16,8 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_consolidated_ballot_encoding
     - is_kiosk
@@ -46,9 +45,8 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_consolidated_ballot_encoding
     - is_kiosk
@@ -128,9 +126,8 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -159,10 +156,39 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: election-event-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_consolidated_ballot_encoding
+    - is_kiosk
+    - spoil_ballot_option
+    - name
+    - num_allowed_revotes
+    - annotations
+    - dates
+    - labels
+    - presentation
+    - receipts
+    - statistics
+    - status
+    - voting_channels
+    - alias
+    - description
+    - eml
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     allow_aggregations: true
@@ -193,7 +219,6 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
-    allow_aggregations: true
     columns:
     - alias
     - annotations
@@ -223,7 +248,9 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_consolidated_ballot_encoding
     - is_kiosk
@@ -248,13 +275,14 @@ update_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_consolidated_ballot_encoding
     - is_kiosk
@@ -279,9 +307,8 @@ update_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: election-event-write
 - comment: ""
   permission:
@@ -315,18 +342,16 @@ delete_permissions:
 - comment: ""
   permission:
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     filter: {}
   role: service-account
-- comment: ""
-  permission:
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-  role: election-event-write

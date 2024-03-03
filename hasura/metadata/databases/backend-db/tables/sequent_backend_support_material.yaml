@@ -5,9 +5,8 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_hidden
     - annotations
@@ -21,25 +20,6 @@ insert_permissions:
     - id
     - tenant_id
   role: admin-user
-- comment: ""
-  permission:
-    check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: support-material-write
 - comment: ""
   permission:
     check: {}
@@ -56,6 +36,24 @@ insert_permissions:
     - id
     - tenant_id
   role: service-account
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_hidden
+    - annotations
+    - data
+    - labels
+    - document_id
+    - kind
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: support-material-write
 select_permissions:
 - comment: ""
   permission:
@@ -73,30 +71,9 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-  role: support-material-read
 - comment: ""
   permission:
     allow_aggregations: true
@@ -114,6 +91,44 @@ select_permissions:
     - tenant_id
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_hidden
+    - annotations
+    - data
+    - labels
+    - document_id
+    - kind
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: support-material-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_hidden
+    - annotations
+    - data
+    - labels
+    - document_id
+    - kind
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: support-material-write
 - comment: ""
   permission:
     allow_aggregations: true
@@ -137,7 +152,9 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_hidden
     - annotations
@@ -151,30 +168,9 @@ update_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - is_hidden
-    - annotations
-    - data
-    - labels
-    - document_id
-    - kind
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-  role: support-material-write
 - comment: ""
   permission:
     check: {}
@@ -192,13 +188,33 @@ update_permissions:
     - tenant_id
     filter: {}
   role: service-account
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_hidden
+    - annotations
+    - data
+    - labels
+    - document_id
+    - kind
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: support-material-write
 delete_permissions:
 - comment: ""
   permission:
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -207,7 +223,6 @@ delete_permissions:
 - comment: ""
   permission:
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: support-material-write

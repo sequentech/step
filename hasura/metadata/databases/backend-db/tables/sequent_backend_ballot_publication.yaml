@@ -5,9 +5,8 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - created_at
@@ -22,6 +21,25 @@ insert_permissions:
     - published_at
     - tenant_id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - election_ids
+    - is_generated
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - published_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+  role: publish-write
 - comment: ""
   permission:
     check: {}
@@ -39,26 +57,6 @@ insert_permissions:
     - id
     - tenant_id
   role: service-account
-- comment: ""
-  permission:
-    check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - created_by_user_id
-    - deleted_at
-    - election_event_id
-    - election_id
-    - election_ids
-    - id
-    - is_generated
-    - labels
-    - published_at
-    - tenant_id
-  role: publish-write
 select_permissions:
 - comment: ""
   permission:
@@ -77,10 +75,49 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - election_ids
+    - is_generated
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - published_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: publish-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - election_ids
+    - is_generated
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - published_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: publish-write
 - comment: ""
   permission:
     allow_aggregations: true
@@ -99,31 +136,12 @@ select_permissions:
     - tenant_id
     filter: {}
   role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-  role: publish-read
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - election_ids
     - is_generated
@@ -138,10 +156,31 @@ update_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - election_ids
+    - is_generated
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - published_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: publish-write
 - comment: ""
   permission:
     check: {}
@@ -160,24 +199,10 @@ update_permissions:
     - tenant_id
     filter: {}
   role: service-account
+delete_permissions:
 - comment: ""
   permission:
-    check: {}
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: publish-write

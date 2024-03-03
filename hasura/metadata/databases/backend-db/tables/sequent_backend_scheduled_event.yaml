@@ -5,13 +5,13 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - created_by
     - cron_config
     - event_processor
+    - task_id
     - annotations
     - event_payload
     - labels
@@ -46,6 +46,7 @@ select_permissions:
     - created_by
     - cron_config
     - event_processor
+    - task_id
     - annotations
     - event_payload
     - labels
@@ -55,9 +56,8 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -80,11 +80,14 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - created_by
     - cron_config
     - event_processor
+    - task_id
     - annotations
     - event_payload
     - labels
@@ -94,9 +97,8 @@ update_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -120,9 +122,8 @@ delete_permissions:
 - comment: ""
   permission:
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:

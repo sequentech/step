@@ -4,7 +4,9 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - created_at
@@ -15,7 +17,7 @@ insert_permissions:
     - slug
     - updated_at
     - voting_channels
-  role: tenant-write
+  role: admin-user
 - comment: ""
   permission:
     check: {}
@@ -44,25 +46,9 @@ select_permissions:
     - slug
     - updated_at
     - voting_channels
-    filter: {}
-  role: tenant-read
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - id
-    - is_active
-    - labels
-    - settings
-    - slug
-    - updated_at
-    - voting_channels
     filter:
-      _and:
-      - id:
-          _eq: X-Hasura-Tenant-Id
+      id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -98,7 +84,9 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_active
     - annotations
@@ -110,25 +98,9 @@ update_permissions:
     - updated_at
     - id
     filter:
-      _and:
-      - id:
-          _eq: X-Hasura-Tenant-Id
+      id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - is_active
-    - annotations
-    - labels
-    - settings
-    - voting_channels
-    - slug
-    - created_at
-    - updated_at
-    - id
-    filter: {}
-  role: tenant-write
 - comment: ""
   permission:
     check: {}
@@ -147,8 +119,10 @@ update_permissions:
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
-  role: tenant-write
+    filter:
+      id:
+        _eq: X-Hasura-Tenant-Id
+  role: admin-user
 - comment: ""
   permission:
     filter: {}

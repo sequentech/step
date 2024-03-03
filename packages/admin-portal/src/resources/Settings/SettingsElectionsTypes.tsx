@@ -93,7 +93,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     }
 
     const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
+        deleteOne("sequent_backend_election_type", {id: deleteId})
         setDeleteId(undefined)
     }
 

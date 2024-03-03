@@ -5,9 +5,8 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - labels
@@ -69,9 +68,8 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -105,12 +103,32 @@ select_permissions:
     - updated_at
     - id
     - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: communication-template-write
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - id
+    - tenant_id
     filter: {}
   role: service-account
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - annotations
     - labels
@@ -123,9 +141,8 @@ update_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -142,6 +159,8 @@ update_permissions:
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: x-hasura-
   role: communication-template-write
 - comment: ""
   permission:
@@ -163,9 +182,8 @@ delete_permissions:
 - comment: ""
   permission:
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:

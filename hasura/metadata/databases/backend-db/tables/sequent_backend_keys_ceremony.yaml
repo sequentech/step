@@ -33,6 +33,25 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
+    - trustee_ids
+    - threshold
+    - annotations
+    - labels
+    - status
+    - execution_status
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: admin-ceremony
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
     - annotations
     - created_at
     - election_event_id
@@ -65,25 +84,6 @@ select_permissions:
     - trustee_ids
     filter: {}
   role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - trustee_ids
-    - threshold
-    - annotations
-    - labels
-    - status
-    - execution_status
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-ceremony
 - comment: ""
   permission:
     allow_aggregations: true

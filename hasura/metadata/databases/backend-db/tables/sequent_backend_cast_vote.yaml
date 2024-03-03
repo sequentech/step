@@ -71,10 +71,30 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - cast_ballot_signature
+    - voter_id_string
+    - annotations
+    - labels
+    - ballot_id
+    - content
+    - created_at
+    - last_updated_at
+    - area_id
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: cast-vote-read
 - comment: ""
   permission:
     allow_aggregations: true
@@ -120,28 +140,6 @@ select_permissions:
       - voter_id_string:
           _eq: X-Hasura-User-Id
   role: user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - cast_ballot_signature
-    - voter_id_string
-    - annotations
-    - labels
-    - ballot_id
-    - content
-    - created_at
-    - last_updated_at
-    - area_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-  role: cast-vote-read
 update_permissions:
 - comment: ""
   permission:
