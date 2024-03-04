@@ -63,12 +63,12 @@ pub fn authorize_voter(
         return Err((Status::Unauthorized, "".into()));
     }
 
-    let Some(user_id) = claims.hasura_claims.user_id.clone() else {
-        Err((Status::Unauthorized, "Missing user_id".into()))
+    let user_id = claims.hasura_claims.user_id.clone() else {
+        return Err((Status::Unauthorized, "Missing user_id".into()));
     };
 
     let Some(area_id) = claims.hasura_claims.area_id.clone() else {
-        Err((Status::Unauthorized, "Missing area_id".into()))
+        return Err((Status::Unauthorized, "Missing area_id".into()));
     };
 
     Ok((area_id, user_id))
