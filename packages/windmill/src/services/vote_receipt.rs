@@ -6,7 +6,7 @@
 use std::env;
 
 use super::s3;
-use crate::postgres::{communication_template, election};
+use crate::postgres::{self, communication_template, election};
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
@@ -18,6 +18,7 @@ use serde_json::{Map, Value};
 use tracing::instrument;
 
 use deadpool_postgres::Transaction;
+use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
@@ -146,6 +147,29 @@ async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Resul
     Ok(template_hbs)
 }
 
+fn verify_ballot_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    voter_id: &str,
+) -> Result<()> {
+    let result = postgres::cast_vote::get_cast_votes(
+        hasura_transaction,
+        &Uuid::parse_str(tenant_id)?,
+        &Uuid::parse_str(election_event_id)?,
+        &Uuid::parse_str(election_id)?,
+        &Uuid::parse_str(area_id)?,
+        &Uuid::parse_str(voter_id)?,
+    )
+    .await;
+
+    dbg!(&result);
+
+    Ok(())
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VoteReceiptData {
     pub ballot_id: String,
@@ -201,12 +225,23 @@ impl ToMap for VoteReceiptRootTemplate {
 pub async fn create_vote_receipt(
     hasura_transaction: &Transaction<'_>,
     element_id: &str,
-    ballot_id: &str,
-    ballot_tracker_url: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
+    area_id: &str,
+    voter_id: &str,
+    ballot_id: &str,
+    ballot_tracker_url: &str,
 ) -> Result<()> {
+    verify_ballot_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        voter_id,
+    );
+
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
     let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
     let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
