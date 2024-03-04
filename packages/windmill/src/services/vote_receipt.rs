@@ -240,7 +240,8 @@ pub async fn create_vote_receipt(
         election_id,
         area_id,
         voter_id,
-    );
+    )
+    .await?;
 
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
     let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
