@@ -10,7 +10,7 @@ import {ArrowBackIosNew, Publish} from "@mui/icons-material"
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
 import {EPublishActionsType} from "./EPublishType"
-import {EPublishStatus} from "./EPublishStatus"
+import {PublishStatus} from "./EPublishStatus"
 
 const PublishGenerateStyled = {
     Container: styled.div`
@@ -45,7 +45,8 @@ const PublishGenerateStyled = {
 export type TPublishGenerate = {
     data: any
     readOnly: boolean
-    status: EPublishStatus
+    status: PublishStatus
+    changingStatus: boolean
     electionId?: string
     onBack: () => void
     onPublish: () => void
@@ -56,6 +57,7 @@ export type TPublishGenerate = {
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
     data,
     status,
+    changingStatus,
     readOnly,
     onBack = () => null,
     onPublish = () => null,
@@ -77,6 +79,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
             {!readOnly && (
                 <PublishActions
                     status={status}
+                    changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}
                     type={EPublishActionsType.Generate}
