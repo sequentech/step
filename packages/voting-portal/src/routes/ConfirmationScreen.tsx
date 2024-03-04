@@ -132,6 +132,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
 
+    const [errorDialog, setErrorDialog] = useState<boolean>(false)
+
     const ballotId = auditableBallot?.ballot_hash
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
@@ -192,7 +194,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             }, 1000)
 
             setPolling(intervalId)
-            setTimeout(() => setPolling(null), globalSettings.POLLING_DURATION_TIMEOUT)
+            setTimeout(() => {
+                setPolling(null)
+                setErrorDialog(true)
+            }, globalSettings.POLLING_DURATION_TIMEOUT)
         }
     }
 
@@ -227,36 +232,48 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }, [polling])
 
     return (
-        <ActionsContainer>
-            <StyledButton
-                onClick={printVoteReceipt}
-                disabled={!!polling}
-                variant="secondary"
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            >
-                <Icon icon={faPrint} size="sm" />
-                <Box>{t("confirmationScreen.printButton")}</Box>
-            </StyledButton>
-            {!canVote ? (
-                <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+        <>
+            <ActionsContainer>
+                <StyledButton
+                    onClick={printVoteReceipt}
+                    disabled={!!polling}
+                    variant="secondary"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                >
+                    <Icon icon={faPrint} size="sm" />
+                    <Box>{t("confirmationScreen.printButton")}</Box>
+                </StyledButton>
+                {!canVote ? (
+                    <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                        <StyledButton
+                            onClick={onClickRedirect}
+                            className="finish-button"
+                            sx={{width: {xs: "100%", sm: "200px"}}}
+                        >
+                            <Box>{t("confirmationScreen.finishButton")}</Box>
+                        </StyledButton>
+                    </ActionLink>
+                ) : (
                     <StyledButton
-                        onClick={onClickRedirect}
                         className="finish-button"
+                        onClick={onClickToScreen}
                         sx={{width: {xs: "100%", sm: "200px"}}}
                     >
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
-                </ActionLink>
-            ) : (
-                <StyledButton
-                    className="finish-button"
-                    onClick={onClickToScreen}
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                >
-                    <Box>{t("confirmationScreen.finishButton")}</Box>
-                </StyledButton>
-            )}
-        </ActionsContainer>
+                )}
+            </ActionsContainer>
+
+            <Dialog
+                handleClose={() => setErrorDialog(false)}
+                open={errorDialog}
+                title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
+                ok={t("confirmationScreen.errorDialogPrintVoteReceipt.ok")}
+                variant="warning"
+            >
+                {stringToHtml(t("confirmationScreen.errorDialogPrintVoteReceipt.content"))}
+            </Dialog>
+        </>
     )
 }
 
@@ -294,6 +311,7 @@ export const ConfirmationScreen: React.FC = () => {
                     fontSize="16px"
                     onClick={() => setOpenConfirmationHelp(true)}
                 />
+
                 <Dialog
                     handleClose={() => setOpenConfirmationHelp(false)}
                     open={openConfirmationHelp}
