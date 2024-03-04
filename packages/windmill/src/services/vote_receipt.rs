@@ -147,7 +147,7 @@ async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Resul
     Ok(template_hbs)
 }
 
-fn verify_ballot_id(
+async fn verify_ballot_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -161,7 +161,7 @@ fn verify_ballot_id(
         &Uuid::parse_str(election_event_id)?,
         &Uuid::parse_str(election_id)?,
         &Uuid::parse_str(area_id)?,
-        &Uuid::parse_str(voter_id)?,
+        voter_id,
     )
     .await;
 
