@@ -35,6 +35,7 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-essentials"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export type TPublish = {
     electionId?: string
@@ -51,9 +52,11 @@ enum ViewMode {
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(
     ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
         const notify = useNotify()
+        const {globalSettings} = useContext(SettingsContext)
         const {t} = useTranslation()
         const [tenantId] = useTenantStore()
         const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
+        const [changingStatus, setChangingStatus] = useState<boolean>(false)
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
@@ -164,6 +167,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onChangeElectionStatus = async (status: ElectionEventStatus) => {
             try {
+                setChangingStatus(true)
                 await updateStatusElection({
                     variables: {
                         status,
@@ -171,14 +175,15 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionEventId,
                     },
                 })
-
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[status])
+                setChangingStatus(false)
                 refresh()
 
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
                 })
             } catch (e) {
+                setChangingStatus(false)
                 notify(t("publish.dialog.error_status"), {
                     type: "error",
                 })
@@ -187,20 +192,22 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onChangeElectionEventStatus = async (electionEventStatus: ElectionEventStatus) => {
             try {
+                setChangingStatus(true)
                 await updateStatusEvent({
                     variables: {
                         status: electionEventStatus,
                         electionEventId,
                     },
                 })
-
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
+                setChangingStatus(false)
                 refresh()
 
                 notify(t("publish.notifications.change_status"), {
                     type: "success",
                 })
             } catch (e) {
+                setChangingStatus(false)
                 notify(t("publish.dialog.error_status"), {
                     type: "error",
                 })
@@ -245,7 +252,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             if (ballotPublicationId) {
                 setTimeout(() => {
                     refetch()
-                }, 3000)
+                }, globalSettings.QUERY_POLL_INTERVAL_MS)
             }
         }, [refetch, ballotPublicationId])
 
@@ -290,6 +297,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         status={publishStatus}
                         canRead={canRead}
                         canWrite={canWrite}
+                        changingStatus={changingStatus}
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
@@ -303,6 +311,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 {(viewMode == ViewMode.Edit || viewMode == ViewMode.View) && (
                     <PublishGenerate
                         status={publishStatus}
+                        changingStatus={changingStatus}
                         readOnly={viewMode == ViewMode.View}
                         data={generateData}
                         onPublish={onPublish}

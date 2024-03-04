@@ -28,6 +28,7 @@ const PublishActionsStyled = {
 
 export type PublishActionsProps = {
     status: PublishStatus
+    changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
     onChangeStatus?: (status: ElectionEventStatus) => void
@@ -37,6 +38,7 @@ export type PublishActionsProps = {
 export const PublishActions: React.FC<PublishActionsProps> = ({
     type,
     status,
+    changingStatus,
     onGenerate,
     onPublish = () => null,
     onChangeStatus = () => null,
@@ -80,7 +82,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             onClick={onClick}
             label={t(label)}
             style={
-                disabledStatus?.includes(status)
+                changingStatus || disabledStatus?.includes(status)
                     ? {
                           color: "#ccc",
                           cursor: "not-allowed",

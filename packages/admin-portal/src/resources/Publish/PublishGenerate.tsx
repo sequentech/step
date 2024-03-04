@@ -46,6 +46,7 @@ export type TPublishGenerate = {
     data: any
     readOnly: boolean
     status: PublishStatus
+    changingStatus: boolean
     electionId?: string
     onBack: () => void
     onPublish: () => void
@@ -56,6 +57,7 @@ export type TPublishGenerate = {
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
     data,
     status,
+    changingStatus,
     readOnly,
     onBack = () => null,
     onPublish = () => null,
@@ -77,6 +79,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
             {!readOnly && (
                 <PublishActions
                     status={status}
+                    changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}
                     type={EPublishActionsType.Generate}

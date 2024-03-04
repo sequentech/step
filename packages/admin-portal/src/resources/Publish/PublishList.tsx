@@ -36,6 +36,7 @@ type TPublishList = {
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
+    changingStatus: boolean
     onGenerate: () => void
     onChangeStatus: (status: ElectionEventStatus) => void
     setBallotPublicationId: (id: string | Identifier) => void
@@ -47,6 +48,7 @@ export const PublishList: React.FC<TPublishList> = ({
     electionEventId,
     canRead,
     canWrite,
+    changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
@@ -89,6 +91,7 @@ export const PublishList: React.FC<TPublishList> = ({
                 actions={
                     <PublishActions
                         status={status}
+                        changingStatus={changingStatus}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}
