@@ -93,7 +93,7 @@ pub async fn get_cast_votes(
     election_id: &Uuid,
     area_id: &Uuid,
     voter_id_string: &str,
-) -> Result<Vec<(Uuid, DateTime<Utc>, Uuid, String)>> {
+) -> Result<Vec<CastVote>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -122,17 +122,10 @@ pub async fn get_cast_votes(
         .await
         .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
 
-    let ret: Vec<(Uuid, DateTime<Utc>, Uuid, String)> = rows
-        .iter()
-        .map(|row| {
-            let id: Uuid = rows[0].get(0);
-            let created_at: DateTime<Utc> = rows[0].get(1);
-            let area_id: Uuid = rows[0].get(2);
-            let ballot_id: String = rows[0].get(3);
+    let cast_votes: Vec<CastVote> = rows
+        .into_iter()
+        .map(|row| -> Result<CastVote> { row.try_into() })
+        .collect::<Result<Vec<CastVote>>>()?;
 
-            (id, created_at, area_id, ballot_id)
-        })
-        .collect();
-
-    Ok(ret)
+    Ok(cast_votes)
 }

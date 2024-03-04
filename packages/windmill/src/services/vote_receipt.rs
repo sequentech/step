@@ -156,7 +156,7 @@ async fn verify_ballot_id(
     voter_id: &str,
     ballot_id_to_verify: &str,
 ) -> Result<()> {
-    let result = postgres::cast_vote::get_cast_votes(
+    let cast_votes = postgres::cast_vote::get_cast_votes(
         hasura_transaction,
         &Uuid::parse_str(tenant_id)?,
         &Uuid::parse_str(election_event_id)?,
@@ -166,9 +166,9 @@ async fn verify_ballot_id(
     )
     .await?;
 
-    if result
+    if cast_votes
         .iter()
-        .find(|(_, _, _, ballot_id)| ballot_id.as_str() == ballot_id_to_verify)
+        .find(|cv| cv.ballot_id.unwrap_or("".to_string()).as_str() == ballot_id_to_verify)
         .is_some()
     {
         Ok(())
