@@ -37,8 +37,8 @@ pub async fn create_vote_receipt(
     body: Json<CreateVoteReceiptInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateVoteReceiptOutput>, (Status, String)> {
-    let (area_id, voter_id) =
-        authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
+    let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
+    let voter_id = claims.hasura_claims.user_id.clone();
     let input = body.into_inner();
     let element_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -63,6 +63,7 @@ pub async fn create_vote_receipt(
                 format!("Error creating vote receipt: {:?}", e),
             )
         })?;
+    event!(Level::INFO, "Sent task {:?} successfully", task);
 
     Ok(Json(CreateVoteReceiptOutput {
         id: element_id,

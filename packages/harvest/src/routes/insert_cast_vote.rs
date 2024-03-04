@@ -21,8 +21,7 @@ pub async fn insert_cast_vote(
     claims: JwtClaims,
 ) -> Result<Json<InsertCastVoteOutput>, (Status, String)> {
     let start = Instant::now();
-    let (area_id, user_id) =
-        authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
+    let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
     let input = body.into_inner();
 
     let result = try_insert_cast_vote(

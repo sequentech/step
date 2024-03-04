@@ -49,7 +49,7 @@ pub fn authorize(
 pub fn authorize_voter(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
-) -> Result<(String, String), (Status, String)> {
+) -> Result<String, (Status, String)> {
     let perms_str: Vec<String> = permissions
         .into_iter()
         .map(|permission| permission.to_string())
@@ -63,13 +63,9 @@ pub fn authorize_voter(
         return Err((Status::Unauthorized, "".into()));
     }
 
-    let user_id = claims.hasura_claims.user_id.clone() else {
-        return Err((Status::Unauthorized, "Missing user_id".into()));
-    };
-
     let Some(area_id) = claims.hasura_claims.area_id.clone() else {
         return Err((Status::Unauthorized, "Missing area_id".into()));
     };
 
-    Ok((area_id, user_id))
+    Ok(area_id)
 }
