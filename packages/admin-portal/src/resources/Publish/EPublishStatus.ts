@@ -1,4 +1,4 @@
-export enum EPublishStatus {
+export enum PublishStatus {
     Void = "VOID",
     Started = "STARTED",
     StartedLoading = "STARTED_LOADING",
@@ -12,21 +12,21 @@ export enum EPublishStatus {
     GeneratedLoading = "GENERATED_LOADING",
 }
 
-export const nextStatus = (statusValue: EPublishStatus): EPublishStatus => {
-    let statusIndex = Object.values(EPublishStatus).indexOf(statusValue)
-    return Object.values(EPublishStatus)[statusIndex + 1]
+export const nextStatus = (statusValue: PublishStatus): PublishStatus => {
+    let statusIndex = Object.values(PublishStatus).indexOf(statusValue)
+    return Object.values(PublishStatus)[statusIndex + 1]
 }
 
-export enum EPublishStatushChanges {
+export enum ElectionEventStatus {
     Open = "OPEN",
     Paused = "PAUSED",
     Closed = "CLOSED",
     NotStarted = "NOT_STARTED",
 }
 
-export const PUBLISH_STATUS_CONVERT = {
-    [EPublishStatushChanges.NotStarted]: EPublishStatus.Void,
-    [EPublishStatushChanges.Open]: EPublishStatus.Started,
-    [EPublishStatushChanges.Paused]: EPublishStatus.Paused,
-    [EPublishStatushChanges.Closed]: EPublishStatus.Stopped,
+export const MAP_ELECTION_EVENT_STATUS_PUBLISH = {
+    [ElectionEventStatus.NotStarted]: PublishStatus.Void,
+    [ElectionEventStatus.Open]: PublishStatus.Started,
+    [ElectionEventStatus.Paused]: PublishStatus.Paused,
+    [ElectionEventStatus.Closed]: PublishStatus.Stopped,
 }
