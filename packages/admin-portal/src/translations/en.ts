@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        loadingDataProvider: "Loading data provider...",
         breadcrumbSteps: {
             electionList: "Election List",
             ballot: "Ballot",
@@ -162,8 +163,6 @@ const englishTranslation = {
                 settingSubtitle: "General Configuration",
                 sms: "SMS",
                 mail: "Mails",
-                spanish: "Spanish",
-                english: "English",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
@@ -180,6 +179,7 @@ const englishTranslation = {
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
                 schedules: "SCHEDULED EVENTS",
+                trustees: "TRUSTEES",
             },
         },
         scheduleScreen: {

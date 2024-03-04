@@ -93,7 +93,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     }
 
     const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
+        deleteOne("sequent_backend_election_type", {id: deleteId})
         setDeleteId(undefined)
     }
 
@@ -151,6 +151,17 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
                     <ActionsColumn actions={actions} />
                 </DatagridConfigurable>
             </List>
+
+            <Drawer
+                anchor="right"
+                open={openDrawer}
+                onClose={handleCloseCreateDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />
+            </Drawer>
 
             <Drawer
                 anchor="right"

@@ -4,7 +4,9 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - alias
     - annotations
@@ -22,6 +24,28 @@ insert_permissions:
     - tenant_id
     - type
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+  role: election-event-write
 - comment: ""
   permission:
     check: {}
@@ -62,8 +86,56 @@ select_permissions:
     - presentation
     - tenant_id
     - type
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     allow_aggregations: true
@@ -110,7 +182,9 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - alias
     - annotations
@@ -127,8 +201,35 @@ update_permissions:
     - presentation
     - tenant_id
     - type
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     check: {}
@@ -153,8 +254,16 @@ update_permissions:
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     filter: {}

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export type TVotingSetting = {
-    [key: string]: boolean
+export interface ILanguageConf {
+    enabled_language_codes?: Array<string>
+    default_language_code: string
 }

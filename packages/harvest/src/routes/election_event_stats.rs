@@ -43,7 +43,12 @@ pub async fn get_election_event_stats(
     body: Json<ElectionEventStatsInput>,
     claims: JwtClaims,
 ) -> Result<Json<ElectionEventStatsOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::ADMIN_DASHBOARD_VIEW])?;
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_DASHBOARD_VIEW],
+    )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 

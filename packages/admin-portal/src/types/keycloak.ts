@@ -56,4 +56,9 @@ export enum IPermissions {
     DOCUMENT_DOWNLOAD = "document-download",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
+    CAST_VOTE_READ = "cast-vote-read",
+    DOCUMENT_READ = "document-read",
+    DOCUMENT_WRITE = "document-write",
+    SUPPORT_MATERIAL_READ = "support-material-read",
+    SUPPORT_MATERIAL_WRITE = "support-material-write",
 }

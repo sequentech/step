@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        loadingDataProvider: "Cargando proveedor de datos...",
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Ballot",
@@ -164,8 +165,6 @@ const spanishTranslation: TranslationType = {
                 settingSubtitle: "Ajustes generales",
                 sms: "SMS",
                 mail: "Mails",
-                spanish: "Spanish",
-                english: "English",
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
@@ -182,6 +181,7 @@ const spanishTranslation: TranslationType = {
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
                 schedules: "EVENTOS PROGRAMADOS",
+                trustees: "AUTORIDADES",
             },
         },
         scheduleScreen: {
