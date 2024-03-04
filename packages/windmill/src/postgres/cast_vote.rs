@@ -93,11 +93,11 @@ pub async fn get_cast_votes(
     election_id: &Uuid,
     area_id: &Uuid,
     voter_id_string: &str,
-) -> Result<Vec<(Uuid, DateTime<Utc>, Uuid)>> {
+) -> Result<Vec<(Uuid, DateTime<Utc>, Uuid, String)>> {
     let statement = hasura_transaction
         .prepare(
             r#"
-                SELECT id, created_at, area_id FROM
+                SELECT id, created_at, area_id, ballot_id FROM
                     sequent_backend.cast_vote
                 WHERE
                     tenant_id = $1 AND
@@ -108,6 +108,7 @@ pub async fn get_cast_votes(
             "#,
         )
         .await?;
+
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -121,14 +122,15 @@ pub async fn get_cast_votes(
         .await
         .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
 
-    let ret: Vec<(Uuid, DateTime<Utc>, Uuid)> = rows
+    let ret: Vec<(Uuid, DateTime<Utc>, Uuid, String)> = rows
         .iter()
         .map(|row| {
             let id: Uuid = rows[0].get(0);
             let created_at: DateTime<Utc> = rows[0].get(1);
             let area_id: Uuid = rows[0].get(2);
+            let ballot_id: String = rows[0].get(3);
 
-            (id, created_at, area_id)
+            (id, created_at, area_id, ballot_id)
         })
         .collect();
 

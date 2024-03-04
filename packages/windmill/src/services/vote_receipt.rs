@@ -154,6 +154,7 @@ async fn verify_ballot_id(
     election_id: &str,
     area_id: &str,
     voter_id: &str,
+    ballot_id_to_verify: &str,
 ) -> Result<()> {
     let result = postgres::cast_vote::get_cast_votes(
         hasura_transaction,
@@ -163,11 +164,17 @@ async fn verify_ballot_id(
         &Uuid::parse_str(area_id)?,
         voter_id,
     )
-    .await;
+    .await?;
 
-    dbg!(&result);
-
-    Ok(())
+    if result
+        .iter()
+        .find(|(_, _, _, ballot_id)| ballot_id.as_str() == ballot_id_to_verify)
+        .is_some()
+    {
+        Ok(())
+    } else {
+        Err(anyhow!("BallotID not found in cast votes for {voter_id}"))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -240,6 +247,7 @@ pub async fn create_vote_receipt(
         election_id,
         area_id,
         voter_id,
+        ballot_id,
     )
     .await?;
 

@@ -313,7 +313,7 @@ async fn check_previous_votes(
 
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
-        .map(|(_, _, area_id)| area_id)
+        .map(|(_, _, area_id, _)| area_id)
         .partition(|area_id| area_id.to_string() == area_id.to_string());
 
     event!(Level::INFO, "get cast votes returns same: {:?}", same);
