@@ -37,8 +37,8 @@ pub async fn create_vote_receipt(
     body: Json<CreateVoteReceiptInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateVoteReceiptOutput>, (Status, String)> {
-    let start = Instant::now();
-    let _area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
+    let (area_id, voter_id) =
+        authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])?;
     let input = body.into_inner();
     let element_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -52,6 +52,8 @@ pub async fn create_vote_receipt(
                 input.tenant_id,
                 input.election_event_id,
                 input.election_id,
+                area_id,
+                voter_id,
             ),
         )
         .await
