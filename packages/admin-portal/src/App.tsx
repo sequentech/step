@@ -20,7 +20,6 @@ import {ListContest} from "./resources/Contest/ListContest"
 import {ListDocument} from "./resources/Document/ListDocument"
 import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
-import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {Messages} from "./screens/Messages"
 import {Route} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
@@ -37,8 +36,6 @@ import {EditArea} from "./resources/Area/EditArea"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
-import {EditTrustee} from "./resources/Trustee/EditTrustee"
-import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
 import {CreateElection} from "./resources/Election/CreateElection"
 import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
 import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
@@ -179,13 +176,6 @@ const App: React.FC<AppProps> = () => {
                 list={ListDocument}
                 create={CreateDocument}
                 options={{label: "Document"}}
-            />
-            <Resource
-                name="sequent_backend_trustee"
-                edit={EditTrustee}
-                list={ListTrustee}
-                create={CreateTrustee}
-                options={{label: "Trustee"}}
             />
 
             <Resource
