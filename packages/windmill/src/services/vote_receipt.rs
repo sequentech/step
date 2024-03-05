@@ -165,7 +165,7 @@ async fn verify_ballot_id(
         voter_id,
     )
     .await?;
-    
+
     if cast_votes.iter().any(|cv| {
         cv.ballot_id
             .as_deref()
