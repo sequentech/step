@@ -24,6 +24,7 @@ pub fn get_candidate_0(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(0),
             urls: None,
@@ -56,6 +57,7 @@ pub fn get_candidate_1(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(1),
             urls: None,
@@ -88,6 +90,7 @@ pub fn get_candidate_2(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(2),
             urls: None,
@@ -120,6 +123,7 @@ pub fn get_candidate_3(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(3),
             urls: None,
@@ -152,6 +156,7 @@ pub fn get_candidate_4(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(4),
             urls: None,
@@ -184,6 +189,7 @@ pub fn get_candidate_5(
         presentation: Some(CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_write_in: Some(false),
             sort_order: Some(5),
             urls: None,

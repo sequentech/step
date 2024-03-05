@@ -673,6 +673,7 @@ const englishTranslation = {
                 general: "General",
                 type: "Type",
                 image: "Image",
+                isDisabled: "Disabled",
             },
             field: {
                 name: "Name",

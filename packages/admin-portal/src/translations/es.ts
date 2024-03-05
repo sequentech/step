@@ -675,6 +675,7 @@ const spanishTranslation: TranslationType = {
                 general: "General",
                 type: "Tipo",
                 image: "Imagen",
+                isDisabled: "Deshabilitado",
             },
             field: {
                 name: "Nombre",

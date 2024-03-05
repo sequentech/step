@@ -42,6 +42,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                     candidate_type: "A",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 0,
@@ -59,6 +60,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                     candidate_type: "A",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 1,
@@ -86,6 +88,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                     candidate_type: "B",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 2,
@@ -195,6 +198,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                     description: "This is an option with an simple example description.",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 0,
@@ -218,6 +222,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                         'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 1,
@@ -244,6 +249,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                     name: "Example option 3",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 2,
@@ -300,6 +306,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                     description: "This is an option with an simple example description.",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 0,
@@ -316,6 +323,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                         'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 1,
@@ -341,6 +349,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: true,
                         sort_order: 2,
@@ -354,6 +363,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: true,
                         sort_order: 3,
@@ -409,6 +419,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                     description: "This is an option with an simple example description.",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 0,
@@ -425,6 +436,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                         'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 1,
@@ -450,6 +462,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                     contest_id: "87c19855-00de-4093-b155-6fdfa8a24d42",
                     presentation: {
                         is_explicit_invalid: false,
+                        is_disabled: false,
                         is_category_list: false,
                         is_write_in: true,
                         sort_order: 2,
@@ -464,6 +477,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                     name: "Invalid vote",
                     presentation: {
                         is_explicit_invalid: true,
+                        is_disabled: false,
                         is_category_list: false,
                         invalid_vote_position: "top",
                         is_write_in: false,
