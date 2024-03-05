@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
+    BooleanInput,
     SelectInput,
     TextInput,
     useRecordContext,
@@ -259,6 +261,10 @@ export const CandidateDataForm: React.FC = () => {
                             <TextInput
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
+                            />
+                            <BooleanInput
+                                source={`presentation.is_disabled`}
+                                label={t("candidateScreen.edit.isDisabled")}
                             />
                         </div>
                     </CustomTabPanel>
