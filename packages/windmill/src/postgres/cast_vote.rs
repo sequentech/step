@@ -97,7 +97,23 @@ pub async fn get_cast_votes(
     let statement = hasura_transaction
         .prepare(
             r#"
-                SELECT id, created_at, area_id, ballot_id FROM
+                SELECT 
+                    id,
+                    ballot_id,
+                    election_id,
+                    election_event_id,
+                    tenant_id,
+                    election_id,
+                    area_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    content,
+                    cast_ballot_signature,
+                    voter_id_string,
+                    election_event_id
+                FROM
                     sequent_backend.cast_vote
                 WHERE
                     tenant_id = $1 AND

@@ -194,6 +194,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             }, 1000)
 
             setPolling(intervalId)
+      
             setTimeout(() => {
                 setPolling(null)
                 setErrorDialog(true)
