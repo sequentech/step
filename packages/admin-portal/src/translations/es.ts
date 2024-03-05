@@ -505,6 +505,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
@@ -558,6 +559,11 @@ const spanishTranslation: TranslationType = {
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
+                "cast-vote-read": "Leer Votos Emitidos",
+                "document-read": "Leer Documentos",
+                "document-write": "Editar Documentos",
+                "support-material-read": "Leer Materiales de Soporte",
+                "support-material-write": "Editar Materiales de Soporte",
             },
         },
         common: {

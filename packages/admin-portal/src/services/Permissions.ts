@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
+import {isUndefined} from "@sequentech/ui-essentials"
 
 const AdminOperationMap: Record<string, IPermissions> = {
     // area
@@ -166,7 +167,7 @@ const AdminOperationMap: Record<string, IPermissions> = {
     delete_sequent_backend_trustees: IPermissions.TRUSTEE_WRITE,
 }
 
-const TrusteeOperationMap: Record<string, string> = {
+const TrusteeOperationMap: Record<string, IPermissions> = {
     ...AdminOperationMap,
     // keys_ceremony
     sequent_backend_keys_ceremony: IPermissions.TRUSTEE_CEREMONY,
@@ -182,9 +183,11 @@ const TrusteeOperationMap: Record<string, string> = {
     sequent_backend_tally_session_executions: IPermissions.TRUSTEE_CEREMONY,
 }
 
-export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): string => {
-    return (
-        (isTrustee ? TrusteeOperationMap : AdminOperationMap)[operation?.operationName ?? ""] ??
-        "admin-user"
-    )
+export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {
+    let operationName = operation?.operationName
+    if (isUndefined(operationName)) {
+        return IPermissions.ADMIN_USER
+    }
+    let OperationMap = isTrustee ? TrusteeOperationMap : AdminOperationMap
+    return OperationMap[operationName] ?? IPermissions.ADMIN_USER
 }
