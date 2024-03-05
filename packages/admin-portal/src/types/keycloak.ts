@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export enum IPermissions {
+    ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
     TENANT_WRITE = "tenant-write",

@@ -10,6 +10,7 @@ import {ApolloProvider} from "@apollo/client"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getOperationRole} from "@/services/Permissions"
+import {IPermissions} from "@/types/keycloak"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -37,7 +38,7 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
         null
     )
-    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
+    const {isAuthenticated, getAccessToken, hasRole} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
@@ -49,7 +50,10 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             // get the authentication token from local storage if it exists
             const token = getAccessToken()
             // return the headers to the context so httpLink can read them
-            const operationRole = getOperationRole(operation)
+            const operationRole = getOperationRole(
+                operation,
+                hasRole(IPermissions.TRUSTEE_CEREMONY)
+            )
             console.log(`operation ${operation.operationName} operationRole ${operationRole}`)
             return {
                 headers: {
