@@ -104,6 +104,7 @@ query GetBallotStyleArea(
         is_acclaimed
         is_active
         name
+        alias
         description
         presentation
         min_votes
@@ -124,6 +125,7 @@ query GetBallotStyleArea(
             labels
             annotations
             name
+            alias
             description
             type
             presentation
