@@ -222,6 +222,7 @@ pub struct CandidateUrl {
 pub struct CandidatePresentation {
     pub i18n: Option<I18nContent<I18nContent<String>>>,
     pub is_explicit_invalid: Option<bool>,
+    pub is_disabled: Option<bool>,
     pub is_category_list: Option<bool>,
     pub invalid_vote_position: Option<String>, // top|bottom
     pub is_write_in: Option<bool>,
@@ -234,6 +235,7 @@ impl CandidatePresentation {
         CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_category_list: Some(false),
             invalid_vote_position: None,
             is_write_in: Some(false),
@@ -293,6 +295,14 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    pub fn is_disabled(&self) -> bool {
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_disabled)
+            .flatten()
+            .unwrap_or(false)
+    }
+
     pub fn is_write_in(&self) -> bool {
         self.presentation
             .as_ref()
@@ -306,6 +316,7 @@ impl Candidate {
             self.presentation.clone().unwrap_or(CandidatePresentation {
                 i18n: None,
                 is_explicit_invalid: Some(false),
+                is_disabled: Some(false),
                 is_category_list: Some(false),
                 is_write_in: Some(false),
                 sort_order: Some(0),
