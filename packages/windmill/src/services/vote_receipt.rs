@@ -165,12 +165,12 @@ async fn verify_ballot_id(
         voter_id,
     )
     .await?;
-
-    if cast_votes
-        .iter()
-        .find(|cv| cv.ballot_id.unwrap_or("".to_string()).as_str() == ballot_id_to_verify)
-        .is_some()
-    {
+    
+    if cast_votes.iter().any(|cv| {
+        cv.ballot_id
+            .as_deref()
+            .map_or(false, |id| id == ballot_id_to_verify)
+    }) {
         Ok(())
     } else {
         Err(anyhow!("BallotID not found in cast votes for {voter_id}"))
