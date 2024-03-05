@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext} from "react"
+import React, {useState, useEffect, useContext, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -128,7 +128,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
+    const [documentOpened, setDocumentOpened] = useState<boolean>(false)
     const [documentUrl, setDocumentUrl] = useState<string | null>(null)
+    const documentUrlRef = useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
 
@@ -172,6 +174,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         if (docId) {
             setDocumentId(docId)
             startPolling(docId)
+            setDocumentOpened(false)
         }
     }
 
@@ -194,13 +197,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             }, 1000)
 
             setPolling(intervalId)
-      
+
             setTimeout(() => {
                 setPolling(null)
-                setErrorDialog(true)
+                if (!documentUrlRef.current) {
+                    setErrorDialog(true)
+                }
             }, globalSettings.POLLING_DURATION_TIMEOUT)
         }
     }
+
+    useEffect(() => {
+        documentUrlRef.current = documentUrl
+    }, [documentUrl])
 
     useEffect(() => {
         function stopPolling() {
@@ -213,16 +222,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         if (documentData?.sequent_backend_document?.length > 0) {
             stopPolling()
 
-            const documentUrl = getDocumentUrl(
-                documentId!,
-                documentData?.sequent_backend_document[0]?.name
-            )
+            if (!documentOpened) {
+                const newDocumentUrl = getDocumentUrl(
+                    documentId!,
+                    documentData?.sequent_backend_document[0]?.name
+                )
 
-            setDocumentUrl(documentUrl)
+                setDocumentUrl(newDocumentUrl)
+                setDocumentOpened(true)
 
-            window.open(documentUrl, "_blank")
+                window.open(newDocumentUrl, "_blank")
+            }
         }
-    }, [eventId, polling, documentData, documentId, getDocumentUrl])
+    }, [eventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
 
     useEffect(() => {
         return () => {
