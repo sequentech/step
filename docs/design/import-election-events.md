@@ -70,7 +70,13 @@ pub struct JsonSchemaImportElectionEvents {
 
 ## Flow
 
-User send a request to _Harvest_. _Harvest_ create a task on _Windmill_. _Windmill_ executes the importation.
+### JSON payload
+
+User sends a request to _Harvest_. _Harvest_ create a task on _Windmill_. _Windmill_ executes the importation.
+
+### File upload
+
+User uploads a JSON document on _Admin portal_. Once the document has been uploaded, user can trigger the importation of election events for that file by calling a _Harvest_ endpoint that create a task on _Windmill_. _Windmill_ will fetch the uploaded file and start the importation process.
 
 ### Schema Validation
 
