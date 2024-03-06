@@ -81,6 +81,10 @@ pub struct JsonSchemaImportElectionEvents {
 5. Import contests
 6. Import candidates
 
+## Flow
+
+User send a request to *Harvest*. *Harvest* create a task on *Windmill*. *Windmill* executes the importation.
+
 ### Schema Validation
 
 We can use this [validator crate](https://crates.io/crates/validator).
