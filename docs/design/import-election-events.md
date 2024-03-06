@@ -5,43 +5,28 @@
 We import `election_events` to a tenant.
 
 ```json
-[
-  {
-    "tenant_id": "",
-    "election_events": [
-      {
-        "keycloak_realm": {},
-        "data": { "id": "" },
-        "elections": [
-          {
-            "id": "",
-            "data": {},
-            "contests": [
-              {
-                "id": "",
-                "data": {},
-                "candidates": [{ "id": "", "data": {} }]
-              }
-            ]
-          }
-        ]
-      }
-    ],
-    "areas": [],
-    "area_contest": []
-  }
-]
+{
+  "keycloak_realm": {},
+  "election_event_data": {...},
+  "elections": [
+    {
+      "id": "",
+      "data": {...},
+      "contests": [
+        {
+          "id": "",
+          "data": {...},
+          "candidates": [{ "id": "", "data": {...} }]
+        }
+      ]
+    }
+  ],
+  "areas": [...],
+  "area_contest": [...]
+}
 ```
 
 ```rust
-pub struct ElectionEvent {
-    id: Uuid,
-    tenant_id: Uuid,
-    data: ElectionEventData,
-    elections: Vec<Election>,
-    keycloak_event_realm: RealmRepresentation,
-}
-
 pub struct Election {
     id: Uuid,
     data: ElectionData,
@@ -66,7 +51,9 @@ pub struct AreaContest {
 }
 
 pub struct JsonSchemaImportElectionEvents {
-    events: Vec<ElectionEvent>,
+    keycloak_event_realm: RealmRepresentation,
+    election_event_data: ElectionEventData,
+    elections: Vec<Election>,
     areas: Vec<AreaData>,
     area_contest: Vec<AreaContest>,
 }
@@ -83,7 +70,7 @@ pub struct JsonSchemaImportElectionEvents {
 
 ## Flow
 
-User send a request to *Harvest*. *Harvest* create a task on *Windmill*. *Windmill* executes the importation.
+User send a request to _Harvest_. _Harvest_ create a task on _Windmill_. _Windmill_ executes the importation.
 
 ### Schema Validation
 
