@@ -59,9 +59,7 @@ export const EditCandidateData: React.FC<{record: Sequent_Backend_Candidate}> = 
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            {(!record.image_document_id || document) && (
-                <CandidateDataForm record={record} document={document} />
-            )}
+            <CandidateDataForm record={record} document={document} />
         </EditBase>
     )
 }
