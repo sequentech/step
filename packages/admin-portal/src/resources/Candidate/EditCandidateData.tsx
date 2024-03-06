@@ -1,8 +1,13 @@
 import React from "react"
-import {EditBase} from "react-admin"
+import {EditBase, useGetOne} from "react-admin"
 import {CandidateDataForm} from "./CandidateDataForm"
+import {Sequent_Backend_Candidate, Sequent_Backend_Document} from "@/gql/graphql"
 
-export const EditCandidateData: React.FC = () => {
+export const EditCandidateData: React.FC<{record: Sequent_Backend_Candidate}> = ({record}) => {
+    const {data: document} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+        id: record.image_document_id,
+        meta: {tenant_id: record.tenant_id},
+    })
     const transform = (data: any) => {
         console.log("TRANSFORM ELECTION :: ", data)
 
@@ -54,7 +59,9 @@ export const EditCandidateData: React.FC = () => {
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            <CandidateDataForm />
+            {(!record.image_document_id || document) && (
+                <CandidateDataForm record={record} document={document} />
+            )}
         </EditBase>
     )
 }
