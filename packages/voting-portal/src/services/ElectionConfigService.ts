@@ -6,6 +6,7 @@ import {
     ICandidate,
     IContest,
     ECandidatesSelectionPolicy,
+    EEnableCheckableLists,
 } from "@sequentech/ui-essentials"
 
 export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
@@ -43,16 +44,17 @@ export const checkShuffleCategoryList = (question: IContest): Array<string> =>
 export const getCheckableOptions = (
     question: IContest
 ): {checkableLists: boolean; checkableCandidates: boolean} => {
-    const enableCheckableLists = question.presentation?.enable_checkable_lists || "disabled"
+    const enableCheckableLists =
+        question.presentation?.enable_checkable_lists || EEnableCheckableLists.CANDIDATES_AND_LISTS
     switch (enableCheckableLists) {
-        case "allow-selecting-candidates-and-lists":
-            return {checkableLists: true, checkableCandidates: true}
-        case "allow-selecting-candidates":
-            return {checkableLists: false, checkableCandidates: true}
-        case "allow-selecting-lists":
-            return {checkableLists: true, checkableCandidates: false}
-        default:
+        case EEnableCheckableLists.DISABLED:
             return {checkableLists: false, checkableCandidates: false}
+        case EEnableCheckableLists.CANDIDATES_ONLY:
+            return {checkableLists: false, checkableCandidates: true}
+        case EEnableCheckableLists.LISTS_ONLY:
+            return {checkableLists: true, checkableCandidates: false}
+        default: // EEnableCheckableLists.CANDIDATES_AND_LISTS:
+            return {checkableLists: true, checkableCandidates: true}
     }
 }
 

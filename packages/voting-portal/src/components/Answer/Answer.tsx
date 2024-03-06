@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useContext} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     Candidate,
@@ -28,6 +28,7 @@ import {
 } from "../../services/ElectionConfigService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
+import {SettingsContext} from "../../providers/SettingsContextProvider"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -63,6 +64,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     )
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
     const dispatch = useAppDispatch()
+    const {globalSettings} = useContext(SettingsContext)
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
@@ -159,7 +161,9 @@ export const Answer: React.FC<IAnswerProps> = ({
             isInvalidVote={isInvalidVote}
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
         >
-            {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
+            {imageUrl ? (
+                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
+            ) : null}
         </Candidate>
     )
 }

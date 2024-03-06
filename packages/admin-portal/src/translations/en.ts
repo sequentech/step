@@ -680,6 +680,9 @@ const englishTranslation = {
                 type: "Type",
                 image: "Image",
                 isDisabled: "Disabled",
+                isExplicitInvalid: "Invalid Vote",
+                isCategoryList: "Category List",
+                isWriteIn: "Write-in",
             },
             field: {
                 name: "Name",
@@ -729,6 +732,12 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+            },
+            checkableListPolicy: {
+                "allow-selecting-candidates-and-lists": "Candidates And Lists",
+                "allow-selecting-candidates": "Candidates Only",
+                "allow-selecting-lists": "Lists Only",
+                "disabled": "Disabled",
             },
             error: {},
             createContestSuccess: "Contest created",
