@@ -20,6 +20,13 @@ export enum EInvalidVotePolicy {
     NOT_ALLOWED = "not-allowed",
 }
 
+export enum EEnableCheckableLists {
+    CANDIDATES_AND_LISTS = "allow-selecting-candidates-and-lists",
+    CANDIDATES_ONLY = "allow-selecting-candidates",
+    LISTS_ONLY = "allow-selecting-lists",
+    DISABLED = "disabled",
+}
+
 export interface IContestPresentation {
     i18n?: Record<string, Record<string, string>>
     allow_writeins?: boolean
@@ -29,7 +36,7 @@ export interface IContestPresentation {
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>
     show_points?: boolean
-    enable_checkable_lists?: string
+    enable_checkable_lists?: EEnableCheckableLists
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
 }

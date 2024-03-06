@@ -682,6 +682,9 @@ const spanishTranslation: TranslationType = {
                 type: "Tipo",
                 image: "Imagen",
                 isDisabled: "Deshabilitado",
+                isExplicitInvalid: "Voto Inválido",
+                isCategoryList: "Lista",
+                isWriteIn: "Voto por Escrito",
             },
             field: {
                 name: "Nombre",
@@ -731,6 +734,12 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+            },
+            checkableListPolicy: {
+                "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
+                "allow-selecting-candidates": "Sólo Candidatos",
+                "allow-selecting-lists": "Sólo Listas",
+                "disabled": "Deshabilitado",
             },
             error: {},
             createContestSuccess: "Pregunta creado",

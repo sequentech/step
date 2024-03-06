@@ -36,6 +36,7 @@ import {
     ICandidatePresentation,
     IElectionEventPresentation,
     ILanguageConf,
+    ICandidateUrl,
 } from "@sequentech/ui-essentials"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
@@ -92,6 +93,12 @@ export const CandidateDataForm: React.FC = () => {
         setLanguageConf(presentation.language_conf)
     }, [electionEvent?.presentation?.language_conf])
 
+    const getImageUrl = (
+        parsedValue?: Sequent_Backend_Candidate_Extended,
+        imageData?: Sequent_Backend_Document
+    ) =>
+        `tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`
+
     const [updateImage] = useUpdate()
 
     const parseValues = useCallback(
@@ -100,6 +107,7 @@ export const CandidateDataForm: React.FC = () => {
                 return incoming
             }
             const newCandidate: Sequent_Backend_Candidate_Extended = cloneDeep(incoming)
+            newCandidate.type = newCandidate.type || undefined
             const newPresentation = (newCandidate.presentation ?? {}) as ICandidatePresentation
 
             newCandidate.presentation = newPresentation
@@ -128,6 +136,20 @@ export const CandidateDataForm: React.FC = () => {
             newCandidate.name = newCandidate.presentation.i18n.en.name
             newCandidate.alias = newCandidate.presentation.i18n.en.alias
             newCandidate.description = newCandidate.presentation.i18n.en.description
+
+            if (newCandidate.presentation && newCandidate.image_document_id && imageData) {
+                let imgUrlBase = getImageUrl(newCandidate, imageData)
+                let imgUrl: ICandidateUrl = {
+                    url: imgUrlBase,
+                    is_image: true,
+                }
+                let urls = (newCandidate.presentation as ICandidatePresentation).urls || []
+                let foundUrl = urls.find((url) => url.url === imgUrlBase)
+                if (!foundUrl) {
+                    urls.push(imgUrl)
+                }
+                newCandidate.presentation.urls = urls
+            }
 
             return newCandidate
         },
@@ -237,38 +259,6 @@ export const CandidateDataForm: React.FC = () => {
         })
         return tabNodes
     }
-    const renderTabContent0 = (parsedValue: any) => {
-        let tabNodes = []
-        let index = 0
-        for (const lang in parsedValue?.enabled_languages) {
-            if (parsedValue?.enabled_languages[lang]) {
-                tabNodes.push(
-                    <CustomTabPanel key={lang} value={value} index={index}>
-                        <div style={{marginTop: "16px"}}>
-                            <TextInput
-                                source={`presentation.i18n[${lang}].name`}
-                                label={t("electionEventScreen.field.name")}
-                            />
-                            <TextInput
-                                source={`presentation.i18n[${lang}].alias`}
-                                label={t("electionEventScreen.field.alias")}
-                            />
-                            <TextInput
-                                source={`presentation.i18n[${lang}].description`}
-                                label={t("electionEventScreen.field.description")}
-                            />
-                            <BooleanInput
-                                source={`presentation.is_disabled`}
-                                label={t("candidateScreen.edit.isDisabled")}
-                            />
-                        </div>
-                    </CustomTabPanel>
-                )
-                index++
-            }
-        }
-        return tabNodes
-    }
 
     return electionEvent ? (
         <RecordContext.Consumer>
@@ -322,7 +312,20 @@ export const CandidateDataForm: React.FC = () => {
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput source="type" choices={CANDIDATE_TYPES(t)} />
+                                <TextInput source={`type`} label={t("candidateScreen.edit.type")} />
+
+                                <BooleanInput
+                                    source={`presentation.is_explicit_invalid`}
+                                    label={t("candidateScreen.edit.isExplicitInvalid")}
+                                />
+                                <BooleanInput
+                                    source={`presentation.is_category_list`}
+                                    label={t("candidateScreen.edit.isCategoryList")}
+                                />
+                                <BooleanInput
+                                    source={`presentation.is_write_in`}
+                                    label={t("candidateScreen.edit.isWriteIn")}
+                                />
                             </AccordionDetails>
                         </Accordion>
 
@@ -348,8 +351,10 @@ export const CandidateDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${
+                                                    globalSettings.PUBLIC_BUCKET_URL
+                                                }${getImageUrl(parsedValue, imageData)}`}
+                                                alt={getImageUrl(parsedValue, imageData)}
                                             />
                                         ) : null}
                                     </Grid>
