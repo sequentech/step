@@ -1,8 +1,9 @@
 import React from "react"
 import {CreateBase, EditBase, Identifier, RaRecord} from "react-admin"
 import {CandidateDataForm, Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
+import {Sequent_Backend_Candidate} from "@/gql/graphql"
 
-export const CreateCandidateData: React.FC = () => {
+export const CreateCandidateData: React.FC<{record: Sequent_Backend_Candidate}> = ({record}) => {
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
         // save presentation object
         // language_conf
@@ -34,7 +35,7 @@ export const CreateCandidateData: React.FC = () => {
 
     return (
         <CreateBase redirect={"show"} transform={transform}>
-            <CandidateDataForm />
+            <CandidateDataForm record={record} />
         </CreateBase>
     )
 }

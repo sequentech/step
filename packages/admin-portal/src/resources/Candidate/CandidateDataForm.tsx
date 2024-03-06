@@ -50,9 +50,10 @@ export type Sequent_Backend_Candidate_Extended = Sequent_Backend_Candidate &
         defaultLanguage?: string
     }
 
-export const CandidateDataForm: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Candidate>()
-
+export const CandidateDataForm: React.FC<{
+    record: Sequent_Backend_Candidate
+    document?: Sequent_Backend_Document
+}> = ({record, document: imageData}) => {
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [languageConf, setLanguageConf] = useState<ILanguageConf>({
@@ -71,14 +72,6 @@ export const CandidateDataForm: React.FC = () => {
         "sequent_backend_election_event",
         {
             id: record.election_event_id,
-        }
-    )
-
-    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
-        "sequent_backend_document",
-        {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
         }
     )
 
@@ -216,7 +209,7 @@ export const CandidateDataForm: React.FC = () => {
                         },
                     })
 
-                    refetchImage()
+                    //refetchImage()
                     refresh()
                 } catch (e) {
                     console.log("error :>> ", e)
@@ -264,7 +257,6 @@ export const CandidateDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Candidate_Extended)
-                console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm
                         validate={formValidator}

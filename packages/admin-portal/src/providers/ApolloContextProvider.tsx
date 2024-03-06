@@ -54,7 +54,6 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
                 operation,
                 hasRole(IPermissions.TRUSTEE_CEREMONY)
             )
-            console.log(`operation ${operation.operationName} operationRole ${operationRole}`)
             return {
                 headers: {
                     ...headers,
