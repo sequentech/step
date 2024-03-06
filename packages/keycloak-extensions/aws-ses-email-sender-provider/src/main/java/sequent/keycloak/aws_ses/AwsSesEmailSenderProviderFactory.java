@@ -1,6 +1,6 @@
-package sequent.keycloak.dummy;
+package sequent.keycloak.aws_ses;
 
-import sequent.keycloak.dummy.DummyEmailSenderProvider;
+import sequent.keycloak.aws_ses.AwsSesEmailSenderProvider;
 import org.keycloak.email.EmailSenderProviderFactory;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.Config;
@@ -12,13 +12,13 @@ import com.google.auto.service.AutoService;
   * @author <a href="mailto:edu@sequentech.io">Eduardo Robles</a>
   */
 @AutoService(EmailSenderProviderFactory.class)
-public class DummyEmailSenderProviderFactory
+public class AwsSesEmailSenderProviderFactory
     implements EmailSenderProviderFactory
 {
- 
+
     @Override
     public EmailSenderProvider create(KeycloakSession session) {
-        return new DummyEmailSenderProvider();
+        return new AwsSesEmailSenderProvider();
     }
 
     @Override
@@ -35,6 +35,6 @@ public class DummyEmailSenderProviderFactory
 
     @Override
     public String getId() {
-        return "dummy";
+        return "aws_ses";
     }
 }

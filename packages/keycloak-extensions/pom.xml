@@ -15,6 +15,7 @@
 		<module>security-question-authenticator</module>
 		<module>conditional-authenticators</module>
 		<module>dummy-email-sender-provider</module>
+		<module>aws-ses-email-sender-provider</module>
 		<module>sequent-theme</module>
     </modules>
 
