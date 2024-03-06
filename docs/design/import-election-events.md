@@ -7,41 +7,56 @@ We import `election_events` to a tenant.
 ```json
 {
   "keycloak_realm": {},
-  "election_event_data": {...},
+  "election_event_data": {},
   "elections": [
     {
       "id": "",
-      "data": {...},
-      "contests": [
-        {
-          "id": "",
-          "data": {...},
-          "candidates": [{ "id": "", "data": {...} }]
-        }
-      ]
+      "election_event_id": "",
+      "data": {}
     }
   ],
-  "areas": [...],
-  "area_contest": [...]
+  "contests": [
+    {
+      "id": "",
+      "election_id": "",
+      "data": {}
+    }
+  ],
+  "candidates": [
+    {
+      "id": "",
+      "contest_id": "",
+      "data": {}
+    }
+  ],
+  "areas": [
+    {
+      "id": "",
+      "data": {}
+    }
+  ],
+  "area_contest": []
 }
 ```
 
 ```rust
 pub struct Election {
     id: Uuid,
+    election_event_id: Uuid,
     data: ElectionData,
     contests: Vec<Contest>,
 }
 
 pub struct Contest {
     id: Uuid,
+    election_id: Uuid,
     data: ContestData,
-    candidates: Vec<Candidate>,
     area_id: Uuid,
 }
 
 pub struct Candidate {
     id: Uuid,
+    contest_id: Uuid,
     data: CandidateData,
 }
 
