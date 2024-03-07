@@ -40,7 +40,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportVotersBaseTabs} from "@/components/election-event/import-data/ImportVotersBaseTabs"
+import {ImportVotersTabs} from "@/components/election-event/import-data/ImportVotersTabs"
 import importDrawerState from "@/atoms/import-drawer-state"
 import {useAtom} from "jotai"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -464,7 +464,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     sx: {width: "30%"},
                 }}
             >
-                <ImportVotersBaseTabs doRefresh={() => refresh()} />
+                <ImportVotersTabs doRefresh={() => refresh()} />
             </Drawer>
 
             <Dialog

@@ -31,7 +31,7 @@ import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportVotersBaseTabs} from "@/components/election-event/import-data/ImportVotersBaseTabs"
+import {ImportVotersTabs} from "@/components/election-event/import-data/ImportVotersTabs"
 
 const Hidden = styled(Box)`
     display: none;
@@ -272,7 +272,7 @@ export const CreateElectionList: React.FC = () => {
                         sx: {width: "30%"},
                     }}
                 >
-                    <ImportVotersBaseTabs doRefresh={() => refresh()} />
+                    <ImportVotersTabs doRefresh={() => refresh()} />
                 </Drawer>
             </div>
         </>

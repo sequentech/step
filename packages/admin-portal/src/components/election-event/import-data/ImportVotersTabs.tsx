@@ -42,7 +42,9 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
         console.log(`handleImportVoters(documentId: ${documentId}, sha256: ${sha256})`)
+
         setLoadingVoters(true)
+
         let {data, errors} = await importUsers({
             variables: {
                 tenantId: tenantId,
@@ -50,9 +52,13 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                 documentId: documentId,
             },
         })
+    
         setLoadingVoters(false)
+    
         setOpenImport(false)
+    
         doRefresh()
+    
         if (!errors) {
             notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
         } else {
@@ -62,31 +68,32 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
 
     return (
         <>
-            <ElectionHeader
-                title={t("electionEventScreen.import.title")}
-                subtitle="electionEventScreen.import.subtitle"
-            />
-            <DrawerStyles.Wrapper>
-                <Tabs
-                    elements={[
-                        {
-                            label: t("electionEventScreen.import.voters"),
-                            component: () => (
-                                <>
-                                    <DrawerStyles.SubTitle>
-                                        {t("electionEventScreen.import.votersSubtitle")}
-                                    </DrawerStyles.SubTitle>
-                                    <ImportScreen
-                                        refresh="electionEventScreen.import.voters"
-                                        doCancel={handleCancel}
-                                        doImport={handleImportVoters}
-                                        isLoading={loadingVoters}
-                                        errors={errors}
-                                    />
-                                </>
-                            ),
-                        },
-                        /*{
+            <Box sx={{padding: "16px"}}>
+                <ElectionHeader
+                    title={t("electionEventScreen.import.title")}
+                    subtitle="electionEventScreen.import.subtitle"
+                />
+                <DrawerStyles.Wrapper>
+                    <Tabs
+                        elements={[
+                            {
+                                label: t("electionEventScreen.import.voters"),
+                                component: () => (
+                                    <>
+                                        <DrawerStyles.SubTitle>
+                                            {t("electionEventScreen.import.votersSubtitle")}
+                                        </DrawerStyles.SubTitle>
+                                        <ImportScreen
+                                            refresh="electionEventScreen.import.voters"
+                                            doCancel={handleCancel}
+                                            doImport={handleImportVoters}
+                                            isLoading={loadingVoters}
+                                            errors={errors}
+                                        />
+                                    </>
+                                ),
+                            },
+                            /*{
                             label: t("electionEventScreen.import.elections"),
                             component: () => (
                                 <ImportScreen
@@ -110,9 +117,10 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                                 />
                             ),
                         },*/
-                    ]}
-                />
-            </DrawerStyles.Wrapper>
+                        ]}
+                    />
+                </DrawerStyles.Wrapper>
+            </Box>
         </>
     )
 }
