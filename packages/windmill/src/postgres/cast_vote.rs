@@ -91,7 +91,6 @@ pub async fn get_cast_votes(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
     election_id: &Uuid,
-    area_id: &Uuid,
     voter_id_string: &str,
 ) -> Result<Vec<CastVote>> {
     let statement = hasura_transaction

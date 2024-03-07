@@ -161,7 +161,6 @@ async fn verify_ballot_id(
         &Uuid::parse_str(tenant_id)?,
         &Uuid::parse_str(election_event_id)?,
         &Uuid::parse_str(election_id)?,
-        &Uuid::parse_str(area_id)?,
         voter_id,
     )
     .await?;
@@ -170,6 +169,7 @@ async fn verify_ballot_id(
         cv.ballot_id
             .as_deref()
             .map_or(false, |id| id == ballot_id_to_verify)
+            && cv.area_id.as_deref().map_or(false, |id| id == area_id)
     }) {
         Ok(())
     } else {

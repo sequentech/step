@@ -306,7 +306,6 @@ async fn check_previous_votes(
         &Uuid::parse_str(tenant_id)?,
         &Uuid::parse_str(election_event_id)?,
         &Uuid::parse_str(election_id)?,
-        &Uuid::parse_str(area_id)?,
         voter_id_string,
     )
     .await?;
@@ -314,7 +313,7 @@ async fn check_previous_votes(
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
         .filter_map(|cv| cv.area_id.and_then(|id| Uuid::parse_str(&id).ok()))
-        .partition(|area_id| area_id.to_string() == area_id.to_string());
+        .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
 
     event!(Level::INFO, "get cast votes returns same: {:?}", same);
     if same.len() >= max_revotes {
