@@ -3,15 +3,31 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, CandidatesOrder, ContestPresentation,
-    ElectionEventPresentation, I18nContent,
+    self, CandidatePresentation, ContestPresentation, ElectionDates,
+    ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
 use crate::types::hasura_types;
 use anyhow::{anyhow, Result};
-use serde_json::Value;
-use std::str::FromStr;
 
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
+
+fn parse_i18n_field(
+    i18n_opt: &Option<I18nContent<I18nContent<String>>>,
+    field: &str,
+) -> Option<I18nContent> {
+    let Some(i18n) = i18n_opt else {
+        return None;
+    };
+    let mut content = I18nContent::new();
+
+    for (lang, details) in i18n {
+        if let Some(field_value) = details.get(field) {
+            content.insert(lang.clone(), field_value.clone());
+        };
+    }
+
+    Some(content)
+}
 
 pub fn create_ballot_style(
     id: String,
@@ -33,6 +49,19 @@ pub fn create_ballot_style(
             anyhow!("Error parsing election Event presentation {:?}", err)
         })?
         .unwrap_or(Default::default());
+
+    let election_dates: ElectionDates = election
+        .dates
+        .clone()
+        .map(|dates| serde_json::from_value(dates))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
+        .unwrap_or(Default::default());
+
+    let election_presentation = ElectionPresentation {
+        i18n: None,
+        dates: Some(election_dates),
+    };
 
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
@@ -69,6 +98,7 @@ pub fn create_ballot_style(
         area_id: area.id,
         contests: contests,
         election_event_presentation: Some(election_event_presentation.clone()),
+        election_presentation: Some(election_presentation),
     })
 }
 
@@ -84,16 +114,10 @@ fn create_contest(
         .clone()
         .map(|presentation_value| serde_json::from_value(presentation_value))
         .unwrap_or(Ok(ContestPresentation::new()))?;
-    let name_i18n = contest_presentation
-        .i18n
-        .clone()
-        .map(|i18n| i18n.get("name").map(|val| val.clone()))
-        .flatten();
-    let description_i18n = contest_presentation
-        .i18n
-        .clone()
-        .map(|i18n| i18n.get("description").map(|val| val.clone()))
-        .flatten();
+    let name_i18n = parse_i18n_field(&contest_presentation.i18n, "name");
+    let description_i18n =
+        parse_i18n_field(&contest_presentation.i18n, "description");
+    let alias_i18n = parse_i18n_field(&contest_presentation.i18n, "alias");
 
     let candidates: Vec<ballot::Candidate> = sorted_candidates
         .iter()
@@ -107,16 +131,12 @@ fn create_contest(
                 })
                 .unwrap_or(Ok(CandidatePresentation::new()))?;
 
-            let name_i18n = candidate_presentation
-                .i18n
-                .clone()
-                .map(|i18n| i18n.get("name").map(|val| val.clone()))
-                .flatten();
-            let description_i18n = candidate_presentation
-                .i18n
-                .clone()
-                .map(|i18n| i18n.get("description").map(|val| val.clone()))
-                .flatten();
+            let name_i18n =
+                parse_i18n_field(&candidate_presentation.i18n, "name");
+            let description_i18n =
+                parse_i18n_field(&candidate_presentation.i18n, "description");
+            let alias_i18n =
+                parse_i18n_field(&candidate_presentation.i18n, "alias");
 
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
@@ -128,8 +148,8 @@ fn create_contest(
                 name_i18n,
                 description: candidate.description.clone(),
                 description_i18n,
-                alias: None,
-                alias_i18n: None,
+                alias: candidate.alias.clone(),
+                alias_i18n: alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
             })
@@ -145,8 +165,8 @@ fn create_contest(
         name_i18n,
         description: contest.description,
         description_i18n,
-        alias: None,
-        alias_i18n: None,
+        alias: contest.alias.clone(),
+        alias_i18n: alias_i18n,
         max_votes: contest.max_votes.unwrap_or(0),
         min_votes: contest.min_votes.unwrap_or(0),
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),

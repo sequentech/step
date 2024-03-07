@@ -9,6 +9,8 @@ import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "./SettingsContextProvider"
+import {getOperationRole} from "@/services/Permissions"
+import {IPermissions} from "@/types/keycloak"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -36,7 +38,7 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
         null
     )
-    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
+    const {isAuthenticated, getAccessToken, hasRole} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
@@ -44,15 +46,19 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             uri: globalSettings.HASURA_URL,
         })
 
-        const authLink = setContext((_, {headers}) => {
+        const authLink = setContext((operation, {headers}) => {
             // get the authentication token from local storage if it exists
             const token = getAccessToken()
             // return the headers to the context so httpLink can read them
+            const operationRole = getOperationRole(
+                operation,
+                hasRole(IPermissions.TRUSTEE_CEREMONY)
+            )
             return {
                 headers: {
                     ...headers,
                     "authorization": token ? `Bearer ${token}` : "",
-                    "x-hasura-role": role,
+                    "x-hasura-role": operationRole,
                 },
             }
         })

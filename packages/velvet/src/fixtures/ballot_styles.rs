@@ -28,6 +28,7 @@ pub fn get_ballot_style_1(
             election_id,
         )],
         election_event_presentation: None,
+        election_presentation: None,
     }
 }
 
@@ -53,5 +54,6 @@ pub fn generate_ballot_style(
         area_id: area_id.to_string(),
         contests,
         election_event_presentation: None,
+        election_presentation: None,
     }
 }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        loadingDataProvider: "Loading data provider...",
         breadcrumbSteps: {
             electionList: "Election List",
             ballot: "Ballot",
@@ -162,8 +163,6 @@ const englishTranslation = {
                 settingSubtitle: "General Configuration",
                 sms: "SMS",
                 mail: "Mails",
-                spanish: "Spanish",
-                english: "English",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
@@ -180,6 +179,7 @@ const englishTranslation = {
                 communications: "COMMUNICATION",
                 languages: "LANGUAGES",
                 schedules: "SCHEDULED EVENTS",
+                trustees: "TRUSTEES",
             },
         },
         scheduleScreen: {
@@ -503,6 +503,7 @@ const englishTranslation = {
                 },
             },
             permissions: {
+                "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
@@ -556,6 +557,11 @@ const englishTranslation = {
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
+                "cast-vote-read": "Read Cast Votes",
+                "document-read": "Read Documents",
+                "document-write": "Edit Documents",
+                "support-material-read": "Read Support Materials",
+                "support-material-write": "Edit Support Materials",
             },
         },
         common: {
@@ -673,6 +679,10 @@ const englishTranslation = {
                 general: "General",
                 type: "Type",
                 image: "Image",
+                isDisabled: "Disabled",
+                isExplicitInvalid: "Invalid Vote",
+                isCategoryList: "Category List",
+                isWriteIn: "Write-in",
             },
             field: {
                 name: "Name",
@@ -722,6 +732,12 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+            },
+            checkableListPolicy: {
+                "allow-selecting-candidates-and-lists": "Candidates And Lists",
+                "allow-selecting-candidates": "Candidates Only",
+                "allow-selecting-lists": "Lists Only",
+                "disabled": "Disabled",
             },
             error: {},
             createContestSuccess: "Contest created",

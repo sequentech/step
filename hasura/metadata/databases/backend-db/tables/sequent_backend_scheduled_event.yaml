@@ -4,11 +4,14 @@ table:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - created_by
     - cron_config
     - event_processor
+    - task_id
     - annotations
     - event_payload
     - labels
@@ -43,6 +46,7 @@ select_permissions:
     - created_by
     - cron_config
     - event_processor
+    - task_id
     - annotations
     - event_payload
     - labels
@@ -51,7 +55,9 @@ select_permissions:
     - election_event_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -74,11 +80,14 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - created_by
     - cron_config
     - event_processor
+    - task_id
     - annotations
     - event_payload
     - labels
@@ -87,7 +96,9 @@ update_permissions:
     - election_event_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -110,7 +121,9 @@ update_permissions:
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:

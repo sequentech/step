@@ -48,8 +48,9 @@ import {
     CandidatesOrder,
     DropFile,
     EInvalidVotePolicy,
+    EEnableCheckableLists,
     IContestPresentation,
-    IElectionEventLanguageConf,
+    ILanguageConf,
     IElectionEventPresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -85,7 +86,7 @@ export const ContestDataForm: React.FC = () => {
 
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [languageConf, setLanguageConf] = useState<IElectionEventLanguageConf>({
+    const [languageConf, setLanguageConf] = useState<ILanguageConf>({
         enabled_language_codes: ["en"],
         default_language_code: "en",
     })
@@ -156,6 +157,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const checkableListChoices = (): Array<EnumChoice<EEnableCheckableLists>> => {
+        return Object.values(EEnableCheckableLists).map((value) => ({
+            id: value,
+            name: t(`contestScreen.checkableListPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -203,6 +211,10 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.invalid_vote_policy =
                 newContest.presentation.invalid_vote_policy ||
                 EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT
+
+            newContest.presentation.enable_checkable_lists =
+                newContest.presentation.enable_checkable_lists ||
+                EEnableCheckableLists.CANDIDATES_AND_LISTS
 
             return newContest
         },
@@ -424,6 +436,12 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source="presentation.enable_checkable_lists"
+                                    choices={checkableListChoices()}
                                     validate={required()}
                                 />
                             </AccordionDetails>

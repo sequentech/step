@@ -115,6 +115,16 @@ pub enum Permissions {
     TALLY_SHEET_PUBLISH,
     #[strum(serialize = "tally-sheet-delete")]
     TALLY_SHEET_DELETE,
+    #[strum(serialize = "cast-vote-read")]
+    CAST_VOTE_READ,
+    #[strum(serialize = "document-read")]
+    DOCUMENT_READ,
+    #[strum(serialize = "document-write")]
+    DOCUMENT_WRITE,
+    #[strum(serialize = "support-material-read")]
+    SUPPORT_MATERIAL_READ,
+    #[strum(serialize = "support-material-write")]
+    SUPPORT_MATERIAL_WRITE,
 }
 
 #[allow(non_camel_case_types)]

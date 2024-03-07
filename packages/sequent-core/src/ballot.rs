@@ -222,6 +222,7 @@ pub struct CandidateUrl {
 pub struct CandidatePresentation {
     pub i18n: Option<I18nContent<I18nContent<String>>>,
     pub is_explicit_invalid: Option<bool>,
+    pub is_disabled: Option<bool>,
     pub is_category_list: Option<bool>,
     pub invalid_vote_position: Option<String>, // top|bottom
     pub is_write_in: Option<bool>,
@@ -234,6 +235,7 @@ impl CandidatePresentation {
         CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_disabled: Some(false),
             is_category_list: Some(false),
             invalid_vote_position: None,
             is_write_in: Some(false),
@@ -293,6 +295,14 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    pub fn is_disabled(&self) -> bool {
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_disabled)
+            .flatten()
+            .unwrap_or(false)
+    }
+
     pub fn is_write_in(&self) -> bool {
         self.presentation
             .as_ref()
@@ -306,6 +316,7 @@ impl Candidate {
             self.presentation.clone().unwrap_or(CandidatePresentation {
                 i18n: None,
                 is_explicit_invalid: Some(false),
+                is_disabled: Some(false),
                 is_category_list: Some(false),
                 is_write_in: Some(false),
                 sort_order: Some(0),
@@ -446,6 +457,40 @@ pub struct ElectionEventPresentation {
     pub css: Option<String>,
     pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionDates {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionPresentation {
+    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub dates: Option<ElectionDates>,
 }
 
 #[derive(
@@ -722,4 +767,5 @@ pub struct BallotStyle {
     pub area_id: Uuid,
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
+    pub election_presentation: Option<ElectionPresentation>,
 }

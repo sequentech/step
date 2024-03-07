@@ -9,7 +9,7 @@ import org.keycloak.models.KeycloakSessionFactory;
 import com.google.auto.service.AutoService;
  
  /**
-  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
+  * @author <a href="mailto:edu@sequentech.io">Eduardo Robles</a>
   */
 @AutoService(EmailSenderProviderFactory.class)
 public class DummyEmailSenderProviderFactory

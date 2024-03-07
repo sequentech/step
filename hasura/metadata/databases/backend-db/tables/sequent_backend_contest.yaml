@@ -16,7 +16,9 @@ array_relationships:
 insert_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_acclaimed
     - is_active
@@ -42,6 +44,36 @@ insert_permissions:
     - id
     - tenant_id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_acclaimed
+    - is_active
+    - is_encrypted
+    - counting_algorithm
+    - name
+    - voting_type
+    - max_votes
+    - min_votes
+    - winning_candidates_num
+    - annotations
+    - conditions
+    - labels
+    - presentation
+    - tally_configuration
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+  role: election-event-write
 - comment: ""
   permission:
     check: {}
@@ -98,8 +130,72 @@ select_permissions:
     - election_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_acclaimed
+    - is_active
+    - is_encrypted
+    - counting_algorithm
+    - name
+    - voting_type
+    - max_votes
+    - min_votes
+    - winning_candidates_num
+    - annotations
+    - conditions
+    - labels
+    - presentation
+    - tally_configuration
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_acclaimed
+    - is_active
+    - is_encrypted
+    - counting_algorithm
+    - name
+    - voting_type
+    - max_votes
+    - min_votes
+    - winning_candidates_num
+    - annotations
+    - conditions
+    - labels
+    - presentation
+    - tally_configuration
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     allow_aggregations: true
@@ -162,7 +258,9 @@ select_permissions:
 update_permissions:
 - comment: ""
   permission:
-    check: {}
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     columns:
     - is_acclaimed
     - is_active
@@ -187,8 +285,43 @@ update_permissions:
     - election_id
     - id
     - tenant_id
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_acclaimed
+    - is_active
+    - is_encrypted
+    - counting_algorithm
+    - name
+    - voting_type
+    - max_votes
+    - min_votes
+    - winning_candidates_num
+    - annotations
+    - conditions
+    - labels
+    - presentation
+    - tally_configuration
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     check: {}
@@ -221,8 +354,16 @@ update_permissions:
 delete_permissions:
 - comment: ""
   permission:
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
 - comment: ""
   permission:
     filter: {}

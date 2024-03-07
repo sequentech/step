@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        loadingDataProvider: "Cargando proveedor de datos...",
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Ballot",
@@ -164,8 +165,6 @@ const spanishTranslation: TranslationType = {
                 settingSubtitle: "Ajustes generales",
                 sms: "SMS",
                 mail: "Mails",
-                spanish: "Spanish",
-                english: "English",
                 createNew: "Crear un Tipo de Elección",
                 emptyHeader: "No hay Tipos de Elección aún.",
                 emptyBody: "¿Quieres crear uno?",
@@ -182,6 +181,7 @@ const spanishTranslation: TranslationType = {
                 communications: "COMUNICACIÓN",
                 languages: "IDIOMAS",
                 schedules: "EVENTOS PROGRAMADOS",
+                trustees: "AUTORIDADES",
             },
         },
         scheduleScreen: {
@@ -505,6 +505,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
@@ -558,6 +559,11 @@ const spanishTranslation: TranslationType = {
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
+                "cast-vote-read": "Leer Votos Emitidos",
+                "document-read": "Leer Documentos",
+                "document-write": "Editar Documentos",
+                "support-material-read": "Leer Materiales de Soporte",
+                "support-material-write": "Editar Materiales de Soporte",
             },
         },
         common: {
@@ -675,6 +681,10 @@ const spanishTranslation: TranslationType = {
                 general: "General",
                 type: "Tipo",
                 image: "Imagen",
+                isDisabled: "Deshabilitado",
+                isExplicitInvalid: "Voto Inválido",
+                isCategoryList: "Lista",
+                isWriteIn: "Voto por Escrito",
             },
             field: {
                 name: "Nombre",
@@ -724,6 +734,12 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+            },
+            checkableListPolicy: {
+                "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
+                "allow-selecting-candidates": "Sólo Candidatos",
+                "allow-selecting-lists": "Sólo Listas",
+                "disabled": "Deshabilitado",
             },
             error: {},
             createContestSuccess: "Pregunta creado",

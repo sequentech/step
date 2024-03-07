@@ -2,15 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
+import {Sequent_Backend_Tenant} from "@/gql/graphql"
 
 interface TenantContextProps {
     tenantId: string | null
     setTenantId: (tenantId: string | null) => void
+    tenant?: Sequent_Backend_Tenant
+    setTenant: (tenant: Sequent_Backend_Tenant | undefined) => void
 }
 
 const defaultTenantContext: TenantContextProps = {
     tenantId: "",
     setTenantId: () => undefined,
+    tenant: undefined,
+    setTenant: () => undefined,
 }
 
 export const TenantContext = createContext<TenantContextProps>(defaultTenantContext)
@@ -23,21 +28,31 @@ interface TenantContextProviderProps {
 }
 
 export const TenantContextProvider = (props: TenantContextProviderProps) => {
-    const [tenant, setTenant] = useState<string | null>(
+    const [tenantId, setTenantId] = useState<string | null>(
         localStorage.getItem("selected-tenant-id") || null
     )
 
-    const setTenantId = (tenantId: string | null): void => {
+    const setTenantIdWrapper = (tenantId: string | null): void => {
         localStorage.setItem("selected-tenant-id", tenantId || "")
-        setTenant(tenantId)
+        setTenantId(tenantId)
+    }
+    const [tenant, setTenant] = useState<Sequent_Backend_Tenant | undefined>(undefined)
+
+    const setTenantWrapper = (newTenant: Sequent_Backend_Tenant | undefined) => {
+        setTenant(newTenant)
+        if (newTenant?.id && newTenant.id !== tenantId) {
+            setTenantId(newTenant.id)
+        }
     }
 
     // Setup the context provider
     return (
         <TenantContext.Provider
             value={{
-                tenantId: tenant,
-                setTenantId,
+                tenantId: tenantId,
+                setTenantId: setTenantIdWrapper,
+                tenant,
+                setTenant: setTenantWrapper,
             }}
         >
             {props.children}

@@ -19,7 +19,10 @@ export interface ICategorizedCandidates {
 }
 
 export const categorizeCandidates = (question: IContest): ICategorizedCandidates => {
-    const [validCandidates, invalidCandidates] = splitList(question.candidates, checkIsInvalidVote)
+    const enabledCandidates = question.candidates.filter(
+        (cand: ICandidate) => !(cand.presentation?.is_disabled ?? false)
+    )
+    const [validCandidates, invalidCandidates] = splitList(enabledCandidates, checkIsInvalidVote)
     const nonCategoryCandidates: Array<ICandidate> = []
 
     const categoriesMap: CategoriesMap = {}

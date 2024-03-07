@@ -1,26 +1,6 @@
-import {Identifier} from "react-admin"
-
-export type TTenant = {
-    setting: ITenantSettings
-    voting_channels: {
-        online: boolean
-        kiosk: boolean
-    }
-}
-
-export interface ITenantScheduledEvent {
-    id: Identifier
-    date: string
-    name: string
-}
-
-export interface ITenantSettings {
-    spanish?: boolean
-    english?: boolean
-    sms?: boolean
-    mail?: boolean
-    schedules?: Array<ITenantScheduledEvent>
-}
+// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
 export type TVotingSetting = {
     [key: string]: boolean
