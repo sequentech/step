@@ -90,6 +90,7 @@ public class Utils {
 
 		if (emailAddress != null)
 		{
+			log.infov("Sending email to={0}", emailAddress);
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
 
@@ -99,16 +100,23 @@ public class Utils {
 			messageAttributes.put("ttl", Math.floorDiv(ttl, 60));
 
 			List<Object> subjAttr = ImmutableList.of(realmName);
-			emailTemplateProvider
-				.setRealm(realm)
-				.setUser(user)
-				.setAttribute("realmName", realmName)
-				.send(
-					Utils.SEND_CODE_EMAIL_SUBJECT,
-					subjAttr, 
-					Utils.SEND_CODE_EMAIL_FTL,
-					messageAttributes
-				);
+			log.infov("Sending email: prepared messageAttributes");
+
+			try {
+				emailTemplateProvider
+					.setRealm(realm)
+					.setUser(user)
+					.setAttribute("realmName", realmName)
+					.send(
+						Utils.SEND_CODE_EMAIL_SUBJECT,
+						subjAttr,
+						Utils.SEND_CODE_EMAIL_FTL,
+						messageAttributes
+					);
+			} catch (EmailException error) {
+				log.debug("Exception sending email", error);
+				throw error;
+			}
 		}
 	}
 

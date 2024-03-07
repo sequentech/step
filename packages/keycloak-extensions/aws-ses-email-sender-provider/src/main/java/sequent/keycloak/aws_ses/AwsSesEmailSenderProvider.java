@@ -45,6 +45,16 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
         String replyTo = config.get("replyTo");
         String replyToDisplayName = config.get("replyToDisplayName");
 
+        log.infov(
+            """
+            **Sending AWS SES email**:\n\t- subject={0}\n\t- address={1}\n\t- textBody={2}\n\t- htmlBody={3}\n\t- from={4}
+            """,
+            subject,
+            address,
+            textBody,
+            htmlBody,
+            from
+        );
         try {
             if (from == null || from.isEmpty()) {
                 throw new Exception("Missing 'from' email address.");
@@ -105,10 +115,10 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
             log.infov("Email sent to {0} via AWS SES", address);
         } catch (SesException error) {
             log.error(error.awsErrorDetails().errorMessage(), error);
-            throw new EmailException("Failed to send email via AWS SES", error);
+            throw new EmailException("SES: Failed to send email via AWS SES", error);
         } catch (Exception error) {
             log.error("Failed to send email via AWS SES", error);
-            throw new EmailException("Failed to send email via AWS SES", error);
+            throw new EmailException("Exception: Failed to send email via AWS SES", error);
         }
     }
 

@@ -27,6 +27,11 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
 	@Override
 	public void send(String phoneNumber, String message)
 	{
+        log.infov(
+            "**Sending AWS SMS**:\n\t- phoneNumber={0}\n\t- message={1}",
+            phoneNumber,
+            message
+        );
 		Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
 		messageAttributes.put(
 			"AWS.SNS.SMS.SenderID",

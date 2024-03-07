@@ -35,6 +35,6 @@ public class AwsSesEmailSenderProviderFactory
 
     @Override
     public String getId() {
-        return "aws_ses";
+        return "aws-ses";
     }
 }
