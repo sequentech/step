@@ -4,7 +4,11 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation} from "@/gql/graphql"
+import {
+    CreateElectionEventMutation,
+    ImportUsersMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -18,6 +22,7 @@ import {
     useNotify,
     useRefresh,
     Button,
+    useRecordContext,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
@@ -32,6 +37,7 @@ import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {IMPORT_USERS} from "@/queries/ImportUsers"
 
 const Hidden = styled(Box)`
     display: none;
@@ -168,6 +174,28 @@ export const CreateElectionList: React.FC = () => {
     }
 
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+    const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
+
+    const handleImportVoters = async (documentId: string, sha256: string) => {
+        let {data, errors} = await importUsers({
+            variables: {
+                tenantId,
+                documentId,
+                electionEventId: electionEvent.id,
+            },
+        })
+
+        console.log("LS -> src/resources/ElectionEvent/CreateElectionEvent.tsx:187 -> data: ", data)
+
+        refresh()
+
+        if (!errors) {
+            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
+        } else {
+            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+        }
+    }
 
     return (
         <>
@@ -261,10 +289,10 @@ export const CreateElectionList: React.FC = () => {
 
                 <ImportDataDrawer
                     open={openDrawer}
-                    closeDrawer={()=> setOpenDrawer(false)}
+                    closeDrawer={() => setOpenDrawer(false)}
                     title="electionEventScreen.import.eetitle"
                     subtitle="electionEventScreen.import.eesubtitle"
-                    doRefresh={() => refresh()}
+                    doImport={handleImportVoters}
                 />
             </div>
         </>

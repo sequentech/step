@@ -1,7 +1,7 @@
 import {Box, styled, Button, TextField} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
-import React, {useEffect, memo} from "react"
+import React, {useEffect, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -9,9 +9,8 @@ import {useMutation} from "@apollo/client"
 import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
-    doImport: (documentId: string, sha256: string) => void
+    doImport: (documentId: string, sha256: string) => Promise<void>
     doCancel: () => void
-    isLoading: boolean
     errors: String | null
     refresh?: string
 }
@@ -30,10 +29,11 @@ export const ImportStyles = {
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, doImport, isLoading, refresh, errors} = props
+        const {doCancel, doImport, refresh, errors} = props
 
         const {t} = useTranslation()
         const notify = useNotify()
+        const [loading, setLoading] = useState<boolean>(false)
         const [shaField, setShaField] = React.useState<string>("")
         const [showShaDialog, setShowShaDialog] = React.useState<boolean>(false)
         const [isUploading, setIsUploading] = React.useState<boolean>(false)
@@ -47,7 +47,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
             if (theFile) {
                 // Get the Upload URL
-                let {data, errors} = await getUploadUrl({
+                let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
                         media_type: theFile.type,
@@ -87,16 +87,18 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setDocumentId(null)
         }, [refresh])
 
-        const onImportButtonClick = () => {
+        const onImportButtonClick = async () => {
             if (!shaField) {
                 setShowShaDialog(true)
                 return
             }
 
-            doImport(documentId as string, shaField)
+            setLoading(true)
+            await doImport(documentId as string, shaField)
+            setLoading(false)
         }
 
-        const isWorking = () => isLoading || isUploading
+        const isWorking = () => loading || isUploading
 
         return (
             <Box sx={{padding: "0"}}>

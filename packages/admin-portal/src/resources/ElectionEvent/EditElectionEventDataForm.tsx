@@ -500,7 +500,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 closeDrawer={() => setOpenDrawer(false)}
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
-                doRefresh={() => {}}
+                doImport={async () => {}}
             />
 
             <Dialog

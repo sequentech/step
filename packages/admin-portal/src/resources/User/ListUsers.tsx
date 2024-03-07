@@ -17,6 +17,7 @@ import {
     useGetList,
     FunctionField,
     Button as ReactAdminButton,
+    useRecordContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -33,7 +34,12 @@ import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {DeleteUserMutation, ExportUsersMutation} from "@/gql/graphql"
+import {
+    DeleteUserMutation,
+    ExportUsersMutation,
+    ImportUsersMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
@@ -44,6 +50,7 @@ import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDa
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
+import {IMPORT_USERS} from "@/queries/ImportUsers"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -335,6 +342,29 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         </ResourceListStyles.EmptyBox>
     )
 
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+    const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
+
+    const handleImportVoters = async (documentId: string, sha256: string) => {
+        let {data, errors} = await importUsers({
+            variables: {
+                tenantId,
+                documentId,
+                electionEventId: electionEvent.id,
+            },
+        })
+
+        console.log("LS -> src/resources/ElectionEvent/CreateElectionEvent.tsx:187 -> data: ", data)
+
+        refresh()
+
+        if (!errors) {
+            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
+        } else {
+            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+        }
+    }
+
     return (
         <>
             <List
@@ -457,7 +487,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 closeDrawer={() => setOpenImportDrawer(false)}
                 title="electionEventScreen.import.title"
                 subtitle="electionEventScreen.import.subtitle"
-                doRefresh={() => refresh()}
+                doImport={handleImportVoters}
             />
 
             <Dialog
