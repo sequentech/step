@@ -17,18 +17,21 @@ import {
     useGetOne,
     useNotify,
     useRefresh,
+    Button,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
-import {Box, CircularProgress, Typography} from "@mui/material"
+import {Box, CircularProgress, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import UploadIcon from "@mui/icons-material/Upload"
 import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ImportVotersBaseTabs} from "@/components/election-event/import-data/ImportVotersBaseTabs"
 
 const Hidden = styled(Box)`
     display: none;
@@ -161,84 +164,117 @@ export const CreateElectionList: React.FC = () => {
             refetchTreeMenu()
         }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
+
+    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+
+    function openDial() {
+        setOpenImportDrawer(true)
+        console.log("zzzz")
+    }
+
     return (
-        <SimpleForm
-            defaultValues={postDefaultValues}
-            onSubmit={handleSubmit}
-            toolbar={
-                <Toolbar>
-                    <SaveButton className="election-event-save-button" disabled={isLoading} />
-                </Toolbar>
-            }
-        >
-            <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
-            <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
-            <TextInput source="name" />
-            <TextInput source="description" />
-            <Hidden>
-                <SelectInput
-                    source="encryption_protocol"
-                    choices={[{id: "RSA256", name: "RSA256"}]}
-                    defaultValue={"RSA256"}
-                />
-                <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="slug" defaultValue={tenantId} />
-                </ReferenceInput>
-                <BooleanInput source="is_archived" defaultValue={false} />
-                <JsonInput
-                    source="labels"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
+        <>
+            <SimpleForm
+                defaultValues={postDefaultValues}
+                onSubmit={handleSubmit}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton className="election-event-save-button" disabled={isLoading} />
+                    </Toolbar>
+                }
+            >
+                <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
+                <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
+                <TextInput source="name" />
+                <TextInput source="description" />
+                <Hidden>
+                    <SelectInput
+                        source="encryption_protocol"
+                        choices={[{id: "RSA256", name: "RSA256"}]}
+                        defaultValue={"RSA256"}
+                    />
+                    <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
+                        <SelectInput optionText="slug" defaultValue={tenantId} />
+                    </ReferenceInput>
+                    <BooleanInput source="is_archived" defaultValue={false} />
+                    <JsonInput
+                        source="labels"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <JsonInput
+                        source="presentation"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <JsonInput
+                        source="voting_channels"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <JsonInput
+                        source="voting_channels"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <JsonInput
+                        source="dates"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <TextInput source="user_boards" />
+                    <TextInput source="audit_election_event_id" />
+                </Hidden>
+                <ReservedSpace>{isLoading ? <CircularProgress /> : null}</ReservedSpace>
+            </SimpleForm>
+
+            <hr />
+
+            <div>
+                <p>Import</p>
+
+                <Button onClick={openDial} label={t("common.label.import")}>
+                    <UploadIcon />
+                </Button>
+
+                <Drawer
+                    anchor="right"
+                    open={openImportDrawer}
+                    onClose={() => {
+                        setOpenImportDrawer(false)
                     }}
-                />
-                <JsonInput
-                    source="presentation"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
+                    PaperProps={{
+                        sx: {width: "30%"},
                     }}
-                />
-                <JsonInput
-                    source="voting_channels"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
-                <JsonInput
-                    source="voting_channels"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
-                <JsonInput
-                    source="dates"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
-                <TextInput source="user_boards" />
-                <TextInput source="audit_election_event_id" />
-            </Hidden>
-            <ReservedSpace>{isLoading ? <CircularProgress /> : null}</ReservedSpace>
-        </SimpleForm>
+                >
+                    <ImportVotersBaseTabs doRefresh={() => refresh()} />
+                </Drawer>
+            </div>
+        </>
     )
 }
