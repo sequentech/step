@@ -6,6 +6,7 @@ import {TranslationDict} from "@root/services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
+import {IElectionPresentation} from "./ElectionPresentation"
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
@@ -85,6 +86,7 @@ export interface IBallotStyle {
     area_id: string
     contests: Array<IContest>
     election_event_presentation?: IElectionEventPresentation
+    election_presentation?: IElectionPresentation
 }
 
 export interface IPublicKeyConfig {

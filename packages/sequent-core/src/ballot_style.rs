@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, CandidatesOrder, ContestPresentation,
-    ElectionEventPresentation, I18nContent,
+    self, CandidatePresentation, ContestPresentation, ElectionDates,
+    ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
 use crate::types::hasura_types;
 use anyhow::{anyhow, Result};
@@ -50,6 +50,19 @@ pub fn create_ballot_style(
         })?
         .unwrap_or(Default::default());
 
+    let election_dates: ElectionDates = election
+        .dates
+        .clone()
+        .map(|dates| serde_json::from_value(dates))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
+        .unwrap_or(Default::default());
+
+    let election_presentation = ElectionPresentation {
+        i18n: None,
+        dates: Some(election_dates),
+    };
+
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
         .map(|contest| {
@@ -85,6 +98,7 @@ pub fn create_ballot_style(
         area_id: area.id,
         contests: contests,
         election_event_presentation: Some(election_event_presentation.clone()),
+        election_presentation: Some(election_presentation),
     })
 }
 

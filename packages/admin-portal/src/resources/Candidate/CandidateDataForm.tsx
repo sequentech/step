@@ -50,9 +50,10 @@ export type Sequent_Backend_Candidate_Extended = Sequent_Backend_Candidate &
         defaultLanguage?: string
     }
 
-export const CandidateDataForm: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Candidate>()
-
+export const CandidateDataForm: React.FC<{
+    record: Sequent_Backend_Candidate
+    document?: Sequent_Backend_Document
+}> = ({record, document: imageData}) => {
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [languageConf, setLanguageConf] = useState<ILanguageConf>({
@@ -74,14 +75,6 @@ export const CandidateDataForm: React.FC = () => {
         }
     )
 
-    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
-        "sequent_backend_document",
-        {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
-        }
-    )
-
     useEffect(() => {
         if (!electionEvent) {
             return
@@ -93,13 +86,10 @@ export const CandidateDataForm: React.FC = () => {
         setLanguageConf(presentation.language_conf)
     }, [electionEvent?.presentation?.language_conf])
 
-    const getImageUrl = (
-        parsedValue?: Sequent_Backend_Candidate_Extended,
-        imageData?: Sequent_Backend_Document
-    ) =>
+    const getImageUrl = (parsedValue?: Sequent_Backend_Candidate_Extended, name?: string | null) =>
         `tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`
 
-    const [updateImage] = useUpdate()
+    const [updateImage] = useUpdate<Sequent_Backend_Candidate>()
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Candidate_Extended): Sequent_Backend_Candidate_Extended => {
@@ -137,20 +127,6 @@ export const CandidateDataForm: React.FC = () => {
             newCandidate.alias = newCandidate.presentation.i18n.en.alias
             newCandidate.description = newCandidate.presentation.i18n.en.description
 
-            if (newCandidate.presentation && newCandidate.image_document_id && imageData) {
-                let imgUrlBase = getImageUrl(newCandidate, imageData)
-                let imgUrl: ICandidateUrl = {
-                    url: imgUrlBase,
-                    is_image: true,
-                }
-                let urls = (newCandidate.presentation as ICandidatePresentation).urls || []
-                let foundUrl = urls.find((url) => url.url === imgUrlBase)
-                if (!foundUrl) {
-                    urls.push(imgUrl)
-                }
-                newCandidate.presentation.urls = urls
-            }
-
             return newCandidate
         },
         [electionEvent]
@@ -183,15 +159,35 @@ export const CandidateDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const filterString = (input: string): string => input.replace(/[^a-zA-Z0-9-.]/g, "")
+
+    const addUrlToPresentation = (newCandidate: Sequent_Backend_Candidate, name?: string) => {
+        let imgUrlBase = getImageUrl(newCandidate, name)
+        let imgUrl: ICandidateUrl = {
+            url: imgUrlBase,
+            is_image: true,
+        }
+        let presentation = cloneDeep(
+            (newCandidate.presentation as ICandidatePresentation | undefined) ?? {}
+        )
+        let urls = presentation.urls ?? []
+        urls = urls.filter((url) => !url.is_image)
+        urls.push(imgUrl)
+        presentation.urls = urls
+
+        return presentation
+    }
+
     const handleFiles = async (files: FileList | null) => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
 
         if (theFile) {
+            let name = filterString(theFile.name)
             let {data, errors} = await getUploadUrl({
                 variables: {
-                    name: theFile.name,
+                    name: name,
                     media_type: theFile.type,
                     size: theFile.size,
                 },
@@ -209,14 +205,16 @@ export const CandidateDataForm: React.FC = () => {
                     })
                     notify(t("electionScreen.common.fileLoaded"), {type: "success"})
 
+                    let presentation = addUrlToPresentation(record, name)
+
                     updateImage("sequent_backend_candidate", {
                         id: record.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
+                            presentation: presentation,
                         },
                     })
 
-                    refetchImage()
                     refresh()
                 } catch (e) {
                     console.log("error :>> ", e)
@@ -264,7 +262,6 @@ export const CandidateDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Candidate_Extended)
-                console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm
                         validate={formValidator}
@@ -353,8 +350,8 @@ export const CandidateDataForm: React.FC = () => {
                                                 height={200}
                                                 src={`${
                                                     globalSettings.PUBLIC_BUCKET_URL
-                                                }${getImageUrl(parsedValue, imageData)}`}
-                                                alt={getImageUrl(parsedValue, imageData)}
+                                                }${getImageUrl(parsedValue, imageData?.name)}`}
+                                                alt={getImageUrl(parsedValue, imageData?.name)}
                                             />
                                         ) : null}
                                     </Grid>

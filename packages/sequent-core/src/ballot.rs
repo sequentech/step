@@ -469,6 +469,40 @@ pub struct ElectionEventPresentation {
     Eq,
     Debug,
     Clone,
+    Default,
+)]
+pub struct ElectionDates {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionPresentation {
+    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub dates: Option<ElectionDates>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
 )]
 pub struct ContestPresentation {
     pub i18n: Option<I18nContent<I18nContent<String>>>,
@@ -733,4 +767,5 @@ pub struct BallotStyle {
     pub area_id: Uuid,
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
+    pub election_presentation: Option<ElectionPresentation>,
 }
