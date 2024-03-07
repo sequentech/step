@@ -40,9 +40,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportVotersTabs} from "@/components/election-event/import-data/ImportVotersTabs"
-import importDrawerState from "@/atoms/import-drawer-state"
-import {useAtom} from "jotai"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
@@ -68,7 +66,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {globalSettings} = useContext(SettingsContext)
 
     const [open, setOpen] = React.useState(false)
-    const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
     const [exporting, setExporting] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
@@ -81,7 +78,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState(false)
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const [openImportDrawer, setOpenImportDrawer] = React.useState<boolean>(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
@@ -272,7 +270,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleImport = () => {
-        setOpenImport(true)
+        setOpenImportDrawer(true)
     }
 
     const handleExport = () => {
@@ -454,18 +452,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
 
-            <Drawer
-                anchor="right"
-                open={openImport}
-                onClose={() => {
-                    setOpenImport(false)
-                }}
-                PaperProps={{
-                    sx: {width: "30%"},
-                }}
-            >
-                <ImportVotersTabs doRefresh={() => refresh()} />
-            </Drawer>
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="electionEventScreen.import.title"
+                subtitle="electionEventScreen.import.subtitle"
+                doRefresh={() => refresh()}
+            />
 
             <Dialog
                 variant="warning"

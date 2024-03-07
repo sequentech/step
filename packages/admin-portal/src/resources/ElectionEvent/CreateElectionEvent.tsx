@@ -21,7 +21,7 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
-import {Box, CircularProgress, Drawer, Typography} from "@mui/material"
+import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
@@ -31,7 +31,7 @@ import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportVotersTabs} from "@/components/election-event/import-data/ImportVotersTabs"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 
 const Hidden = styled(Box)`
     display: none;
@@ -67,7 +67,9 @@ export const CreateElectionList: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
+
     const postDefaultValues = () => ({id: v4()})
+
     const {
         data: newElectionEvent,
         isLoading: isOneLoading,
@@ -165,12 +167,7 @@ export const CreateElectionList: React.FC = () => {
         }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
 
-    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
-
-    function openDial() {
-        setOpenImportDrawer(true)
-        console.log("zzzz")
-    }
+    const [openDrawer, setOpenDrawer] = useState<boolean>(false)
 
     return (
         <>
@@ -258,22 +255,17 @@ export const CreateElectionList: React.FC = () => {
             <div>
                 <p>Import</p>
 
-                <Button onClick={openDial} label={t("common.label.import")}>
+                <Button onClick={() => setOpenDrawer(true)} label={t("common.label.import")}>
                     <UploadIcon />
                 </Button>
 
-                <Drawer
-                    anchor="right"
-                    open={openImportDrawer}
-                    onClose={() => {
-                        setOpenImportDrawer(false)
-                    }}
-                    PaperProps={{
-                        sx: {width: "30%"},
-                    }}
-                >
-                    <ImportVotersTabs doRefresh={() => refresh()} />
-                </Drawer>
+                <ImportDataDrawer
+                    open={openDrawer}
+                    closeDrawer={()=> setOpenDrawer(false)}
+                    title="electionEventScreen.import.eetitle"
+                    subtitle="electionEventScreen.import.eesubtitle"
+                    doRefresh={() => refresh()}
+                />
             </div>
         </>
     )

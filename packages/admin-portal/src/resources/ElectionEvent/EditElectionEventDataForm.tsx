@@ -31,11 +31,9 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {useAtom} from "jotai"
-import importDrawerState from "@/atoms/import-drawer-state"
 import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
-import {ImportElectionEvent} from "@/components/election-event/import-data/ImportElectionEvent"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
@@ -60,8 +58,8 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
-    const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
+    const [openDrawer, setOpenDrawer] = useState<boolean>(false)
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -265,7 +263,7 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const handleImport = () => {
         console.log("IMPORT")
-        setOpenImport(true)
+        setOpenDrawer(true)
     }
 
     const handleExport = () => {
@@ -497,18 +495,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                 }}
             </RecordContext.Consumer>
 
-            <Drawer
-                anchor="right"
-                open={openImport}
-                onClose={() => {
-                    setOpenImport(false)
-                }}
-                PaperProps={{
-                    sx: {width: "30%"},
-                }}
-            >
-                <ImportElectionEvent doRefresh={() => {}} />
-            </Drawer>
+            <ImportDataDrawer
+                open={openDrawer}
+                closeDrawer={() => setOpenDrawer(false)}
+                title="electionEventScreen.import.eetitle"
+                subtitle="electionEventScreen.import.eesubtitle"
+                doRefresh={() => {}}
+            />
 
             <Dialog
                 variant="info"
