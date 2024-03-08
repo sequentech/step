@@ -82,12 +82,12 @@ pub async fn import_election_event_f(
 
     let celery_app = get_celery_app().await;
     let task = celery_app
-        .send_task(import_users::import_users::new(input))
+        .send_task(import_election_event::import_election_event::new(input))
         .await
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error sending import_users task: {:?}", e),
+                format!("Error sending import_election_event task: {:?}", e),
             )
         })?;
 
