@@ -111,6 +111,13 @@ export type CreateTallyOutput = {
   tally_session_id: Scalars['uuid']['output'];
 };
 
+export type CreateVoteReceiptOutput = {
+  __typename?: 'CreateVoteReceiptOutput';
+  ballot_id?: Maybe<Scalars['String']['output']>;
+  id: Scalars['uuid']['output'];
+  status?: Maybe<Scalars['String']['output']>;
+};
+
 export type DataListElectoralLog = {
   __typename?: 'DataListElectoralLog';
   items: Array<Maybe<ElectoralLogRow>>;
@@ -602,6 +609,8 @@ export type Mutation_Root = {
   create_role: KeycloakRole;
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_user: KeycloakUser;
+  /** create_vote_receipt */
+  create_vote_receipt?: Maybe<CreateVoteReceiptOutput>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
   delete_role_permission?: Maybe<SetRolePermissionOutput>;
@@ -735,6 +744,8 @@ export type Mutation_Root = {
   get_private_key?: Maybe<GetPrivateKeyOutput>;
   get_upload_url?: Maybe<GetUploadUrlOutput>;
   get_user: KeycloakUser;
+  /** import_election_event */
+  import_election_event?: Maybe<OptionalId>;
   import_users?: Maybe<OptionalId>;
   insertElectionEvent?: Maybe<CreateElectionEventOutput>;
   /** insertTenant */
@@ -1101,6 +1112,16 @@ export type Mutation_RootCreate_UserArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
   user: KeycloakUser2;
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_Vote_ReceiptArgs = {
+  ballot_id: Scalars['String']['input'];
+  ballot_tracker_url: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
 };
 
 
@@ -1596,6 +1617,13 @@ export type Mutation_RootGet_UserArgs = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['uuid']['input'];
   user_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootImport_Election_EventArgs = {
+  document_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
 };
 
 
