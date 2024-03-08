@@ -7,7 +7,6 @@ import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
-import {useParams} from "react-router-dom"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getOperationRole} from "@/services/Permissions"
 import {IPermissions} from "@/types/keycloak"
@@ -54,7 +53,7 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
                 operation,
                 hasRole(IPermissions.TRUSTEE_CEREMONY)
             )
-            console.log(`operation ${operation.operationName} operationRole ${operationRole}`)
+
             return {
                 headers: {
                     ...headers,

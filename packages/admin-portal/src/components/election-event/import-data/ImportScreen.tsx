@@ -56,11 +56,18 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     },
                 })
 
+                console.log(
+                    "LS -> src/components/election-event/import-data/ImportScreen.tsx:57 -> data: ",
+                    data
+                )
+
                 try {
                     if (!data?.get_upload_url?.url) {
                         notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+
                         return
                     }
+
                     // Actually upload the CSV file
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -69,9 +76,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         },
                         body: theFile,
                     })
+
                     setIsUploading(false)
-                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                     setDocumentId(data.get_upload_url.document_id)
+                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                 } catch (_error) {
                     setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -148,9 +156,25 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     cancel={t("electionEventScreen.import.shaDialog.cancel")}
                     title={t("electionEventScreen.import.shaDialog.title")}
                     handleClose={(result: boolean) => {
+                        console.log(
+                            "LS -> src/components/election-event/import-data/ImportScreen.tsx:158 -> result: ",
+                            result
+                        )
+
                         if (result) {
+                            console.log("123412342341241234123")
+                            console.log(
+                                "LS -> src/components/election-event/import-data/ImportScreen.tsx:166 -> shaField: ",
+                                shaField
+                            )
+                            console.log(
+                                "LS -> src/components/election-event/import-data/ImportScreen.tsx:166 -> documentId: ",
+                                documentId
+                            )
+
                             doImport(documentId as string, shaField)
                         }
+
                         setShowShaDialog(false)
                     }}
                 >
