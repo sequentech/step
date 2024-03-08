@@ -67,17 +67,11 @@ pub async fn import_election_event_f(
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
     let input = body.into_inner();
 
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_CREATE
-    } else {
-        Permissions::USER_CREATE
-    };
-
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![],
     )?;
 
     let celery_app = get_celery_app().await;
