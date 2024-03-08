@@ -56,7 +56,7 @@ pub async fn insert_election_event_f(
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportElectionEventOutput {
-    id: String,
+    message: String,
 }
 
 #[instrument(skip(claims))]
@@ -65,9 +65,35 @@ pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
     claims: JwtClaims,
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
-    dbg!(&body);
+    let input = body.into_inner();
+
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_CREATE
+    } else {
+        Permissions::USER_CREATE
+    };
+
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(import_users::import_users::new(input))
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error sending import_users task: {:?}", e),
+            )
+        })?;
+
+    info!("Sent IMPORT_USERS task {}", task.task_id);
 
     Ok(Json(ImportElectionEventOutput {
-        id: "adfas".to_string(),
+        message: format!("Task created: import_election_event"),
     }))
 }
