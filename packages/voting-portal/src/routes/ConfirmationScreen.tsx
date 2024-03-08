@@ -231,7 +231,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 setDocumentUrl(newDocumentUrl)
                 setDocumentOpened(true)
 
-                window.open(newDocumentUrl, "_blank")
+                setTimeout(() => {
+                    // We use a setTimeout as a work around due to this issue in React:
+                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
+                    // https://github.com/facebook/react/issues/17355
+                    window.open(newDocumentUrl, "_blank")
+                }, 0)
             }
         }
     }, [eventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
