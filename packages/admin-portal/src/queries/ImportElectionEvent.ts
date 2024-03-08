@@ -5,8 +5,8 @@
 import {gql} from "@apollo/client"
 
 export const IMPORT_ELECTION_EVENT = gql`
-    mutation ImportUsers($tenantId: String!, $documentId: String!) {
-        import_users(
+    mutation ImportElectionEvents($tenantId: String!, $documentId: String!) {
+        import_election_event(
             tenant_id: $tenantId
             document_id: $documentId
         ) {

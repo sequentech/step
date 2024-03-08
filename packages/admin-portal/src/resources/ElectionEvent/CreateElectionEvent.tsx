@@ -171,7 +171,7 @@ export const CreateElectionList: React.FC = () => {
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [importElectionEvent] = useMutation(IMPORT_ELECTION_EVENT)
 
-    const handleImportVoters = async (documentId: string, sha256: string) => {
+    const handleImportElectionEvent = async (documentId: string, sha256: string) => {
         let {data, errors} = await importElectionEvent({
             variables: {
                 tenantId,
@@ -287,7 +287,7 @@ export const CreateElectionList: React.FC = () => {
                     closeDrawer={() => setOpenDrawer(false)}
                     title="electionEventScreen.import.eetitle"
                     subtitle="electionEventScreen.import.eesubtitle"
-                    doImport={handleImportVoters}
+                    doImport={handleImportElectionEvent}
                 />
             </div>
         </>
