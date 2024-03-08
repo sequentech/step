@@ -18,7 +18,16 @@ import {
     Identifier,
     RecordContext,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Grid,
+    IconButton,
+    CircularProgress,
+} from "@mui/material"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Candidate,
@@ -37,12 +46,23 @@ import {
     IElectionEventPresentation,
     ILanguageConf,
     ICandidateUrl,
+    Icon,
 } from "@sequentech/ui-essentials"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {cloneDeep} from "lodash"
+import {faTrash} from "@fortawesome/free-solid-svg-icons"
+import styled from "@emotion/styled"
+import {adminTheme} from "@sequentech/ui-essentials"
+
+const StyledIconButton = styled(IconButton)`
+    color: ${adminTheme.palette.brandColor};
+    font-size: 18px;
+    margin-left: auto;
+    margin-right: 8px;
+`
 
 export type Sequent_Backend_Candidate_Extended = Sequent_Backend_Candidate &
     RaRecord<Identifier> & {
@@ -50,9 +70,9 @@ export type Sequent_Backend_Candidate_Extended = Sequent_Backend_Candidate &
         defaultLanguage?: string
     }
 
-export const CandidateDataForm: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Candidate>()
-
+export const CandidateDataForm: React.FC<{
+    record: Sequent_Backend_Candidate
+}> = ({record}) => {
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [languageConf, setLanguageConf] = useState<ILanguageConf>({
@@ -62,6 +82,7 @@ export const CandidateDataForm: React.FC = () => {
     const notify = useNotify()
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
+    const [enabledDeleteImage, setEnabledDeleteImage] = useState<boolean>(true)
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
@@ -73,14 +94,10 @@ export const CandidateDataForm: React.FC = () => {
             id: record.election_event_id,
         }
     )
-
-    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
-        "sequent_backend_document",
-        {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
-        }
-    )
+    const {data: imageData} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+        id: record.image_document_id,
+        meta: {tenant_id: record.tenant_id},
+    })
 
     useEffect(() => {
         if (!electionEvent) {
@@ -94,12 +111,12 @@ export const CandidateDataForm: React.FC = () => {
     }, [electionEvent?.presentation?.language_conf])
 
     const getImageUrl = (
-        parsedValue?: Sequent_Backend_Candidate_Extended,
-        imageData?: Sequent_Backend_Document
-    ) =>
-        `tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`
+        tenantId?: string,
+        imageDocumentId?: string | null,
+        name?: string | null
+    ) => `tenant-${tenantId}/document-${imageDocumentId}/${name}`
 
-    const [updateImage] = useUpdate()
+    const [updateImage] = useUpdate<Sequent_Backend_Candidate>()
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Candidate_Extended): Sequent_Backend_Candidate_Extended => {
@@ -137,20 +154,6 @@ export const CandidateDataForm: React.FC = () => {
             newCandidate.alias = newCandidate.presentation.i18n.en.alias
             newCandidate.description = newCandidate.presentation.i18n.en.description
 
-            if (newCandidate.presentation && newCandidate.image_document_id && imageData) {
-                let imgUrlBase = getImageUrl(newCandidate, imageData)
-                let imgUrl: ICandidateUrl = {
-                    url: imgUrlBase,
-                    is_image: true,
-                }
-                let urls = (newCandidate.presentation as ICandidatePresentation).urls || []
-                let foundUrl = urls.find((url) => url.url === imgUrlBase)
-                if (!foundUrl) {
-                    urls.push(imgUrl)
-                }
-                newCandidate.presentation.urls = urls
-            }
-
             return newCandidate
         },
         [electionEvent]
@@ -183,15 +186,50 @@ export const CandidateDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const filterString = (input: string): string => input.replace(/[^a-zA-Z0-9-.]/g, "")
+
+    const addUrlToPresentation = (
+        newCandidate: Sequent_Backend_Candidate,
+        imageDocumentId?: string,
+        name?: string
+    ) => {
+        let imgUrlBase = getImageUrl(newCandidate?.tenant_id, imageDocumentId, name)
+        let imgUrl: ICandidateUrl = {
+            url: imgUrlBase,
+            is_image: true,
+        }
+        let presentation = cloneDeep(
+            (newCandidate.presentation as ICandidatePresentation | undefined) ?? {}
+        )
+        let urls = presentation.urls ?? []
+        urls = urls.filter((url) => !url.is_image)
+        urls.push(imgUrl)
+        presentation.urls = urls
+
+        return presentation
+    }
+
+    const removeUrlFromPresentation = (newCandidate: Sequent_Backend_Candidate) => {
+        let presentation = cloneDeep(
+            (newCandidate.presentation as ICandidatePresentation | undefined) ?? {}
+        )
+        let urls = presentation.urls ?? []
+        urls = urls.filter((url) => !url.is_image)
+        presentation.urls = urls
+
+        return presentation
+    }
+
     const handleFiles = async (files: FileList | null) => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
 
         if (theFile) {
+            let name = filterString(theFile.name)
             let {data, errors} = await getUploadUrl({
                 variables: {
-                    name: theFile.name,
+                    name: name,
                     media_type: theFile.type,
                     size: theFile.size,
                 },
@@ -209,14 +247,20 @@ export const CandidateDataForm: React.FC = () => {
                     })
                     notify(t("electionScreen.common.fileLoaded"), {type: "success"})
 
+                    let presentation = addUrlToPresentation(
+                        record,
+                        data.get_upload_url.document_id,
+                        name
+                    )
+
                     updateImage("sequent_backend_candidate", {
                         id: record.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
+                            presentation: presentation,
                         },
                     })
 
-                    refetchImage()
                     refresh()
                 } catch (e) {
                     console.log("error :>> ", e)
@@ -226,6 +270,27 @@ export const CandidateDataForm: React.FC = () => {
                 console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})
             }
+        }
+    }
+
+    const removeImage = () => {
+        try {
+            setEnabledDeleteImage(false)
+            let presentation = removeUrlFromPresentation(record)
+            updateImage("sequent_backend_candidate", {
+                id: record.id,
+                data: {
+                    image_document_id: null,
+                    presentation: presentation,
+                },
+            })
+
+            setEnabledDeleteImage(true)
+            refresh()
+        } catch (e) {
+            console.log("error :>> ", e)
+            notify(t("electionScreen.error.fileError"), {type: "error"})
+            setEnabledDeleteImage(true)
         }
     }
 
@@ -260,11 +325,24 @@ export const CandidateDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const DeleteImage: React.FC = () => (
+        <StyledIconButton onClick={removeImage} disabled={!enabledDeleteImage}>
+            {!enabledDeleteImage ? (
+                <CircularProgress size="18px" style={{marginRight: "6px"}} />
+            ) : null}
+            <Icon variant="info" icon={faTrash} fontSize="18px" />
+        </StyledIconButton>
+    )
+
     return electionEvent ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Candidate_Extended)
-                console.log("parsedValue :>> ", parsedValue)
+                const imageUrl = getImageUrl(
+                    parsedValue?.tenant_id,
+                    parsedValue?.image_document_id,
+                    imageData?.name
+                )
                 return (
                     <SimpleForm
                         validate={formValidator}
@@ -337,10 +415,15 @@ export const CandidateDataForm: React.FC = () => {
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}
                             >
-                                <CandidateStyles.Wrapper>
-                                    <CandidateStyles.Title>
-                                        {t("electionScreen.edit.image")}
-                                    </CandidateStyles.Title>
+                                <CandidateStyles.Wrapper
+                                    style={{width: "100%", flexDirection: "row"}}
+                                >
+                                    <>
+                                        <CandidateStyles.Title>
+                                            {t("electionScreen.edit.image")}
+                                        </CandidateStyles.Title>
+                                        {parsedValue?.image_document_id ? <DeleteImage /> : null}
+                                    </>
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -351,10 +434,8 @@ export const CandidateDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${
-                                                    globalSettings.PUBLIC_BUCKET_URL
-                                                }${getImageUrl(parsedValue, imageData)}`}
-                                                alt={getImageUrl(parsedValue, imageData)}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                alt={imageUrl}
                                             />
                                         ) : null}
                                     </Grid>

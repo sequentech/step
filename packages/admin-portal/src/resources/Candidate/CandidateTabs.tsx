@@ -15,7 +15,7 @@ export const CandidateTabs: React.FC = () => {
             />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
-                    <EditCandidateData />
+                    <EditCandidateData record={record} />
                 </TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>

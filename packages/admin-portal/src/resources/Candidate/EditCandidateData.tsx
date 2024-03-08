@@ -1,8 +1,9 @@
 import React from "react"
-import {EditBase} from "react-admin"
+import {EditBase, useGetOne} from "react-admin"
 import {CandidateDataForm} from "./CandidateDataForm"
+import {Sequent_Backend_Candidate, Sequent_Backend_Document} from "@/gql/graphql"
 
-export const EditCandidateData: React.FC = () => {
+export const EditCandidateData: React.FC<{record: Sequent_Backend_Candidate}> = ({record}) => {
     const transform = (data: any) => {
         console.log("TRANSFORM ELECTION :: ", data)
 
@@ -54,7 +55,7 @@ export const EditCandidateData: React.FC = () => {
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            <CandidateDataForm />
+            <CandidateDataForm record={record} />
         </EditBase>
     )
 }

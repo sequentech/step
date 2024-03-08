@@ -1,2 +1,2 @@
 <#ftl output_format="plainText">
-${msg("messageOtp.sendCode.textBody",realmName,code,ttl)}
+${msg("messageOtp.sendCode.email.textBody",realmName,code,ttl)}
