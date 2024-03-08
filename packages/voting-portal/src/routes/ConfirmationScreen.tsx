@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext} from "react"
+import React, {useState, useEffect, useContext, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -17,11 +17,11 @@ import {
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
+
 import {useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {provideBallotService} from "../services/BallotService"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
@@ -128,9 +128,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
+    const [documentOpened, setDocumentOpened] = useState<boolean>(false)
     const [documentUrl, setDocumentUrl] = useState<string | null>(null)
+    const documentUrlRef = useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
+
+    const [errorDialog, setErrorDialog] = useState<boolean>(false)
 
     const ballotId = auditableBallot?.ballot_hash
 
@@ -170,6 +174,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         if (docId) {
             setDocumentId(docId)
             startPolling(docId)
+            setDocumentOpened(false)
         }
     }
 
@@ -192,9 +197,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             }, 1000)
 
             setPolling(intervalId)
-            setTimeout(() => setPolling(null), globalSettings.POLLING_DURATION_TIMEOUT)
+
+            setTimeout(() => {
+                setPolling(null)
+                if (!documentUrlRef.current) {
+                    setErrorDialog(true)
+                }
+            }, globalSettings.POLLING_DURATION_TIMEOUT)
         }
     }
+
+    useEffect(() => {
+        documentUrlRef.current = documentUrl
+    }, [documentUrl])
 
     useEffect(() => {
         function stopPolling() {
@@ -207,16 +222,24 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         if (documentData?.sequent_backend_document?.length > 0) {
             stopPolling()
 
-            const documentUrl = getDocumentUrl(
-                documentId!,
-                documentData?.sequent_backend_document[0]?.name
-            )
+            if (!documentOpened) {
+                const newDocumentUrl = getDocumentUrl(
+                    documentId!,
+                    documentData?.sequent_backend_document[0]?.name
+                )
 
-            setDocumentUrl(documentUrl)
+                setDocumentUrl(newDocumentUrl)
+                setDocumentOpened(true)
 
-            window.open(documentUrl, "_blank")
+                setTimeout(() => {
+                    // We use a setTimeout as a work around due to this issue in React:
+                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
+                    // https://github.com/facebook/react/issues/17355
+                    window.open(newDocumentUrl, "_blank")
+                }, 0)
+            }
         }
-    }, [eventId, polling, documentData, documentId, getDocumentUrl])
+    }, [eventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
 
     useEffect(() => {
         return () => {
@@ -227,36 +250,48 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }, [polling])
 
     return (
-        <ActionsContainer>
-            <StyledButton
-                onClick={printVoteReceipt}
-                disabled={!!polling}
-                variant="secondary"
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            >
-                <Icon icon={faPrint} size="sm" />
-                <Box>{t("confirmationScreen.printButton")}</Box>
-            </StyledButton>
-            {!canVote ? (
-                <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+        <>
+            <ActionsContainer>
+                <StyledButton
+                    onClick={printVoteReceipt}
+                    disabled={!!polling}
+                    variant="secondary"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                >
+                    <Icon icon={faPrint} size="sm" />
+                    <Box>{t("confirmationScreen.printButton")}</Box>
+                </StyledButton>
+                {!canVote ? (
+                    <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                        <StyledButton
+                            onClick={onClickRedirect}
+                            className="finish-button"
+                            sx={{width: {xs: "100%", sm: "200px"}}}
+                        >
+                            <Box>{t("confirmationScreen.finishButton")}</Box>
+                        </StyledButton>
+                    </ActionLink>
+                ) : (
                     <StyledButton
-                        onClick={onClickRedirect}
                         className="finish-button"
+                        onClick={onClickToScreen}
                         sx={{width: {xs: "100%", sm: "200px"}}}
                     >
                         <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
-                </ActionLink>
-            ) : (
-                <StyledButton
-                    className="finish-button"
-                    onClick={onClickToScreen}
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                >
-                    <Box>{t("confirmationScreen.finishButton")}</Box>
-                </StyledButton>
-            )}
-        </ActionsContainer>
+                )}
+            </ActionsContainer>
+
+            <Dialog
+                handleClose={() => setErrorDialog(false)}
+                open={errorDialog}
+                title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
+                ok={t("confirmationScreen.errorDialogPrintVoteReceipt.ok")}
+                variant="warning"
+            >
+                {stringToHtml(t("confirmationScreen.errorDialogPrintVoteReceipt.content"))}
+            </Dialog>
+        </>
     )
 }
 
@@ -294,6 +329,7 @@ export const ConfirmationScreen: React.FC = () => {
                     fontSize="16px"
                     onClick={() => setOpenConfirmationHelp(true)}
                 />
+
                 <Dialog
                     handleClose={() => setOpenConfirmationHelp(false)}
                     open={openConfirmationHelp}
