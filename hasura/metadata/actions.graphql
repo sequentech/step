@@ -187,6 +187,13 @@ type Query {
 }
 
 type Mutation {
+  import_election_event (
+    tenant_id: String!
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
   import_users (
     tenant_id: String!
     election_event_id: String
