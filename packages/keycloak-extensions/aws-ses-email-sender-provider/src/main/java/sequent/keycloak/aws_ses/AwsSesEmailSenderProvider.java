@@ -1,9 +1,9 @@
-// Copyright (c) 2020 Niko Köbler 
+// Copyright (c) 2024 Eduardo Robles
+// Copyright (c) 2020 Niko Köbler (MIT)
 // Inspired on https://github.com/dasniko/keycloak-aws-ses-email-provider
 package sequent.keycloak.aws_ses;
 
 import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 import software.amazon.awssdk.services.ses.model.Destination;
 import software.amazon.awssdk.services.ses.model.Message;
