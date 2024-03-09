@@ -123,6 +123,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const {hashBallot} = provideBallotService()
+    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
     const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
@@ -131,8 +133,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [documentUrl, setDocumentUrl] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
-
-    const ballotId = auditableBallot?.ballot_hash
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
@@ -267,8 +267,8 @@ export const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
-
-    const ballotId = auditableBallot?.ballot_hash
+    const {hashBallot} = provideBallotService()
+    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
 
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
 

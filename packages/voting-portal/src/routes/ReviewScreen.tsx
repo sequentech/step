@@ -93,8 +93,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
-
-    const ballotId = auditableBallot.ballot_hash
+    const ballotId = hashBallot(auditableBallot)
+    if (ballotId !== auditableBallot.ballot_hash) {
+        console.log(`ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`)
+    }
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
