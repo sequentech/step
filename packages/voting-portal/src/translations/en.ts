@@ -96,6 +96,11 @@ const englishTranslation = {
                     "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
                 ok: "OK",
             },
+            errorDialogPrintVoteReceipt: {
+                title: "Error",
+                content: "An error has occured, please try again",
+                ok: "OK",
+            },
         },
         auditScreen: {
             printButton: "Print",

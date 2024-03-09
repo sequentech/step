@@ -98,6 +98,11 @@ const spanishTranslation: TranslationType = {
                     "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
                 ok: "OK",
             },
+            errorDialogPrintVoteReceipt: {
+                title: "Error",
+                content: "Ha ocurrido un error, por favor intenta de nuevo",
+                ok: "Aceptar",
+            },
         },
         auditScreen: {
             printButton: "Imprimir",
