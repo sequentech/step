@@ -13,7 +13,7 @@ import software.amazon.awssdk.services.ses.model.SesException;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailException;
 import lombok.extern.jbosslog.JBossLog;
-import javax.mail.internet.InternetAddress;
+import jakarta.mail.internet.InternetAddress;
 import java.util.Collections;
 import java.util.Map;
 
