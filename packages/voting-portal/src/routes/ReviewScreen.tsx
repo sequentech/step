@@ -82,9 +82,15 @@ interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
     hideAudit: boolean
+    ballotId: string
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot, hideAudit}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({
+    ballotStyle,
+    auditableBallot,
+    hideAudit,
+    ballotId,
+}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
@@ -93,10 +99,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
-    const ballotId = hashBallot(auditableBallot)
-    if (ballotId !== auditableBallot.ballot_hash) {
-        console.log(`ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`)
-    }
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -223,7 +225,11 @@ export const ReviewScreen: React.FC = () => {
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
-    const ballotHash = auditableBallot?.ballot_hash
+    const ballotId = auditableBallot && hashBallot(auditableBallot)
+    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
+        console.log(`ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`)
+        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+    }
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -260,7 +266,7 @@ export const ReviewScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
             {hideAudit ? null : (
-                <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+                <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
             <Dialog
                 handleClose={handleCloseDialog}
@@ -310,6 +316,7 @@ export const ReviewScreen: React.FC = () => {
                 ballotStyle={ballotStyle}
                 auditableBallot={auditableBallot}
                 hideAudit={hideAudit}
+                ballotId={ballotId ?? ""}
             />
         </PageLimit>
     )
