@@ -113,6 +113,26 @@ pub struct HashableBallot {
     pub config: BallotStyle,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct RawHashableBallot<C: Ctx> {
+    pub version: u32,
+    pub issue_date: String,
+    pub contests: Vec<HashableBallotContest<C>>,
+}
+
+impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
+    type Error = BallotError;
+
+    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
+        let contests = value.deserialize_contests::<C>()?;
+        Ok(RawHashableBallot {
+            version: value.version,
+            issue_date: value.issue_date.clone(),
+            contests: contests,
+        })
+    }
+}
+
 impl HashableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,

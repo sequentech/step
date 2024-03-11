@@ -35,6 +35,8 @@ import {GET_DOCUMENT} from "../queries/GetDocument"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {provideBallotService} from "../services/BallotService"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -112,9 +114,10 @@ const ActionLink = styled(Link)`
 interface ActionButtonsProps {
     electionId?: string
     ballotTrackerUrl?: string
+    ballotId: string
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId, ballotId}) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -133,10 +136,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const documentUrlRef = useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
-
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
-
-    const ballotId = auditableBallot?.ballot_hash
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
@@ -302,13 +302,20 @@ export const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
-
-    const ballotId = auditableBallot?.ballot_hash
+    const {hashBallot} = provideBallotService()
+    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
 
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
 
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+
+    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
+        console.log(
+            `ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
+        )
+        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+    }
 
     useEffect(() => {
         if (!ballotId) {
@@ -404,7 +411,11 @@ export const ConfirmationScreen: React.FC = () => {
             <QRContainer>
                 <QRCode value={ballotTrackerUrl} />
             </QRContainer>
-            <ActionButtons ballotTrackerUrl={ballotTrackerUrl} electionId={electionId} />
+            <ActionButtons
+                ballotTrackerUrl={ballotTrackerUrl}
+                electionId={electionId}
+                ballotId={ballotId}
+            />
         </PageLimit>
     )
 }
