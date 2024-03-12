@@ -53,6 +53,7 @@ import {
     ILanguageConf,
     IElectionEventPresentation,
     isArray,
+    ICandidatePresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -325,6 +326,14 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
+    const sortedCandidates = (candidates ?? []).sort((a, b) => {
+        let presentationA = a.presentation as ICandidatePresentation | undefined
+        let presentationB = b.presentation as ICandidatePresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
     return electionEvent && isArray(candidates) ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -332,7 +341,7 @@ export const ContestDataForm: React.FC = () => {
 
                 return (
                     <SimpleForm
-                        defaultValues={{candidatesOrder: candidates ?? []}}
+                        defaultValues={{candidatesOrder: sortedCandidates}}
                         validate={formValidator}
                         record={parsedValue}
                         toolbar={
