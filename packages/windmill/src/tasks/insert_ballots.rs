@@ -19,7 +19,7 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{CastVote, find_area_ballots};
+use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
@@ -31,11 +31,18 @@ pub struct InsertBallotsPayload {
     pub trustee_names: Vec<String>,
 }
 
-fn deserialize_cast_vote(ballot: &CastVote, contest_id: String) -> Result<Ciphertext<RistrettoCtx>> {
-    let ballot_str = ballot.content.clone().ok_or(anyhow!("Missing ballot string"))?;
+fn deserialize_cast_vote(
+    ballot: &CastVote,
+    contest_id: String,
+) -> Result<Ciphertext<RistrettoCtx>> {
+    let ballot_str = ballot
+        .content
+        .clone()
+        .ok_or(anyhow!("Missing ballot string"))?;
 
     let hashable_ballot: HashableBallot = serde_json::from_str(&ballot_str)?;
-    let contests = hashable_ballot.deserialize_contests()
+    let contests = hashable_ballot
+        .deserialize_contests()
         .map_err(|err| anyhow!("{:?}", err))?;
     let contest = contests
         .iter()
@@ -143,12 +150,13 @@ pub async fn insert_ballots(
         .clone()
         .into_iter()
         .map(|ballot| -> (CastVote, Result<Ciphertext<RistrettoCtx>>) {
-            let ciphertext = deserialize_cast_vote(&ballot, tally_session_contest.contest_id.clone());
+            let ciphertext =
+                deserialize_cast_vote(&ballot, tally_session_contest.contest_id.clone());
             (ballot, ciphertext)
         })
         .collect();
 
-    let (insertable_ballots, ballot_errors):( Vec<_>, Vec<_>) = deserialized_ballots
+    let (insertable_ballots, ballot_errors): (Vec<_>, Vec<_>) = deserialized_ballots
         .into_iter()
         .partition(|element| element.1.is_ok());
 
