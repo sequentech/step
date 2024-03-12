@@ -52,6 +52,7 @@ import {
     IContestPresentation,
     ILanguageConf,
     IElectionEventPresentation,
+    isArray,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -114,8 +115,12 @@ export const ContestDataForm: React.FC = () => {
 
     const [updateImage] = useUpdate()
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
-        filter: {contest_id: record.id},
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
+        filter: {
+            contest_id: record.id,
+            tenant_id: record.tenant_id,
+            election_event_id: record.election_event_id,
+        },
     })
 
     useEffect(() => {
@@ -319,7 +324,7 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
-    return electionEvent ? (
+    return electionEvent && isArray(candidates) ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
