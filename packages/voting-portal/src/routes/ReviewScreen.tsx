@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -95,7 +96,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
     const navigate = useNavigate()
-    const [auditBallotHelp, setAuditBallotHelp] = useState(false)
+    const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
+    const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
@@ -118,11 +120,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+        setIsCastingBallot(true)
 
         try {
             const {data} = await refetchElectionEvent()
 
             if (!(data && data.sequent_backend_election_event.length > 0)) {
+                setIsCastingBallot(false)
                 console.error("Cannot load election event")
                 return submit({error: errorType}, {method: "post"})
             }
@@ -132,6 +136,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             const eventStatus = record?.status as IElectionEventStatus | undefined
 
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
+                setIsCastingBallot(false)
                 console.warn("Election event is not open")
                 return submit({error: errorType.toString()}, {method: "post"})
             }
@@ -152,6 +157,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             return submit(null, {method: "post"})
         } catch (error) {
+            setIsCastingBallot(false)
             // dispatch(clearBallot())
             console.log(`error casting vote: ${error}`)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
@@ -202,6 +208,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    disabled={isCastingBallot}
                     onClick={castBallotAction}
                 >
                     <Box>{t("reviewScreen.castBallotButton")}</Box>
