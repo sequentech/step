@@ -160,6 +160,24 @@ pub async fn insert_ballots(
         .into_iter()
         .partition(|element| element.1.is_ok());
 
+
+    // Vec<(id, error)>
+    let ballot_errors: Vec<(String, String)> = ballot_errors
+        .into_iter()
+        .map(|element| (element.0.id.clone(), format!("#{:?}", element.1.unwrap_err())))
+        .collect();
+
+    insert_tally_session_contest_vote_error(
+        &hasura_transaction,
+        &tally_session_contest.tenant_id,
+        &tally_session_contest.election_event_id,
+        &tally_session_contest.contest_id,
+        &tally_session_contest.tally_session_id,
+        &tally_session_contest.area_id,
+        &tally_session_contest.id,
+        &ballot_errors
+    ).await?;
+
     let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = insertable_ballots
         .into_iter()
         .map(|element| element.1.unwrap())

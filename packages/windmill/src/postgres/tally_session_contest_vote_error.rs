@@ -9,8 +9,18 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
-pub async fn insert_cast_vote(
+pub async fn insert_tally_session_contest_vote_error(
     hasura_transaction: &Transaction<'_>,
+
+    &hasura_transaction,
+    &tally_session_contest.tenant_id,
+    &tally_session_contest.election_event_id,
+    &tally_session_contest.contest_id,
+    &tally_session_contest.tally_session_id,
+    &tally_session_contest.area_id,
+    &tally_session_contest.id,
+    &ballot_errors
+    
     tenant_id: &Uuid,
     election_event_id: &Uuid,
     election_id: &Uuid,
@@ -22,7 +32,7 @@ pub async fn insert_cast_vote(
 ) -> Result<CastVote> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            format(r#"
                 INSERT INTO
                     sequent_backend.cast_vote
                 (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature)
@@ -53,6 +63,8 @@ pub async fn insert_cast_vote(
                     voter_id_string,
                     election_event_id;
             "#,
+
+            ),
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
