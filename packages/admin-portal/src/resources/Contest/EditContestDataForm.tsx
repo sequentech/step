@@ -62,6 +62,7 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
 import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {CircularProgress} from "@mui/material"
 
 const CandidateRows = styled.div`
     display: flex;
@@ -514,5 +515,7 @@ export const ContestDataForm: React.FC = () => {
                 )
             }}
         </RecordContext.Consumer>
-    ) : null
+    ) : (
+        <CircularProgress />
+    )
 }
