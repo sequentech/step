@@ -162,19 +162,23 @@ pub async fn insert_ballots(
 
 
     // Vec<(id, error)>
-    let ballot_errors: Vec<(String, String)> = ballot_errors
+    let ballot_errors: Vec<(Uuid, String)> = ballot_errors
         .into_iter()
-        .map(|element| (element.0.id.clone(), format!("#{:?}", element.1.unwrap_err())))
-        .collect();
+        .map(|element| -> Result<(Uuid, String)> {
+            let error = format!("#{:?}", element.1.unwrap_err());
+            let id_uuid = Uuid::parse_str(element.0.id)?;
+            Ok((id_uuid, error))
+        })
+        .collect()?;
 
     insert_tally_session_contest_vote_error(
         &hasura_transaction,
-        &tally_session_contest.tenant_id,
-        &tally_session_contest.election_event_id,
-        &tally_session_contest.contest_id,
-        &tally_session_contest.tally_session_id,
-        &tally_session_contest.area_id,
-        &tally_session_contest.id,
+        Uuid::parse_str(tally_session_contest.tenant_id)?,
+        Uuid::parse_str(tally_session_contest.election_event_id)?,
+        Uuid::parse_str(tally_session_contest.contest_id)?,
+        Uuid::parse_str(tally_session_contest.tally_session_id)?,
+        Uuid::parse_str(tally_session_contest.area_id)?,
+        Uuid::parse_str(tally_session_contest.id)?,
         &ballot_errors
     ).await?;
 

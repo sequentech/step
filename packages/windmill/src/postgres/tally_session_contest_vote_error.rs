@@ -8,65 +8,55 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
+#[instrument(skip(hasura_transaction, ballot_errors), err)]
 pub async fn insert_tally_session_contest_vote_error(
     hasura_transaction: &Transaction<'_>,
-
-    &hasura_transaction,
-    &tally_session_contest.tenant_id,
-    &tally_session_contest.election_event_id,
-    &tally_session_contest.contest_id,
-    &tally_session_contest.tally_session_id,
-    &tally_session_contest.area_id,
-    &tally_session_contest.id,
-    &ballot_errors
-    
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-    election_id: &Uuid,
-    area_id: &Uuid,
-    content: &str,
-    voter_id_string: &str,
-    ballot_id: &str,
-    cast_ballot_signature: &[u8],
-) -> Result<CastVote> {
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    contest_id: Uuid,
+    tally_session_id: Uuid,
+    area_id: Uuid,
+    tally_session_contest_id: Uuid,
+    ballot_errors: Vec<(Uuid, String)>,  // Vec<(cast_vote_id, error)>
+) -> Result<()> {
+    let values: String = ballot_errors
+        .into_iter()
+        .enumerate()
+        .map(|(i, ballot_error)| {
+            let delta = 8 * i;
+            format!("(${}, ${}, ${}, ${}, ${}, ${}, ${}, ${})", delta + 1, delta + 2, delta + 3, delta + 4, delta + 5, delta + 6, delta + 7, delta + 8)
+        })
+        .collect::<Vec<String>>()
+        .join(",\n");
+    let statement_string = format!(r#"
+        INSERT INTO
+            sequent_backend.tally_session_contest_vote_error
+        (tenant_id, election_event_id, contest_id, tally_session_id, area_id, cast_vote_id, error, tally_session_contest_id)
+        VALUES {}
+        RETURNING
+            id
+    "#,
+    values);
     let statement = hasura_transaction
-        .prepare(
-            format(r#"
-                INSERT INTO
-                    sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature)
-                VALUES(
-                    $1,
-                    $2,
-                    $3,
-                    $4,
-                    $5,
-                    $6,
-                    $7,
-                    $8
-                )
-                RETURNING
-                    id,
-                    ballot_id,
-                    election_id,
-                    election_event_id,
-                    tenant_id,
-                    election_id,
-                    area_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    content,
-                    cast_ballot_signature,
-                    voter_id_string,
-                    election_event_id;
-            "#,
-
-            ),
-        )
+        .prepare(&statement_string)
         .await?;
+
+    let values_row: Vec<&(dyn ToSql + Sync)> = ballot_errors
+        .iter()
+        .map(|(cast_vote_id, error)| {
+            vec![
+                &tenant_id,
+                &election_event_id,
+                &contest_id,
+                &tally_session_id,
+                &area_id,
+                cast_vote_id,
+                error,
+                &tally_session_contest_id
+            ]
+        })
+        .collect()
+        .flatten();
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -84,14 +74,5 @@ pub async fn insert_tally_session_contest_vote_error(
         .await
         .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
 
-    let cast_votes: Vec<CastVote> = rows
-        .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
-
-    if 1 == cast_votes.len() {
-        Ok(cast_votes[0].clone())
-    } else {
-        Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
-    }
+    Ok(())
 }
