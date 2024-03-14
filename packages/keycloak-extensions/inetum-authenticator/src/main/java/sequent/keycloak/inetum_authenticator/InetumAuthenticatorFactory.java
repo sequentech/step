@@ -65,6 +65,27 @@ public class InetumAuthenticatorFactory
 	public List<ProviderConfigProperty> getConfigProperties() {
 		return List.of(
 			new ProviderConfigProperty(
+				Utils.API_KEY_ATTRIBUTE,
+				"API KEY",
+				"-",
+				ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+			new ProviderConfigProperty(
+				Utils.APP_ID_ATTRIBUTE,
+				"APP ID",
+				"-",
+				ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+			new ProviderConfigProperty(
+				Utils.CLIENT_ID_ATTRIBUTE,
+				"CLIENT ID",
+				"-",
+				ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+			new ProviderConfigProperty(
 				Utils.USER_DATA_ATTRIBUTE,
 				"User Data Attribute",
 				"The name of the user data attribute to check against.",

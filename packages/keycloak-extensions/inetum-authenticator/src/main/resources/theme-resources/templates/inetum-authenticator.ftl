@@ -11,9 +11,9 @@
     <script src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/jquery-3.7.1.min.js"></script>
     <#outputformat "plainText">
         <script>
-            window.DOB_API_KEY = "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f";
-            window.DOB_APP_ID = "7349cfcc-b3a1-4dd7-b399-d135be0a2f43";
-            window.DOB_CLIENT_ID = "demosequentech";
+            window.DOB_API_KEY = "${api_key}";
+            window.DOB_APP_ID = "${app_id}";
+            window.DOB_CLIENT_ID = "${client_id}";
             // AJAX call to the backend, this should ideally be handled by the server-side
             $.ajax({
                 url: 'https://des.digitalonboarding.es/dob-api/transaction/new',

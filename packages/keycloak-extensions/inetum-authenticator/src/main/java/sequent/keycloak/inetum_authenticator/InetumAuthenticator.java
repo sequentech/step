@@ -26,6 +26,7 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.security.MessageDigest;
 
 @JBossLog
@@ -41,13 +42,12 @@ public class InetumAuthenticator implements Authenticator
         AuthenticatorConfigModel config = Utils
             .getConfig(context.getRealm())
             .get();
+        Map<String, String> configMap = config.getConfig();
         UserModel user = context.getUser();
 
         if (user != null)
         {
-            String statusAttributeName = config
-                .getConfig()
-                .get(Utils.USER_STATUS_ATTRIBUTE);
+            String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
             String statusAttributeValue = user.getFirstAttribute(statusAttributeName);
             log.info("checking statusAttributeValue=" + statusAttributeValue);
             boolean validated = (
@@ -66,6 +66,10 @@ public class InetumAuthenticator implements Authenticator
         log.info("validated is NOT TRUE, rendering the form");
         Response challenge = context
             .form()
+            .setAttribute("realm", context.getRealm())
+            .setAttribute("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE))
+            .setAttribute("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE))
+            .setAttribute("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
             .createForm(Utils.INETUM_FORM);
         context.challenge(challenge);
     }
@@ -75,6 +79,11 @@ public class InetumAuthenticator implements Authenticator
     {
         log.info("action()");
         boolean validated = validateAnswer(context);
+        AuthenticatorConfigModel config = Utils
+            .getConfig(context.getRealm())
+            .get();
+        Map<String, String> configMap = config.getConfig();
+
         if (!validated)
         {
 			// invalid
@@ -86,6 +95,9 @@ public class InetumAuthenticator implements Authenticator
 					context
 						.form()
 						.setAttribute("realm", context.getRealm())
+                        .setAttribute("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE))
+                        .setAttribute("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE))
+                        .setAttribute("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
 						.setError("authInvalid")
 						.createForm(Utils.INETUM_FORM)
 				);

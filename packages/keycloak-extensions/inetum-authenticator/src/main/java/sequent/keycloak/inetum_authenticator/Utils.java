@@ -10,6 +10,9 @@ public class Utils {
 	final public String USER_DATA_ATTRIBUTE = "user-data-attr";
 	final public String USER_STATUS_ATTRIBUTE = "user-status-attr";
 	final public String SDK_ATTRIBUTE = "sdk";
+	final public String API_KEY_ATTRIBUTE = "api-key";
+	final public String APP_ID_ATTRIBUTE = "app-id";
+	final public String CLIENT_ID_ATTRIBUTE = "client-id";
 	final public String ENV_CONFIG_ATTRIBUTE = "env-config";
     final public String INETUM_FORM = "inetum-authenticator.ftl";
 
