@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context};
 use board_messages::braid::newtypes::BatchNumber;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
+use futures::future::join_all;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
@@ -15,10 +16,12 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::tally_session_contest_vote_error::insert_tally_session_contest_vote_error;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -160,27 +163,24 @@ pub async fn insert_ballots(
         .into_iter()
         .partition(|element| element.1.is_ok());
 
-
-    // Vec<(id, error)>
-    let ballot_errors: Vec<(Uuid, String)> = ballot_errors
-        .into_iter()
-        .map(|element| -> Result<(Uuid, String)> {
-            let error = format!("#{:?}", element.1.unwrap_err());
-            let id_uuid = Uuid::parse_str(element.0.id)?;
-            Ok((id_uuid, error))
-        })
-        .collect()?;
-
-    insert_tally_session_contest_vote_error(
-        &hasura_transaction,
-        Uuid::parse_str(tally_session_contest.tenant_id)?,
-        Uuid::parse_str(tally_session_contest.election_event_id)?,
-        Uuid::parse_str(tally_session_contest.contest_id)?,
-        Uuid::parse_str(tally_session_contest.tally_session_id)?,
-        Uuid::parse_str(tally_session_contest.area_id)?,
-        Uuid::parse_str(tally_session_contest.id)?,
-        &ballot_errors
-    ).await?;
+    for ballot_error in ballot_errors {
+        insert_tally_session_contest_vote_error(
+            &hasura_transaction,
+            Uuid::parse_str(&tally_session_contest.tenant_id)
+                .map_err(|err| anyhow!("{:?}", err))?,
+            Uuid::parse_str(&tally_session_contest.election_event_id)
+                .map_err(|err| anyhow!("{:?}", err))?,
+            Uuid::parse_str(&tally_session_contest.contest_id)
+                .map_err(|err| anyhow!("{:?}", err))?,
+            Uuid::parse_str(&tally_session_contest.tally_session_id)
+                .map_err(|err| anyhow!("{:?}", err))?,
+            Uuid::parse_str(&tally_session_contest.area_id).map_err(|err| anyhow!("{:?}", err))?,
+            Uuid::parse_str(&tally_session_contest.id).map_err(|err| anyhow!("{:?}", err))?,
+            Uuid::parse_str(&ballot_error.0.id).map_err(|err| anyhow!("{:?}", err))?,
+            format!("#{:?}", ballot_error.1.unwrap_err()),
+        )
+        .await?;
+    }
 
     let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = insertable_ballots
         .into_iter()
@@ -195,6 +195,11 @@ pub async fn insert_ballots(
         deserialized_trustee_pks,
     )
     .await?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Error commiting hasura transaction")?;
 
     Ok(())
 }
