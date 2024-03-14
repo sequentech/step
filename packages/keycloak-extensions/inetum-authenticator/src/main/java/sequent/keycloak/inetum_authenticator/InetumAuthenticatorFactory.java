@@ -91,7 +91,7 @@ public class InetumAuthenticatorFactory
 				"-",
 				ProviderConfigProperty.STRING_TYPE,
 				"{}"
-			),
+			)
 		);
 	}
 

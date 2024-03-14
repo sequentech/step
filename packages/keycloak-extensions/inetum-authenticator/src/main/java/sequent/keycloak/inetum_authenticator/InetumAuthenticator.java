@@ -37,16 +37,33 @@ public class InetumAuthenticator implements Authenticator
         // Authentication is successful if the user already has the user's 
         // validation status attribute set to true, otherwise initiate a new 
         // flow and show form
-    
-        // TODO
         log.info("authenticate()");
+        AuthenticatorConfigModel config = Utils
+            .getConfig(context.getRealm())
+            .get();
+        UserModel user = context.getUser();
 
-        boolean validated = false;
-        if (validated) {
-            context.success();
-            return;
+        if (user != null)
+        {
+            String statusAttributeName = config
+                .getConfig()
+                .get(Utils.USER_STATUS_ATTRIBUTE);
+            String statusAttributeValue = user.getFirstAttribute(statusAttributeName);
+            log.info("checking statusAttributeValue=" + statusAttributeValue);
+            boolean validated = (
+                statusAttributeValue != null && statusAttributeValue.equals("TRUE")
+            );
+
+            log.info("validated=" + validated);
+            if (validated)
+            {
+                log.info("validated IS TRUE, pass");
+                context.success();
+                return;
+            }
         }
 
+        log.info("validated is NOT TRUE, rendering the form");
         Response challenge = context
             .form()
             .createForm(Utils.INETUM_FORM);
@@ -84,44 +101,13 @@ public class InetumAuthenticator implements Authenticator
  
     protected boolean validateAnswer(AuthenticationFlowContext context)
     {
-        /*
-        MultivaluedMap<String, String> formData = context
-            .getHttpRequest()
-            .getDecodedFormParameters();
-        String secretAnswer = formData.getFirst(Utils.FORM_SECURITY_ANSWER_FIELD);
-        AuthenticatorConfigModel config = Utils
-            .getConfig(context.getRealm())
-            .get();
-		UserModel user = context.getUser();
-
-        String numLastCharsString = config
-            .getConfig()
-            .get(Utils.NUM_LAST_CHARS);
-        String userAttributeName = config
-            .getConfig()
-            .get(Utils.USER_ATTRIBUTE);
-        String userAttributeValue = user.getFirstAttribute(userAttributeName);
-        log.info("comparing userAttributeValue=" + userAttributeValue + ", secretAnswer=" + secretAnswer + ", numLastChars=" + numLastCharsString);
-        if (userAttributeValue == null || numLastCharsString == null) {
-            return false;
-        }
-        int numLastChars =Integer.parseInt(numLastCharsString);
-
-		// We use constant time comparison for security reasons, to avoid timing
-		// attacks
-		boolean isValid = MessageDigest.isEqual(
-			StringUtils.right(userAttributeValue, numLastChars).getBytes(),
-			StringUtils.right(secretAnswer, numLastChars).getBytes()
-		);
-        return isValid;
-         */
         return true;
-     }
+    }
  
-     @Override
-     public boolean requiresUser() {
-         return true;
-     }
+    @Override
+    public boolean requiresUser() {
+        return false;
+    }
  
      @Override
      public boolean configuredFor(
@@ -138,23 +124,8 @@ public class InetumAuthenticator implements Authenticator
         RealmModel realm,
         UserModel user
     ) {
-        user.addRequiredAction(InetumRequiredAction.PROVIDER_ID);
-     }
- 
-     public List<RequiredActionFactory> getRequiredActions(
-        KeycloakSession session
-    ) {
-        return Collections
-            .singletonList(
-            (InetumRequiredActionFactory) session
-                .getKeycloakSessionFactory()
-                .getProviderFactory(
-                    RequiredActionProvider.class,
-                    InetumRequiredAction.PROVIDER_ID
-                )
-            );
     }
- 
+
     @Override
     public void close() { }
 }
