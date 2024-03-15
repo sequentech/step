@@ -116,6 +116,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     @Override
     public void success(FormContext context) {
+		log.info("DeferredRegistrationUserCreation: start");
         checkNotOtherUserAuthenticating(context);
         // Following successful filling of the form, we store the required user
         // information in the authentication session notes. This stored

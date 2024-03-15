@@ -81,6 +81,7 @@ public class Utils {
      */
     static void storeUserDataInAuthSessionNotes(FormContext context)
 	{
+		log.info("storeUserDataInAuthSessionNotes: start");
         MultivaluedMap<String, String> formData = context
 			.getHttpRequest()
 			.getDecodedFormParameters();
