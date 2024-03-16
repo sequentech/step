@@ -42,6 +42,7 @@ public class Utils {
 	final public String APP_ID_ATTRIBUTE = "app-id";
 	final public String CLIENT_ID_ATTRIBUTE = "client-id";
 	final public String ENV_CONFIG_ATTRIBUTE = "env-config";
+	final public String BASE_URL_ATTRIBUTE = "base-url";
     final public String INETUM_FORM = "inetum-authenticator.ftl";
 
     private static final String KEYS_USERDATA = "keyUserdata";

@@ -15,6 +15,7 @@ import org.keycloak.authentication.CredentialValidator;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.credential.CredentialProvider;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -75,12 +76,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         }
 
         log.info("validated is NOT TRUE, rendering the form");
-        Response challenge = context
-            .form()
-            .setAttribute("realm", context.getRealm())
-            .setAttribute("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE))
-            .setAttribute("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE))
-            .setAttribute("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
+        Response challenge = getBaseForm(context)
             .createForm(Utils.INETUM_FORM);
         context.challenge(challenge);
     }
@@ -90,11 +86,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
     {
         log.info("action()");
         boolean validated = validateAnswer(context);
-        AuthenticatorConfigModel config = Utils
-            .getConfig(context.getRealm())
-            .get();
-        Map<String, String> configMap = config.getConfig();
-
         if (!validated)
         {
 			// invalid
@@ -103,12 +94,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
             {
 				context.failureChallenge(
 					AuthenticationFlowError.INVALID_CREDENTIALS,
-					context
-						.form()
-						.setAttribute("realm", context.getRealm())
-                        .setAttribute("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE))
-                        .setAttribute("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE))
-                        .setAttribute("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
+					getBaseForm(context)
 						.setError("authInvalid")
 						.createForm(Utils.INETUM_FORM)
 				);
@@ -125,6 +111,21 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
     protected boolean validateAnswer(AuthenticationFlowContext context)
     {
         return true;
+    }
+
+    protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context)
+    {
+        AuthenticatorConfigModel config = Utils
+            .getConfig(context.getRealm())
+            .get();
+        Map<String, String> configMap = config.getConfig();
+        return context
+            .form()
+            .setAttribute("realm", context.getRealm())
+            .setAttribute("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE))
+            .setAttribute("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE))
+            .setAttribute("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
+            .setAttribute("base_url", configMap.get(Utils.BASE_URL_ATTRIBUTE));
     }
  
     @Override
@@ -241,6 +242,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				"-",
 				ProviderConfigProperty.STRING_TYPE,
 				"{}"
+			),
+			new ProviderConfigProperty(
+				Utils.BASE_URL_ATTRIBUTE,
+				"Base URL for Inetum API",
+				"-",
+				ProviderConfigProperty.STRING_TYPE,
+				"https://des.digitalonboarding.es/"
 			)
 		);
 	}
