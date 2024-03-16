@@ -45,7 +45,6 @@ public class Utils {
     final public String INETUM_FORM = "inetum-authenticator.ftl";
 
     private static final String KEYS_USERDATA = "keyUserdata";
-    private static final String UP_REGISTER_ATTRIBUTE = "UP_REGISTER";
     private static final String KEYS_USERDATA_SEPARATOR = ";";
     private static final List<String> DEFAULT_KEYS_USERDATA = List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
 
@@ -64,7 +63,7 @@ public class Utils {
 					model.getAuthenticator() != null &&
 					model
 						.getAuthenticator()
-						.equals(InetumAuthenticatorFactory.PROVIDER_ID)
+						.equals(InetumAuthenticator.PROVIDER_ID)
 				);
 				return ret;
 			})
@@ -164,10 +163,20 @@ public class Utils {
         context.getEvent().user(user);
         context.getEvent().success();
         context.newEvent().event(EventType.LOGIN);
-        context.getEvent().client(context.getAuthenticationSession().getClient().getClientId())
-                .detail(Details.REDIRECT_URI, context.getAuthenticationSession().getRedirectUri())
-                .detail(Details.AUTH_METHOD, context.getAuthenticationSession().getProtocol());
-        String authType = context.getAuthenticationSession().getAuthNote(Details.AUTH_TYPE);
+        context
+            .getEvent()
+            .client(context.getAuthenticationSession().getClient().getClientId())
+            .detail(
+                Details.REDIRECT_URI,
+                context.getAuthenticationSession().getRedirectUri()
+            )
+            .detail(
+                Details.AUTH_METHOD,
+                context.getAuthenticationSession().getProtocol()
+            );
+        String authType = context
+            .getAuthenticationSession()
+            .getAuthNote(Details.AUTH_TYPE);
         if (authType != null) {
             context.getEvent().detail(Details.AUTH_TYPE, authType);
         }

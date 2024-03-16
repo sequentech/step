@@ -14,6 +14,8 @@ import org.keycloak.provider.ProviderConfigProperty;
 
 import com.google.auto.service.AutoService;
 
+import lombok.extern.jbosslog.JBossLog;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ import java.util.stream.Stream;
 /**
  * Lookups an user using a field 
  */
+@JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
 
@@ -34,6 +37,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
+        log.info("authenticate(): start");
         // Retrieve the configuration
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         Map<String, String> configMap = config.getConfig();
@@ -49,28 +53,41 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         // Lookup user by attributes in authNotes
         UserModel user = lookupUserByAuthNotes(context, searchAttributesList);
 
-        if (
-            user != null &&
-            user.credentialManager().getStoredCredentialsStream().count() == 0
-        ) {
-            // Update user attributes if the user has no password configured
-            updateUserAttributes(user, context, updateAttributesList);
-            context.setUser(user);
-            context.success();
-        } else {
+        // check user was found
+        if (user == null) {
+            log.info("authenticate(): user not found");
             context.attempted();
+            return;
+        
         }
+        // check user has no credentials yet
+        else if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
+            log.info("authenticate(): user found but already has credentials");
+            context.attempted();
+            return;
+        }
+
+        // User was found and is verified to be an updateable user: we then
+        // update user attributes and set it as the current auth context user
+        // for other authentication models in the authentication flow
+        updateUserAttributes(user, context, updateAttributesList);
+        context.setUser(user);
+        log.info("authenticate(): success");
+        context.success();
     }
 
     private UserModel lookupUserByAuthNotes(
         AuthenticationFlowContext context, List<String> attributes
     ) {
+        log.info("lookupUserByAuthNotes(): start");
         KeycloakSession session = context.getSession();
         RealmModel realm = context.getRealm();
         Stream<UserModel> userStream = null;
 
         for (String attribute : attributes) {
-            String value = context.getAuthenticationSession().getAuthNote(attribute);
+            String value = context
+                .getAuthenticationSession()
+                .getAuthNote(attribute);
             if (value != null) {
                 Stream<UserModel> currentStream = session
                     .users()
@@ -81,8 +98,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 } else {
                     // Intersect the current stream with the accumulated stream
                     // to match users on all attributes
-                    Set<String> userIds = userStream.map(UserModel::getId).collect(Collectors.toSet());
-                    userStream = currentStream.filter(user -> userIds.contains(user.getId()));
+                    Set<String> userIds = userStream
+                        .map(UserModel::getId)
+                        .collect(Collectors.toSet());
+                    userStream = currentStream
+                        .filter(user -> userIds.contains(user.getId()));
                 }
             }
         }
@@ -97,9 +117,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
 
 
-    private void updateUserAttributes(UserModel user, AuthenticationFlowContext context, List<String> attributes) {
+    private void updateUserAttributes(
+        UserModel user,
+        AuthenticationFlowContext context,
+        List<String> attributes
+    ) {
         for (String attribute : attributes) {
-            String value = context.getAuthenticationSession().getAuthNote(attribute);
+            String value = context
+                .getAuthenticationSession()
+                .getAuthNote(attribute);
             if (value != null) {
                 user.setSingleAttribute(attribute, value);
             }
@@ -115,6 +141,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     @Override
     public void action(AuthenticationFlowContext context) {
+        log.info("action(): start");
         // No action required
     }
 
@@ -125,13 +152,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
 
     @Override
-    public boolean configuredFor(KeycloakSession session, org.keycloak.models.RealmModel realm, UserModel user) {
+    public boolean configuredFor(
+        KeycloakSession session,
+        org.keycloak.models.RealmModel realm,
+        UserModel user
+    ) {
         // Applicable for any user
         return true;
     }
 
     @Override
-    public void setRequiredActions(KeycloakSession session, org.keycloak.models.RealmModel realm, UserModel user) {
+    public void setRequiredActions(
+        KeycloakSession session,
+        org.keycloak.models.RealmModel realm,
+        UserModel user
+    ) {
         // No additional required actions
     }
 
