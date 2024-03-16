@@ -127,6 +127,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 .getAuthenticationSession()
                 .getAuthNote(attribute);
             if (value != null) {
+                if (attribute.equals("username")) {
+                    user.setUsername(value);
+                } else if(attribute.equals("email")) {
+                    user.setEmail(value);
+                }
                 user.setSingleAttribute(attribute, value);
             }
         }
