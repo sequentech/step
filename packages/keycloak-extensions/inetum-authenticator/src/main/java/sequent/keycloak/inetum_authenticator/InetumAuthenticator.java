@@ -72,6 +72,24 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         context.challenge(challenge);
     }
 
+	protected SimpleHttp.Response doPost(
+		Map<String, String> configMap,
+		AuthenticationFlowContext context,
+		String payload,
+		String uriPath
+	) throws IOException {
+		SimpleHttp.Response response = SimpleHttp
+			.doPost(
+				configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath,
+				context.getSession()
+			)
+			.header("Content-Type", "application/json")
+			.header("Authorization", "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE))
+			.json(payload)
+			.asResponse();
+		return response;
+	}
+
 	protected void newTransaction(
 		Map<String, String> configMap,
 		AuthenticationFlowContext context
@@ -102,15 +120,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			payloadNode.put("clienteID", configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
 			String payload = objectMapper.writeValueAsString(payloadNode);
 
-			SimpleHttp.Response response = SimpleHttp
-				.doPost(
-					configMap.get(Utils.BASE_URL_ATTRIBUTE) + "/dob-api/transaction/new",
-					context.getSession()
-				)
-				.header("Content-Type", "application/json")
-				.header("Authorization", "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE))
-				.json(payload)
-				.asResponse();
+			SimpleHttp.Response response = doPost(
+				configMap,
+				context,
+				payload,
+				"/dob-api/transaction/new"
+			);
 
 			if (response.getStatus() != 200) {
 				log.error("Error calling transaction/new, status = " + response.getStatus());
@@ -127,8 +142,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			throw error;
 		}
 	}
-	
- 
+
     @Override
     public void action(AuthenticationFlowContext context)
     {
@@ -155,7 +169,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
             context.success();
         }
     }
- 
+
     protected boolean validateAnswer(AuthenticationFlowContext context)
     {
         return true;
