@@ -1,9 +1,5 @@
 package sequent.keycloak.inetum_authenticator;
 
-import sequent.keycloak.inetum_authenticator.Utils;
-import org.apache.commons.lang3.StringUtils;
-import org.keycloak.http.HttpCookie;
-import org.keycloak.http.HttpResponse;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.Config;
@@ -11,30 +7,25 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
-import org.keycloak.authentication.CredentialValidator;
-import org.keycloak.authentication.RequiredActionFactory;
-import org.keycloak.authentication.RequiredActionProvider;
-import org.keycloak.credential.CredentialProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.broker.provider.util.SimpleHttp;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.google.auto.service.AutoService;
-
-import jakarta.ws.rs.core.Cookie;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import java.net.URI;
-import java.util.Collections;
+
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.security.MessageDigest;
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -80,6 +71,63 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
             .createForm(Utils.INETUM_FORM);
         context.challenge(challenge);
     }
+
+	protected void newTransaction(
+		Map<String, String> configMap,
+		AuthenticationFlowContext context
+	) throws IOException
+	{
+		try {
+			ObjectMapper objectMapper = new ObjectMapper();
+			ObjectNode payloadNode = objectMapper.createObjectNode();
+		
+			payloadNode.put("wFtype_Facial", true);
+			payloadNode.put("wFtype_OCR", true);
+			payloadNode.put("wFtype_Video", true);
+			payloadNode.put("wFtype_Anti_Spoofing", false);
+			payloadNode.put("wFtype_Sign", false);
+			payloadNode.put("wFtype_VerifAvan", false);
+			payloadNode.put("wFtype_UECertificate", false);
+			payloadNode.put("docID", "");
+			payloadNode.put("name", "");
+			payloadNode.put("lastname1", "");
+			payloadNode.put("lastname2", "");
+			payloadNode.put("country", "");
+			payloadNode.put("mobilePhone", "");
+			payloadNode.put("eMail", "");
+			payloadNode.put("priority", 3);
+			payloadNode.put("maxRetries", 3);
+			payloadNode.put("maxProcessTime", 30);
+			payloadNode.put("application", configMap.get(Utils.APP_ID_ATTRIBUTE));
+			payloadNode.put("clienteID", configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
+			String payload = objectMapper.writeValueAsString(payloadNode);
+
+			SimpleHttp.Response response = SimpleHttp
+				.doPost(
+					configMap.get(Utils.BASE_URL_ATTRIBUTE) + "/dob-api/transaction/new",
+					context.getSession()
+				)
+				.header("Content-Type", "application/json")
+				.header("Authorization", "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE))
+				.json(payload)
+				.asResponse();
+
+			if (response.getStatus() != 200) {
+				log.error("Error calling transaction/new, status = " + response.getStatus());
+				throw new IOException(
+					"Error calling transaction/new, status = " + response.getStatus()
+				);
+			}
+
+			JsonNode responseContent = response.asJson();
+			configMap.put("tokenDob", responseContent.get("token_dob").asText());
+			configMap.put("userID", responseContent.get("user_id").asText());
+		} catch (IOException error) {
+			log.error("Error calling transaction/new", error);
+			throw error;
+		}
+	}
+	
  
     @Override
     public void action(AuthenticationFlowContext context)

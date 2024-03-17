@@ -14,48 +14,10 @@
             window.DOB_API_KEY = "${api_key}";
             window.DOB_APP_ID = "${app_id}";
             window.DOB_CLIENT_ID = "${client_id}";
-            // AJAX call to the backend, this should ideally be handled by the server-side
-            $.ajax({
-                url: 'https://des.digitalonboarding.es/dob-api/transaction/new',
-                type: 'post',
-                data: JSON.stringify({
-                    "wFtype_Facial": true,
-                    "wFtype_OCR": true,
-                    "wFtype_Video": true,
-                    "wFtype_Anti_Spoofing": false,
-                    "wFtype_Sign": false,
-                    "wFtype_VerifAvan": false,
-                    "wFtype_UECertificate": false,
-                    "docID": "",
-                    "name": "",
-                    "lastname1": "",
-                    "lastname2": "",
-                    "country": "",
-                    "mobilePhone": "",
-                    "eMail": "",
-                    "priority": 3,
-                    "maxRetries": 3,
-                    "maxProcessTime": 30,
-                    "application": "OnBoardingWebDemo",
-                    "clienteID": window.DOB_CLIENT_ID
-                }),
-                headers: {
-                    "Content-Type": "application/json",
-                    //For object property name, use quoted notation shown in second
-                    "Authorization": "Bearer " + window.DOB_API_KEY
-                },
-                dataType: 'json',
-                async: false,
-                success: function(data) {
-                    // Handling the success response
-                    console.info("userID = " + data.response.userID);
-                    console.info("tokenDob = " + data.response.tokenDob);
-                    window.DOB_DATA = {
-                        uid: data.response.userID,
-                        td: data.response.tokenDob
-                    };
-                }
-            });
+            window.DOB_DATA = {
+                uid: "${user_id}",
+                td: "${token_dob}"
+            };
         </script>
     </#outputformat>
 </head>
