@@ -44,6 +44,7 @@ public class Utils {
 	final public String ENV_CONFIG_ATTRIBUTE = "env-config";
 	final public String BASE_URL_ATTRIBUTE = "base-url";
     final public String INETUM_FORM = "inetum-authenticator.ftl";
+    final public String INETUM_ERROR = "inetum-error.ftl";
 
     private static final String KEYS_USERDATA = "keyUserdata";
     private static final String KEYS_USERDATA_SEPARATOR = ";";

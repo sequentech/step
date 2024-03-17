@@ -15,6 +15,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.broker.provider.util.SimpleHttp;
+import org.keycloak.events.Errors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +25,7 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -67,9 +69,21 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         }
 
         log.info("validated is NOT TRUE, rendering the form");
-        Response challenge = getBaseForm(context)
-            .createForm(Utils.INETUM_FORM);
-        context.challenge(challenge);
+		try {
+			Map<String, String> transactionData = newTransaction(configMap, context);
+			Response challenge = getBaseForm(context)
+				.setAttribute("user_id", transactionData.get("user_id"))
+				.setAttribute("token_dob", transactionData.get("token_dob"))
+				.createForm(Utils.INETUM_FORM);
+			context.challenge(challenge);
+		} catch (IOException error) {
+			context.failure(AuthenticationFlowError.INTERNAL_ERROR);
+			context.attempted();
+			Response challenge = getBaseForm(context)
+				.setAttribute("error", "internalInetumError")
+				.createForm(Utils.INETUM_ERROR);
+			context.challenge(challenge);
+		}
     }
 
 	protected SimpleHttp.Response doPost(
@@ -78,6 +92,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		String payload,
 		String uriPath
 	) throws IOException {
+		log.info("doPost: url=" + configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath);
 		SimpleHttp.Response response = SimpleHttp
 			.doPost(
 				configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath,
@@ -90,7 +105,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		return response;
 	}
 
-	protected void newTransaction(
+	protected Map<String, String> newTransaction(
 		Map<String, String> configMap,
 		AuthenticationFlowContext context
 	) throws IOException
@@ -98,7 +113,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		try {
 			ObjectMapper objectMapper = new ObjectMapper();
 			ObjectNode payloadNode = objectMapper.createObjectNode();
-		
+
 			payloadNode.put("wFtype_Facial", true);
 			payloadNode.put("wFtype_OCR", true);
 			payloadNode.put("wFtype_Video", true);
@@ -135,8 +150,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			}
 
 			JsonNode responseContent = response.asJson();
-			configMap.put("tokenDob", responseContent.get("token_dob").asText());
-			configMap.put("userID", responseContent.get("user_id").asText());
+			Map<String, String> output = new HashMap<String, String>();
+			output.put("token_dob", responseContent.get("tokenDob").asText());
+			output.put("user_id", responseContent.get("userID").asText());
+			return output;
 		} catch (IOException error) {
 			log.error("Error calling transaction/new", error);
 			throw error;
