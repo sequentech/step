@@ -11,16 +11,15 @@ use strand::serialization::StrandDeserialize;
 use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
-use base64::engine::general_purpose;
-use base64::Engine;
-use hex;
-
 use crate::ballot::*;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
+use base64::engine::general_purpose;
+use base64::Engine;
+use strand::serialization::StrandSerialize;
 
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
@@ -208,10 +207,12 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
 pub fn hash_ballot_sha512(
     hashable_ballot: &HashableBallot,
 ) -> Result<Hash, StrandError> {
-    let hashable_ballot_string = serde_json::to_string(hashable_ballot)
-        .map_err(|error| StrandError::SerializationError(error.into()))?;
-    let bytes = (&hashable_ballot_string).as_bytes();
-    hash::hash_to_array(bytes)
+    let raw_hashable_ballot =
+        RawHashableBallot::<RistrettoCtx>::try_from(hashable_ballot)
+            .map_err(|error| StrandError::Generic(format!("{:?}", error)))?;
+
+    let bytes = raw_hashable_ballot.strand_serialize()?;
+    hash::hash_to_array(&bytes)
 }
 
 pub fn shorten_hash(hash: &Hash) -> ShortHash {

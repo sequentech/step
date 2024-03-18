@@ -34,6 +34,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
 import Stepper from "../components/Stepper"
+import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -114,6 +115,13 @@ export const AuditScreen: React.FC = () => {
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+
+    if (ballotHash && auditableBallot?.ballot_hash && ballotHash !== auditableBallot.ballot_hash) {
+        console.log(
+            `ballotId: ${ballotHash}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`
+        )
+        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+    }
 
     useEffect(() => {
         if (!ballotHash) {

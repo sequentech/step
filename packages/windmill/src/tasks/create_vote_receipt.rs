@@ -20,6 +20,8 @@ pub async fn create_vote_receipt(
     tenant_id: String,
     election_event_id: String,
     election_id: String,
+    area_id: String,
+    voter_id: String,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -35,11 +37,13 @@ pub async fn create_vote_receipt(
     vote_receipt::create_vote_receipt(
         &hasura_transaction,
         &element_id,
-        &ballot_id,
-        &ballot_tracker_url,
         &tenant_id,
         &election_event_id,
         &election_id,
+        &area_id,
+        &voter_id,
+        &ballot_id,
+        &ballot_tracker_url,
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;

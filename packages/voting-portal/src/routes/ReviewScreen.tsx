@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -82,19 +83,24 @@ interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
     hideAudit: boolean
+    ballotId: string
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot, hideAudit}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({
+    ballotStyle,
+    auditableBallot,
+    hideAudit,
+    ballotId,
+}) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
     const navigate = useNavigate()
-    const [auditBallotHelp, setAuditBallotHelp] = useState(false)
+    const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
+    const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
-
-    const ballotId = auditableBallot.ballot_hash
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -114,11 +120,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
 
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+        setIsCastingBallot(true)
 
         try {
             const {data} = await refetchElectionEvent()
 
             if (!(data && data.sequent_backend_election_event.length > 0)) {
+                setIsCastingBallot(false)
                 console.error("Cannot load election event")
                 return submit({error: errorType}, {method: "post"})
             }
@@ -128,6 +136,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             const eventStatus = record?.status as IElectionEventStatus | undefined
 
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
+                setIsCastingBallot(false)
                 console.warn("Election event is not open")
                 return submit({error: errorType.toString()}, {method: "post"})
             }
@@ -148,6 +157,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
 
             return submit(null, {method: "post"})
         } catch (error) {
+            setIsCastingBallot(false)
             // dispatch(clearBallot())
             console.log(`error casting vote: ${error}`)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
@@ -198,6 +208,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                 <StyledButton
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    disabled={isCastingBallot}
                     onClick={castBallotAction}
                 >
                     <Box>{t("reviewScreen.castBallotButton")}</Box>
@@ -221,7 +232,11 @@ export const ReviewScreen: React.FC = () => {
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
-    const ballotHash = auditableBallot?.ballot_hash
+    const ballotId = auditableBallot && hashBallot(auditableBallot)
+    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
+        console.log(`ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`)
+        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+    }
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -258,7 +273,7 @@ export const ReviewScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
             {hideAudit ? null : (
-                <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+                <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
             <Dialog
                 handleClose={handleCloseDialog}
@@ -308,6 +323,7 @@ export const ReviewScreen: React.FC = () => {
                 ballotStyle={ballotStyle}
                 auditableBallot={auditableBallot}
                 hideAudit={hideAudit}
+                ballotId={ballotId ?? ""}
             />
         </PageLimit>
     )
