@@ -121,6 +121,7 @@ pub async fn get_upload_url(
     .insert_sequent_backend_document
     .ok_or(anyhow!("expected document"))?
     .returning[0];
+    
     let path = match is_public {
         true => s3::get_public_document_key(
             tenant_id.to_string(),
@@ -155,6 +156,7 @@ pub async fn get_upload_url(
             .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
         is_public: document.is_public.clone(),
     };
+    
     Ok((ret_document, url))
 }
 

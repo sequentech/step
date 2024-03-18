@@ -37,10 +37,13 @@ pub async fn get_upload_url(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_UPLOAD],
     )?;
+
     let inner = body.into_inner();
+
     let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let (document, url) = documents::get_upload_url(
         auth_headers,
         &inner.name,
@@ -52,8 +55,9 @@ pub async fn get_upload_url(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     Ok(Json(UploadDocumentOutput {
         document_id: document.id,
-        url: url,
+        url,
     }))
 }
