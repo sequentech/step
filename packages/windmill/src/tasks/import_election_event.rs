@@ -20,7 +20,7 @@ pub struct ImportElectionEventBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()> {
-    let doc = fetch_document(object.tenant_id, "".to_string(), object.document_id).await?;
+    let doc = fetch_document(object.tenant_id, None, object.document_id).await?;
 
     dbg!(&doc);
 

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{anyhow, Context};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
@@ -121,7 +122,7 @@ pub async fn get_upload_url(
     .insert_sequent_backend_document
     .ok_or(anyhow!("expected document"))?
     .returning[0];
-    
+
     let path = match is_public {
         true => s3::get_public_document_key(
             tenant_id.to_string(),
@@ -156,21 +157,21 @@ pub async fn get_upload_url(
             .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
         is_public: document.is_public.clone(),
     };
-    
+
     Ok((ret_document, url))
 }
 
 #[instrument(err)]
 pub async fn fetch_document(
     tenant_id: String,
-    election_event_id: String,
+    election_event_id: Option<String>,
     document_id: String,
 ) -> Result<String> {
     let auth_headers = get_client_credentials().await?;
     let document_result = hasura::document::find_document(
         auth_headers,
         tenant_id.clone(),
-        election_event_id.clone(),
+        election_event_id.clone(), // TODO: here
         document_id.clone(),
     )
     .await?;
@@ -193,7 +194,7 @@ pub async fn fetch_document(
         ),
         false => s3::get_document_key(
             &&tenant_id,
-            &election_event_id,
+            &election_event_id.unwrap_or(Default::default()),
             &document_id,
             &document.name.clone().unwrap_or_default(),
         ),
