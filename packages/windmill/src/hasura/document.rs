@@ -71,7 +71,7 @@ pub async fn find_document(
     hasura_transaction: &Transaction<'_>,
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
-    election_event_id: String,
+    // election_event_id: String,
     document_id: String,
     // ) -> Result<Response<get_document::ResponseData>> {
 ) -> Result<()> {
@@ -94,14 +94,17 @@ pub async fn find_document(
                 sequent_backend_document
             WHERE
                 id = $1
-                AND election_event_id = $2
-                AND tenant_id = $3;
+                -- AND election_event_id = $2
+                AND tenant_id = $2;
             "#,
         )
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&document_id, &election_event_id, &tenant_id])
+        .query(
+            &statement,
+            &[&document_id, /* &election_event_id */ &tenant_id],
+        )
         .await
         .map_err(|err| anyhow!("Error running the find_document query: {}", err))?;
 
