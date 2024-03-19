@@ -4,6 +4,7 @@ on:
   push:
     branches: [ 'main', 'feat/meta-703/main' ]
 permissions:
+  contents: read
   packages: write
 
 jobs:
