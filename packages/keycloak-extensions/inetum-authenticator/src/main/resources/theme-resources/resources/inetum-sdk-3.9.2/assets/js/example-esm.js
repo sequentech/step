@@ -520,7 +520,7 @@ env_config = {
   otpEmailAddress: 'xxxxxxx@inetum.com',
   otpPhoneNumber: 'xxxxxxxx',
   countryCode: CountryCode.españa,
-  applicationId: window.DOB_API_KEY,
+  applicationId: window.DOB_APP_ID,
   broadcast: new LocalBroadcastManager()
 };
 
