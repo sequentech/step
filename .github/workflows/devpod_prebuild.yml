@@ -37,8 +37,6 @@ jobs:
 
       - name: Build with DevPod
         run: |
-          git config --global --add url."git@github.com:".insteadOf "https://github.com/"
-          export GIT_TERMINAL_PROMPT=1
           devpod build \
-            github.com/${{ github.repository }} \
+            $GITHUB_WORKSPACE \
             --repository ghcr.io/${{ github.repository }} --provider docker
