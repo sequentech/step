@@ -88,17 +88,19 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 	protected SimpleHttp.Response doPost(
 		Map<String, String> configMap,
 		AuthenticationFlowContext context,
-		String payload,
+		Object payload,
 		String uriPath
 	) throws IOException {
-		log.info("doPost: url=" + configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath);
+		String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+		String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
+		log.info("doPost: url=" + url);
+		log.info("doPost: authorization=" + authorization);
+		log.info("doPost: payload=" + payload);
+
 		SimpleHttp.Response response = SimpleHttp
-			.doPost(
-				configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath,
-				context.getSession()
-			)
+			.doPost( url, context.getSession())
 			.header("Content-Type", "application/json")
-			.header("Authorization", "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE))
+			.header("Authorization", authorization)
 			.json(payload)
 			.asResponse();
 		return response;
@@ -115,7 +117,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 
 			payloadNode.put("wFtype_Facial", true);
 			payloadNode.put("wFtype_OCR", true);
-			payloadNode.put("wFtype_Video", true);
+			payloadNode.put("wFtype_Video", false);
 			payloadNode.put("wFtype_Anti_Spoofing", false);
 			payloadNode.put("wFtype_Sign", false);
 			payloadNode.put("wFtype_VerifAvan", false);
@@ -130,25 +132,26 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			payloadNode.put("priority", 3);
 			payloadNode.put("maxRetries", 3);
 			payloadNode.put("maxProcessTime", 30);
-			payloadNode.put("application", configMap.get(Utils.APP_ID_ATTRIBUTE));
+			payloadNode.put("application", "sequent-keycloak");
 			payloadNode.put("clienteID", configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
 			String payload = objectMapper.writeValueAsString(payloadNode);
 
 			SimpleHttp.Response response = doPost(
 				configMap,
 				context,
-				payload,
-				"/dob-api/transaction/new"
+				payloadNode,
+				"/transaction/new"
 			);
 
 			if (response.getStatus() != 200) {
 				log.error("Error calling transaction/new, status = " + response.getStatus());
+				log.error("Error calling transaction/new, response.asString() = " + response.asString());
 				throw new IOException(
 					"Error calling transaction/new, status = " + response.getStatus()
 				);
 			}
 
-			JsonNode responseContent = response.asJson();
+			JsonNode responseContent = response.asJson().get("response");
 			Map<String, String> output = new HashMap<String, String>();
 			output.put("token_dob", responseContent.get("tokenDob").asText());
 			output.put("user_id", responseContent.get("userID").asText());
@@ -326,7 +329,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				"Base URL for Inetum API",
 				"-",
 				ProviderConfigProperty.STRING_TYPE,
-				"https://des.digitalonboarding.es/"
+				"https://des.digitalonboarding.es/dob-api/2.0.0"
 			)
 		);
 	}
