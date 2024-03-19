@@ -91,7 +91,7 @@ pub async fn find_document(
                 last_updated_at,
                 is_public
             FROM
-                sequent_backend_document
+                sequent_backend.document
             WHERE
                 id = $1
                 -- AND election_event_id = $2
