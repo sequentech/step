@@ -40,4 +40,5 @@ jobs:
           bash $GITHUB_WORKSPACE/.devcontainer/scripts/initialize-command.sh
           devpod build \
             $GITHUB_WORKSPACE \
+             --debug \
             --repository ghcr.io/${{ github.repository }} --provider docker
