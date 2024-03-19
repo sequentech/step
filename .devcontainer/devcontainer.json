@@ -93,7 +93,6 @@
 		},
 		"devpod": {
 			"prebuildRepository": "ghcr.io/sequentech/backend-services"
-			}
 		}
 	}
 }
