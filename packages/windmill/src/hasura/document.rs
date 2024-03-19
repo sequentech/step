@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use ::uuid::Uuid as UuidType;
 use anyhow::{anyhow, Context, Result};
 use graphql_client::{GraphQLQuery, Response};
@@ -75,6 +76,11 @@ pub async fn find_document(
     document_id: String,
     // ) -> Result<Response<get_document::ResponseData>> {
 ) -> Result<()> {
+    let tenant_uuid: UuidType = UuidType::parse_str(&tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let document_uuid: UuidType = UuidType::parse_str(&document_id)
+        .map_err(|err| anyhow!("Error parsing document_id as UUID: {}", err))?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -94,32 +100,32 @@ pub async fn find_document(
                 sequent_backend.document
             WHERE
                 id = $1
-                -- AND election_event_id = $2
                 AND tenant_id = $2;
             "#,
         )
         .await?;
 
+    // -- AND election_event_id = $2
+
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[&document_id, /* &election_event_id */ &tenant_id],
+            &[&document_uuid, /* &election_event_id */ &tenant_uuid],
         )
         .await
         .map_err(|err| anyhow!("Error running the find_document query: {}", err))?;
 
     dbg!(&rows);
 
-    let document_ids: Vec<String> = rows
+    let document_ids: Vec<UuidType> = rows
         .into_iter()
-        .map(|row| -> Result<String> {
+        .map(|row| -> Result<UuidType> {
             Ok(row
-                .try_get::<&str, String>("id")
+                .try_get("id")
                 .map_err(|err| anyhow!("Error getting the document id of a row: {}", err))?)
         })
-        .collect::<Result<Vec<String>>>()
+        .collect::<Result<Vec<UuidType>>>()
         .map_err(|err| anyhow!("Error getting the documents ids: {}", err))?;
-
     dbg!(&document_ids);
 
     // let variables = get_document::Variables {

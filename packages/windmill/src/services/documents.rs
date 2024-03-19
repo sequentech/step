@@ -171,10 +171,8 @@ pub async fn fetch_document(
     election_event_id: Option<String>,
     document_id: String,
 ) -> Result<String> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await
+
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
     let hasura_transaction = hasura_db_client.transaction().await?;
 
