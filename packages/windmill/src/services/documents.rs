@@ -4,13 +4,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::document::Document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::types::hasura_types::Document;
+use sequent_core::types::hasura_types::Document as HasuraDocument;
 use tempfile::NamedTempFile;
 use tracing::instrument;
 
@@ -30,7 +31,7 @@ pub async fn upload_and_return_document(
     name: String,
     document_id: Option<String>,
     is_public: bool,
-) -> Result<Document> {
+) -> Result<HasuraDocument> {
     let new_document = hasura::document::insert_document(
         auth_headers,
         tenant_id.clone(),
@@ -52,11 +53,7 @@ pub async fn upload_and_return_document(
 
     let (document_s3_key, bucket) = match is_public {
         true => {
-            let document_s3_key = s3::get_public_document_key(
-                tenant_id.to_string(),
-                document.id.clone(),
-                name.to_string(),
-            );
+            let document_s3_key = s3::get_public_document_key(&tenant_id, &document.id, &name);
             let bucket = s3::get_public_bucket()?;
 
             (document_s3_key, bucket)
@@ -80,7 +77,7 @@ pub async fn upload_and_return_document(
     .await
     .with_context(|| "Error uploading file to s3")?;
 
-    Ok(Document {
+    Ok(HasuraDocument {
         id: document.id.clone(),
         tenant_id: document.tenant_id.clone(),
         election_event_id: document.election_event_id.clone(),
@@ -110,7 +107,7 @@ pub async fn get_upload_url(
     tenant_id: &str,
     is_public: bool,
     election_event_id: Option<String>,
-) -> Result<(Document, String)> {
+) -> Result<(HasuraDocument, String)> {
     let document = &hasura::document::insert_document(
         auth_headers,
         tenant_id.to_string(),
@@ -129,21 +126,12 @@ pub async fn get_upload_url(
     .returning[0];
 
     let path = match is_public {
-        true => s3::get_public_document_key(
-            tenant_id.to_string(),
-            document.id.clone(),
-            name.to_string(),
-        ),
-        false => s3::get_document_key(
-            &tenant_id.to_string(),
-            "",
-            &document.id,
-            &name.to_string(),
-        ),
+        true => s3::get_public_document_key(&tenant_id, &document.id, &name),
+        false => s3::get_document_key(&tenant_id.to_string(), "", &document.id, &name.to_string()),
     };
     let url = s3::get_upload_url(path.to_string(), is_public).await?;
 
-    let ret_document = Document {
+    let ret_document = HasuraDocument {
         id: document.id.clone(),
         tenant_id: document.tenant_id.clone(),
         election_event_id: document.election_event_id.clone(),
@@ -171,7 +159,7 @@ pub async fn get_document(
     tenant_id: &str,
     election_event_id: Option<&str>,
     document_id: &str,
-) -> Result<Option<Document>> {
+) -> anyhow::Result<Option<Document>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -188,14 +176,49 @@ pub async fn get_document(
         document_id,
     )
     .await
-    .map_err(|err| anyhow!("Error trying to get document id {}: {}", document_id, err))?
+}
+
+#[instrument(err)]
+pub async fn get_document_url(
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    document_id: &str,
+) -> anyhow::Result<Option<String>> {
+    let document = get_document(tenant_id, election_event_id, document_id).await?;
+    let Some(document) = document else {
+        return Ok(None);
+    };
+
+    let document_s3_key = match document.is_public.unwrap_or(false) {
+        true => s3::get_public_document_key(
+            &tenant_id,
+            &document_id,
+            &document.name.unwrap_or_default(),
+        ),
+        false => s3::get_document_key(
+            &&tenant_id,
+            &election_event_id.unwrap_or(Default::default()),
+            &document_id,
+            &document.name.clone().unwrap_or_default(),
+        ),
+    };
+
+    let bucket = if document.is_public.unwrap_or(false) {
+        s3::get_public_bucket()?
+    } else {
+        s3::get_private_bucket()?
+    };
+
+    let url = s3::get_document_url(document_s3_key, bucket).await?;
+
+    Ok(Some(url))
 }
 
 #[instrument(err)]
 pub async fn get_document_as_temp_file(
     tenant_id: &str,
     document: &Document,
-) -> Result<NamedTempFile> {
+) -> anyhow::Result<NamedTempFile> {
     let s3_bucket = s3::get_private_bucket()?;
 
     let document_s3_key = s3::get_document_key(
@@ -211,8 +234,7 @@ pub async fn get_document_as_temp_file(
         "import-election-event",
         ".json",
     )
-    .await
-    .map_err(|err| anyhow!("Error trying to get document object into temporary file: {err}"))?;
+    .await?;
 
     Ok(file)
 }

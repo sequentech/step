@@ -83,7 +83,7 @@ pub fn get_document_key(
 }
 
 #[instrument]
-pub fn get_public_document_key(tenant_id: String, document_id: String, name: String) -> String {
+pub fn get_public_document_key(tenant_id: &str, document_id: &str, name: &str) -> String {
     format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
 }
 

@@ -30,7 +30,9 @@ pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()
 
     dbg!(&document);
 
-    let temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document);
+    let temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
+        .await
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
     dbg!(&temp_file);
 

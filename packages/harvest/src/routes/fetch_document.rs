@@ -35,16 +35,17 @@ pub async fn fetch_document(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_DOWNLOAD],
     )?;
-    
+
     let input = body.into_inner();
 
-    let url = documents::get_document(
-        claims.hasura_claims.tenant_id.clone(),
-        Some(input.election_event_id.clone()),
-        input.document_id.clone(),
+    let url = documents::get_document_url(
+        &claims.hasura_claims.tenant_id,
+        Some(&input.election_event_id),
+        &input.document_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
 
     Ok(Json(GetDocumentUrlResponse { url }))
 }
