@@ -94,8 +94,6 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
 		String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
 		log.info("doPost: url=" + url);
-		log.info("doPost: authorization=" + authorization);
-		log.info("doPost: payload=" + payload);
 
 		SimpleHttp.Response response = SimpleHttp
 			.doPost( url, context.getSession())
@@ -106,46 +104,63 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		return response;
 	}
 
+	protected Map<String, String> getTemplateMap(Map<String, String> configMap)
+	{
+		Map<String, String> attributes = new HashMap<String, String>();
+		attributes.put("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE));
+		attributes.put("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE));
+		attributes.put("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
+		attributes.put("base_url", configMap.get(Utils.BASE_URL_ATTRIBUTE));
+		return attributes;
+	}
+
+	protected JsonNode renderJsonTemplate(
+		String sourceCode,
+		Map<String, String> configMap,
+		Map<String, String> extraAttributes
+	) throws Exception {
+		ObjectMapper mapper = new ObjectMapper();
+		Map<String, String> attributes = getTemplateMap(configMap);
+		if (extraAttributes != null) {
+			attributes.putAll(extraAttributes);
+		}
+		String stringPayload = Utils.processStringTemplate(
+			attributes,
+			configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE)
+		);
+		JsonNode jsonPayload = mapper
+			.readValue(stringPayload, JsonNode.class);
+		return jsonPayload;
+	}
+
 	protected Map<String, String> newTransaction(
 		Map<String, String> configMap,
 		AuthenticationFlowContext context
 	) throws IOException
 	{
+		JsonNode jsonPayload = null;
 		try {
-			ObjectMapper objectMapper = new ObjectMapper();
-			ObjectNode payloadNode = objectMapper.createObjectNode();
+			jsonPayload = renderJsonTemplate(
+				configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE),
+				configMap,
+				null
+			);
+		} catch (Exception error) {
+			log.error("newTransaction: Error rendering template", error);
+			throw new IOException(error);
+		}
 
-			payloadNode.put("wFtype_Facial", true);
-			payloadNode.put("wFtype_OCR", true);
-			payloadNode.put("wFtype_Video", false);
-			payloadNode.put("wFtype_Anti_Spoofing", false);
-			payloadNode.put("wFtype_Sign", false);
-			payloadNode.put("wFtype_VerifAvan", false);
-			payloadNode.put("wFtype_UECertificate", false);
-			payloadNode.put("docID", "");
-			payloadNode.put("name", "");
-			payloadNode.put("lastname1", "");
-			payloadNode.put("lastname2", "");
-			payloadNode.put("country", "");
-			payloadNode.put("mobilePhone", "");
-			payloadNode.put("eMail", "");
-			payloadNode.put("priority", 3);
-			payloadNode.put("maxRetries", 3);
-			payloadNode.put("maxProcessTime", 30);
-			payloadNode.put("application", "sequent-keycloak");
-			payloadNode.put("clienteID", configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
-			String payload = objectMapper.writeValueAsString(payloadNode);
-
+		try {
 			SimpleHttp.Response response = doPost(
 				configMap,
 				context,
-				payloadNode,
+				jsonPayload,
 				"/transaction/new"
 			);
 
 			if (response.getStatus() != 200) {
-				log.error("Error calling transaction/new, status = " + response.getStatus());
-				log.error("Error calling transaction/new, response.asString() = " + response.asString());
+				log.error("newTransaction: Error calling transaction/new, status = " + response.getStatus());
+				log.error("newTransaction: Error calling transaction/new, response.asString() = " + response.asString());
 				throw new IOException(
 					"Error calling transaction/new, status = " + response.getStatus()
 				);
@@ -314,14 +329,14 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				Utils.SDK_ATTRIBUTE,
 				"Configuration for the SDK",
 				"-",
-				ProviderConfigProperty.STRING_TYPE,
+				ProviderConfigProperty.TEXT_TYPE,
 				"{}"
 			),
 			new ProviderConfigProperty(
 				Utils.ENV_CONFIG_ATTRIBUTE,
 				"Configuration for the env_config",
 				"-",
-				ProviderConfigProperty.STRING_TYPE,
+				ProviderConfigProperty.TEXT_TYPE,
 				"{}"
 			),
 			new ProviderConfigProperty(
@@ -330,6 +345,35 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				"-",
 				ProviderConfigProperty.STRING_TYPE,
 				"https://des.digitalonboarding.es/dob-api/2.0.0"
+			),
+			new ProviderConfigProperty(
+				Utils.TRANSACTION_NEW_ATTRIBUTE,
+				"transaction/new template",
+				"Uses FreeMarker template, see example",
+				ProviderConfigProperty.TEXT_TYPE,
+				"""
+{
+	"wFtype_Facial": true,
+	"wFtype_OCR": true,
+	"wFtype_Video": false,
+	"wFtype_Anti_Spoofing": false,
+	"wFtype_Sign": false,
+	"wFtype_VerifAvan": false,
+	"wFtype_UECertificate": false,
+	"docID": "",
+	"name": "",
+	"lastname1": "",
+	"lastname2": "",
+	"country": "",
+	"mobilePhone": "",
+	"eMail": "",
+	"priority": 3,
+	"maxRetries": 3,
+	"maxProcessTime": 30,
+	"application": "sequent-keycloak",
+	"clienteID": "${client_id}"
+}
+				"""
 			)
 		);
 	}

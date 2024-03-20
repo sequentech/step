@@ -9,7 +9,6 @@ package sequent.keycloak.inetum_authenticator;
 
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
-import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -22,15 +21,18 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 
+import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.io.Writer;
 
 @UtilityClass
 @JBossLog
@@ -43,6 +45,7 @@ public class Utils {
 	final public String CLIENT_ID_ATTRIBUTE = "client-id";
 	final public String ENV_CONFIG_ATTRIBUTE = "env-config";
 	final public String BASE_URL_ATTRIBUTE = "base-url";
+	final public String TRANSACTION_NEW_ATTRIBUTE = "transaction-new";
     final public String INETUM_FORM = "inetum-authenticator.ftl";
     final public String INETUM_ERROR = "inetum-error.ftl";
 
@@ -182,6 +185,30 @@ public class Utils {
         if (authType != null) {
             context.getEvent().detail(Details.AUTH_TYPE, authType);
         }
+    }
+
+    /**
+     * Processes a string template with FreeMarker library.
+     * 
+     * Doesn't support importing other templates from within the given template.
+     *
+     * @param data          Map with the data to be used in the template
+     * @param sourceCode    String with the template
+     * @return
+     * @throws Exception
+     */
+    static String processStringTemplate(
+        Object data,
+        String sourceCode
+    ) throws Exception {
+        Template template = new Template(
+            "string-template",
+            sourceCode,
+            null
+        );
+        Writer out = new StringWriter();
+        template.process(data, out);
+        return out.toString();
     }
 
     private static String serializeUserdataKeys(Collection<String> keys, String separator) {
