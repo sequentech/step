@@ -22,6 +22,7 @@ pub struct Document {
     pub name: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub last_updated_at: Option<DateTime<Utc>>,
+    pub is_public: Option<bool>,
 }
 
 impl TryFrom<Row> for Document {
@@ -36,6 +37,7 @@ impl TryFrom<Row> for Document {
             name: item.get("name"),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
+            is_public: item.get("is_public"),
         })
     }
 }
@@ -58,6 +60,7 @@ pub async fn get_document(
     };
     let document_uuid: uuid::Uuid =
         Uuid::parse_str(document_id).with_context(|| "Error parsing document_id as UUID")?;
+
     let document_statement = hasura_transaction
         .prepare(
             r#"
@@ -71,6 +74,7 @@ pub async fn get_document(
             "#,
         )
         .await?;
+
     let rows: Vec<Row> = hasura_transaction
         .query(
             &document_statement,
@@ -78,6 +82,7 @@ pub async fn get_document(
         )
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    
     let documents = rows
         .into_iter()
         .map(|row| -> Result<Document> { row.try_into() })

@@ -13,10 +13,10 @@ use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura_types::Document;
 use tracing::instrument;
 
-use crate::hasura;
 use crate::services::date::ISO8601;
 use crate::services::s3;
 use crate::types::error::Result;
+use crate::{hasura, postgres};
 
 #[instrument(skip(auth_headers), err)]
 pub async fn upload_and_return_document(
@@ -171,21 +171,21 @@ pub async fn fetch_document(
     election_event_id: Option<String>,
     document_id: String,
 ) -> Result<String> {
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await
-
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
     let hasura_transaction = hasura_db_client.transaction().await?;
 
     let auth_headers = get_client_credentials().await?;
-    let document_result = hasura::document::find_document(
-        &hasura_transaction,
-        auth_headers,
-        tenant_id.clone(),
-        // election_event_id.clone(), // TODO: here
-        document_id.clone(),
-    )
-    .await
-    .map_err(|err| anyhow!("Error running the find_document query: {}", err))?;
+
+    let document_result =
+        postgres::document::get_document(&hasura_transaction, &tenant_id, None, &document_id)
+            .await
+            .map_err(|err| anyhow!("Error trying to get document id {document_id}: {}", err))?;
+
+    dbg!(&document_result);
 
     // let documents = document_result
     //     .data
