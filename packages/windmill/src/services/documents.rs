@@ -11,6 +11,7 @@ use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura_types::Document;
+use tempfile::NamedTempFile;
 use tracing::instrument;
 
 use crate::services::date::ISO8601;
@@ -135,7 +136,7 @@ pub async fn get_upload_url(
         ),
         false => s3::get_document_key(
             &tenant_id.to_string(),
-            &Default::default(),
+            "",
             &document.id,
             &name.to_string(),
         ),
@@ -166,11 +167,11 @@ pub async fn get_upload_url(
 }
 
 #[instrument(err)]
-pub async fn fetch_document(
-    tenant_id: String,
-    election_event_id: Option<String>,
-    document_id: String,
-) -> Result<String> {
+pub async fn get_document(
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    document_id: &str,
+) -> Result<Option<Document>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -180,43 +181,38 @@ pub async fn fetch_document(
 
     let auth_headers = get_client_credentials().await?;
 
-    let document_result =
-        postgres::document::get_document(&hasura_transaction, &tenant_id, None, &document_id)
-            .await
-            .map_err(|err| anyhow!("Error trying to get document id {document_id}: {}", err))?;
+    postgres::document::get_document(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id.map(|id| id.to_string()),
+        document_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error trying to get document id {}: {}", document_id, err))?
+}
 
-    dbg!(&document_result);
+#[instrument(err)]
+pub async fn get_document_as_temp_file(
+    tenant_id: &str,
+    document: &Document,
+) -> Result<NamedTempFile> {
+    let s3_bucket = s3::get_private_bucket()?;
 
-    // let documents = document_result
-    //     .data
-    //     .ok_or(anyhow!("expected data"))?
-    //     .sequent_backend_document;
-    //
-    // if documents.len() == 0 {
-    //     return Err(anyhow!("document not found").into());
-    // }
-    // let document = &documents[0];
-    //
-    // let document_s3_key = match document.is_public.unwrap_or(false) {
-    //     true => s3::get_public_document_key(
-    //         tenant_id.clone(),
-    //         document_id.clone(),
-    //         document.name.clone().unwrap_or_default().to_string(),
-    //     ),
-    //     false => s3::get_document_key(
-    //         &&tenant_id,
-    //         &election_event_id.unwrap_or(Default::default()),
-    //         &document_id,
-    //         &document.name.clone().unwrap_or_default(),
-    //     ),
-    // };
-    // let bucket = if document.is_public.unwrap_or(false) {
-    //     s3::get_public_bucket()?
-    // } else {
-    //     s3::get_private_bucket()?
-    // };
-    // let url = s3::get_document_url(document_s3_key, bucket).await?;
-    // Ok(url)
+    let document_s3_key = s3::get_document_key(
+        tenant_id,
+        "",
+        &document.id,
+        &document.name.clone().unwrap_or_default(),
+    );
 
-    Ok("".to_string())
+    let file = s3::get_object_into_temp_file(
+        s3_bucket.as_str(),
+        document_s3_key.as_str(),
+        "import-election-event",
+        ".json",
+    )
+    .await
+    .map_err(|err| anyhow!("Error trying to get document object into temporary file: {err}"))?;
+
+    Ok(file)
 }

@@ -38,7 +38,7 @@ pub async fn fetch_document(
     
     let input = body.into_inner();
 
-    let url = documents::fetch_document(
+    let url = documents::get_document(
         claims.hasura_claims.tenant_id.clone(),
         Some(input.election_event_id.clone()),
         input.document_id.clone(),

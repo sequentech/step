@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    services::{database::get_hasura_pool, documents::fetch_document},
+    services::{database::get_hasura_pool, documents},
     types::error::Result,
 };
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -20,9 +21,18 @@ pub struct ImportElectionEventBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()> {
-    let doc = fetch_document(object.tenant_id, None, object.document_id).await?;
+    let document = documents::get_document(&object.tenant_id, None, &object.document_id)
+        .await?
+        .ok_or(anyhow!(
+            "Error trying to get document id {}: not found",
+            &object.document_id
+        ))?;
 
-    dbg!(&doc);
+    dbg!(&document);
+
+    let temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document);
+
+    dbg!(&temp_file);
 
     Ok(())
 }
