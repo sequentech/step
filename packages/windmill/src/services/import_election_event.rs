@@ -46,7 +46,7 @@ pub struct AreaContest {
 
 #[derive(Debug, Deserialize)]
 pub struct ImportElectionEventSchema {
-    // keycloak_event_realm: RealmRepresentation,
+    keycloak_event_realm: RealmRepresentation,
     election_event_data: ElectionEventData,
     elections: Vec<Election>,
     contests: Vec<Contest>,
