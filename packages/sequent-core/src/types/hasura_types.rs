@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use chrono::{DateTime, Local};
+use serde::Deserialize;
 use serde_json::value::Value;
 
 pub type Uuid = String;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Area {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -20,7 +21,7 @@ pub struct Area {
     pub r#type: Option<String>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct ElectionEvent {
     pub id: Uuid,
     pub created_at: Option<DateTime<Local>>,
@@ -43,7 +44,7 @@ pub struct ElectionEvent {
     pub public_key: Option<String>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Election {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -69,7 +70,7 @@ pub struct Election {
     pub receipts: Option<Value>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Contest {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -95,7 +96,7 @@ pub struct Contest {
     pub conditions: Option<Value>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Candidate {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -113,7 +114,7 @@ pub struct Candidate {
     pub is_public: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Document {
     pub id: Uuid,
     pub tenant_id: Option<Uuid>,
@@ -136,7 +137,7 @@ pub struct VotingChannels {
     pub paper: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct ElectionType {
     pub id: Uuid,
     pub tenant_id: Option<Uuid>,
@@ -165,7 +166,7 @@ pub struct CastVote {
 }
 */
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct CommunicationTemplate {
     pub id: Uuid,
     pub tenant_id: Uuid,
