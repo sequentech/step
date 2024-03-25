@@ -4,7 +4,6 @@
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
-use crate::types::hasura_types::Uuid;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
@@ -67,7 +66,7 @@ impl RawBallotCodec for Contest {
             .candidates
             .iter()
             .map(|candidate| (candidate.id.clone(), candidate))
-            .collect::<HashMap<Uuid, &Candidate>>();
+            .collect::<HashMap<String, &Candidate>>();
 
         // sort candidates by id
         let mut sorted_choices = plaintext.choices.clone();

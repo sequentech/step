@@ -5,13 +5,11 @@ use chrono::{DateTime, Local};
 use serde::Deserialize;
 use serde_json::value::Value;
 
-pub type Uuid = String;
-
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Area {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
@@ -23,12 +21,12 @@ pub struct Area {
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct ElectionEvent {
-    pub id: Uuid,
+    pub id: String,
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub tenant_id: Uuid,
+    pub tenant_id: String,
     pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
@@ -40,7 +38,7 @@ pub struct ElectionEvent {
     pub user_boards: Option<String>,
     pub encryption_protocol: String,
     pub is_audit: Option<bool>,
-    pub audit_election_event_id: Option<Uuid>,
+    pub audit_election_event_id: Option<String>,
     pub public_key: Option<String>,
     pub alias: Option<String>,
     pub statistics: Option<Value>,
@@ -48,9 +46,9 @@ pub struct ElectionEvent {
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Election {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
@@ -74,10 +72,10 @@ pub struct Election {
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Contest {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
-    pub election_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
@@ -95,15 +93,16 @@ pub struct Contest {
     pub counting_algorithm: Option<String>,
     pub is_encrypted: Option<bool>,
     pub tally_configuration: Option<Value>,
+    pub image_document_id: Option<String>,
     pub conditions: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Candidate {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
-    pub contest_id: Option<Uuid>,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub contest_id: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
@@ -118,9 +117,9 @@ pub struct Candidate {
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct Document {
-    pub id: Uuid,
-    pub tenant_id: Option<Uuid>,
-    pub election_event_id: Option<Uuid>,
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub election_event_id: Option<String>,
     pub name: Option<String>,
     pub media_type: Option<String>,
     pub size: Option<i64>,
@@ -141,8 +140,8 @@ pub struct VotingChannels {
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct ElectionType {
-    pub id: Uuid,
-    pub tenant_id: Option<Uuid>,
+    pub id: String,
+    pub tenant_id: Option<String>,
     pub name: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
@@ -170,8 +169,8 @@ pub struct CastVote {
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct CommunicationTemplate {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
     pub template: Value,
     pub created_by: String,
     pub labels: Option<Value>,

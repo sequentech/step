@@ -127,6 +127,7 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             is_encrypted: contest.is_encrypted.clone(),
             tally_configuration: contest.tally_configuration.clone(),
             conditions: contest.conditions.clone(),
+            image_document_id: None,
         }
     }
 }
