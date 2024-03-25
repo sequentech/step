@@ -79,6 +79,7 @@ pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
     insert_election_event(&hasura_transaction, &data).await?;
+    insert_election(&hasura_transaction, &data).await?;
 
     let commit = hasura_transaction
         .commit()
@@ -137,8 +138,6 @@ async fn insert_election_event(
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
 
-    dbg!(&rows);
-
     Ok(())
 }
 
@@ -146,38 +145,110 @@ async fn insert_election(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
-    let sql = r#"
-        INSERT INTO sequent_backend.election
-        (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts)
-        VALUES
-        ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);    
-    "#;
+    for election in &data.elections {
+        let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.election
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);    
+            "#,
+        )
+        .await?;
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &election.id,
+                    &Uuid::parse_str(&election.data.tenant_id)?,
+                    &Uuid::parse_str(&election.data.election_event_id)?,
+                    &election.data.labels,
+                    &election.data.annotations,
+                    &election.data.name,
+                    &election.data.description,
+                    &election.data.presentation,
+                    &election.data.dates,
+                    &election.data.status,
+                    &election.data.eml,
+                    &election
+                        .data
+                        .num_allowed_revotes
+                        .and_then(|val| Some(val as i32)),
+                    &election.data.is_consolidated_ballot_encoding,
+                    &election.data.spoil_ballot_option,
+                    &election.data.alias,
+                    &election.data.voting_channels,
+                    &election.data.is_kiosk,
+                    &election.data.image_document_id,
+                    &election.data.statistics,
+                    &election.data.receipts,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    }
+
     Ok(())
 }
 
-fn insert_contest() {
+fn insert_contest(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<()> {
     let sql = r#"
         INSERT INTO sequent_backend.contest
         (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, alias)
         VALUES
         ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
     "#;
+
+    Ok(())
 }
 
-fn insert_candidate() {
+fn insert_candidate(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<()> {
     let sql = r#"
         INSERT INTO sequent_backend.candidate
         (id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, name, description, type, presentation, is_public, alias, image_document_id)
         VALUES
         ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13);
     "#;
+
+    Ok(())
 }
 
-fn insert_area() {
+fn insert_area(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<()> {
     let sql = r#"
         INSERT INTO sequent_backend.area
         (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type)
         VALUES
         ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8);
     "#;
+
+    Ok(())
 }
+
+/*
+-- Delete candidates
+DELETE FROM sequent_backend.candidate WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
+-- Delete contests
+DELETE FROM sequent_backend.contest WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
+-- Delete elections
+DELETE FROM sequent_backend.election WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
+-- Delete areas
+DELETE FROM sequent_backend.area WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
+-- Delete the election event itself
+DELETE FROM sequent_backend.election_event WHERE id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
+*/
