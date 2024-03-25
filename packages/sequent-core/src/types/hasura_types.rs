@@ -42,6 +42,8 @@ pub struct ElectionEvent {
     pub is_audit: Option<bool>,
     pub audit_election_event_id: Option<Uuid>,
     pub public_key: Option<String>,
+    pub alias: Option<String>,
+    pub statistics: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]

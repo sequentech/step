@@ -43,7 +43,7 @@ pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()
 
     let data: ImportElectionEventSchema = serde_json::from_reader(file)?;
 
-    import_election_event_service::process(&data).await;
+    import_election_event_service::process(&data).await?;
 
     Ok(())
 }
