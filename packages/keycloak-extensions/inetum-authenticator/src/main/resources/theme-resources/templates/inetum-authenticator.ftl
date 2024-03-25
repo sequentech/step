@@ -34,6 +34,8 @@
     </div>
     <script type="module" src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/dob-models-1.1.19.esm.js"></script>
     <script type="module" src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/dob-sdk-3.9.2.js"></script>
-    <script type="module" src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/example-esm.js"></script>
+    <script>
+        <#include "resources/inetum-sdk-3.9.2/assets/js/example-esm.js">
+    </script>
 </body>
 </html>
