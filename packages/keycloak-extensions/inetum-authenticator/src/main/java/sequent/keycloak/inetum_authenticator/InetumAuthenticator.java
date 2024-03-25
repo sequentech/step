@@ -335,9 +335,33 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			new ProviderConfigProperty(
 				Utils.ENV_CONFIG_ATTRIBUTE,
 				"Configuration for the env_config",
-				"-",
+				"Uses FreeMarker template, see example",
 				ProviderConfigProperty.TEXT_TYPE,
-				"{}"
+				"""
+{
+	environment: 0,
+	customTextsConfig: myStrings,
+	baseAssetsUrl: "../../../",
+	uploadAndCheckIdentifiers: ["ESP"],
+	showLogs: false,
+	logTypes: ['ERROR', 'INFO'],
+	design: design,
+	bamEnabled: true,
+	ocrCountdown: false,
+	videoSelfieShowDNI: true,
+	cancelProcessButton: true,
+	showPermissionsHelp: true,
+	qrEnabled: false,
+	voiceEnabled: true,
+	voiceLanguage: VoiceLanguage.spanishSpain,
+	customIOSBrowsersConfig: [IOSBrowser.safari],
+	otpEmailAddress: 'xxxxxxx@inetum.com',
+	otpPhoneNumber: 'xxxxxxxx',
+	countryCode: CountryCode.españa,
+	applicationId: window.DOB_APP_ID,
+	broadcast: new LocalBroadcastManager()
+}
+				"""
 			),
 			new ProviderConfigProperty(
 				Utils.BASE_URL_ATTRIBUTE,

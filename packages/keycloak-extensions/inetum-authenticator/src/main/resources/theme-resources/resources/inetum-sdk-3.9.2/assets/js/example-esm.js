@@ -500,29 +500,7 @@ sdk = {
   flow: flow()
 };
 
-env_config = {
-  environment: 0,
-  customTextsConfig: myStrings,
-  baseAssetsUrl: "../../../",
-  uploadAndCheckIdentifiers: ["ESP"],
-  showLogs: false,
-  logTypes: ['ERROR', 'INFO'],
-  design: design,
-  bamEnabled: true,
-  ocrCountdown: false,
-  videoSelfieShowDNI: true,
-  cancelProcessButton: true,
-  showPermissionsHelp: true,
-  qrEnabled: false,
-  voiceEnabled: true,
-  voiceLanguage: VoiceLanguage.spanishSpain,
-  customIOSBrowsersConfig: [IOSBrowser.safari],
-  otpEmailAddress: 'xxxxxxx@inetum.com',
-  otpPhoneNumber: 'xxxxxxxx',
-  countryCode: CountryCode.españa,
-  applicationId: window.DOB_APP_ID,
-  broadcast: new LocalBroadcastManager()
-};
+env_config = ${env_config};
 
 session = {
   tokenDOB: window.DOB_DATA.td,
