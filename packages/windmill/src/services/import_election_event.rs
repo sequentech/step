@@ -44,8 +44,9 @@ pub struct Candidate {
 
 #[derive(Debug, Deserialize)]
 pub struct AreaContest {
+    id: Uuid,
     area_id: Uuid,
-    contest: Uuid,
+    contest_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +58,7 @@ pub struct ImportElectionEventSchema {
     contests: Vec<Contest>,
     candidates: Vec<Candidate>,
     areas: Vec<AreaData>,
-    area_contest: Vec<AreaContest>,
+    area_contest_list: Vec<AreaContest>,
 }
 
 pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
@@ -331,7 +332,45 @@ async fn insert_area(
     Ok(())
 }
 
+async fn insert_area_contest(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<()> {
+    for area_contest in &data.area_contest_list {
+        let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.area_contest
+                (id, tenant_id, election_event_id, contest_id, area_id, created_at, last_updated_at, labels, annotations)
+                VALUES
+                ($1, $2, $3, $4, $5, NOW(), NOW(), $6, $7);
+            "#,
+        )
+        .await?;
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &area_contest.id,
+                    &data.tenant_id,
+                    &Uuid::parse_str(&data.election_event_data.id)?,
+                    &area_contest.area_id,
+                    &area_contest.contest_id,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    }
+
+    Ok(())
+}
+
 /*
+
+-- Delete area_contest
+DELETE FROM sequent_backend.area_contest WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
 -- Delete candidates
 DELETE FROM sequent_backend.candidate WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
 
