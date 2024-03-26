@@ -100,6 +100,8 @@ async fn insert_election_event(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
+    data.election_event_data.validate()?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -151,6 +153,8 @@ async fn insert_election(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for election in &data.elections {
+        election.data.validate()?;
+
         let statement = hasura_transaction
         .prepare(
             r#"
