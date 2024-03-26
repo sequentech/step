@@ -40,6 +40,7 @@ RUN keytool \
 # before calling `kc.sh build`
 COPY --chown=keycloak:keycloak \
    --from=spis-build \
+   /build/keycloak-extensions/adyen-authenticator/target/sequent.adyen-authenticator.jar \
    /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
    /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
    /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \

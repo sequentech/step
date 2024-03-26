@@ -44,13 +44,21 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	private static final AdyenAuthenticator SINGLETON = 
         new AdyenAuthenticator();
 
+	protected Environment getEnvironment(Map<String, String> configMap)
+	{
+		if (configMap.get(Utils.ENVIRONMENT_ATTRIBUTE).equals("LIVE")) {
+			return Environment.LIVE;
+		} else {
+			return Environment.TEST;
+		}
+	}
 
 	protected Client getClient(Map<String, String> configMap)
 		throws IOException, ApiException
 	{
 		return new Client(
 			configMap.get(Utils.API_KEY_ATTRIBUTE),
-			Environment.TEST
+			getEnvironment(configMap)
 		);
 	}
 
@@ -61,7 +69,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	protected String getPaymentReference(AuthenticationFlowContext context)
 	{
 		// TODO
-		return "test";
+		return "test-reference-0001";
 	}
 
 	/**
@@ -84,6 +92,9 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		// TODO
 	}
 
+	/*
+	 * Creates a new checkout session 
+	 */
 	protected CreateCheckoutSessionResponse newSession(
 		Client client,
 		Map<String, String> configMap,
@@ -99,7 +110,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 			new CreateCheckoutSessionRequest()
 			.amount(amount)
 			.merchantAccount(configMap.get(Utils.MERCHANT_ACCOUNT_ATTRIBUTE))
-			.returnUrl("https://example.com/whatever")
+			.returnUrl("https://example.com/TODO")
 			.reference(getPaymentReference(context))
 			.countryCode(getCountryCode());
 		 
@@ -125,15 +136,16 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 				newSession(client, configMap, context);
 			saveSession(context, session);
 			Response challenge = getBaseForm(context)
-				.setAttribute("session_data", session.getSessionData())
-				.setAttribute("session_id", session.getId())
+				.setAttribute("adyen_session_data", session.getSessionData())
+				.setAttribute("adyen_session_id", session.getId())
 				.createForm(Utils.ADYEN_FORM);
 			context.challenge(challenge);
 		} catch (Exception error) {
+			log.error("renderBaseForm(): ERROR: " + error.toString());
 			context.failure(AuthenticationFlowError.INTERNAL_ERROR);
 			context.attempted();
 			Response challenge = getBaseForm(context)
-				.setAttribute("error", "internalInetumError")
+				.setAttribute("adyen_error", "internalInetumError")
 				.createForm(Utils.ADYEN_ERROR);
 			context.challenge(challenge);
 		}
@@ -220,7 +232,8 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
         return context
             .form()
             .setAttribute("realm", context.getRealm())
-            .setAttribute("client_key", configMap.get(Utils.CLIENT_KEY_ATTRIBUTE));
+            .setAttribute("adyen_client_key", configMap.get(Utils.CLIENT_KEY_ATTRIBUTE))
+            .setAttribute("adyen_environment", getEnvironment(configMap));
     }
  
     @Override
@@ -297,6 +310,13 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 				""
 			),
 			new ProviderConfigProperty(
+				Utils.CLIENT_KEY_ATTRIBUTE,
+				"CLIENT KEY",
+				"",
+				ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+			new ProviderConfigProperty(
 				Utils.MERCHANT_ACCOUNT_ATTRIBUTE,
 				"MERCHANT ACCOUNT",
 				"",
@@ -351,4 +371,3 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	public void close() {
 	}
 }
- 
