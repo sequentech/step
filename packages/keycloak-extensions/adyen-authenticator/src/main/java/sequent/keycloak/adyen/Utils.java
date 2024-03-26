@@ -4,31 +4,13 @@
 
 package sequent.keycloak.adyen;
 
-import org.keycloak.authentication.AuthenticationFlowContext;
-import org.keycloak.authentication.FormContext;
-import org.keycloak.events.Details;
-import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserModel;
-import org.keycloak.protocol.oidc.OIDCLoginProtocol;
-import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.userprofile.UserProfile;
-import org.keycloak.userprofile.UserProfileContext;
-import org.keycloak.userprofile.UserProfileProvider;
 
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 
-import java.io.StringWriter;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
-import java.io.Writer;
 
 @UtilityClass
 @JBossLog

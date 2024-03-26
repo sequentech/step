@@ -67,17 +67,6 @@
 		<finalName>${project.groupId}.${project.artifactId}</finalName>
 		<plugins>
 			<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <archive>
-                        <manifestEntries>
-                            <Dependencies>com.adyen.adyen-java-api-library</Dependencies>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven.compiler.version}</version>
@@ -95,7 +84,9 @@
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>org.reactivestreams:reactive-streams</include>
+									<include>com.adyen:*</include>
+									<include>org.apache.httpcomponents.client5:*</include>
+									<include>org.apache.httpcomponents.core5:*</include>
 								</includes>
 							</artifactSet>
 						</configuration>
