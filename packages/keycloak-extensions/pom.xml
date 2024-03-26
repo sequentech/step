@@ -11,6 +11,7 @@
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>adyen-authenticator</module>
 		<module>message-otp-authenticator</module>
 		<module>security-question-authenticator</module>
 		<module>conditional-authenticators</module>
