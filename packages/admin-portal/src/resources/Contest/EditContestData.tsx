@@ -1,5 +1,9 @@
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-essentials"
+import {
+    CandidatesOrder,
+    ICandidatePresentation,
+    IContestPresentation,
+} from "@sequentech/ui-essentials"
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
@@ -8,17 +12,21 @@ export const EditContestData: React.FC = () => {
     const [update] = useUpdate()
 
     function updateCandidatesOrder(data: Sequent_Backend_Contest_Extended) {
-        data.candidatesOrder?.map((c: Sequent_Backend_Candidate, index: number) => {
-            if (data.contest_candidates_order === CandidatesOrder.CUSTOM) {
+        data.candidatesOrder?.map((candidate: Sequent_Backend_Candidate, index: number) => {
+            let contestPresentation = data.presentation as IContestPresentation | undefined
+            if (contestPresentation?.candidates_order === CandidatesOrder.CUSTOM) {
+                let candidatePresentation = candidate.presentation as
+                    | ICandidatePresentation
+                    | undefined
                 return update("sequent_backend_candidate", {
-                    id: c.id,
+                    id: candidate.id,
                     data: {
                         presentation: {
-                            ...c.presentation,
+                            ...candidatePresentation,
                             sort_order: index,
                         },
                     },
-                    previousData: c,
+                    previousData: candidate,
                 })
             }
             return null

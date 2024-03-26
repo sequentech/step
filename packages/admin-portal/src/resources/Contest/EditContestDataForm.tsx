@@ -52,6 +52,8 @@ import {
     IContestPresentation,
     ILanguageConf,
     IElectionEventPresentation,
+    isArray,
+    ICandidatePresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -61,6 +63,7 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
 import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {CircularProgress} from "@mui/material"
 
 const CandidateRows = styled.div`
     display: flex;
@@ -114,8 +117,12 @@ export const ContestDataForm: React.FC = () => {
 
     const [updateImage] = useUpdate()
 
-    const {data: candidates} = useGetList("sequent_backend_candidate", {
-        filter: {contest_id: record.id},
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
+        filter: {
+            contest_id: record.id,
+            tenant_id: record.tenant_id,
+            election_event_id: record.election_event_id,
+        },
     })
 
     useEffect(() => {
@@ -319,14 +326,22 @@ export const ContestDataForm: React.FC = () => {
         }
     }
 
-    return electionEvent ? (
+    const sortedCandidates = (candidates ?? []).sort((a, b) => {
+        let presentationA = a.presentation as ICandidatePresentation | undefined
+        let presentationB = b.presentation as ICandidatePresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
+    return electionEvent && isArray(candidates) ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
 
                 return (
                     <SimpleForm
-                        defaultValues={{candidatesOrder: candidates ?? []}}
+                        defaultValues={{candidatesOrder: sortedCandidates}}
                         validate={formValidator}
                         record={parsedValue}
                         toolbar={
@@ -509,5 +524,7 @@ export const ContestDataForm: React.FC = () => {
                 )
             }}
         </RecordContext.Consumer>
-    ) : null
+    ) : (
+        <CircularProgress />
+    )
 }
