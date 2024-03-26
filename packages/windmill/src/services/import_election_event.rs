@@ -262,6 +262,8 @@ async fn insert_candidate(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for candidate in &data.candidates {
+        candidate.data.validate()?;
+        
         let statement = hasura_transaction
         .prepare(
             r#"
