@@ -113,6 +113,7 @@ pub struct Candidate {
     pub r#type: Option<String>,
     pub presentation: Option<Value>,
     pub is_public: Option<bool>,
+    pub image_document_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]

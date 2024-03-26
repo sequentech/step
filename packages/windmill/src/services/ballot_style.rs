@@ -159,6 +159,7 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             r#type: candidate.type_.clone(),
             presentation: candidate.presentation.clone(),
             is_public: candidate.is_public,
+            image_document_id: None,
         }
     }
 }
