@@ -294,16 +294,39 @@ async fn insert_candidate(
     Ok(())
 }
 
-fn insert_area(
+async fn insert_area(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
-    let sql = r#"
-        INSERT INTO sequent_backend.area
-        (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type)
-        VALUES
-        ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8);
-    "#;
+    for area in &data.areas {
+        let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.area
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8);
+            "#,
+        )
+        .await?;
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &Uuid::parse_str(&area.id)?,
+                    &Uuid::parse_str(&area.tenant_id)?,
+                    &Uuid::parse_str(&area.election_event_id)?,
+                    &area.labels,
+                    &area.annotations,
+                    &area.name,
+                    &area.description,
+                    &area.r#type,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    }
 
     Ok(())
 }
