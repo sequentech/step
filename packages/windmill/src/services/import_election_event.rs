@@ -18,8 +18,6 @@ use sequent_core::types::hasura::core::{
     ElectionEvent as ElectionEventData,
 };
 
-use sequent_core::types::hasura::extra;
-
 use super::database::get_hasura_pool;
 
 #[derive(Debug, Deserialize)]
