@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura_types::CommunicationTemplate;
+use sequent_core::types::hasura::core::CommunicationTemplate;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;

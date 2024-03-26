@@ -13,10 +13,12 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-use sequent_core::types::hasura_types::{
+use sequent_core::types::hasura::core::{
     Area as AreaData, Candidate as CandidateData, Contest as ContestData, Election as ElectionData,
     ElectionEvent as ElectionEventData,
 };
+
+use sequent_core::types::hasura::extra;
 
 use super::database::get_hasura_pool;
 
@@ -203,6 +205,8 @@ async fn insert_contest(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for contest in &data.contests {
+        contest.data.validate();
+
         let statement = hasura_transaction
         .prepare(
             r#"

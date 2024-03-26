@@ -11,7 +11,7 @@ use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::types::hasura_types::Document as HasuraDocument;
+use sequent_core::types::hasura::core::Document as HasuraDocument;
 use tempfile::NamedTempFile;
 use tracing::instrument;
 
