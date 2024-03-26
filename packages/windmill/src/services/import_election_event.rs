@@ -51,7 +51,7 @@ pub struct AreaContest {
 
 #[derive(Debug, Deserialize)]
 pub struct ImportElectionEventSchema {
-    tenant_id: String,
+    tenant_id: Uuid,
     keycloak_event_realm: RealmRepresentation,
     election_event_data: ElectionEventData,
     elections: Vec<Election>,
@@ -62,7 +62,7 @@ pub struct ImportElectionEventSchema {
 }
 
 pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
-    let tenant_id = &data.tenant_id;
+    let tenant_id = &data.tenant_id.to_string();
     let election_event_id = &data.election_event_data.id;
 
     // upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
@@ -83,6 +83,8 @@ pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
     insert_election(&hasura_transaction, &data).await?;
     insert_contest(&hasura_transaction, &data).await?;
     insert_candidate(&hasura_transaction, &data).await?;
+    insert_area(&hasura_transaction, &data).await?;
+    insert_area_contest(&hasura_transaction, &data).await?;
 
     let commit = hasura_transaction
         .commit()
@@ -338,15 +340,15 @@ async fn insert_area_contest(
 ) -> Result<()> {
     for area_contest in &data.area_contest_list {
         let statement = hasura_transaction
-        .prepare(
-            r#"
+            .prepare(
+                r#"
                 INSERT INTO sequent_backend.area_contest
-                (id, tenant_id, election_event_id, contest_id, area_id, created_at, last_updated_at, labels, annotations)
+                (id, tenant_id, election_event_id, contest_id, area_id, created_at, last_updated_at)
                 VALUES
-                ($1, $2, $3, $4, $5, NOW(), NOW(), $6, $7);
+                ($1, $2, $3, $4, $5, NOW(), NOW());
             "#,
-        )
-        .await?;
+            )
+            .await?;
 
         let rows: Vec<Row> = hasura_transaction
             .query(
@@ -355,8 +357,8 @@ async fn insert_area_contest(
                     &area_contest.id,
                     &data.tenant_id,
                     &Uuid::parse_str(&data.election_event_data.id)?,
-                    &area_contest.area_id,
                     &area_contest.contest_id,
+                    &area_contest.area_id,
                 ],
             )
             .await
