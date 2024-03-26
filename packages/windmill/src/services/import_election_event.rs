@@ -203,7 +203,7 @@ async fn insert_contest(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for contest in &data.contests {
-        contest.data.validate();
+        contest.data.validate()?;
 
         let statement = hasura_transaction
         .prepare(
