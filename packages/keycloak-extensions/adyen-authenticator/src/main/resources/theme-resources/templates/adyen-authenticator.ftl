@@ -1,5 +1,4 @@
 <#import "adyen-template.ftl" as layout>
-<#assign scripts ["${}"]>
 <@layout.registrationLayout ; section>
     <#if section = "html-extra-headers">
         <script
@@ -53,16 +52,11 @@
                     }
                 }
             };
-            // Create an instance of AdyenCheckout using the configuration 
-            // object
-            const checkout = await AdyenCheckout(adyenConfig);
-
-            // Create an instance of Drop-in and mount it to the container you
-            // created
-            const dropinComponent = checkout
-                .create('dropin')
-                .mount('#dropin-container');
         </script>
+        <script
+            type="module"
+            src="${url.resourcesPath}/assets/js/main.js"
+        ></script>
     </#if>
     <#if section = "form">
         <div id="kc-form">
