@@ -1,6 +1,6 @@
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
 <!DOCTYPE html>
-<html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if>>
+<html class="${properties.kcHtmlClass!}" <#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if>>
 
 <head>
     <meta charset="utf-8">
@@ -52,7 +52,6 @@
             );
         </script>
     </#if>
-    <#nested "html-extra-headers">
 </head>
 
 <body id="keycloak-bg" class="${properties.kcBodyClass!}">
@@ -141,6 +140,8 @@
           </div>
         </div>
         </#if>
+
+        <#nested "html-extra-headers">
       </header>
       <div class="pf-v5-c-login__main-body">
         <#if !(auth?has_content && auth.showUsername() && !auth.showResetCredentials())>
@@ -198,6 +199,7 @@
             </div>
         </#if>
 
+        <
         <#nested "form">
 
         <#if auth?has_content && auth.showTryAnotherWayLink()>
@@ -232,3 +234,4 @@
 </body>
 </html>
 </#macro>
+

@@ -1,4 +1,6 @@
 <#import "adyen-template.ftl" as layout>
+<#import "user-profile-commons.ftl" as userProfileCommons>
+<#import "register-commons.ftl" as registerCommons>
 <@layout.registrationLayout ; section>
     <#if section = "html-extra-headers">
         <script
@@ -57,12 +59,14 @@
             type="module"
             src="${url.resourcesPath}/assets/js/main.js"
         ></script>
-    </#if>
-    <#if section = "form">
-        <div id="kc-form">
-            <div id="kc-form-wrapper">
-                <div id="dropin-container"></div>
-            </div>
+        <link
+            rel="stylesheet"
+            href="${url.resourcesPath}/assets/css/main.css"
+            crossorigin="anonymous" />
+    <#elseif section = "form">
+        <div class="card-pf">
+            <span class="card-details">Enter your card details below to proceed with the payment:</span>
+            <div id="dropin-container"></div>
         </div>
     </#if>
 </@layout.registrationLayout>
