@@ -15,9 +15,10 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 
@@ -65,8 +66,8 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	 */
 	protected String getPaymentReference(AuthenticationFlowContext context)
 	{
-		// TODO
-		return "test-reference-0001";
+		UserModel user = context.getUser();
+		return user.getEmail();
 	}
 
 	/**
@@ -86,7 +87,27 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		AuthenticationFlowContext context,
 		CreateCheckoutSessionResponse session
 	) {
-		// TODO
+		UserModel user = context.getUser();
+		ObjectMapper mapper = new ObjectMapper();
+
+		// Constructing the JSON object to store session data
+		ObjectNode sessionInfo = mapper.createObjectNode();
+		sessionInfo.put("adyen_session_data", session.getSessionData());
+		sessionInfo.put("adyen_session_id", session.getId());
+
+		// Convert the JSON object to a string
+		String sessionInfoStr;
+		try {
+			sessionInfoStr = mapper.writeValueAsString(sessionInfo);
+		} catch (JsonProcessingException e) {
+			log.error("Error serializing session info", e);
+			throw new RuntimeException("Error serializing session info", e);
+		}
+
+		user.setSingleAttribute(Utils.USER_STATUS_ATTRIBUTE, sessionInfoStr);
+
+		// Log the action for debug purposes
+		log.info("Saved session info for user: " + user.getUsername());
 	}
 
 	/*
@@ -99,6 +120,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	)
 		throws IOException, ApiException
 	{
+		UserModel user = context.getUser();
 		Amount amount = new Amount()
 			.currency(configMap.get(Utils.CURRENCY_ATTRIBUTE))
 			.value(Long.valueOf(configMap.get(Utils.AMOUNT_ATTRIBUTE)));
@@ -107,6 +129,8 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 			new CreateCheckoutSessionRequest()
 			.amount(amount)
 			.merchantAccount(configMap.get(Utils.MERCHANT_ACCOUNT_ATTRIBUTE))
+			.shopperEmail(user.getEmail())
+			.shopperReference(user.getId())
 			.returnUrl("https://example.com/TODO")
 			.reference(getPaymentReference(context))
 			.countryCode(getCountryCode());
@@ -235,7 +259,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
  
     @Override
     public boolean requiresUser() {
-        return false;
+        return true;
     }
  
      @Override
