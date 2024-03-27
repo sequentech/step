@@ -65,8 +65,8 @@ pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
     let tenant_id = &data.tenant_id.to_string();
     let election_event_id = &data.election_event_data.id;
 
-    // upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
-    // upsert_keycloak_realm(tenant_id.as_str(), &election_event_id).await?;
+    upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
+    upsert_keycloak_realm(tenant_id.as_str(), &election_event_id).await?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -376,24 +376,4 @@ async fn insert_area_contest(
     Ok(())
 }
 
-/*
 
--- Delete area_contest
-DELETE FROM sequent_backend.area_contest WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
-
--- Delete candidates
-DELETE FROM sequent_backend.candidate WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
-
--- Delete contests
-DELETE FROM sequent_backend.contest WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
-
--- Delete elections
-DELETE FROM sequent_backend.election WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
-
--- Delete areas
-DELETE FROM sequent_backend.area WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
-
--- Delete the election event itself
-DELETE FROM sequent_backend.election_event WHERE id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
-
-*/
