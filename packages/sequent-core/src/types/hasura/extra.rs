@@ -15,6 +15,13 @@ pub struct VotingChannels {
     pub paper: Option<bool>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+pub struct BulletinBoardReference {
+    pub id: i64,
+    pub database_name: String,
+    pub is_archived: bool,
+}
+
 impl ElectionEvent {
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
@@ -38,6 +45,12 @@ impl ElectionEvent {
         if let Some(statistics) = &self.statistics {
             serde_json::from_value::<ElectionEventStatistics>(
                 statistics.clone(),
+            )?;
+        }
+
+        if let Some(bulletin_board_reference) = &self.bulletin_board_reference {
+            serde_json::from_value::<BulletinBoardReference>(
+                bulletin_board_reference.clone(),
             )?;
         }
 

@@ -91,8 +91,6 @@ pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
         .await
         .map_err(|e| anyhow!("Commit failed: {}", e));
 
-    println!("c'est gagneeeee");
-
     Ok(())
 }
 
@@ -263,7 +261,7 @@ async fn insert_candidate(
 ) -> Result<()> {
     for candidate in &data.candidates {
         candidate.data.validate()?;
-        
+
         let statement = hasura_transaction
         .prepare(
             r#"
@@ -375,5 +373,3 @@ async fn insert_area_contest(
 
     Ok(())
 }
-
-
