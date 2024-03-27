@@ -3,6 +3,10 @@
     padding-top: 10px;
 }
 
+#kc-attempted-username {
+    color: white;
+}
+
 .pf-v5-c-login__main {
     padding-bottom: 15px;
 }

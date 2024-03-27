@@ -22,10 +22,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
 import com.adyen.Client;
 import com.adyen.service.checkout.PaymentsApi;
 import com.adyen.model.checkout.Amount;
@@ -33,6 +29,12 @@ import com.adyen.model.checkout.CreateCheckoutSessionRequest;
 import com.adyen.model.checkout.CreateCheckoutSessionResponse;
 import com.adyen.enums.Environment;
 import com.adyen.service.exception.ApiException;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
  
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -67,6 +69,9 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	protected String getPaymentReference(AuthenticationFlowContext context)
 	{
 		UserModel user = context.getUser();
+		if (user == null) {
+			return UUID.randomUUID().toString();
+		}
 		return user.getEmail();
 	}
 
@@ -87,24 +92,30 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		AuthenticationFlowContext context,
 		CreateCheckoutSessionResponse session
 	) {
+		log.info("saveSession()");
 		UserModel user = context.getUser();
 		ObjectMapper mapper = new ObjectMapper();
 
 		// Constructing the JSON object to store session data
 		ObjectNode sessionInfo = mapper.createObjectNode();
-		sessionInfo.put("adyen_session_data", session.getSessionData());
-		sessionInfo.put("adyen_session_id", session.getId());
+		sessionInfo.put("session_id", session.getId());
+		sessionInfo.put("session_status", "SESSION_CREATED");
 
 		// Convert the JSON object to a string
 		String sessionInfoStr;
 		try {
 			sessionInfoStr = mapper.writeValueAsString(sessionInfo);
-		} catch (JsonProcessingException e) {
-			log.error("Error serializing session info", e);
-			throw new RuntimeException("Error serializing session info", e);
+		} catch (JsonProcessingException error) {
+			log.error("Error serializing session info", error);
+			throw new RuntimeException("Error serializing session info", error);
 		}
 
-		user.setSingleAttribute(Utils.USER_STATUS_ATTRIBUTE, sessionInfoStr);
+		try {
+			log.error("saving attribute name=" + Utils.USER_STATUS_ATTRIBUTE + ", value=`" + sessionInfoStr + "`");
+			user.setSingleAttribute(Utils.USER_STATUS_ATTRIBUTE, sessionInfoStr);
+		} catch (Exception error) {
+			throw new RuntimeException("Error saving session", error);
+		}
 
 		// Log the action for debug purposes
 		log.info("Saved session info for user: " + user.getUsername());
@@ -120,7 +131,8 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	)
 		throws IOException, ApiException
 	{
-		UserModel user = context.getUser();
+		log.info("newSession()");
+		//UserModel user = context.getUser();
 		Amount amount = new Amount()
 			.currency(configMap.get(Utils.CURRENCY_ATTRIBUTE))
 			.value(Long.valueOf(configMap.get(Utils.AMOUNT_ATTRIBUTE)));
@@ -129,8 +141,8 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 			new CreateCheckoutSessionRequest()
 			.amount(amount)
 			.merchantAccount(configMap.get(Utils.MERCHANT_ACCOUNT_ATTRIBUTE))
-			.shopperEmail(user.getEmail())
-			.shopperReference(user.getId())
+			//.shopperEmail(user.getEmail())
+			//.shopperReference(user.getId())
 			.returnUrl("https://example.com/TODO")
 			.reference(getPaymentReference(context))
 			.countryCode(getCountryCode());
@@ -180,6 +192,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		AuthenticationFlowContext context,
 		Map<String, String> configMap
 	) {
+		log.info("hasUserAlreadyPaid()");
 		UserModel user = context.getUser();
 		if (user == null) {
 			return false;
@@ -197,12 +210,10 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 			JsonNode status = 
 				mapper.readValue(statusStr, JsonNode.class);
 
-			String sessionData = status.get("session_data").asText();
 			String sessionId = status.get("session_id").asText();
 			String sessionStatus = status.get("session_status").asText();
 
 			if (
-				sessionData == null || !sessionData.isEmpty() ||
 				sessionId == null || !sessionId.isEmpty() ||
 				sessionStatus == null || !sessionStatus.equals("SUCCESS")
 			) {
@@ -242,6 +253,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
     @Override
     public void action(AuthenticationFlowContext context)
     {
+		log.info("action()");
     }
 
     protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context)
@@ -259,7 +271,7 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
  
     @Override
     public boolean requiresUser() {
-        return true;
+        return false;
     }
  
      @Override

@@ -50,7 +50,7 @@
                     card: {
                         hasHolderName: true,
                         holderNameRequired: true,
-                        billingAddressRequired: true
+                        billingAddressRequired: false // TODO: previously, true
                     }
                 }
             };
