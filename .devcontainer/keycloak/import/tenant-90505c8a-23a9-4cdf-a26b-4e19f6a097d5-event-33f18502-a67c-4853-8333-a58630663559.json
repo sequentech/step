@@ -33,9 +33,9 @@
   "registrationEmailAsUsername" : true,
   "rememberMe" : false,
   "verifyEmail" : true,
-  "loginWithEmailAllowed" : false,
+  "loginWithEmailAllowed" : true,
   "duplicateEmailsAllowed" : false,
-  "resetPasswordAllowed" : false,
+  "resetPasswordAllowed" : true,
   "editUsernameAllowed" : false,
   "bruteForceProtected" : true,
   "permanentLockout" : false,
@@ -362,6 +362,7 @@
     "clientRole" : false,
     "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30"
   },
+  "defaultGroups" : [ "/voter" ],
   "requiredCredentials" : [ "password" ],
   "otpPolicyType" : "totp",
   "otpPolicyAlgorithm" : "HmacSHA1",
@@ -370,7 +371,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName" ],
+  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppGoogleName", "totpAppFreeOTPName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -392,138 +393,40 @@
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister" : false,
   "webAuthnPolicyPasswordlessAcceptableAaguids" : [ ],
   "users" : [ {
-    "id" : "b849ce75-4a33-4b85-903b-2fa7232986b7",
-    "createdTimestamp" : 1711558842722,
-    "username" : "edu+1@sequentech.io",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edu+1@sequentech.io",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-27" ],
-      "sequent.read-only.mobile-number" : [ "649023" ]
-    },
-    "credentials" : [ {
-      "id" : "41fcaacc-6ad1-420d-b47f-f63176c74e28",
-      "type" : "password",
-      "createdDate" : 1711558842856,
-      "secretData" : "{\"value\":\"z2NawqbkZ5VZ+U+xH5gmHHlt9NrDAWDTipnp8Iu05wk=\",\"salt\":\"SrbXRvS+W5ECuYOB4IQy8A==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
-    "id" : "5ce67db7-163c-4f68-bec3-aa5fecb5d1a4",
-    "createdTimestamp" : 1711559525337,
-    "username" : "edu+2@sequentech.io",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edu+2@sequentech.io",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-27" ],
-      "sequent.read-only.mobile-number" : [ "649023" ]
-    },
-    "credentials" : [ {
-      "id" : "50ccaee5-e8ec-48e2-8c03-f4f703c1bb4a",
-      "type" : "password",
-      "createdDate" : 1711559525420,
-      "secretData" : "{\"value\":\"EbwOud7A+owldoHwprbl4jkm0iJukfzmLlG8rjBjVa4=\",\"salt\":\"nvbOxdBb7N33rWo66lpKiw==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
-    "id" : "b01179e5-a4af-4644-81cd-06fe2eedf931",
-    "createdTimestamp" : 1711558429317,
-    "username" : "edulix+1@nvotes.com",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Elvira",
-    "email" : "edulix+1@nvotes.com",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-27" ],
-      "sequent.read-only.mobile-number" : [ "634571634" ],
-      "user-status-attr" : [ "{\"session_id\":\"CSDDA307C32BC853C9\",\"session_status\":\"SESSION_CREATED\"}" ]
-    },
-    "credentials" : [ {
-      "id" : "e89fc376-23de-4400-a835-10b08da15886",
-      "type" : "password",
-      "createdDate" : 1711558429347,
-      "secretData" : "{\"value\":\"R2r0C1HskdndBC6drVQjGCm7eDjVF6ioHfS2WTB3m1M=\",\"salt\":\"uY4AHC8oreBwRqXHSrRtKw==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
-    "id" : "a1a6e03c-74f6-4d41-b984-236ab2ea2be2",
-    "createdTimestamp" : 1711558299201,
-    "username" : "edulix@nvotes.com",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Elvira",
-    "email" : "edulix@nvotes.com",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-27" ],
-      "sequent.read-only.mobile-number" : [ "634571634" ],
-      "user-status-attr" : [ "{\"session_id\":\"CSBB13C050E1A90257\",\"session_status\":\"SESSION_CREATED\"}" ]
-    },
-    "credentials" : [ {
-      "id" : "6a22fef5-70ac-4c78-99fb-1dbbc5697bbf",
-      "type" : "password",
-      "createdDate" : 1711558299232,
-      "secretData" : "{\"value\":\"gvEoZhA0jGSq6SPzb22OXt/8RLBYeLU/J44/AlLNAZc=\",\"salt\":\"na9ideBc6p+VzorxM6hnPQ==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
-    "id" : "64219eee-afe4-4ecd-8747-280a531e84bd",
-    "createdTimestamp" : 1711558668574,
+    "id" : "7fe296ec-4f53-4534-8369-2d38efcea8e4",
+    "createdTimestamp" : 1711639269568,
     "username" : "edu@sequentech.io",
     "enabled" : true,
     "totp" : false,
-    "emailVerified" : false,
+    "emailVerified" : true,
     "firstName" : "Eduardo",
-    "lastName" : "Elvira",
+    "lastName" : "Robles",
     "email" : "edu@sequentech.io",
     "attributes" : {
-      "DateOfBirth" : [ "2024-03-27" ],
-      "sequent.read-only.mobile-number" : [ "634571634" ],
-      "user-status-attr" : [ "{\"session_id\":\"CS6E66FD53F9833961\",\"session_status\":\"SESSION_CREATED\"}" ]
+      "DateOfBirth" : [ "2024-03-28" ],
+      "sequent.read-only.mobile-number" : [ "+376649023" ],
+      "sequent.read-only.adyen-status" : [ "{\"session_id\":\"CS28FEAC45A876E88B\",\"session_status\":\"SUCCESS\"}" ],
+      "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
+      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "credentials" : [ {
-      "id" : "75a8d1f4-4b6c-40ac-9367-f59188e7a11c",
+      "id" : "fdaec156-fddf-4b7b-abcf-1041b26d3308",
       "type" : "password",
-      "createdDate" : 1711558668695,
-      "secretData" : "{\"value\":\"aaU5lgTmfsgZw+8AWJsb2v+SJoPzqj+ZPopLA0i0mVw=\",\"salt\":\"LvB10UysdWoZDpIISFEsyA==\",\"additionalParameters\":{}}",
+      "createdDate" : 1711639269605,
+      "secretData" : "{\"value\":\"Iej8ACkDFlIJ3IQ3JrUL5r2dGgZcA7uo9RtPSl/d2oU=\",\"salt\":\"dGZ4FMNfJ72aY4MU6VzyAg==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+    }, {
+      "id" : "7d467a0d-be66-48e9-bb82-b975d6aa74c8",
+      "type" : "message-otp",
+      "createdDate" : 1711639318982,
+      "secretData" : "{\"nothing\":\"nothing\"}",
+      "credentialData" : "{\"setup\":true}"
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
     "notBefore" : 0,
-    "groups" : [ ]
+    "groups" : [ "/voter" ]
   } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
@@ -1525,8 +1428,8 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "config-pieces-count" : [ "1" ],
-        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\",\"user\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{\"inputType\":\"html5-tel\"},\"validations\":{},\"group\":null,\"required\":{\"roles\":[\"admin\",\"user\"]}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"DateOfBirth\",\"displayName\":\"Date Of Birth\",\"permissions\":{\"edit\":[\"admin\",\"user\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{\"inputType\":\"html5-date\"},\"validations\":{},\"required\":{\"roles\":[\"admin\",\"user\"]},\"group\":null},{\"name\":\"sequent.read-only.adyen-status\",\"displayName\":\"\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ]
+        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\",\"user\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{\"inputType\":\"html5-tel\"},\"validations\":{},\"group\":null,\"required\":{\"roles\":[\"user\"]}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"DateOfBirth\",\"displayName\":\"Date Of Birth\",\"permissions\":{\"edit\":[\"admin\",\"user\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{\"inputType\":\"html5-date\"},\"validations\":{},\"required\":{\"roles\":[\"admin\",\"user\"]},\"group\":null},{\"name\":\"sequent.read-only.adyen-status\",\"displayName\":\"Payment Status\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"admin\"]},\"annotations\":{\"inputType\":\"textarea\"},\"validations\":{},\"group\":null}]}" ],
+        "config-pieces-count" : [ "1" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -2233,7 +2136,7 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
-      "requirement" : "DISABLED",
+      "requirement" : "CONDITIONAL",
       "priority" : 24,
       "autheticatorFlow" : true,
       "flowAlias" : "message-otp-subflow",
@@ -2291,6 +2194,22 @@
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 11,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "set-attr-tenant-id",
+      "authenticator" : "set-user-attribute",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 12,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "set-attr-area-id",
+      "authenticator" : "set-user-attribute",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 13,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -2516,6 +2435,20 @@
       "userRealmLimit" : "10"
     }
   }, {
+    "id" : "bfaf8586-8b25-4c08-9d05-032632c89ea1",
+    "alias" : "set-attr-area-id",
+    "config" : {
+      "userAttribute" : "area-id",
+      "userAttributeValue" : "2f312a36-f39c-46e4-9670-1d1ce4625745"
+    }
+  }, {
+    "id" : "6350d5c7-423e-4903-96a0-d07798bd5dd0",
+    "alias" : "set-attr-tenant-id",
+    "config" : {
+      "userAttribute" : "tenant-id",
+      "userAttributeValue" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+    }
+  }, {
     "id" : "139477b4-0b84-4182-9230-b6dc67853849",
     "alias" : "username-password-exp",
     "config" : {
@@ -2562,7 +2495,7 @@
     "alias" : "VERIFY_EMAIL",
     "name" : "Verify Email",
     "providerId" : "VERIFY_EMAIL",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 40,
     "config" : { }
@@ -2626,7 +2559,7 @@
     "alias" : "mfa-method-selector",
     "name" : "Configure MFA method to use",
     "providerId" : "mfa-method-selector",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1001,
     "config" : { }
@@ -2642,7 +2575,7 @@
     "alias" : "message-otp-ra",
     "name" : "Reset Message OTP",
     "providerId" : "message-otp-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1003,
     "config" : { }
