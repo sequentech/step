@@ -44,7 +44,7 @@ const adyenConfig = {
             data: {
                 holderName: adyen_vars.holderName,
             },
-            billingAddressRequired: false, // TODO: previously, true
+            billingAddressRequired: true,
         }
     }
 };
