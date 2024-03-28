@@ -1,0 +1,36 @@
+/*
+adding some custom css while we fix the issue with generci loginCustomCss field
+*/
+.login-pf body { background: none !important; }
+
+
+:root {
+    --pf-global--primary-color--100: #0238b7;
+    --pf-c-button--m-primary--BackgroundColor: #0238b7;
+}
+
+a {
+    color: #0238b7;
+}
+
+.login-pf body {
+    background-image: url('https://i.ibb.co/vwrfyvK/azm.jpg') !important;
+    background-position: center top !important;
+    background-size: contain !important;
+    background-color: white !important;
+    background-repeat: no-repeat !important;
+    background-origin: padding-box !important;
+}
+
+#kc-header-wrapper, #reset-login {
+    color: white;
+}
+
+@media (max-width: 767px) {
+
+    #kc-header-wrapper {
+        padding: 20px;
+        text-align: center;
+    }
+
+}
