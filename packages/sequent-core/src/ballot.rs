@@ -18,7 +18,7 @@ use strum_macros::{Display, EnumString};
 
 pub const TYPES_VERSION: u32 = 1;
 
-pub type I18nContent<T = String> = HashMap<String, T>;
+pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
@@ -240,7 +240,7 @@ pub struct CandidateUrl {
     Clone,
 )]
 pub struct CandidatePresentation {
-    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub is_explicit_invalid: Option<bool>,
     pub is_disabled: Option<bool>,
     pub is_category_list: Option<bool>,
@@ -469,7 +469,7 @@ pub struct ElectionEventLanguageConf {
     Default,
 )]
 pub struct ElectionEventPresentation {
-    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub materials: Option<ElectionEventMaterials>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub logo_url: Option<String>,
@@ -509,7 +509,7 @@ pub struct ElectionDates {
     Default,
 )]
 pub struct ElectionPresentation {
-    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub dates: Option<ElectionDates>,
 }
 
@@ -525,7 +525,7 @@ pub struct ElectionPresentation {
     Clone,
 )]
 pub struct ContestPresentation {
-    pub i18n: Option<I18nContent<I18nContent<String>>>,
+    pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
