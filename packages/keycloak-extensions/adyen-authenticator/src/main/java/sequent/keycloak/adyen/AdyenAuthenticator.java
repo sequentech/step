@@ -96,29 +96,17 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		UserModel user = context.getUser();
 		ObjectMapper mapper = new ObjectMapper();
 
+        AuthenticatorConfigModel config = Utils
+            .getConfig(context.getRealm())
+            .get();
+        Map<String, String> configMap = config.getConfig();
+
 		// Constructing the JSON object to store session data
 		ObjectNode sessionInfo = mapper.createObjectNode();
-		sessionInfo.put("session_id", session.getId());
-		sessionInfo.put("session_status", "SESSION_CREATED");
+		sessionInfo.put(Utils.SESSION_ID, session.getId());
+		sessionInfo.put(Utils.SESSION_STATUS, Utils.STATUS_CREATED);
 
-		// Convert the JSON object to a string
-		String sessionInfoStr;
-		try {
-			sessionInfoStr = mapper.writeValueAsString(sessionInfo);
-		} catch (JsonProcessingException error) {
-			log.error("Error serializing session info", error);
-			throw new RuntimeException("Error serializing session info", error);
-		}
-
-		try {
-			log.error("saving attribute name=" + Utils.USER_STATUS_ATTRIBUTE + ", value=`" + sessionInfoStr + "`");
-			user.setSingleAttribute(Utils.USER_STATUS_ATTRIBUTE, sessionInfoStr);
-		} catch (Exception error) {
-			throw new RuntimeException("Error saving session", error);
-		}
-
-		// Log the action for debug purposes
-		log.info("Saved session info for user: " + user.getUsername());
+		saveUserSession(user, configMap, sessionInfo);
 	}
 
 	/*
@@ -178,10 +166,75 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 			context.failure(AuthenticationFlowError.INTERNAL_ERROR);
 			context.attempted();
 			Response challenge = getBaseForm(context)
-				.setAttribute("adyen_error", "internalInetumError")
+				.setAttribute("adyen_error", "adyen.form.error.generic")
 				.createForm(Utils.ADYEN_ERROR);
 			context.challenge(challenge);
 		}
+	}
+
+	protected JsonNode getUserSession(
+		UserModel user,
+		Map<String, String> configMap
+	) {
+		log.info("getUserSession: start");
+		if (user == null) {
+			log.info("getUserSession: 1");
+			return null;
+		}
+		String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
+		if (statusAttributeName == null) {
+			log.info("getUserSession: 2");
+			return null;
+		}
+		String statusStr = user.getFirstAttribute(statusAttributeName);
+		if (statusStr == null) {
+			log.info("getUserSession: 3");
+			return null;
+		}
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			JsonNode status = 
+				mapper.readValue(statusStr, JsonNode.class);
+
+			log.info("getUserSession: success");
+			return status;
+		} catch (Exception _error) {
+			log.info("getUserSession: 4");
+			return null;
+		}
+	}
+
+	protected void saveUserSession(
+		UserModel user,
+		Map<String, String> configMap,
+		JsonNode sessionInfo
+	) {
+		log.info("saveUserSession: start");
+
+		ObjectMapper mapper = new ObjectMapper();
+		// Convert the JSON object to a string
+		String sessionInfoStr;
+		try {
+			sessionInfoStr = mapper.writeValueAsString(sessionInfo);
+		} catch (JsonProcessingException error) {
+			log.error("Error serializing session info", error);
+			throw new RuntimeException("Error serializing session info", error);
+		}
+
+		String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
+		if (statusAttributeName == null) {
+			throw new RuntimeException("Utils.USER_STATUS_ATTRIBUTE not found");
+		}
+
+		try {
+			log.info("saving attribute name=" + statusAttributeName + ", value=`" + sessionInfoStr + "`");
+			user.setSingleAttribute(statusAttributeName, sessionInfoStr);
+		} catch (Exception error) {
+			throw new RuntimeException("Error saving session", error);
+		}
+
+		// Log the action for debug purposes
+		log.info("saveUserSession: Saved session info for user: " + user.getUsername());
 	}
 
 	/**
@@ -194,33 +247,17 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 	) {
 		log.info("hasUserAlreadyPaid()");
 		UserModel user = context.getUser();
-		if (user == null) {
+		JsonNode status = getUserSession(user, configMap);
+		if (status == null) {
 			return false;
 		}
-		String statusAttributeName = configMap.get(Utils.USER_STATUS_ATTRIBUTE);
-		if (statusAttributeName == null) {
-			return false;
-		}
-		String statusStr = user.getFirstAttribute(statusAttributeName);
-		if (statusStr == null) {
-			return false;
-		}
-		ObjectMapper mapper = new ObjectMapper();
-		try {
-			JsonNode status = 
-				mapper.readValue(statusStr, JsonNode.class);
+		String sessionId = status.get(Utils.SESSION_ID).asText();
+		String sessionStatus = status.get(Utils.SESSION_STATUS).asText();
 
-			String sessionId = status.get("session_id").asText();
-			String sessionStatus = status.get("session_status").asText();
-
-			if (
-				sessionId == null || !sessionId.isEmpty() ||
-				sessionStatus == null || !sessionStatus.equals("SUCCESS")
-			) {
-				return false;
-			}
-	
-		} catch (Exception _error) {
+		if (
+			sessionId == null || !sessionId.isEmpty() ||
+			sessionStatus == null || !sessionStatus.equals("SUCCESS")
+		) {
 			return false;
 		}
 		return true;
@@ -250,10 +287,74 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		}
     }
 
+	protected boolean validatePayment(AuthenticationFlowContext context)
+	{
+
+		log.info("action()");
+		UserModel user = context.getUser();
+		if (user == null) {
+			log.info("action(): 1");
+			return false;
+		}
+
+        AuthenticatorConfigModel config = Utils
+            .getConfig(context.getRealm())
+            .get();
+        Map<String, String> configMap = config.getConfig();
+		JsonNode sessionInfo = getUserSession(user, configMap);
+
+		if (sessionInfo == null) {
+			log.info("action(): 2");
+			return false;
+		}
+
+		String sessionId = sessionInfo.get(Utils.SESSION_ID).asText();
+		String sessionStatus = sessionInfo.get(Utils.SESSION_STATUS).asText();
+		if (
+			sessionId == null ||
+			sessionStatus == null ||
+			!sessionStatus.equals(Utils.STATUS_CREATED)
+		) {
+			log.info("action(): 3");
+			return false;
+		}
+		ObjectMapper mapper = new ObjectMapper();
+
+		// Constructing the JSON object to store session data
+		ObjectNode newSessionInfo = mapper.createObjectNode();
+		newSessionInfo.put(Utils.SESSION_ID, sessionId);
+		newSessionInfo.put(Utils.SESSION_STATUS, Utils.STATUS_SUCCESS);
+		saveUserSession(user, configMap, newSessionInfo);
+
+		return true;
+	}
+
     @Override
     public void action(AuthenticationFlowContext context)
     {
 		log.info("action()");
+        boolean validated = validatePayment(context);
+        if (!validated)
+        {
+			// invalid
+			AuthenticationExecutionModel execution = context.getExecution();
+			if (execution.isRequired())
+            {
+				// TODO: handle error correctly
+				context.failureChallenge(
+					AuthenticationFlowError.INVALID_CREDENTIALS,
+					getBaseForm(context)
+						.setAttribute("adyen_error", "adyen.form.error.generic")
+						.createForm(Utils.ADYEN_ERROR)
+				);
+			} else if (execution.isConditional() || execution.isAlternative())
+            {
+				context.attempted();
+			}
+        } else {
+            // valid
+            context.success();
+        }
     }
 
     protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context)

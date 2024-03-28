@@ -24,6 +24,10 @@ public class Utils {
 	final public String CURRENCY_ATTRIBUTE = "currency";
     final public String ADYEN_FORM = "adyen-authenticator.ftl";
     final public String ADYEN_ERROR = "adyen-error.ftl";
+    final public String SESSION_ID = "session_id";
+    final public String SESSION_STATUS = "session_status";
+    final public String STATUS_SUCCESS = "SUCCESS";
+    final public String STATUS_CREATED = "CREATED";
 
 	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
 	{

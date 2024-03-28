@@ -16,43 +16,16 @@
             integrity="sha384-zgFNrGzbwuX5qJLys75cOUIGru/BoEzhGMyC07I3OSdHqXuhUfoDPVG03G+61oF4"
             crossorigin="anonymous" />
         <script>
-            const adyenConfig = {
+            const adyen_vars = {
+                // Environment to use (live or test)
                 environment: '${adyen_environment}',
-                
                 // Public key used for client-side authentication: 
                 // https://docs.adyen.com/development-resources/client-side-authentication
                 clientKey: '${adyen_client_key}',
-                
-                // Set to false to not send analytics data to Adyen.
-                analytics: {
-                    enabled: false
-                },
-                
-                session: {
-                    // Unique identifier for the payment session
-                    id: '${adyen_session_id}',
-
-                    // The payment session data
-                    sessionData: '${adyen_session_data}'
-                },
-                onPaymentCompleted: (result, component) => {
-                    console.info(result, component);
-                },
-                onError: (error, component) => {
-                    console.error(error.name, error.message, error.stack, component);
-                },
-                // Any payment method specific configuration. Find the 
-                // configuration specific to each payment method:
-                // https://docs.adyen.com/payment-methods
-                //
-                // For example, this is 3D Secure configuration for cards:
-                paymentMethodsConfiguration: {
-                    card: {
-                        hasHolderName: true,
-                        holderNameRequired: true,
-                        billingAddressRequired: false // TODO: previously, true
-                    }
-                }
+                // Unique identifier for the payment session
+                sessionId: '${adyen_session_id}',
+                // The payment session data
+                sessionData: '${adyen_session_data}'
             };
         </script>
         <script
@@ -64,9 +37,16 @@
             href="${url.resourcesPath}/assets/css/main.css"
             crossorigin="anonymous" />
     <#elseif section = "form">
-        <div class="card-pf">
-            <span class="card-details">Enter your card details below to proceed with the payment:</span>
-            <div id="dropin-container"></div>
-        </div>
+        <form
+            id="kc-adyen-form"
+            class="${properties.kcFormClass!}"
+            action="${url.loginAction}"
+            method="post"
+        >
+            <div class="card-pf">
+                <span class="card-details">${msg("adyen.form.cardDetails")}</span>
+                <div id="dropin-container"></div>
+            </div>
+        </form>
     </#if>
 </@layout.registrationLayout>
