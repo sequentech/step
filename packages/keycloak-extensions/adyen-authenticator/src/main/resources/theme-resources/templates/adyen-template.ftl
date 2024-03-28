@@ -19,6 +19,14 @@
             <link href="${url.resourcesCommonPath}/${style}" rel="stylesheet" />
         </#list>
     </#if>
+
+        <style type="text/css">
+            <#outputformat "plainText">
+                ${msg("loginCustomCss")}
+            </#outputformat>
+        </style>
+    </#if>
+
     <#if properties.styles?has_content>
         <#list properties.styles?split(' ') as style>
             <link href="${url.resourcesPath}/${style}" rel="stylesheet" />
