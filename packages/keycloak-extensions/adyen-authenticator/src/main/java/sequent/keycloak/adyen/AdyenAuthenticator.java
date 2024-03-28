@@ -27,6 +27,7 @@ import com.adyen.service.checkout.PaymentsApi;
 import com.adyen.model.checkout.Amount;
 import com.adyen.model.checkout.CreateCheckoutSessionRequest;
 import com.adyen.model.checkout.CreateCheckoutSessionResponse;
+import com.adyen.model.checkout.Name;
 import com.adyen.enums.Environment;
 import com.adyen.service.exception.ApiException;
 
@@ -120,17 +121,22 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		throws IOException, ApiException
 	{
 		log.info("newSession()");
-		//UserModel user = context.getUser();
+		UserModel user = context.getUser();
 		Amount amount = new Amount()
 			.currency(configMap.get(Utils.CURRENCY_ATTRIBUTE))
 			.value(Long.valueOf(configMap.get(Utils.AMOUNT_ATTRIBUTE)));
  
+		Name userName = new Name()
+			.firstName(user.getFirstName())
+			.lastName(user.getLastName());
+		
 		CreateCheckoutSessionRequest createCheckoutSessionRequest = 
 			new CreateCheckoutSessionRequest()
 			.amount(amount)
 			.merchantAccount(configMap.get(Utils.MERCHANT_ACCOUNT_ATTRIBUTE))
-			//.shopperEmail(user.getEmail())
-			//.shopperReference(user.getId())
+			.shopperEmail(user.getEmail())
+			.shopperName(userName)
+			.shopperReference(user.getId())
 			.returnUrl("https://example.com/TODO")
 			.reference(getPaymentReference(context))
 			.countryCode(getCountryCode());
@@ -151,12 +157,17 @@ public class AdyenAuthenticator implements Authenticator, AuthenticatorFactory
 		AuthenticationFlowContext context
 	) {
         log.info("renderBaseForm()");
+		UserModel user = context.getUser();
 		try {
 			Client client = getClient(configMap);
 			CreateCheckoutSessionResponse session =
 				newSession(client, configMap, context);
 			saveSession(context, session);
 			Response challenge = getBaseForm(context)
+				.setAttribute(
+					"adyen_holder_name",
+					user.getFirstName() + " " + user.getLastName()
+				)
 				.setAttribute("adyen_session_data", session.getSessionData())
 				.setAttribute("adyen_session_id", session.getId())
 				.createForm(Utils.ADYEN_FORM);

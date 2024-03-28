@@ -25,7 +25,9 @@
                 // Unique identifier for the payment session
                 sessionId: '${adyen_session_id}',
                 // The payment session data
-                sessionData: '${adyen_session_data}'
+                sessionData: '${adyen_session_data}',
+                // Card holder name prefill
+                holderName:  '${adyen_holder_name}',
             };
         </script>
         <script

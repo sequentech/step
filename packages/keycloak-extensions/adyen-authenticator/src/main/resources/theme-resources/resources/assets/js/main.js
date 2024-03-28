@@ -41,7 +41,10 @@ const adyenConfig = {
         card: {
             hasHolderName: true,
             holderNameRequired: true,
-            billingAddressRequired: false // TODO: previously, true
+            data: {
+                holderName: adyen_vars.holderName,
+            },
+            billingAddressRequired: false, // TODO: previously, true
         }
     }
 };
