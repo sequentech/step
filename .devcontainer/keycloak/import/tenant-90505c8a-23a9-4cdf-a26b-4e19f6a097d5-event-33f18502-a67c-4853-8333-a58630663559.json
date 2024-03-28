@@ -1,8 +1,8 @@
 {
   "id" : "613e770d-7498-4726-90ff-b288f40a7b30",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
-  "displayName" : "Election Event",
-  "displayNameHtml" : "",
+  "displayName" : "US ELECTION TO 38TH WORLD ZIONIST CONGRESS",
+  "displayNameHtml" : "US ELECTION TO<br>38TH WORLD ZIONIST CONGRESS",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
   "revokeRefreshToken" : false,
@@ -371,7 +371,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
+  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -392,125 +392,6 @@
   "webAuthnPolicyPasswordlessCreateTimeout" : 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister" : false,
   "webAuthnPolicyPasswordlessAcceptableAaguids" : [ ],
-  "users" : [ {
-    "id" : "f03cb806-d100-41c7-96dd-d3ac11b23033",
-    "createdTimestamp" : 1711643545482,
-    "username" : "edu+1@sequentech.io",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edu+1@sequentech.io",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-28" ],
-      "sequent.read-only.mobile-number" : [ "649023" ],
-      "sequent.read-only.adyen-status" : [ "{\"session_id\":\"CS05E3C13211986661\",\"session_status\":\"CREATED\"}" ]
-    },
-    "credentials" : [ {
-      "id" : "fb365abd-d803-4bf0-8e3d-045ee76af075",
-      "type" : "password",
-      "createdDate" : 1711643545538,
-      "secretData" : "{\"value\":\"lWuMKwmXCphQXUlz5CEhRJnK1hivUBjv4O+tL31vVH4=\",\"salt\":\"G7rqoXmg5Xy/ruA0WH0fiQ==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  }, {
-    "id" : "ff5878f7-bf69-479a-983b-60dcb571b4e4",
-    "createdTimestamp" : 1711643679403,
-    "username" : "edu+2@sequentech.io",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edu+2@sequentech.io",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-28" ],
-      "sequent.read-only.mobile-number" : [ "649023" ],
-      "sequent.read-only.adyen-status" : [ "{\"session_id\":\"CS23229FA6937591D4\",\"session_status\":\"SUCCESS\"}" ],
-      "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
-      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
-    },
-    "credentials" : [ {
-      "id" : "9714a2f9-7b4c-4f46-a4d3-ae448e00328d",
-      "type" : "password",
-      "createdDate" : 1711643679535,
-      "secretData" : "{\"value\":\"YGckt8vwEfvUEWGpizFIeFUp5j35WVOyx4kYUvAFmLo=\",\"salt\":\"Kl5xyhbw5FFNhfKHDqd+jQ==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ "VERIFY_EMAIL" ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  }, {
-    "id" : "a974b65c-fae3-48cd-9837-b6430c161bf5",
-    "createdTimestamp" : 1711644252462,
-    "username" : "edu+3@sequentech.io",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : false,
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edu+3@sequentech.io",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-28" ],
-      "sequent.read-only.mobile-number" : [ "649023" ],
-      "sequent.read-only.adyen-status" : [ "{\"session_id\":\"CS777B623A0C4D52BA\",\"session_status\":\"CREATED\"}" ]
-    },
-    "credentials" : [ {
-      "id" : "05a86b84-9dcc-4b61-8f9f-1ebad2941422",
-      "type" : "password",
-      "createdDate" : 1711644252593,
-      "secretData" : "{\"value\":\"22HdQeFJRbCVZ7ZPTtugLOPSHHaM0D8P7LNQaSBguNQ=\",\"salt\":\"N364TC+uLQxuIX748EQPiQ==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  }, {
-    "id" : "5bb10d06-5a00-4797-8a8d-15ab962351ed",
-    "createdTimestamp" : 1711639556990,
-    "username" : "edu@sequentech.io",
-    "enabled" : true,
-    "totp" : false,
-    "emailVerified" : true,
-    "firstName" : "Eduardo",
-    "lastName" : "Robles",
-    "email" : "edu@sequentech.io",
-    "attributes" : {
-      "DateOfBirth" : [ "2024-03-28" ],
-      "sequent.read-only.mobile-number" : [ "+376649023" ],
-      "sequent.read-only.adyen-status" : [ "{\"session_id\":\"CS7C8BAC09705CDF74\",\"session_status\":\"SUCCESS\"}" ],
-      "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
-      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
-    },
-    "credentials" : [ {
-      "id" : "780ab8b6-d52d-440b-8512-488140713f64",
-      "type" : "password",
-      "createdDate" : 1711639557020,
-      "secretData" : "{\"value\":\"IWdkDc+yqmGrZ/ntAx687s81alZ3TZTKZlYhQFjkYGk=\",\"salt\":\"XBI7v9joLhnO/W2OELkpTg==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    }, {
-      "id" : "ee0da47f-d41e-4a8a-9a5e-099efa337ace",
-      "type" : "message-otp",
-      "createdDate" : 1711639701259,
-      "secretData" : "{\"nothing\":\"nothing\"}",
-      "credentialData" : "{\"setup\":true}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "notBefore" : 0,
-    "groups" : [ "/voter" ]
-  } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
     "roles" : [ "offline_access" ]
