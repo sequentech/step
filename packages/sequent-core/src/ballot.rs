@@ -131,6 +131,7 @@ pub struct CandidateUrl {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct CandidatePresentation {
     pub is_explicit_invalid: bool,
@@ -151,12 +152,6 @@ impl CandidatePresentation {
             sort_order: None,
             urls: None,
         }
-    }
-}
-
-impl Default for CandidatePresentation {
-    fn default() -> Self {
-        CandidatePresentation::new()
     }
 }
 
