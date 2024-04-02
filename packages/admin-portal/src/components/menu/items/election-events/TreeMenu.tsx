@@ -27,7 +27,7 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {translate, translateElection} from "@sequentech/ui-essentials"
+import {translateElection} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {

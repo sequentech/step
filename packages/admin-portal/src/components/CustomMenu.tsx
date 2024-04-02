@@ -29,7 +29,6 @@ const StyledItem = styled(Menu.Item)`
 `
 
 const StyledMenu = styled(Menu)<{open: boolean}>`
-    position: fixed;
     background-color: ${adminTheme.palette.white};
     color: ${adminTheme.palette.brandColor};
     margin-top: 0px;
@@ -38,18 +37,9 @@ const StyledMenu = styled(Menu)<{open: boolean}>`
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
     border-radius: 4px;
     height: 100%;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    top: 80px;
-    bottom: 36px;
-    left: 0;
-    scrollbar-width: ${({open}) => (open ? "thin" : "none")};
 `
 
 const DrawerContainer = styled(Box)<{open: boolean}>`
-    position: fixed;
-    bottom: 0;
-    left: 0;
     background-color: ${adminTheme.palette.white};
     padding: 8px 16px;
     justify-content: right;
