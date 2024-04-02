@@ -12,7 +12,7 @@ use anyhow::{anyhow, Result};
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
 
 fn parse_i18n_field(
-    i18n_opt: &Option<I18nContent<I18nContent<String>>>,
+    i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
     field: &str,
 ) -> Option<I18nContent> {
     let Some(i18n) = i18n_opt else {
