@@ -238,6 +238,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
+    const [hasLoadElections, setHasLoadElections] = useState<boolean>(false)
     const {error: errorElections, data: dataElections} = useQuery<GetElectionsQuery>(
         GET_ELECTIONS,
         {
@@ -259,7 +260,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
-    const hasNoResults = electionIds.length === 0
+    const hasNoResults = hasLoadElections && electionIds.length === 0
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
@@ -284,6 +285,7 @@ export const ElectionSelectionScreen: React.FC = () => {
             for (let election of dataElections.sequent_backend_election) {
                 dispatch(setElection(election))
             }
+            setHasLoadElections(true)
         }
     }, [dataElections, dispatch])
 
