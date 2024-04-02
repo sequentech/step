@@ -238,6 +238,7 @@ pub struct CandidateUrl {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct CandidatePresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -262,12 +263,6 @@ impl CandidatePresentation {
             sort_order: None,
             urls: None,
         }
-    }
-}
-
-impl Default for CandidatePresentation {
-    fn default() -> Self {
-        CandidatePresentation::new()
     }
 }
 
