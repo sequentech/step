@@ -94,6 +94,7 @@ impl GenerateReports {
                 });
 
                 ReportDataComputed {
+                    election_name: r.election_name.clone(),
                     contest: r.contest.clone(),
                     contest_result: r.contest_result.clone(),
                     area_id: r.area_id.clone(),
@@ -101,6 +102,7 @@ impl GenerateReports {
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
+
         Ok(reports)
     }
 
@@ -206,6 +208,7 @@ impl GenerateReports {
     #[instrument(skip(self))]
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
+
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
             for contest_input in &election_input.contest_list {
@@ -216,6 +219,7 @@ impl GenerateReports {
                     self.read_winners(&election_input.id, Some(&contest_input.id), None)?;
 
                 reports.push(ReportData {
+                    election_name: election_input.name.clone(),
                     contest: contest_input.contest.clone(),
                     contest_result,
                     area_id: None,
@@ -236,6 +240,7 @@ impl GenerateReports {
                     )?;
 
                     reports.push(ReportData {
+                        election_name: election_input.name.clone(),
                         contest: contest_input.contest.clone(),
                         contest_result,
                         area_id: Some(area.id.to_string()),
@@ -260,6 +265,7 @@ impl GenerateReports {
     fn make_report(
         &self,
         election_id: &Uuid,
+        election_name: &str,
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         contest: Contest,
@@ -269,6 +275,7 @@ impl GenerateReports {
         let winners = self.read_winners(election_id, contest_id, area_id)?;
 
         let report = ReportData {
+            election_name: election_name.to_string(),
             contest,
             contest_result,
             area_id: None,
@@ -335,6 +342,7 @@ impl Pipe for GenerateReports {
                         contest_input.area_list.par_iter().for_each(|area_input| {
                             let _ = self.make_report(
                                 &election_input.id,
+                                &election_input.name,
                                 Some(&contest_input.id),
                                 Some(&area_input.id),
                                 contest_input.contest.clone(),
@@ -343,6 +351,7 @@ impl Pipe for GenerateReports {
 
                         let contest_report = self.make_report(
                             &election_input.id,
+                            &election_input.name,
                             Some(&contest_input.id),
                             None,
                             contest_input.contest.clone(),
@@ -362,6 +371,7 @@ impl Pipe for GenerateReports {
 
 #[derive(Debug, Clone)]
 pub struct ReportData {
+    pub election_name: String,
     pub contest: Contest,
     pub area_id: Option<String>,
     pub contest_result: ContestResult,
@@ -379,6 +389,7 @@ pub struct ElectionReportDataComputed {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReportDataComputed {
+    pub election_name: String,
     pub contest: Contest,
     pub area_id: Option<String>,
     pub contest_result: ContestResult,

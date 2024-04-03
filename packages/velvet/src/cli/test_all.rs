@@ -21,9 +21,10 @@ pub fn generate_ballots(
     area_num: u32,
     ballots_num: u32,
 ) -> Result<()> {
-    if ballots_num > 0 && ballots_num < 20 {
-        panic!("ballots_num should be at least 20");
-    }
+    assert!(
+        !(ballots_num > 0 && ballots_num < 20),
+        "ballots_num should be at least 20"
+    );
 
     let election_event_id = Uuid::new_v4();
 
