@@ -233,7 +233,7 @@ docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${RE
 You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"` to export and update the configuration of the default election event:
 
 ```bash
-export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"
+export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-51d062ff-dba7-486e-a867-229fcc7537bf"
 cd /workspaces/backend-services/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
