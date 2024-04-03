@@ -5,6 +5,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
 use crate::services::cast_votes::ElectionCastVotes;
+use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
@@ -19,6 +20,8 @@ use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures::get_config;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+
+use deadpool_postgres::Client as DbClient;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
@@ -119,7 +122,7 @@ pub fn prepare_tally_for_area_contest(
 }
 
 #[instrument(skip_all, err)]
-pub fn create_election_configs(
+pub async fn create_election_configs(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
@@ -132,15 +135,40 @@ pub fn create_election_configs(
         "area_contest_plaintexts len {}",
         area_contests.len()
     );
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
     for area_contest in area_contests {
+        let tenant_id = &area_contest.contest.tenant_id;
+        let election_event_id = &area_contest.contest.election_event_id;
         let election_id = area_contest.contest.election_id.clone();
+
+        let election_name_opt = crate::postgres::election::get_election_by_id(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &election_id,
+        )
+        .await?
+        .and_then(|e| Some(e.name));
+
         let election_cast_votes_count = cast_votes_count
             .iter()
             .find(|data| data.election_id == election_id);
+
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
+                name: election_name_opt.unwrap_or("".to_string()),
                 tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
                 census: election_cast_votes_count
@@ -152,9 +180,11 @@ pub fn create_election_configs(
                 ballot_styles: vec![],
             },
         };
+
         velvet_election
             .ballot_styles
             .push(area_contest.ballot_style.clone());
+
         elections_map.insert(election_id.clone(), velvet_election);
     }
 
