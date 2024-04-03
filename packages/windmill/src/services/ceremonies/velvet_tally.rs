@@ -251,7 +251,7 @@ pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
 }
 
 #[instrument(skip(area_contests), err)]
-pub fn run_velvet_tally(
+pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
@@ -259,7 +259,7 @@ pub fn run_velvet_tally(
     for area_contest in area_contests {
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
     }
-    create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count)?;
+    create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
     create_config_file(base_tally_path.clone())?;
     call_velvet(base_tally_path.clone())
 }

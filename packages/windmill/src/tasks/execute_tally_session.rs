@@ -587,11 +587,14 @@ pub async fn execute_tally_session_wrapped(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = if plaintexts_data.len() > 0 {
-        Some(run_velvet_tally(
-            base_tempdir.path().to_path_buf(),
-            &plaintexts_data,
-            &cast_votes_count,
-        )?)
+        Some(
+            run_velvet_tally(
+                base_tempdir.path().to_path_buf(),
+                &plaintexts_data,
+                &cast_votes_count,
+            )
+            .await?,
+        )
     } else {
         None
     };
