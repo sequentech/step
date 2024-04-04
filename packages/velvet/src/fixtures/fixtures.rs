@@ -158,9 +158,7 @@ impl Drop for TestFixture {
 
 #[instrument]
 pub fn get_config() -> Result<Config> {
-    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
-        template: "<h1>{data.test}</h1>".to_string(),
-    };
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
 
     let stages_def = {
         let mut map = HashMap::new();

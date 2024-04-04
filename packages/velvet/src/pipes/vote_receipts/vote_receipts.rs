@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::do_tally::tally::Tally;
 use crate::pipes::error::{Error, Result};
@@ -42,9 +43,16 @@ impl VoteReceipts {
         let pipe_config = self
             .pipe_inputs
             .stage
-            .pipe_config(self.pipe_inputs.stage.current_pipe);
+            .pipe_config(self.pipe_inputs.stage.current_pipe)
+            .and_then(|pc| pc.config)
+            .ok_or(Error::UnexpectedError(
+                "Pipe config for VoteReceipts not found".to_string(),
+            ))?;
 
-        dbg!(&pipe_config);
+        let pipe_config: PipeConfigVoteReceipts = serde_json::from_value(pipe_config)?;
+        let template = pipe_config.template;
+
+        dbg!(&template);
 
         Ok(())
     }
