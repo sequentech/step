@@ -29,8 +29,8 @@
   "oauth2DevicePollingInterval" : 5,
   "enabled" : true,
   "sslRequired" : "external",
-  "registrationAllowed" : false,
-  "registrationEmailAsUsername" : false,
+  "registrationAllowed" : true,
+  "registrationEmailAsUsername" : true,
   "rememberMe" : false,
   "verifyEmail" : false,
   "loginWithEmailAllowed" : true,
@@ -49,6 +49,14 @@
     "realm" : [ {
       "id" : "88b59e58-d799-49d0-ba2a-c4a9e4c61dc1",
       "name" : "admin-dashboard-view",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
+      "name" : "support-material-write",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -279,6 +287,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "12250c04-0e34-4b76-8910-cfcc26323c18",
+      "name" : "document-read",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "3edaf58a-d406-4005-909b-0b941dae9107",
       "name" : "notification-read",
       "description" : "",
@@ -329,6 +345,14 @@
     }, {
       "id" : "a98af090-0a72-40ad-89f9-75fef16c1b3f",
       "name" : "communication-template-write",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
+      "name" : "cast-vote-read",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -463,8 +487,24 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "a0fa008a-c753-4254-b1a7-1ed15d357abd",
+      "name" : "support-material-read",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "b6d6e9ff-0ebe-4f01-b0d1-dc1eb7bc8f8a",
       "name" : "communication-template-read",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
+      "name" : "document-write",
+      "description" : "",
       "composite" : false,
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -510,46 +550,6 @@
     }, {
       "id" : "6e40d74d-7050-4aa9-884b-aea26bf5939d",
       "name" : "publish-read",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-      }, {
-      "id" : "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-      "name" : "cast-vote-read",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-      }, {
-      "id" : "12250c04-0e34-4b76-8910-cfcc26323c18",
-      "name" : "document-read",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-      }, {
-      "id" : "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
-      "name" : "document-write",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-      }, {
-      "id" : "a0fa008a-c753-4254-b1a7-1ed15d357abd",
-      "name" : "support-material-read",
-      "description" : "",
-      "composite" : false,
-      "clientRole" : false,
-      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-      "attributes" : { }
-      }, {
-      "id" : "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
-      "name" : "support-material-write",
       "description" : "",
       "composite" : false,
       "clientRole" : false,
@@ -846,7 +846,7 @@
     "name" : "admin",
     "path" : "/admin",
     "attributes" : { },
-    "realmRoles" : [ "admin-dashboard-view", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "communication-template-read", "tenant-write", "document-download", "election-type-create", "publish-read", "cast-vote-read", "document-read", "document-write", "support-material-read", "support-material-write" ],
+    "realmRoles" : [ "admin-dashboard-view", "support-material-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "tally-sheet-create", "role-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "election-type-read", "tally-read", "voter-write", "role-assign", "voting-channel-read", "tally-sheet-publish", "document-upload", "user-permission-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "user-read", "create-election-event", "document-read", "notification-read", "area-write", "trustee-create", "election-event-read", "user-permission-create", "communication-template-write", "cast-vote-read", "tally-results-read", "voting-channel-write", "tally-sheet-view", "role-read", "admin-ceremony", "area-read", "tenant-read", "tally-start", "admin-user", "voter-create", "user-create", "tally-sheet-delete", "voter-read", "tenant-create", "election-type-write", "publish-write", "support-material-read", "communication-template-read", "document-write", "tenant-write", "document-download", "election-type-create", "publish-read" ],
     "clientRoles" : { },
     "subGroups" : [ ]
   }, {
@@ -874,7 +874,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
+  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName", "totpAppGoogleName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -917,18 +917,38 @@
       "createdDate" : 1692312568967,
       "secretData" : "{\"value\":\"6tsEUpgrt96ja9CgPLooGWOGhzE4Xta/+Rev7ttuuKk=\",\"salt\":\"qb0VTldIRry2BkBQz66aBQ==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    }, {
-      "id" : "8bbc3ef0-6fe8-43e4-800f-2bedb8d9878d",
-      "type" : "message-otp",
-      "createdDate" : 1706262684353,
-      "secretData" : "{\"nothing\":\"nothing\"}",
-      "credentialData" : "{\"setup\":true}"
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-electoral-process" ],
     "notBefore" : 0,
     "groups" : [ "/admin" ]
+  }, {
+    "id" : "628d95ba-fea3-43fe-815d-04762406a966",
+    "createdTimestamp" : 1711547599650,
+    "username" : "edu+1@sequentech.io",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "firstName" : "Eduardo",
+    "lastName" : "Robles",
+    "email" : "edu+1@sequentech.io",
+    "attributes" : {
+      "sequent.read-only.mobile-number" : [ "+376649023" ],
+      "DateofBirth" : [ "2024-03-27" ]
+    },
+    "credentials" : [ {
+      "id" : "6f0b4d66-fbb7-4b26-9e56-a02a442d9fec",
+      "type" : "password",
+      "createdDate" : 1711547599767,
+      "secretData" : "{\"value\":\"UHqlSzTf2sfBAXVDhWxcJtmLznfOBNA9MHDQiYtd5ns=\",\"salt\":\"0OU3alnw16fuCcqYOwsohQ==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-electoral-process" ],
+    "notBefore" : 0,
+    "groups" : [ ]
   }, {
     "id" : "0516ed22-3a8f-48ca-9514-83020e242159",
     "createdTimestamp" : 1691702289318,
@@ -1154,7 +1174,7 @@
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
     "redirectUris" : [ "*" ],
-    "webOrigins" : [ "*" ],
+    "webOrigins" : [ "https://checkoutshopper-test.adyen.com", "*" ],
     "notBefore" : 0,
     "bearerOnly" : false,
     "consentRequired" : false,
@@ -2065,10 +2085,10 @@
   "browserSecurityHeaders" : {
     "contentSecurityPolicyReportOnly" : "",
     "xContentTypeOptions" : "nosniff",
-    "referrerPolicy" : "no-referrer",
+    "referrerPolicy" : "strict-origin",
     "xRobotsTag" : "none",
     "xFrameOptions" : "SAMEORIGIN",
-    "contentSecurityPolicy" : "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "contentSecurityPolicy" : "frame-src 'self' *.adyen.com; frame-ancestors 'self' *.adyen.com; object-src 'self' *.adyen.com; media-src  'self' *.adyen.com; script-src  'self' 'unsafe-inline' *.adyen.com; connect-src 'self' *.adyen.com;",
     "xXSSProtection" : "1; mode=block",
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
@@ -2100,7 +2120,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-sha256-pairwise-sub-mapper", "oidc-full-name-mapper", "oidc-address-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-usermodel-attribute-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper" ]
       }
     }, {
       "id" : "563febd2-5ea9-4258-bc2d-a4e9f2fcac38",
@@ -2153,7 +2173,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "oidc-address-mapper", "saml-role-list-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper" ]
       }
     } ],
     "org.keycloak.userprofile.UserProfileProvider" : [ {
@@ -2161,8 +2181,8 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"admin\",\"user\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ],
-        "config-pieces-count" : [ "1" ]
+        "config-pieces-count" : [ "1" ],
+        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"DateofBirth\",\"displayName\":\"Date of Birth\",\"permissions\":{\"edit\":[\"admin\",\"user\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{\"inputType\":\"html5-date\"},\"validations\":{},\"group\":null,\"required\":{\"roles\":[\"user\"]}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"admin\",\"user\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\",\"user\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{\"inputType\":\"html5-tel\"},\"validations\":{},\"required\":{\"roles\":[\"user\"]},\"group\":null}]}" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -2254,22 +2274,6 @@
       "requirement" : "REQUIRED",
       "priority" : 20,
       "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    } ]
-  }, {
-    "id" : "a00400d6-83b1-4b25-9536-c91b86402d4f",
-    "alias" : "Copy of registration",
-    "description" : "registration flow",
-    "providerId" : "basic-flow",
-    "topLevel" : true,
-    "builtIn" : false,
-    "authenticationExecutions" : [ {
-      "authenticator" : "registration-page-form",
-      "authenticatorFlow" : true,
-      "requirement" : "REQUIRED",
-      "priority" : 10,
-      "autheticatorFlow" : true,
-      "flowAlias" : "Copy of registration registration form",
       "userSetupAllowed" : false
     } ]
   }, {
@@ -2930,6 +2934,30 @@
       "userSetupAllowed" : false
     } ]
   }, {
+    "id" : "a00400d6-83b1-4b25-9536-c91b86402d4f",
+    "alias" : "sequent-registration",
+    "description" : "registration flow",
+    "providerId" : "basic-flow",
+    "topLevel" : true,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticator" : "registration-page-form",
+      "authenticatorFlow" : true,
+      "requirement" : "REQUIRED",
+      "priority" : 11,
+      "autheticatorFlow" : true,
+      "flowAlias" : "Copy of registration registration form",
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "adyen-auth",
+      "authenticator" : "adyen-authenticator",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 12,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
     "id" : "d562aea6-8087-4a58-a54f-046365e44763",
     "alias" : "smart-link",
     "description" : "Simple smart link authentication flow.",
@@ -2990,6 +3018,30 @@
       "ttl" : "300",
       "simulation" : "true",
       "telUserAttribute" : "sequent.read-only.mobile-number"
+    }
+  }, {
+    "id" : "b948dbb3-11a6-45a4-85b7-9b70c2bd494e",
+    "alias" : "adyen-auth",
+    "config" : {
+      "environment" : "TEST",
+      "amount" : "100",
+      "api-key" : "AQEwhmfxKo7MbhdKw0m/n3Q5qf3Ve45cGJZETFFTxXCCkGVp4AXFw8adp1lrr2h8o/7mEMFdWw2+5HzctViMSCJMYAc=-yM8kCUCd07GbkRfFfuopvb2ef926BIBsjMvZAhAm0q0=-_E{S[sj2myp{tuhR",
+      "client-key" : "test_FUWKBNZ45NHSXL6GM3XUA4FXIQXHZCWU",
+      "currency" : "USD",
+      "user-status-attr" : "sequent.read-only.adyen-status",
+      "merchant-account" : "SequentTechIncECOM"
+    }
+  }, {
+    "id" : "ccd4a8f3-08ae-4cdf-a6ab-b36b16daf929",
+    "alias" : "adyen-register",
+    "config" : {
+      "environment" : "TEST",
+      "amount" : "10",
+      "api-key" : "AQEwhmfxKo7MbhdKw0m/n3Q5qf3Ve45cGJZETFFTxXCCkGVp4AXFw8adp1lrr2h8o/7mEMFdWw2+5HzctViMSCJMYAc=-yM8kCUCd07GbkRfFfuopvb2ef926BIBsjMvZAhAm0q0=-_E{S[sj2myp{tuhR",
+      "client-key" : "test_FUWKBNZ45NHSXL6GM3XUA4FXIQXHZCWU",
+      "currency" : "USD",
+      "user-status-attr" : "sequent.read-only.adyen-status",
+      "merchant-account" : "SequentTechIncECOM"
     }
   }, {
     "id" : "fdc47b8c-5417-4570-8867-3be6dc8dd0d7",
@@ -3181,7 +3233,7 @@
     "config" : { }
   } ],
   "browserFlow" : "sequent browser flow",
-  "registrationFlow" : "registration",
+  "registrationFlow" : "sequent-registration",
   "directGrantFlow" : "direct grant",
   "resetCredentialsFlow" : "reset credentials",
   "clientAuthenticationFlow" : "clients",

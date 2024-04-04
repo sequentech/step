@@ -1,0 +1,21 @@
+#kc-header {
+    text-align: center;
+    padding-top: 10px;
+}
+
+#kc-attempted-username {
+    color: white;
+}
+
+.pf-v5-c-login__main {
+    padding-bottom: 15px;
+}
+
+.card-pf {
+    padding: 20px !important;
+}
+
+.card-pf span.card-details {
+    padding-bottom: 30px;
+    display: block;
+}

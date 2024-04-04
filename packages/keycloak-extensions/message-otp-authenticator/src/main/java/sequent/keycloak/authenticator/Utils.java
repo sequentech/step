@@ -88,6 +88,7 @@ public class Utils {
 			);
 		}
 
+		/* TODO
 		if (emailAddress != null)
 		{
 			log.infov("Sending email to={0}", emailAddress);
@@ -118,6 +119,7 @@ public class Utils {
 				throw error;
 			}
 		}
+		*/
 	}
 
 	String getMobile(AuthenticatorConfigModel config, UserModel user)

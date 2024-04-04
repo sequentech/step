@@ -1,5 +1,5 @@
 {
-  "id" : "613e770d-7498-4726-90ff-b288f40a7b30",
+  "id" : "769dd940-ec60-46e7-9757-6c47330c0f01",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-51d062ff-dba7-486e-a867-229fcc7537bf",
   "displayName" : "US ELECTION TO 38TH WORLD ZIONIST CONGRESS",
   "displayNameHtml" : "US ELECTION TO<br>38TH WORLD ZIONIST CONGRESS",
@@ -52,7 +52,7 @@
       "description" : "${role_offline-access}",
       "composite" : false,
       "clientRole" : false,
-      "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30",
+      "containerId" : "769dd940-ec60-46e7-9757-6c47330c0f01",
       "attributes" : { }
     }, {
       "id" : "b39135e9-eb7a-4589-b747-dcd0038676b8",
@@ -60,7 +60,7 @@
       "description" : "",
       "composite" : false,
       "clientRole" : false,
-      "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30",
+      "containerId" : "769dd940-ec60-46e7-9757-6c47330c0f01",
       "attributes" : { }
     }, {
       "id" : "108dc660-37f2-4de1-9ca8-f0e8b070a4f7",
@@ -74,7 +74,7 @@
         }
       },
       "clientRole" : false,
-      "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30",
+      "containerId" : "769dd940-ec60-46e7-9757-6c47330c0f01",
       "attributes" : { }
     }, {
       "id" : "7c077667-5afb-4fb6-b2d2-7d7cc3b3d4c5",
@@ -82,7 +82,7 @@
       "description" : "${role_uma_authorization}",
       "composite" : false,
       "clientRole" : false,
-      "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30",
+      "containerId" : "769dd940-ec60-46e7-9757-6c47330c0f01",
       "attributes" : { }
     } ],
     "client" : {
@@ -360,7 +360,7 @@
     "description" : "${role_default-roles}",
     "composite" : true,
     "clientRole" : false,
-    "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30"
+    "containerId" : "769dd940-ec60-46e7-9757-6c47330c0f01"
   },
   "defaultGroups" : [ "/voter" ],
   "requiredCredentials" : [ "password" ],
