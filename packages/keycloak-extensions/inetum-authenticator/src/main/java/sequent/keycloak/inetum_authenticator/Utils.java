@@ -67,32 +67,6 @@ public class Utils {
     private static final String KEYS_USERDATA_SEPARATOR = ";";
     private static final List<String> DEFAULT_KEYS_USERDATA = List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
 
-	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
-	{
-		// Using streams to find the first matching configuration
-		// NOTE: We're assuming there's only one instance in this realm of this
-		// authenticator
-		Optional<AuthenticatorConfigModel> configOptional = realm
-			.getAuthenticationFlowsStream()
-			.flatMap(flow ->
-				realm.getAuthenticationExecutionsStream(flow.getId())
-			)
-			.filter(model -> {
-				boolean ret = (
-					model.getAuthenticator() != null &&
-					model
-						.getAuthenticator()
-						.equals(InetumAuthenticator.PROVIDER_ID)
-				);
-				return ret;
-			})
-			.map(model ->
-				realm.getAuthenticatorConfigById(model.getAuthenticatorConfig())
-			)
-			.findFirst();
-		return configOptional;
-	}
-
     /**
      * We store the user data entered in the registration form in the session notes.
      * This information will later be retrieved to create a user account.

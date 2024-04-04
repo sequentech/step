@@ -14,6 +14,7 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.broker.provider.util.SimpleHttp;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -43,9 +44,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         // validation status attribute set to true, otherwise initiate a new 
         // flow and show form
         log.info("authenticate()");
-        AuthenticatorConfigModel config = Utils
-            .getConfig(context.getRealm())
-            .get();
+
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         Map<String, String> configMap = config.getConfig();
         UserModel user = context.getUser();
 
@@ -70,6 +70,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         log.info("validated is NOT TRUE, rendering the form");
 		try {
 			Map<String, String> transactionData = newTransaction(configMap, context);
+
+			// Save the transaction data into the auth session
+        	AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+			sessionModel.setAuthNote(
+				Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB)
+			);
+			sessionModel.setAuthNote(
+				Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID)
+			);
+
 			Response challenge = getBaseForm(context)
 				.setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
 				.setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
@@ -85,6 +95,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		}
     }
 
+	/**
+	 * Send a POST to Inetum API
+	 */
 	protected SimpleHttp.Response doPost(
 		Map<String, String> configMap,
 		AuthenticationFlowContext context,
@@ -96,10 +109,30 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		log.info("doPost: url=" + url);
 
 		SimpleHttp.Response response = SimpleHttp
-			.doPost( url, context.getSession())
+			.doPost(url, context.getSession())
 			.header("Content-Type", "application/json")
 			.header("Authorization", authorization)
 			.json(payload)
+			.asResponse();
+		return response;
+	}
+
+	/**
+	 * Send a GET to Inetum API
+	 */
+	protected SimpleHttp.Response doGet(
+		Map<String, String> configMap,
+		AuthenticationFlowContext context,
+		String uriPath
+	) throws IOException {
+		String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
+		String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
+		log.info("doGet: url=" + url);
+
+		SimpleHttp.Response response = SimpleHttp
+			.doGet(url, context.getSession())
+			.header("Content-Type", "application/json")
+			.header("Authorization", authorization)
 			.asResponse();
 		return response;
 	}
@@ -134,6 +167,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		return jsonPayload;
 	}
 
+	/**
+	 * Start a new Inetum transaction
+	 */
 	protected Map<String, String> newTransaction(
 		Map<String, String> configMap,
 		AuthenticationFlowContext context
@@ -182,7 +218,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
     public void action(AuthenticationFlowContext context)
     {
         log.info("action()");
-        boolean validated = validateAnswer(context);
+        boolean validated = verifyResults(context);
         if (!validated)
         {
 			// invalid
@@ -205,16 +241,88 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         }
     }
 
-    protected boolean validateAnswer(AuthenticationFlowContext context)
+
+	/*
+	 * Calls Inetum API results/get and verify results
+	 */
+    protected boolean verifyResults(AuthenticationFlowContext context)
     {
-        return true;
+		log.info("verifyResults: start");
+
+		// Get the transaction data from the auth session
+		AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+		String tokenDob = sessionModel.getAuthNote(Utils.FTL_TOKEN_DOB);
+		String userId = sessionModel.getAuthNote(Utils.FTL_USER_ID);
+		if (tokenDob == null || userId == null) {
+			log.info("verifyResults: TRUE; tokenDob == null || userId == null");
+			return false;
+		}
+		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+		Map<String, String> configMap = config.getConfig();
+
+		try {
+			String uriPath = "/transaction/" + userId + "/status?t=" + tokenDob;
+			SimpleHttp.Response response = 
+				doGet(configMap, context, uriPath);
+
+			if (response.getStatus() != 200) {
+				log.error("verifyResults: Error calling transaction/status, status = " + response.getStatus());
+				log.error("verifyResults: Error calling transaction/status, response.asString() = " + response.asString());
+				return false;
+			}
+
+			int code = response.asJson().get("code").asInt();
+			if (code != 0) {
+				log.error("verifyResults: Error calling transaction/status, code = " + code);
+				return false;
+			}
+			String idStatus = response.asJson().get("response").get("idStatus").asText();
+			if (!idStatus.equals("verificationOk") || idStatus.equals("processing")) {
+				log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
+				return false;
+			}
+
+			// The status is verification OK. Now we need to retrieve the
+			// information
+			uriPath = "/transaction/" + userId + "/results";
+			response = doGet(configMap, context, uriPath);
+
+			if (response.getStatus() != 200) {
+				log.error("verifyResults: Error calling transaction/results, status = " + response.getStatus());
+				log.error("verifyResults: Error calling transaction/results, response.asString() = " + response.asString());
+				return false;
+			}
+
+			code = response.asJson().get("code").asInt();
+			if (code != 0) {
+				log.error("verifyResults: Error calling transaction/results, code = " + code);
+				return false;
+			}
+			String responseStr = response.asString();
+			log.info("verifyResults: response Str = " + responseStr);
+			String mrzPersonalNumber = response
+				.asJson()
+				.get("mrz")
+				.get("personal_number")
+				.asText();
+			if (mrzPersonalNumber == null) {
+				log.error("verifyResults: mrzPersonalNumber is null");
+				return false;
+			}
+			log.info("verifyResults: TRUE, mrzPersonalNumber = " + mrzPersonalNumber);
+			sessionModel.setAuthNote(
+				Utils.AUTH_NOTE_PERSONAL_NUMBER, mrzPersonalNumber
+			);
+			return true;
+		} catch(IOException error) {
+			log.error("verifyResults(): FALSE; Exception: " + error.toString());
+			return false;
+		}
     }
 
     protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context)
     {
-        AuthenticatorConfigModel config = Utils
-            .getConfig(context.getRealm())
-            .get();
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         Map<String, String> configMap = config.getConfig();
         return context
             .form()

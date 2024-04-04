@@ -19,6 +19,7 @@
                 td: "${token_dob}"
             };
             window.DOB_ENV_CONFIG = `${env_config}`;
+            window.KEYCLOAK_LOGIN_ACTION_URL = "${url.loginAction}";
         </script>
     </#outputformat>
 </head>

@@ -653,8 +653,21 @@ dobSdk.addEventListener("evidence", evidence => {
 
 // Listen when the SDK has finished
 dobSdk.addEventListener("success", success => {
-  console.log('SDK-Web onSuccess()');
-  window.location.href = 'https://www.inetum.com.es';
+  console.log('sdk-success: SDK-Web onSuccess()');
+  $.ajax({
+    url: window.KEYCLOAK_LOGIN_ACTION_URL,
+    type: 'POST',
+    contentType: 'application/json',
+    data: {},
+    success: function(response) {
+      // Success callback
+      console.log('sdk-sucess:callback: Success:', response);
+    },
+    error: function(xhr, status, error) {
+      // Error callback
+      console.error('sdk-sucess:callback: Error:', error);
+    }
+  });
 });
 
 // Listen to failure changes
