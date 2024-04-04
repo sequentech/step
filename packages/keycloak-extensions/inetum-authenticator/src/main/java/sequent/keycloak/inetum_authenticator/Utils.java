@@ -49,6 +49,20 @@ public class Utils {
     final public String INETUM_FORM = "inetum-authenticator.ftl";
     final public String INETUM_ERROR = "inetum-error.ftl";
 
+    final public String API_TRANSACTION_NEW = "/transaction/new";
+    
+    final public String FTL_ERROR = "error";
+    final public String FTL_REALM = "realm";
+    final public String FTL_USER_ID = "user_id";
+    final public String FTL_TOKEN_DOB = "token_dob";
+    final public String FTL_API_KEY = "api_key";
+    final public String FTL_APP_ID = "app_id";
+    final public String FTL_CLIENT_ID = "client_id";
+    final public String FTL_BASE_URL = "base_url";
+    final public String FTL_ENV_CONFIG = "env_config";
+    final public String FTL_ERROR_INTERNAL = "internalInetumError";
+    final public String FTL_ERROR_AUTH_INVALID = "internalInetumError";
+
     private static final String KEYS_USERDATA = "keyUserdata";
     private static final String KEYS_USERDATA_SEPARATOR = ";";
     private static final List<String> DEFAULT_KEYS_USERDATA = List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);

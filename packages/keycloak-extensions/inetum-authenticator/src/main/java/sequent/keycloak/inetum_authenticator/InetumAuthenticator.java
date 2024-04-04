@@ -71,15 +71,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		try {
 			Map<String, String> transactionData = newTransaction(configMap, context);
 			Response challenge = getBaseForm(context)
-				.setAttribute("user_id", transactionData.get("user_id"))
-				.setAttribute("token_dob", transactionData.get("token_dob"))
+				.setAttribute(Utils.FTL_USER_ID, transactionData.get(Utils.FTL_USER_ID))
+				.setAttribute(Utils.FTL_TOKEN_DOB, transactionData.get(Utils.FTL_TOKEN_DOB))
 				.createForm(Utils.INETUM_FORM);
 			context.challenge(challenge);
 		} catch (IOException error) {
 			context.failure(AuthenticationFlowError.INTERNAL_ERROR);
 			context.attempted();
 			Response challenge = getBaseForm(context)
-				.setAttribute("error", "internalInetumError")
+				.setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_INTERNAL)
 				.createForm(Utils.INETUM_ERROR);
 			context.challenge(challenge);
 		}
@@ -107,10 +107,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 	protected Map<String, String> getTemplateMap(Map<String, String> configMap)
 	{
 		Map<String, String> attributes = new HashMap<String, String>();
-		attributes.put("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE));
-		attributes.put("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE));
-		attributes.put("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
-		attributes.put("base_url", configMap.get(Utils.BASE_URL_ATTRIBUTE));
+		attributes.put(Utils.FTL_API_KEY, configMap.get(Utils.API_KEY_ATTRIBUTE));
+		attributes.put(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE));
+		attributes.put(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
+		attributes.put(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE));
+		attributes.put(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE));
 		return attributes;
 	}
 
@@ -155,7 +156,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				configMap,
 				context,
 				jsonPayload,
-				"/transaction/new"
+				Utils.API_TRANSACTION_NEW
 			);
 
 			if (response.getStatus() != 200) {
@@ -168,8 +169,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 
 			JsonNode responseContent = response.asJson().get("response");
 			Map<String, String> output = new HashMap<String, String>();
-			output.put("token_dob", responseContent.get("tokenDob").asText());
-			output.put("user_id", responseContent.get("userID").asText());
+			output.put(Utils.FTL_TOKEN_DOB, responseContent.get("tokenDob").asText());
+			output.put(Utils.FTL_USER_ID, responseContent.get("userID").asText());
 			return output;
 		} catch (IOException error) {
 			log.error("Error calling transaction/new", error);
@@ -191,7 +192,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				context.failureChallenge(
 					AuthenticationFlowError.INVALID_CREDENTIALS,
 					getBaseForm(context)
-						.setError("authInvalid")
+						.setError(Utils.FTL_ERROR_AUTH_INVALID)
 						.createForm(Utils.INETUM_FORM)
 				);
 			} else if (execution.isConditional() || execution.isAlternative())
@@ -217,11 +218,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         Map<String, String> configMap = config.getConfig();
         return context
             .form()
-            .setAttribute("realm", context.getRealm())
-            .setAttribute("api_key", configMap.get(Utils.API_KEY_ATTRIBUTE))
-            .setAttribute("app_id", configMap.get(Utils.APP_ID_ATTRIBUTE))
-            .setAttribute("client_id", configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
-            .setAttribute("base_url", configMap.get(Utils.BASE_URL_ATTRIBUTE));
+            .setAttribute(Utils.FTL_REALM, context.getRealm())
+            .setAttribute(Utils.FTL_API_KEY, configMap.get(Utils.API_KEY_ATTRIBUTE))
+            .setAttribute(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE))
+            .setAttribute(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
+            .setAttribute(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE))
+            .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE));
     }
  
     @Override

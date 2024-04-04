@@ -500,7 +500,7 @@ sdk = {
   flow: flow()
 };
 
-env_config = ${env_config};
+env_config = eval("(" + window.DOB_ENV_CONFIG + ")");
 
 session = {
   tokenDOB: window.DOB_DATA.td,
