@@ -39,6 +39,8 @@ pub fn deserialize_pipe<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Pi
 pub enum PipeNameOutputDir {
     #[strum(serialize = "velvet-decode-ballots")]
     DecodeBallots,
+    #[strum(serialize = "velvet-vote-receipts")]
+    VoteReceipts,
     #[strum(serialize = "velvet-do-tally")]
     DoTally,
     #[strum(serialize = "velvet-mark-winners")]

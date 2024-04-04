@@ -334,6 +334,9 @@ mod tests {
 
         // DecodeBallots
         state.exec_next()?;
+        
+        // VoteReceipts
+        state.exec_next()?;
 
         // DoTally
         state.exec_next()?;

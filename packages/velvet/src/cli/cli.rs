@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_clirun_validate_pipeline_definition() -> Result<()> {
         let fixture = TestFixture::new()?;
-        let mut config = fixtures::get_config();
+        let mut config = fixtures::get_config()?;
 
         config
             .stages
