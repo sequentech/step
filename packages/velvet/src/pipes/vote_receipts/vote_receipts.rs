@@ -28,19 +28,23 @@ pub struct VoteReceipts {
 }
 
 impl VoteReceipts {
-    #[instrument(skip_all, name = "DecodeBallots::new")]
+    #[instrument(skip_all, name = "VoteReceipts::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 }
 
 impl VoteReceipts {
-    #[instrument(skip(contest))]
-    fn print_vote_receipts(path: &Path, contest: &Contest) -> Result<()> {
+    fn print_vote_receipts(&self, path: &Path, contest: &Contest) -> Result<()> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0)
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-        dbg!(&tally.ballots);
+        let pipe_config = self
+            .pipe_inputs
+            .stage
+            .pipe_config(self.pipe_inputs.stage.current_pipe);
+
+        dbg!(&pipe_config);
 
         Ok(())
     }
@@ -67,7 +71,7 @@ impl Pipe for VoteReceipts {
                     )
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                    let res = VoteReceipts::print_vote_receipts(
+                    let res = self.print_vote_receipts(
                         decoded_ballots_file.as_path(),
                         &contest_input.contest,
                     );
