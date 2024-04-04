@@ -28,6 +28,8 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.FormMessage;
+import org.keycloak.policy.PasswordPolicyManagerProvider;
+import org.keycloak.policy.PolicyError;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.messages.Messages;
@@ -44,6 +46,7 @@ import org.keycloak.userprofile.UserProfile;
 import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.jbosslog.JBossLog;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @JBossLog
@@ -65,7 +68,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     @Override
     public void validate(ValidationContext context) {
         log.info("validate: start");
-        MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+        MultivaluedMap<String, String> formData = context
+            .getHttpRequest()
+            .getDecodedFormParameters();
         context.getEvent().detail(Details.REGISTER_METHOD, "form");
 
         UserProfile profile = getOrCreateUserProfile(context, formData);
@@ -88,10 +93,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             profile.validate();
         } catch (ValidationException pve) {
             log.info("validate: ValidationException pve = " + pve.toString());
-            List<FormMessage> errors = Validation.getFormErrorsFromValidation(pve.getErrors());
+            List<FormMessage> errors = Validation
+                .getFormErrorsFromValidation(pve.getErrors());
 
             if (pve.hasError(Messages.EMAIL_EXISTS, Messages.INVALID_EMAIL)) {
-                context.getEvent().detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
+                context
+                    .getEvent()
+                    .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
             }
 
             if (pve.hasError(Messages.EMAIL_EXISTS)) {
@@ -105,12 +113,56 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             context.validationError(formData, errors);
             return;
         }
+    
+        List<FormMessage> errors = new ArrayList<>();
+        context.getEvent().detail(Details.REGISTER_METHOD, "form");
+        if (Validation.isBlank(
+            formData.getFirst(RegistrationPage.FIELD_PASSWORD)
+        )) {
+            errors.add(new FormMessage(
+                RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD
+            ));
+        } else if (!formData
+            .getFirst(RegistrationPage.FIELD_PASSWORD)
+            .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))
+        ) {
+            errors.add(new FormMessage(
+                RegistrationPage.FIELD_PASSWORD_CONFIRM,
+                Messages.INVALID_PASSWORD_CONFIRM
+            ));
+        }
+        if (formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
+            PolicyError err = context
+                .getSession()
+                .getProvider(PasswordPolicyManagerProvider.class)
+                .validate(
+                    context.getRealm().isRegistrationEmailAsUsername()
+                        ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
+                        : formData.getFirst(RegistrationPage.FIELD_USERNAME),
+                    formData.getFirst(RegistrationPage.FIELD_PASSWORD)
+                );
+            if (err != null)
+                errors.add(new FormMessage(
+                    RegistrationPage.FIELD_PASSWORD,
+                    err.getMessage(),
+                    err.getParameters()
+                ));
+        }
+
+        if (errors.size() > 0) {
+            context.error(Errors.INVALID_REGISTRATION);
+            formData.remove(RegistrationPage.FIELD_PASSWORD);
+            formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
+            context.validationError(formData, errors);
+            return;
+        }
         log.info("validate: success");
         context.success();
     }
 
     @Override
     public void buildPage(FormContext context, LoginFormsProvider form) {
+        form.setAttribute("passwordRequired", true);
         checkNotOtherUserAuthenticating(context);
     }
 
@@ -127,9 +179,16 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     private void checkNotOtherUserAuthenticating(FormContext context) {
         if (context.getUser() != null) {
-            // the user probably did some back navigation in the browser, hitting this page in a strange state
-            context.getEvent().detail(Details.EXISTING_USER, context.getUser().getUsername());
-            throw new AuthenticationFlowException(AuthenticationFlowError.GENERIC_AUTHENTICATION_ERROR, Errors.DIFFERENT_USER_AUTHENTICATING, Messages.EXPIRED_ACTION);
+            // the user probably did some back navigation in the browser,
+            // hitting this page in a strange state
+            context
+                .getEvent()
+                .detail(Details.EXISTING_USER, context.getUser().getUsername());
+            throw new AuthenticationFlowException(
+                AuthenticationFlowError.GENERIC_AUTHENTICATION_ERROR,
+                Errors.DIFFERENT_USER_AUTHENTICATING,
+                Messages.EXPIRED_ACTION
+            );
         }
     }
 
@@ -139,12 +198,16 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
 
     @Override
-    public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
+    public boolean configuredFor(
+        KeycloakSession session, RealmModel realm, UserModel user
+    ) {
         return true;
     }
 
     @Override
-    public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
+    public void setRequiredActions(
+        KeycloakSession session, RealmModel realm, UserModel user
+    ) {
 
     }
 
@@ -178,10 +241,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             AuthenticationExecutionModel.Requirement.REQUIRED,
             AuthenticationExecutionModel.Requirement.DISABLED
     };
+
     @Override
     public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
         return REQUIREMENT_CHOICES;
     }
+
     @Override
     public FormAction create(KeycloakSession session) {
         return this;
@@ -202,10 +267,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         return PROVIDER_ID;
     }
 
-    private MultivaluedMap<String, String> normalizeFormParameters(MultivaluedMap<String, String> formParams) {
-        MultivaluedHashMap<String, String> copy = new MultivaluedHashMap<>(formParams);
+    private MultivaluedMap<String, String> normalizeFormParameters(
+        MultivaluedMap<String, String> formParams
+    ) {
+        MultivaluedHashMap<String, String> copy = 
+            new MultivaluedHashMap<>(formParams);
 
-        // Remove "password" and "password-confirm" to avoid leaking them in the user-profile data
+        // Remove "password" and "password-confirm" to avoid leaking them in the
+        // user-profile data
         copy.remove(RegistrationPage.FIELD_PASSWORD);
         copy.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
@@ -213,16 +282,21 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
 
     /**
-     * Get user profile instance for current HTTP request (KeycloakSession) and for given context. This assumes that there is
-    * single user registered within HTTP request, which is always the case in Keycloak
-    */
-    public UserProfile getOrCreateUserProfile(FormContext formContext, MultivaluedMap<String, String> formData) {
+     * Get user profile instance for current HTTP request (KeycloakSession) and
+     * for given context. This assumes that there is single user registered
+     * within HTTP request, which is always the case in Keycloak
+     */
+    public UserProfile getOrCreateUserProfile(
+        FormContext formContext, MultivaluedMap<String, String> formData
+    ) {
         KeycloakSession session = formContext.getSession();
         UserProfile profile = (UserProfile) session.getAttribute("UP_REGISTER");
         if (profile == null) {
             formData = normalizeFormParameters(formData);
-            UserProfileProvider profileProvider = session.getProvider(UserProfileProvider.class);
-            profile = profileProvider.create(UserProfileContext.REGISTRATION, formData);
+            UserProfileProvider profileProvider = session
+                .getProvider(UserProfileProvider.class);
+            profile = profileProvider
+                .create(UserProfileContext.REGISTRATION, formData);
             session.setAttribute("UP_REGISTER", profile);
         }
         return profile;

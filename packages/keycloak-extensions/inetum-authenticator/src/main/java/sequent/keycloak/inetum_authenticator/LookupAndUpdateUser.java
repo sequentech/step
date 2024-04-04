@@ -4,16 +4,19 @@ import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import com.google.auto.service.AutoService;
 
+import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.jbosslog.JBossLog;
 
 import java.util.Collections;
@@ -82,9 +85,25 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         // User was found and is verified to be an updateable user: we then
         // update user attributes and set it as the current auth context user
         // for other authentication models in the authentication flow
+        log.info("authenticate(): updating user attributes..");
         updateUserAttributes(user, context, updateAttributesList);
         context.setUser(user);
+
+        String password = context
+                .getAuthenticationSession()
+                .getAuthNote(RegistrationPage.FIELD_PASSWORD);
+        try {
+            user
+                .credentialManager()
+                .updateCredential(
+                    UserCredentialModel.password(password, false)
+                );
+        } catch (Exception me) {
+            user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD);
+        }
+
         log.info("authenticate(): success");
+
         context.success();
     }
 
@@ -142,7 +161,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         }
         return true;
     }
-
 
     private void updateUserAttributes(
         UserModel user,
