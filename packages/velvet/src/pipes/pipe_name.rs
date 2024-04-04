@@ -11,6 +11,7 @@ use strum_macros::{AsRefStr, Display, EnumString};
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString, Display, AsRefStr)]
 pub enum PipeName {
     DecodeBallots,
+    VoteReceipts,
     DoTally,
     MarkWinners,
     GenerateReports,
