@@ -40,7 +40,7 @@
             "version": "latest"
         }
 	},
-    "customizations": {
+	"customizations": {
         "vscode": {
     	    "extensions": [
                 // run commands on save
@@ -90,6 +90,10 @@
 				// Git blame support on hover of a line
 				"eamodio.gitlens"
     		]
+		},
+		"devpod": {
+			"prebuildRepository": "ghcr.io/sequentech/backend-services"
+			}
 		}
 	}
 }
