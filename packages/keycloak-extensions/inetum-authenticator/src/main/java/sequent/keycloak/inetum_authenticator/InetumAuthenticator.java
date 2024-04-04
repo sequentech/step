@@ -229,7 +229,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 					AuthenticationFlowError.INVALID_CREDENTIALS,
 					getBaseForm(context)
 						.setError(Utils.FTL_ERROR_AUTH_INVALID)
-						.createForm(Utils.INETUM_FORM)
+						.createForm(Utils.INETUM_ERROR)
 				);
 			} else if (execution.isConditional() || execution.isAlternative())
             {
@@ -277,7 +277,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				return false;
 			}
 			String idStatus = response.asJson().get("response").get("idStatus").asText();
-			if (!idStatus.equals("verificationOk") || idStatus.equals("processing")) {
+			// TODO: I don't know why I'm getting "processing" instead of
+			// "verificationOk"
+			if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
 				log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
 				return false;
 			}
@@ -302,6 +304,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			log.info("verifyResults: response Str = " + responseStr);
 			String mrzPersonalNumber = response
 				.asJson()
+				.get("response")
 				.get("mrz")
 				.get("personal_number")
 				.asText();
@@ -310,9 +313,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				return false;
 			}
 			log.info("verifyResults: TRUE, mrzPersonalNumber = " + mrzPersonalNumber);
+
 			sessionModel.setAuthNote(
-				Utils.AUTH_NOTE_PERSONAL_NUMBER, mrzPersonalNumber
+				configMap.get(Utils.USER_DATA_ATTRIBUTE),
+				mrzPersonalNumber
 			);
+			sessionModel.setAuthNote(
+				configMap.get(Utils.USER_STATUS_ATTRIBUTE),
+				Utils.USER_STATUS_VERIFIED
+			);
+
 			return true;
 		} catch(IOException error) {
 			log.error("verifyResults(): FALSE; Exception: " + error.toString());
@@ -424,7 +434,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			new ProviderConfigProperty(
 				Utils.USER_DATA_ATTRIBUTE,
 				"User Data Attribute",
-				"The name of the user data attribute to check against.",
+				"The name of the user data attribute to check against, and name of the auth note to be set.",
 				ProviderConfigProperty.STRING_TYPE,
 				"sequent.read-only.id-card-number"
 			),

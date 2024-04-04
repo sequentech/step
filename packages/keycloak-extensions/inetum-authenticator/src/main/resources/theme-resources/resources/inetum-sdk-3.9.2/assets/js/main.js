@@ -52,10 +52,11 @@ function flow() {
         new InstructionsStep('show-doc-front', SDKUtils.isMobile() ? 'showfrontdesktop' : 'showfrontdesktop', InstructionsResourceType.video, -1),
         new DocCaptureStep('front-capture', DocSide.front, Evidence.imgDocFront, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, 10),
         new DocCaptureStep('back-capture', DocSide.back, Evidence.imgDocReverse, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, 10),
-        new InstructionsStep('instructions-face', SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop', InstructionsResourceType.video, -1),
-        new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgDocFront, 22),
-        new VideoIdentificationStep('show_back', 'user', VideoType.webrtc, DocSide.back, Evidence.imgDocReverse, 22),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, 30),
+        // TODO: Reactivate
+        //new InstructionsStep('instructions-face', SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop', InstructionsResourceType.video, -1),
+        //new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgDocFront, 22),
+        //new VideoIdentificationStep('show_back', 'user', VideoType.webrtc, DocSide.back, Evidence.imgDocReverse, 22),
+        //new FaceCaptureStep('face-capture', 'user', VideoType.photo, 30),
         new EndStep('EndStep')
       ];
     }

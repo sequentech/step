@@ -39,6 +39,8 @@ import java.io.Writer;
 public class Utils {
 	final public String USER_DATA_ATTRIBUTE = "user-data-attr";
 	final public String USER_STATUS_ATTRIBUTE = "user-status-attr";
+    final public String USER_STATUS_VERIFIED = "VERFIED";
+    final public String USER_STATUS_NOT_VERIFIED = "NOT-VERFIED";
 	final public String SDK_ATTRIBUTE = "sdk";
 	final public String API_KEY_ATTRIBUTE = "api-key";
 	final public String APP_ID_ATTRIBUTE = "app-id";
@@ -50,7 +52,7 @@ public class Utils {
     final public String INETUM_ERROR = "inetum-error.ftl";
 
     final public String API_TRANSACTION_NEW = "/transaction/new";
-    
+
     final public String FTL_ERROR = "error";
     final public String FTL_REALM = "realm";
     final public String FTL_USER_ID = "user_id";

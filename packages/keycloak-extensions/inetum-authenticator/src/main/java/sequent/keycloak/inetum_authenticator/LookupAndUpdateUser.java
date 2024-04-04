@@ -33,6 +33,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     public static final String PROVIDER_ID = "lookup-and-update-user";
     public static final String SEARCH_ATTRIBUTES = "search-attributes";
+    public static final String UNSET_ATTRIBUTES = "unset-attributes";
     public static final String UPDATE_ATTRIBUTES = "update-attributes";
 
     @Override
@@ -44,10 +45,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
         // Extract the attributes to search and update from the configuration
         String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+        String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
         String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
 
         // Parse attributes lists
         List<String> searchAttributesList = parseAttributesList(searchAttributes);
+        List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
         List<String> updateAttributesList = parseAttributesList(updateAttributes);
 
         // Lookup user by attributes in authNotes
@@ -55,14 +58,23 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
         // check user was found
         if (user == null) {
-            log.info("authenticate(): user not found");
+            log.error("authenticate(): user not found");
             context.attempted();
             return;
-        
         }
         // check user has no credentials yet
         else if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
-            log.info("authenticate(): user found but already has credentials");
+            log.error("authenticate(): user found but already has credentials");
+            context.attempted();
+            return;
+        }
+
+        // check that the user doesn't have set any of the unset attributes
+        boolean unsetAttributesChecked =
+            checkUnsetAttributes(user, context, unsetAttributesList);
+
+        if (!unsetAttributesChecked) {
+            log.error("authenticate(): some user unset attributes are set");
             context.attempted();
             return;
         }
@@ -114,6 +126,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         }
 
         return null;
+    }
+
+    private boolean checkUnsetAttributes(
+        UserModel user,
+        AuthenticationFlowContext context,
+        List<String> attributes
+    ) {
+        Map<String, List<String>> userAttributes = user.getAttributes();
+        for (String attributeName : attributes) {
+            if (userAttributes.containsKey(attributeName)) {
+                log.info("checkUnsetAttributes(): user has attribute " + attributeName);
+                return false;
+            }
+        }
+        return true;
     }
 
 
@@ -221,9 +248,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 ""
             ),
             new ProviderConfigProperty(
+                UNSET_ATTRIBUTES,
+                "Unset Attributes",
+                "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
+                ProviderConfigProperty.STRING_TYPE,
+                ""
+            ),
+            new ProviderConfigProperty(
                 UPDATE_ATTRIBUTES,
                 "Update Attributes",
-                "Comma-separated list of attributes to update for the user from auth notes.", 
+                "Comma-separated list of attributes to update for the user from auth notes.",
                 ProviderConfigProperty.STRING_TYPE,
                 ""
             )
