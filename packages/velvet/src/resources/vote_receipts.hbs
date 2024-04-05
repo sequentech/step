@@ -68,6 +68,9 @@
     }
 
     .ballot {
+      border: 3px dashed #43E3A1;
+      border-radius: 4px;
+      padding: 32px;
       break-before: page; 
     }
 
@@ -124,10 +127,10 @@
 
   <body>
     <div class="content">
-      <h1>Vote Receipts</h1>
+      <h1 class="text-center">Vote Receipts</h1>
       {{#each data.receipts}}
         <div class="ballot">
-          <h3 style="margin-bottom: 12px;" class="text-center">Contest: {{sanitize_html ../data.contest.name}}</h3>
+          <h3 style="margin-top: 0; margin-bottom: 12px;" class="text-center">Contest: {{sanitize_html ../data.contest.name}}</h3>
 
           {{#unless this.is_blank_or_invalid}}
             <table>
