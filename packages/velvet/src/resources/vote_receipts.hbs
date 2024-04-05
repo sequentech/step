@@ -5,7 +5,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Vote receipts</title>
-  {{!-- <script src="{{data.file_qrcode_lib}}"></script> --}}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
   <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
 
@@ -41,12 +40,6 @@
       text-align: center;
       margin: 16px auto;
     }
-
-    /* .logo { */
-    /*   content: url("{{data.file_logo}}"); */
-    /*   text-align: center; */
-    /*   margin: 16px auto; */
-    /* } */
 
     .main {
       margin-top: 32px;
@@ -126,8 +119,6 @@
 </head>
 
   <body>
-    {{!-- <div class="logo"></div> --}}
-
     <div class="content">
       <h1>Vote Receipts</h1>
       {{#each data.receipts}}
