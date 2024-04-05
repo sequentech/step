@@ -70,7 +70,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
         log.info("validated is NOT TRUE, rendering the form");
 		try {
 			Map<String, String> transactionData = newTransaction(configMap, context);
-
+			
 			// Save the transaction data into the auth session
         	AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
 			sessionModel.setAuthNote(
@@ -106,7 +106,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 	) throws IOException {
 		String url = configMap.get(Utils.BASE_URL_ATTRIBUTE) + uriPath;
 		String authorization = "Bearer " + configMap.get(Utils.API_KEY_ATTRIBUTE);
-		log.info("doPost: url=" + url);
+		log.info("doPost: url=" + url + ", payload =" + payload.toString());
 
 		SimpleHttp.Response response = SimpleHttp
 			.doPost(url, context.getSession())
@@ -145,6 +145,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		attributes.put(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE));
 		attributes.put(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE));
 		attributes.put(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE));
+		attributes.put(Utils.FTL_DOC_ID, configMap.get(Utils.DOC_ID_ATTRIBUTE));
 		return attributes;
 	}
 
@@ -167,6 +168,26 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 		return jsonPayload;
 	}
 
+	private Map<String, String> getAuthNotesMap(
+		Map<String, String> configMap,
+		AuthenticationFlowContext context
+	) {
+		AuthenticationSessionModel sessionModel = context
+			.getAuthenticationSession();
+		Map<String, String> map = new HashMap<String, String>();
+	
+		String docIdAttributeName = configMap.get(Utils.DOC_ID_ATTRIBUTE);
+		map.put(
+			Utils.FTL_DOC_ID, sessionModel.getAuthNote(docIdAttributeName)
+		);
+		String docIdTypeAttributeName = configMap.get(Utils.DOC_ID_TYPE_ATTRIBUTE);
+		map.put(
+			Utils.FTL_DOC_ID_TYPE, sessionModel.getAuthNote(docIdTypeAttributeName)
+		);
+
+		return map;
+	}
+
 	/**
 	 * Start a new Inetum transaction
 	 */
@@ -176,11 +197,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 	) throws IOException
 	{
 		JsonNode jsonPayload = null;
+		Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
+
 		try {
 			jsonPayload = renderJsonTemplate(
 				configMap.get(Utils.TRANSACTION_NEW_ATTRIBUTE),
 				configMap,
-				null
+				authNotesMap
 			);
 		} catch (Exception error) {
 			log.error("newTransaction: Error rendering template", error);
@@ -225,12 +248,18 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			AuthenticationExecutionModel execution = context.getExecution();
 			if (execution.isRequired())
             {
-				context.failureChallenge(
-					AuthenticationFlowError.INVALID_CREDENTIALS,
-					getBaseForm(context)
-						.setError(Utils.FTL_ERROR_AUTH_INVALID)
-						.createForm(Utils.INETUM_ERROR)
-				);
+				//context.failureChallenge(
+				//	AuthenticationFlowError.INVALID_CREDENTIALS,
+				//	getBaseForm(context)
+				//		.setError(Utils.FTL_ERROR_AUTH_INVALID)
+				//		.createForm(Utils.INETUM_ERROR)
+				//);
+				context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
+				context.attempted();
+				Response challenge = getBaseForm(context)
+					.setAttribute(Utils.FTL_ERROR, Utils.FTL_ERROR_AUTH_INVALID)
+					.createForm(Utils.INETUM_ERROR);
+				context.challenge(challenge);
 			} else if (execution.isConditional() || execution.isAlternative())
             {
 				context.attempted();
@@ -277,12 +306,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				return false;
 			}
 			String idStatus = response.asJson().get("response").get("idStatus").asText();
+			log.info("verifyResults: transaction/status, idStatus = " + idStatus);
 			// TODO: I don't know why I'm getting "processing" instead of
 			// "verificationOk"
-			if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
-				log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
-				return false;
-			}
+			// if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
+			// 	log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
+			// 	return false;
+			// }
 
 			// The status is verification OK. Now we need to retrieve the
 			// information
@@ -315,7 +345,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			log.info("verifyResults: TRUE, mrzPersonalNumber = " + mrzPersonalNumber);
 
 			sessionModel.setAuthNote(
-				configMap.get(Utils.USER_DATA_ATTRIBUTE),
+				configMap.get(Utils.DOC_ID_ATTRIBUTE),
 				mrzPersonalNumber
 			);
 			sessionModel.setAuthNote(
@@ -334,6 +364,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
     {
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         Map<String, String> configMap = config.getConfig();
+		Map<String, String> authNotesMap = getAuthNotesMap(configMap, context);
         return context
             .form()
             .setAttribute(Utils.FTL_REALM, context.getRealm())
@@ -341,7 +372,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
             .setAttribute(Utils.FTL_APP_ID, configMap.get(Utils.APP_ID_ATTRIBUTE))
             .setAttribute(Utils.FTL_CLIENT_ID, configMap.get(Utils.CLIENT_ID_ATTRIBUTE))
             .setAttribute(Utils.FTL_BASE_URL, configMap.get(Utils.BASE_URL_ATTRIBUTE))
-            .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE));
+            .setAttribute(Utils.FTL_ENV_CONFIG, configMap.get(Utils.ENV_CONFIG_ATTRIBUTE))
+            .setAttribute(
+				Utils.FTL_DOC_ID,
+				authNotesMap.get(Utils.FTL_DOC_ID)
+			)
+            .setAttribute(
+				Utils.FTL_DOC_ID_TYPE,
+				authNotesMap.get(Utils.FTL_DOC_ID_TYPE)
+			);
     }
  
     @Override
@@ -432,11 +471,18 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				""
 			),
 			new ProviderConfigProperty(
-				Utils.USER_DATA_ATTRIBUTE,
+				Utils.DOC_ID_ATTRIBUTE,
 				"User Data Attribute",
 				"The name of the user data attribute to check against, and name of the auth note to be set.",
 				ProviderConfigProperty.STRING_TYPE,
 				"sequent.read-only.id-card-number"
+			),
+			new ProviderConfigProperty(
+				Utils.DOC_ID_TYPE_ATTRIBUTE,
+				"User Data Type Attribute",
+				"The name of the user data attribute to check against for data type, and name of the auth note to be set.",
+				ProviderConfigProperty.STRING_TYPE,
+				"sequent.read-only.id-card-type"
 			),
 			new ProviderConfigProperty(
 				Utils.USER_STATUS_ATTRIBUTE,
@@ -504,7 +550,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 	"wFtype_Sign": false,
 	"wFtype_VerifAvan": false,
 	"wFtype_UECertificate": false,
-	"docID": "",
+	"docID": "${doc_id}",
 	"name": "",
 	"lastname1": "",
 	"lastname2": "",

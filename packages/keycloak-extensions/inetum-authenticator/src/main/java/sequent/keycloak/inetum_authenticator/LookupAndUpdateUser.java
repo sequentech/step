@@ -1,18 +1,26 @@
 package sequent.keycloak.inetum_authenticator;
 
 import org.keycloak.Config;
+import org.keycloak.common.util.Time;
+import org.keycloak.events.EventType;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
+import org.keycloak.authentication.forms.RegistrationTermsAndConditions;
+import org.keycloak.authentication.requiredactions.TermsAndConditions;
+import org.keycloak.events.Details;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.userprofile.UserProfile;
 
 import com.google.auto.service.AutoService;
 
@@ -87,6 +95,46 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         // for other authentication models in the authentication flow
         log.info("authenticate(): updating user attributes..");
         updateUserAttributes(user, context, updateAttributesList);
+        log.info("authenticate(): done");
+
+        // Success event, similar to RegistrationUserCreation.java in keycloak
+        String email = user.getEmail();
+        String username = user.getUsername();
+
+        if (context.getRealm().isRegistrationEmailAsUsername()) {
+            username = email;
+        }
+
+        context.getEvent().detail(Details.USERNAME, username)
+                .detail(Details.REGISTER_METHOD, "form")
+                .detail(Details.EMAIL, email);
+        user.setEnabled(true);
+
+        if ("on".equals(context.getAuthenticationSession().getAuthNote("termsAccepted")))
+        {
+            // if accepted terms and conditions checkbox, remove action and add
+            // the attribute if enabled
+            RequiredActionProviderModel tacModel = context
+                .getRealm()
+                .getRequiredActionProviderByAlias(
+                    UserModel.RequiredAction.TERMS_AND_CONDITIONS.name()
+                );
+            if (tacModel != null && tacModel.isEnabled()) {
+                user.setSingleAttribute(
+                    TermsAndConditions.USER_ATTRIBUTE,
+                    Integer.toString(Time.currentTime())
+                );
+                context
+                    .getAuthenticationSession()
+                    .removeRequiredAction(
+                        UserModel.RequiredAction.TERMS_AND_CONDITIONS
+                    );
+                user.removeRequiredAction(
+                    UserModel.RequiredAction.TERMS_AND_CONDITIONS
+                );
+            }
+        }
+        log.info("authenticate(): setUser");
         context.setUser(user);
 
         String password = context
@@ -102,8 +150,25 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD);
         }
 
-        log.info("authenticate(): success");
+        context
+            .getAuthenticationSession()
+            .setClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM, username);
 
+        context.getEvent().user(user);
+        context.getEvent().success();
+        context.newEvent().event(EventType.LOGIN);
+        context
+            .getEvent()
+            .client(context.getAuthenticationSession().getClient().getClientId())
+            .detail(Details.REDIRECT_URI, context.getAuthenticationSession().getRedirectUri())
+            .detail(Details.AUTH_METHOD, context.getAuthenticationSession().getProtocol());
+        String authType = context
+            .getAuthenticationSession()
+            .getAuthNote(Details.AUTH_TYPE);
+        if (authType != null) {
+            context.getEvent().detail(Details.AUTH_TYPE, authType);
+        }
+        log.info("authenticate(): success");
         context.success();
     }
 
@@ -154,8 +219,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     ) {
         Map<String, List<String>> userAttributes = user.getAttributes();
         for (String attributeName : attributes) {
-            if (userAttributes.containsKey(attributeName)) {
-                log.info("checkUnsetAttributes(): user has attribute " + attributeName);
+            if (
+                userAttributes.containsKey(attributeName) &&
+                userAttributes.get(attributeName) != null &&
+                userAttributes.get(attributeName).size() > 0 &&
+                userAttributes.get(attributeName).get(0) != null &&
+                !userAttributes.get(attributeName).get(0).isEmpty()
+            ) {
+                log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value=" + userAttributes.get(attributeName));
                 return false;
             }
         }

@@ -18,7 +18,7 @@ let design = 'generic';
   // Ejemplo con responsive
   let design = 'responsive';
 */
-let isPassportFlow = false;
+let isPassportFlow = (window.DOB_DOC_ID_TYPE === 'Pilippine Passport');
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
  let isPassportFlow = true;
@@ -501,6 +501,8 @@ sdk = {
   flow: flow()
 };
 
+// TODO: HACK: We should improve this by interpolating it in the server-side
+// after the demo
 env_config = eval("(" + window.DOB_ENV_CONFIG + ")");
 
 session = {
@@ -655,20 +657,7 @@ dobSdk.addEventListener("evidence", evidence => {
 // Listen when the SDK has finished
 dobSdk.addEventListener("success", success => {
   console.log('sdk-success: SDK-Web onSuccess()');
-  $.ajax({
-    url: window.KEYCLOAK_LOGIN_ACTION_URL,
-    type: 'POST',
-    contentType: 'application/json',
-    data: {},
-    success: function(response) {
-      // Success callback
-      console.log('sdk-sucess:callback: Success:', response);
-    },
-    error: function(xhr, status, error) {
-      // Error callback
-      console.error('sdk-sucess:callback: Error:', error);
-    }
-  });
+  document.getElementById('kc-inetum-success-form').submit();
 });
 
 // Listen to failure changes

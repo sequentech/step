@@ -928,36 +928,6 @@
     "notBefore" : 0,
     "groups" : [ "/admin" ]
   }, {
-    "id" : "0516ed22-3a8f-48ca-9514-83020e242159",
-    "username" : "felix",
-    "emailVerified" : false,
-    "attributes" : {
-      "sequent.read-only.email-address" : [ "edu@sequentech.io" ],
-      "sequent.read-only.id-card-number-validated" : [ "VERFIED" ],
-      "sequent.read-only.id-card-number" : [ "44055908Y" ],
-      "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
-      "locale" : [ "en" ],
-      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
-    },
-    "createdTimestamp" : 1691702289318,
-    "enabled" : true,
-    "totp" : false,
-    "credentials" : [ {
-      "id" : "2445bf51-3dac-4eff-a143-eaf6f50f311a",
-      "type" : "password",
-      "createdDate" : 1712254226217,
-      "secretData" : "{\"value\":\"KC0tV0b7gT5lbpmyBa/RWB5BANUCyaq3q75cFoLYMgtAN1wjZhGOSYTV1lDaFADFBDlVk/wC78eIWMDTDD8kKA==\",\"salt\":\"xit/poIdzzAdIrZGpn/CTQ==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-    } ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ "VERIFY_EMAIL" ],
-    "realmRoles" : [ "default-roles-electoral-process" ],
-    "clientRoles" : {
-      "voting-portal" : [ "user" ]
-    },
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
     "id" : "487ea496-9f06-4148-ad06-4a12f9bb6980",
     "username" : "service-account-service-account",
     "emailVerified" : false,
@@ -966,6 +936,35 @@
     "totp" : false,
     "serviceAccountClientId" : "service-account",
     "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-electoral-process" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
+    "id" : "788e32ca-5aad-45d8-8c98-a985fb1d9dec",
+    "username" : "test-edu",
+    "firstName" : "Eduardo",
+    "lastName" : "Robles Elvira",
+    "email" : "edulix@nvotes.com",
+    "emailVerified" : true,
+    "attributes" : {
+      "sequent.read-only.id-card-number-validated" : [ "VERFIED" ],
+      "sequent.read-only.id-card-number" : [ "44055908Y" ],
+      "locale" : [ "en" ],
+      "sequent.read-only.id-card-type" : [ "PhilSys ID" ],
+      "tenant-id" : [ "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
+    },
+    "createdTimestamp" : 1712294368638,
+    "enabled" : true,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "ecac15dc-0214-408f-a83d-dc1df6c3ccb0",
+      "type" : "password",
+      "createdDate" : 1712303355542,
+      "secretData" : "{\"value\":\"JE1Bi4y6dod/gSQahiBZ0nTqo24J2DR7kGutNrM8mv6PxBREYq8e/Zb2wy4I3YdslaGR2MW1aCOGEsZ20Ms4DA==\",\"salt\":\"9IO0ZnhewAxczv3iZRfQUg==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+    } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-electoral-process" ],
@@ -2162,7 +2161,7 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No.\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Card No Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}" ]
+        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"Document ID\",\"validations\":{},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"Document Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Card No Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -3026,21 +3025,24 @@
     "config" : {
       "base-url" : "https://des.digitalonboarding.es/dob-api/2.0.0",
       "env-config" : "{\n\tenvironment: 0,\n\tcustomTextsConfig: myStrings,\n\tbaseAssetsUrl: \"../../../\",\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.spanishSpain,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.españa,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager()\n}\n",
-      "api-key" : "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
       "app-id" : "7349cfcc-b3a1-4dd7-b399-d135be0a2f43",
-      "transaction-new" : "{\n\t\"wFtype_Facial\": false,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}\n",
-      "sdk" : "{}",
-      "client-id" : "demosequentech",
+      "transaction-new" : "{\n\t\"wFtype_Facial\": true,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}",
+      "doc-id-type" : "sequent.read-only.id-card-type",
       "user-data-attr" : "sequent.read-only.id-card-number",
-      "user-status-attr" : "sequent.read-only.id-card-number-validated"
+      "user-status-attr" : "sequent.read-only.id-card-number-validated",
+      "api-key" : "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
+      "sdk" : "{}",
+      "user-status" : "sequent.read-only.id-card-number-validated",
+      "client-id" : "demosequentech",
+      "doc-id" : "sequent.read-only.id-card-number"
     }
   }, {
     "id" : "eb78b40c-b522-464d-bff9-3e56ee66ef2e",
     "alias" : "lookup-register",
     "config" : {
-      "update-attributes" : "sequent.read-only.id-card-number-validated,email",
-      "search-attributes" : "sequent.read-only.id-card-number",
-      "unset-attributes" : "email"
+      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number",
+      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+      "unset-attributes" : "email,sequent.read-only.mobile-number"
     }
   }, {
     "id" : "1804dd46-135e-4f00-995c-59d9cd66e802",

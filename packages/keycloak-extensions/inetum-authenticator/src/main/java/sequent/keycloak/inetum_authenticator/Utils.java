@@ -37,8 +37,9 @@ import java.io.Writer;
 @UtilityClass
 @JBossLog
 public class Utils {
-	final public String USER_DATA_ATTRIBUTE = "user-data-attr";
-	final public String USER_STATUS_ATTRIBUTE = "user-status-attr";
+	final public String DOC_ID_ATTRIBUTE = "doc-id";
+	final public String DOC_ID_TYPE_ATTRIBUTE = "doc-id-type";
+	final public String USER_STATUS_ATTRIBUTE = "user-status";
     final public String USER_STATUS_VERIFIED = "VERFIED";
     final public String USER_STATUS_NOT_VERIFIED = "NOT-VERFIED";
 	final public String SDK_ATTRIBUTE = "sdk";
@@ -62,6 +63,8 @@ public class Utils {
     final public String FTL_CLIENT_ID = "client_id";
     final public String FTL_BASE_URL = "base_url";
     final public String FTL_ENV_CONFIG = "env_config";
+    final public String FTL_DOC_ID = "doc_id";
+    final public String FTL_DOC_ID_TYPE = "doc_id_type";
     final public String FTL_ERROR_INTERNAL = "internalInetumError";
     final public String FTL_ERROR_AUTH_INVALID = "internalInetumError";
 

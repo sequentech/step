@@ -1,4 +1,7 @@
 <#import "template.ftl" as layout>
+<#import "user-profile-commons.ftl" as userProfileCommons>
+<#import "register-commons.ftl" as registerCommons>
+
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
@@ -14,6 +17,8 @@
             window.DOB_API_KEY = "${api_key}";
             window.DOB_APP_ID = "${app_id}";
             window.DOB_CLIENT_ID = "${client_id}";
+            window.DOB_DOC_ID = "${doc_id}";
+            window.DOB_DOC_ID_TYPE = "${doc_id_type}";
             window.DOB_DATA = {
                 uid: "${user_id}",
                 td: "${token_dob}"
@@ -37,5 +42,6 @@
     <script type="module" src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/dob-models-1.1.19.esm.js"></script>
     <script type="module" src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/dob-sdk-3.9.2.js"></script>
     <script type="module" src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/js/main.js"></script>
+    <form id="kc-inetum-success-form" class="${properties.kcFormClass!}" action="${url.registrationAction}" method="post"></form>
 </body>
 </html>
