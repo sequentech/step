@@ -110,10 +110,14 @@
       margin-right: 5px;
     }
 
-    #qrcode {
+    .qrcode {
       margin-top: 32px;
       display: flex;
       justify-content: center;
+    }
+
+    .text-center {
+      text-align: center;
     }
   </style>
 </head>
@@ -123,20 +127,21 @@
       <h1>Vote Receipts</h1>
       {{#each data.receipts}}
         <div class="ballot">
-          <h3 style="margin-bottom: 12px;">Contest: {{sanitize_html ../data.contest.name}}</h3>
+          <h3 style="margin-bottom: 12px;" class="text-center">Contest: {{sanitize_html ../data.contest.name}}</h3>
 
           {{#unless this.is_blank_or_invalid}}
             <table>
               <thead>
                 <tr>
-                  <th colspan="2">Selected Candidates</th>
+                  <th></th>
+                  <th>Selected Candidates</th>
                 </tr>
               </thead>
               <tbody>
                 {{#each this.selected_candidates}}
                   <tr>
                     <td class="checkbox"><input type="checkbox" checked /></td>
-                    <td>{{this.name}}</td>
+                    <td class="text-center">{{this.name}}</td>
                   </tr>
                 {{/each}}
               </tbody>
