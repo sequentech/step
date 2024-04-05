@@ -1,22 +1,117 @@
+<!doctype html>
 <html lang="en-US">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Vote receipts</title>
-    <style>
-      .logo {
-        content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
-        text-align:center;
-        margin: 16px auto;
-      }
-    </style>
-  </head>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vote receipts</title>
+  {{!-- <script src="{{data.file_qrcode_lib}}"></script> --}}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: auto;
+      max-width: 640px;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin-top: 48px;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
+      text-align: center;
+      margin: 16px auto;
+    }
+
+    /* .logo { */
+    /*   content: url("{{data.file_logo}}"); */
+    /*   text-align: center; */
+    /*   margin: 16px auto; */
+    /* } */
+
+    .main {
+      margin-top: 32px;
+    }
+
+    .main div {
+      margin-top: 32px;
+    }
+
+    .id-content {
+      print-color-adjust: exact;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 6px 12px;
+      background: #ecfdf5;
+      color: #191d23;
+      border-radius: 4px;
+    }
+
+    .info {
+      margin: 32px 0;
+    }
+
+    .info p {
+      margin: 12px 0;
+    }
+
+    #qrcode {
+      margin-top: 32px;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
 
   <body>
     <div class="logo"></div>
 
     <div class="content">
-      abc
+      <h1>Vote Receipts</h1>
+      {{#each data.receipts}}
+        <div>
+          <h3 style="margin-bottom: 12px;">Contest: {{sanitize_html ../data.contest.name}}</h3>
+          {{#if this.is_blank_or_invalid}}
+            {{#if this.is_blank}}
+              Blank
+            {{/if}}
+            {{#if this.is_invalid}}
+              Invalid ballot
+            {{/if}}
+          {{/if}}
+          {{#unless this.is_blank_or_invalid}}
+            <p>Selected candidates:</p>
+            <ul>
+              {{#each this.selected_candidates}}
+                <li>{{this.name}}</li>
+              {{/each}}
+            </ul>
+          {{/unless}}
+          <div id="qrcode-{{this.id}}"></div>
+          <p>{{this.encoded_vote}}</p>
+        </div>
+      {{/each}}
     </div>
   </body>
+  
+  <script>
+    {{#each data.receipts}}
+      new QRCode(document.getElementById("qrcode-{{this.id}}"), {
+          text: "{{this.id}} - {{this.encoded_vote}}",
+          width: 100,
+          height: 100,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H,
+      })
+    {{/each}}
+  </script>
 </html>
+
+

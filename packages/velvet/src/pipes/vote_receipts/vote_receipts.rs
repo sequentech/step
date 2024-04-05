@@ -15,6 +15,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::services::{pdf, reports};
 use serde::Serialize;
 use serde_json::Map;
+use uuid::Uuid;
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, Write};
@@ -70,6 +71,7 @@ impl VoteReceipts {
                 e
             ))
         })?;
+        // dbg!(&bytes_html);
 
         let bytes_pdf = pdf::html_to_pdf(bytes_html).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
@@ -204,8 +206,11 @@ struct ComputedTemplateData {
 
 #[derive(Serialize, Debug)]
 struct ReceiptData {
+    pub id: Uuid,
+    pub encoded_vote: String,
     pub is_invalid: bool,
     pub is_blank: bool,
+    pub is_blank_or_invalid: bool,
     pub selected_candidates: Vec<Candidate>,
 }
 
@@ -230,10 +235,19 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
             let mut is_invalid = !decoded_vote_contest.invalid_errors.is_empty();
             let is_blank = candidates.len() == 0;
 
+            let encoded_vote_contest = data
+                .contest
+                .encode_plaintext_contest_bigint(decoded_vote_contest)
+                .unwrap()
+                .to_string();
+
             ReceiptData {
+                id: Uuid::new_v4(),
                 is_invalid,
                 is_blank,
+                is_blank_or_invalid: is_invalid || is_blank,
                 selected_candidates: candidates,
+                encoded_vote: encoded_vote_contest,
             }
         })
         .collect::<Vec<ReceiptData>>();
