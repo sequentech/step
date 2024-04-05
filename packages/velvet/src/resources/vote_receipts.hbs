@@ -7,8 +7,21 @@
   <title>Vote receipts</title>
   {{!-- <script src="{{data.file_qrcode_lib}}"></script> --}}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
+  <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
 
   <style>
+    @page {
+      size: A4;
+
+      @top-center {
+        content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
+      }
+
+      @bottom-left {
+        content: counter(page) " of " counter(pages);
+      }
+    }
+
     body {
       font-family: Arial, sans-serif;
       margin: auto;
@@ -61,6 +74,49 @@
       margin: 12px 0;
     }
 
+    .ballot {
+      break-before: page; 
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 20px 0;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th.invalid-blank, td.invalid-blank {
+      width: 50%;
+    }
+      
+    td.checkbox {
+      text-align: center;
+    }
+
+    th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    thead tr {
+      border-bottom: 2px solid #ccc;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    input[type="checkbox"] {
+      margin-right: 5px;
+    }
+
     #qrcode {
       margin-top: 32px;
       display: flex;
@@ -70,31 +126,63 @@
 </head>
 
   <body>
-    <div class="logo"></div>
+    {{!-- <div class="logo"></div> --}}
 
     <div class="content">
       <h1>Vote Receipts</h1>
       {{#each data.receipts}}
-        <div>
+        <div class="ballot">
           <h3 style="margin-bottom: 12px;">Contest: {{sanitize_html ../data.contest.name}}</h3>
-          {{#if this.is_blank_or_invalid}}
-            {{#if this.is_blank}}
-              Blank
-            {{/if}}
-            {{#if this.is_invalid}}
-              Invalid ballot
-            {{/if}}
-          {{/if}}
+
           {{#unless this.is_blank_or_invalid}}
-            <p>Selected candidates:</p>
-            <ul>
-              {{#each this.selected_candidates}}
-                <li>{{this.name}}</li>
-              {{/each}}
-            </ul>
+            <table>
+              <thead>
+                <tr>
+                  <th colspan="2">Selected Candidates</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#each this.selected_candidates}}
+                  <tr>
+                    <td class="checkbox"><input type="checkbox" checked /></td>
+                    <td>{{this.name}}</td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
           {{/unless}}
-          <div id="qrcode-{{this.id}}"></div>
-          <p>{{this.encoded_vote}}</p>
+          
+          <table>
+            <thead>
+              <tr>
+                <th class="invalid-blank">Invalid vote</th>
+                <th class="invalid-blank">Blank</th>
+              </tr>
+            </thead>
+            <tbody>
+                <tr>
+                  <td class="invalid-blank checkbox">
+                    {{#if this.is_invalid}}
+                      <input type="checkbox" checked />
+                    {{/if}}
+                    {{#unless this.is_invalid}}
+                      <input type="checkbox" />
+                    {{/unless}}
+                  </td>
+                  <td class="invalid-blank checkbox">
+                    {{#if this.is_blank}}
+                      <input type="checkbox" checked />
+                    {{/if}}
+                    {{#unless this.is_blank}}
+                      <input type="checkbox" />
+                    {{/unless}}
+                  </td>
+                </tr>
+            </tbody>
+          </table>
+          
+          <div class="qrcode" id="qrcode-{{this.id}}"></div>
+          
         </div>
       {{/each}}
     </div>
