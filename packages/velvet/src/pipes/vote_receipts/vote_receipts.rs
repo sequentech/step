@@ -9,7 +9,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
-use sequent_core::ballot::Contest;
+use sequent_core::ballot::{Candidate, CandidatesOrder, Contest};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::services::{pdf, reports};
@@ -55,15 +55,14 @@ impl VoteReceipts {
         let pipe_config: PipeConfigVoteReceipts = serde_json::from_value(pipe_config)?;
         let template = pipe_config.template;
 
-        let mut map = Map::new();
+        let data = TemplateData {
+            contest: tally.contest.clone(),
+            ballots: tally.ballots.clone(),
+        };
+        let data = compute_data(data);
 
-        map.insert(
-            "data".to_string(),
-            serde_json::to_value(&TemplateData {
-                contest: tally.contest,
-                ballots: tally.ballots,
-            })?,
-        );
+        let mut map = Map::new();
+        map.insert("data".to_string(), serde_json::to_value(&data)?);
 
         let bytes_html = reports::render_template_text(&template, map).map_err(|e| {
             Error::UnexpectedError(format!(
@@ -195,4 +194,52 @@ impl Pipe for VoteReceipts {
 struct TemplateData {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
+}
+
+#[derive(Serialize, Debug)]
+struct ComputedTemplateData {
+    pub contest: Contest,
+    pub receipts: Vec<ReceiptData>,
+}
+
+#[derive(Serialize, Debug)]
+struct ReceiptData {
+    pub is_invalid: bool,
+    pub is_blank: bool,
+    pub selected_candidates: Vec<Candidate>,
+}
+
+pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
+    let receipts = data
+        .ballots
+        .iter()
+        .map(|decoded_vote_contest| {
+            let mut candidates = decoded_vote_contest
+                .choices
+                .iter()
+                .filter(|choice| choice.selected >= 0)
+                .filter_map(|choice| {
+                    data.contest
+                        .candidates
+                        .iter()
+                        .find(|c| c.id == choice.id)
+                        .cloned()
+                })
+                .collect::<Vec<Candidate>>();
+
+            let mut is_invalid = !decoded_vote_contest.invalid_errors.is_empty();
+            let is_blank = candidates.len() == 0;
+
+            ReceiptData {
+                is_invalid,
+                is_blank,
+                selected_candidates: candidates,
+            }
+        })
+        .collect::<Vec<ReceiptData>>();
+
+    ComputedTemplateData {
+        contest: data.contest,
+        receipts,
+    }
 }
