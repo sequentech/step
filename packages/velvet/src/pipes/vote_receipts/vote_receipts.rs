@@ -102,88 +102,32 @@ impl Pipe for VoteReceipts {
                     )
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                    let res = self.print_vote_receipts(
+                    let bytes_pdf = self.print_vote_receipts(
                         decoded_ballots_file.as_path(),
                         &contest_input.contest,
                     )?;
 
-                    let file = PathBuf::from("./toto.pdf");
+                    let path = PipeInputs::build_path(
+                        &self
+                            .pipe_inputs
+                            .cli
+                            .output_dir
+                            .join(PipeNameOutputDir::VoteReceipts.as_ref())
+                            .as_path(),
+                        &election_input.id,
+                        Some(&contest_input.id),
+                        Some(&area_input.id),
+                    );
+
+                    fs::create_dir_all(&path)?;
+
+                    let file = path.join(OUTPUT_FILE);
                     let mut file = OpenOptions::new()
                         .write(true)
                         .truncate(true)
                         .create(true)
                         .open(file)?;
-                    file.write_all(&res)?;
-
-                    // let path =
-                    //     PipeInputs::build_path(&self.pipe_inputs.cli.output_dir.as, election_id, contest_id, area_id);
-                    //
-                    // fs::create_dir_all(&path)?;
-                    //
-                    // let file = path.join(OUTPUT_PDF);
-                    // let mut file = OpenOptions::new()
-                    //     .write(true)
-                    //     .truncate(true)
-                    //     .create(true)
-                    //     .open(file)?;
-                    // file.write_all(&bytes_pdf)?;
-                    //
-                    // let file = path.join(OUTPUT_HTML);
-                    // let mut file = OpenOptions::new()
-                    //     .write(true)
-                    //     .truncate(true)
-                    //     .create(true)
-                    //     .open(file)?;
-                    // file.write_all(&bytes_html)?;
-                    //
-                    // let file = path.join(OUTPUT_JSON);
-                    // let mut file = OpenOptions::new()
-                    //     .write(true)
-                    //     .truncate(true)
-                    //     .create(true)
-                    //     .open(file)?;
-                    // file.write_all(&bytes_json)?;
-
-                    // if let Err(Error::FileAccess(file, _)) = &res {
-                    //     println!(
-                    //         "[{}] File not found: {} -- Not processed",
-                    //         PipeName::VoteReceipts.as_ref(),
-                    //         file.display()
-                    //     );
-                    // }
-                    //
-                    // match res {
-                    //     Ok(decoded_ballots) => {
-                    //         let mut output_path = PipeInputs::build_path(
-                    //             self.pipe_inputs
-                    //                 .cli
-                    //                 .output_dir
-                    //                 .join(PipeNameOutputDir::VoteReceipts.as_ref())
-                    //                 .as_path(),
-                    //             &election_input.id,
-                    //             Some(&contest_input.id),
-                    //             Some(&area_input.id),
-                    //         );
-                    //
-                    //         fs::create_dir_all(&output_path)?;
-                    //         output_path.push(OUTPUT_FILE);
-                    //         let file = File::create(&output_path)
-                    //             .map_err(|e| Error::FileAccess(output_path, e))?;
-                    //
-                    //         serde_json::to_writer(file, &decoded_ballots)?;
-                    //     }
-                    //     Err(e) => {
-                    //         if let Error::FileAccess(file, _) = &e {
-                    //             println!(
-                    //                 "[{}] File not found: {} -- Not processed",
-                    //                 PipeName::VoteReceipts.as_ref(),
-                    //                 file.display()
-                    //             )
-                    //         } else {
-                    //             return Err(e);
-                    //         }
-                    //     }
-                    // }
+                    file.write_all(&bytes_pdf)?;
                 }
             }
         }
