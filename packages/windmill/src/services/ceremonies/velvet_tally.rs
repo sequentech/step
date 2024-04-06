@@ -246,7 +246,8 @@ pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         .create(true)
         .open(&config_path)?;
 
-    writeln!(file, "{}", serde_json::to_string(&get_config())?)?;
+    writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
+
     Ok(())
 }
 
