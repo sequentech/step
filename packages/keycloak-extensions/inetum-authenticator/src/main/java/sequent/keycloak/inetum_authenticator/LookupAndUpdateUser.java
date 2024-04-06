@@ -219,15 +219,27 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     ) {
         Map<String, List<String>> userAttributes = user.getAttributes();
         for (String attributeName : attributes) {
-            if (
-                userAttributes.containsKey(attributeName) &&
-                userAttributes.get(attributeName) != null &&
-                userAttributes.get(attributeName).size() > 0 &&
-                userAttributes.get(attributeName).get(0) != null &&
-                !userAttributes.get(attributeName).get(0).isEmpty()
-            ) {
-                log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value=" + userAttributes.get(attributeName));
-                return false;
+            if (attributeName.equals("email")) {
+                // Only assume email is valid if it's verified
+                if (
+                    user.isEmailVerified() &&
+                    user.getEmail() != null &&
+                    !user.getEmail().isBlank()
+                ) {
+                    log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
+                    return false;
+                }
+            } else {
+                if (
+                    userAttributes.containsKey(attributeName) &&
+                    userAttributes.get(attributeName) != null &&
+                    userAttributes.get(attributeName).size() > 0 &&
+                    userAttributes.get(attributeName).get(0) != null &&
+                    !userAttributes.get(attributeName).get(0).isBlank()
+                ) {
+                    log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value=" + userAttributes.get(attributeName));
+                    return false;
+                }
             }
         }
         return true;

@@ -876,7 +876,11 @@
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
   "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
-  "localizationTexts" : { },
+  "localizationTexts" : {
+    "en" : {
+      "messageOtpAuthInstruction" : "Enter the code we sent to your email address"
+    }
+  },
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -928,28 +932,15 @@
     "notBefore" : 0,
     "groups" : [ "/admin" ]
   }, {
-    "id" : "487ea496-9f06-4148-ad06-4a12f9bb6980",
-    "username" : "service-account-service-account",
-    "emailVerified" : false,
-    "createdTimestamp" : 1698268913186,
-    "enabled" : true,
-    "totp" : false,
-    "serviceAccountClientId" : "service-account",
-    "credentials" : [ ],
-    "disableableCredentialTypes" : [ ],
-    "requiredActions" : [ ],
-    "realmRoles" : [ "default-roles-electoral-process" ],
-    "notBefore" : 0,
-    "groups" : [ ]
-  }, {
     "id" : "788e32ca-5aad-45d8-8c98-a985fb1d9dec",
-    "username" : "test-edu",
+    "username" : "edulix@nvotes.com",
     "firstName" : "Eduardo",
     "lastName" : "Robles Elvira",
     "email" : "edulix@nvotes.com",
-    "emailVerified" : true,
+    "emailVerified" : false,
     "attributes" : {
       "sequent.read-only.id-card-number-validated" : [ "VERFIED" ],
+      "sequent.read-only.mobile-number" : [ "634571634" ],
       "sequent.read-only.id-card-number" : [ "44055908Y" ],
       "locale" : [ "en" ],
       "sequent.read-only.id-card-type" : [ "PhilSys ID" ],
@@ -959,12 +950,26 @@
     "enabled" : true,
     "totp" : false,
     "credentials" : [ {
-      "id" : "ecac15dc-0214-408f-a83d-dc1df6c3ccb0",
+      "id" : "2efb48c9-082f-42e3-8e61-e4f610024bc0",
       "type" : "password",
-      "createdDate" : 1712303355542,
-      "secretData" : "{\"value\":\"JE1Bi4y6dod/gSQahiBZ0nTqo24J2DR7kGutNrM8mv6PxBREYq8e/Zb2wy4I3YdslaGR2MW1aCOGEsZ20Ms4DA==\",\"salt\":\"9IO0ZnhewAxczv3iZRfQUg==\",\"additionalParameters\":{}}",
+      "createdDate" : 1712377881270,
+      "secretData" : "{\"value\":\"rcP9sG/MH86e2C774CcxxeXgvwPd+ct9bvn6y+kDDD5o8Oocfy989OIYf3Ob9SzuEWQfK9npY0a8o1W4e/xU4g==\",\"salt\":\"WQ1rg9jxJwX4XN5cp9AyjA==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
     } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ "verify-email-otp-ra" ],
+    "realmRoles" : [ "default-roles-electoral-process" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
+    "id" : "487ea496-9f06-4148-ad06-4a12f9bb6980",
+    "username" : "service-account-service-account",
+    "emailVerified" : false,
+    "createdTimestamp" : 1698268913186,
+    "enabled" : true,
+    "totp" : false,
+    "serviceAccountClientId" : "service-account",
+    "credentials" : [ ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-electoral-process" ],
@@ -2641,7 +2646,7 @@
       "authenticator" : "inetum-authenticator",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
-      "priority" : 11,
+      "priority" : 12,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
@@ -2649,7 +2654,7 @@
       "authenticator" : "lookup-and-update-user",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
-      "priority" : 12,
+      "priority" : 13,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -2922,14 +2927,14 @@
     }, {
       "authenticatorFlow" : true,
       "requirement" : "ALTERNATIVE",
-      "priority" : 23,
+      "priority" : 24,
       "autheticatorFlow" : true,
       "flowAlias" : "Message OTP Subflow",
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
       "requirement" : "ALTERNATIVE",
-      "priority" : 24,
+      "priority" : 25,
       "autheticatorFlow" : true,
       "flowAlias" : "Normal OTP Subflow",
       "userSetupAllowed" : false
@@ -2997,6 +3002,12 @@
       "telUserAttribute" : "sequent.read-only.mobile-number"
     }
   }, {
+    "id" : "443ba7b7-7f86-43ae-99c1-b24f9f7306bb",
+    "alias" : "cond-user-email-not-verified",
+    "config" : {
+      "negate" : "true"
+    }
+  }, {
     "id" : "fdc47b8c-5417-4570-8867-3be6dc8dd0d7",
     "alias" : "conditional OTP form",
     "config" : {
@@ -3007,6 +3018,17 @@
     "alias" : "create unique user config",
     "config" : {
       "require.password.update.after.registration" : "false"
+    }
+  }, {
+    "id" : "b95ba662-2926-4874-bdf7-7cb9847c1ddb",
+    "alias" : "email-otp",
+    "config" : {
+      "senderId" : "Keycloak",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "true",
+      "messageCourierAttribute" : "EMAIL"
     }
   }, {
     "id" : "31b33e7f-781d-4b4f-b8cf-23987c87ea56",
@@ -3061,6 +3083,17 @@
       "userRealmLimit" : "1"
     }
   }, {
+    "id" : "7b7c155d-4fb2-48b1-86f1-48f56b72148c",
+    "alias" : "otp-email-verif",
+    "config" : {
+      "senderId" : "Keycloak",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "false",
+      "messageCourierAttribute" : "EMAIL"
+    }
+  }, {
     "id" : "1b526221-2182-404a-aeca-0e202427ea47",
     "alias" : "otp-voting-client",
     "config" : {
@@ -3090,6 +3123,10 @@
       "userRealmLimit" : "1"
     }
   }, {
+    "id" : "08c7ab78-7bee-43c0-9a9d-9dcd7bed4c3e",
+    "alias" : "verify-email-otp-flow",
+    "config" : { }
+  }, {
     "id" : "8f26c989-cc8d-4dff-ab39-66217b7f5e72",
     "alias" : "voting-client",
     "config" : {
@@ -3098,12 +3135,20 @@
     }
   } ],
   "requiredActions" : [ {
+    "alias" : "VERIFY_EMAIL",
+    "name" : "Verify Email",
+    "providerId" : "VERIFY_EMAIL",
+    "enabled" : false,
+    "defaultAction" : false,
+    "priority" : 10,
+    "config" : { }
+  }, {
     "alias" : "CONFIGURE_TOTP",
     "name" : "Configure OTP",
     "providerId" : "CONFIGURE_TOTP",
     "enabled" : true,
     "defaultAction" : false,
-    "priority" : 10,
+    "priority" : 20,
     "config" : { }
   }, {
     "alias" : "TERMS_AND_CONDITIONS",
@@ -3111,7 +3156,7 @@
     "providerId" : "TERMS_AND_CONDITIONS",
     "enabled" : false,
     "defaultAction" : false,
-    "priority" : 20,
+    "priority" : 30,
     "config" : { }
   }, {
     "alias" : "UPDATE_PASSWORD",
@@ -3119,21 +3164,13 @@
     "providerId" : "UPDATE_PASSWORD",
     "enabled" : true,
     "defaultAction" : false,
-    "priority" : 30,
+    "priority" : 40,
     "config" : { }
   }, {
     "alias" : "UPDATE_PROFILE",
     "name" : "Update Profile",
     "providerId" : "UPDATE_PROFILE",
     "enabled" : false,
-    "defaultAction" : false,
-    "priority" : 40,
-    "config" : { }
-  }, {
-    "alias" : "VERIFY_EMAIL",
-    "name" : "Verify Email",
-    "providerId" : "VERIFY_EMAIL",
-    "enabled" : true,
     "defaultAction" : false,
     "priority" : 50,
     "config" : { }
@@ -3208,6 +3245,14 @@
     "enabled" : true,
     "defaultAction" : false,
     "priority" : 1003,
+    "config" : { }
+  }, {
+    "alias" : "verify-email-otp-ra",
+    "name" : "Verify Email using OTP",
+    "providerId" : "verify-email-otp-ra",
+    "enabled" : true,
+    "defaultAction" : false,
+    "priority" : 1004,
     "config" : { }
   } ],
   "browserFlow" : "sequent browser flow",
