@@ -18,7 +18,9 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
+use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+use velvet::pipes::pipe_name::PipeName;
 
 use deadpool_postgres::Client as DbClient;
 
@@ -239,18 +241,64 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 }
 
 pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
+        template: "".to_string(),
+    };
+
+    let stages_def = {
+        let mut map = HashMap::new();
+        map.insert(
+            "main".to_string(),
+            velvet::config::Stage {
+                pipeline: vec![
+                    velvet::config::PipeConfig {
+                        id: "decode-ballots".to_string(),
+                        pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "vote-receipts".to_string(),
+                        pipe: PipeName::VoteReceipts,
+                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "do-tally".to_string(),
+                        pipe: PipeName::DoTally,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "mark-winners".to_string(),
+                        pipe: PipeName::MarkWinners,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "gen-report".to_string(),
+                        pipe: PipeName::GenerateReports,
+                        config: Some(serde_json::Value::Null),
+                    },
+                ],
+            },
+        );
+        map
+    };
+
+    let stages = velvet::config::Stages {
+        order: vec!["main".to_string()],
+        stages_def,
+    };
+
+    let velvet_config = velvet::config::Config {
+        version: "0.0.0".to_string(),
+        stages,
+    };
+
     let config_path = base_tally_path.join("velvet-config.json");
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .open(&config_path)?;
 
-    // TODO: should not use this fixture
-    writeln!(
-        file,
-        "{}",
-        serde_json::to_string(&velvet::fixtures::get_config()?)?
-    )?;
+    writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
 
     Ok(())
 }
