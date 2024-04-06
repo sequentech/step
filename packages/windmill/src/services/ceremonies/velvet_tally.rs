@@ -18,7 +18,6 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
-use velvet::fixtures::get_config;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 
 use deadpool_postgres::Client as DbClient;
@@ -246,7 +245,12 @@ pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         .create(true)
         .open(&config_path)?;
 
-    writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
+    // TODO: should not use this fixture
+    writeln!(
+        file,
+        "{}",
+        serde_json::to_string(&velvet::fixtures::get_config()?)?
+    )?;
 
     Ok(())
 }
