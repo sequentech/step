@@ -4,12 +4,13 @@
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
-use crate::services::s3;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
+use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
@@ -250,14 +251,17 @@ async fn get_public_asset_vote_receipts_template() -> Result<String> {
     let minio_endpoint_base = s3::get_minio_url()?;
     let vote_receipt_template = format!(
         "{}/{}/{}",
-        minio_endpoint_base, public_asset_path,file_velvet_vote_receipts_template 
+        minio_endpoint_base, public_asset_path, file_velvet_vote_receipts_template
     );
 
     let client = reqwest::Client::new();
     let response = client.get(vote_receipt_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!("File not found: {}", file_velvet_vote_receipts_template));
+        return Err(anyhow!(
+            "File not found: {}",
+            file_velvet_vote_receipts_template
+        ));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -271,10 +275,37 @@ async fn get_public_asset_vote_receipts_template() -> Result<String> {
     Ok(template_hbs)
 }
 
-pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
-    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
-        template: "".to_string(),
+#[derive(Debug, Serialize)]
+struct VelvetTemplateData {
+    pub title: String,
+    pub file_logo: String,
+    pub file_qrcode_lib: String,
+    pub file_pagedjs_lib: String,
+}
+
+pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
+    let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")?;
+    let file_qrcode_lib = std::env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
+    let file_pagedjs_lib = std::env::var("PUBLIC_ASSETS_PAGEDJS_LIB")?;
+    let vote_receipts_title = std::env::var("VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE")?;
+
+    let template = get_public_asset_vote_receipts_template().await?;
+    dbg!(&template);
+
+    let extra_data = VelvetTemplateData {
+        title: vote_receipts_title,
+        file_logo,
+        file_qrcode_lib,
+        file_pagedjs_lib,
     };
+    dbg!(&extra_data);
+
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
+        template,
+        extra_data: serde_json::to_value(extra_data)?,
+    };
+    dbg!(&vote_receipt_pipe_config);
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -344,6 +375,6 @@ pub async fn run_velvet_tally(
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
-    create_config_file(base_tally_path.clone())?;
+    create_config_file(base_tally_path.clone()).await?;
     call_velvet(base_tally_path.clone())
 }
