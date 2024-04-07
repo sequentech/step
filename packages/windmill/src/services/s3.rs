@@ -197,3 +197,11 @@ pub async fn upload_file_to_s3(
 
     Ok(())
 }
+
+pub fn get_minio_url() -> Result<String> {
+    let minio_private_uri =
+        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
+    let bucket = get_public_bucket()?;
+
+    Ok(format!("{}/{}", minio_private_uri, bucket))
+}

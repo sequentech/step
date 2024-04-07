@@ -4,6 +4,7 @@
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
+use crate::services::s3;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
@@ -238,6 +239,36 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
         state.exec_next()?;
     }
     Ok(state)
+}
+
+async fn get_public_asset_vote_receipt_template() -> Result<String> {
+    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
+
+    let file_velvet_vote_receipts_template =
+        std::env::var("PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE")?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+    let vote_receipt_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path,file_velvet_vote_receipts_template 
+    );
+
+    let client = reqwest::Client::new();
+    let response = client.get(vote_receipt_template).send().await?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!("File not found: {}", file_velvet_vote_receipts_template));
+    }
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Unexpected response status: {:?}",
+            response.status()
+        ));
+    }
+
+    let template_hbs: String = response.text().await?;
+
+    Ok(template_hbs)
 }
 
 pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
