@@ -64,6 +64,10 @@ impl VoteReceipts {
 
         let mut map = Map::new();
         map.insert("data".to_string(), serde_json::to_value(&data)?);
+        map.insert(
+            "extra_data".to_string(),
+            serde_json::to_value(&pipe_config.extra_data)?,
+        );
 
         let bytes_html = reports::render_template_text(&template, map).map_err(|e| {
             Error::UnexpectedError(format!(
