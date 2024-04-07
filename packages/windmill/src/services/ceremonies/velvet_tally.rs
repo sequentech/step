@@ -241,7 +241,7 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     Ok(state)
 }
 
-async fn get_public_asset_vote_receipt_template() -> Result<String> {
+async fn get_public_asset_vote_receipts_template() -> Result<String> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
 
     let file_velvet_vote_receipts_template =
