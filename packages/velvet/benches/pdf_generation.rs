@@ -2,9 +2,7 @@ use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use velvet::{
-    cli::{state::State, test_all::generate_ballots, CliRun},
-    fixtures::TestFixture,
-    pipes::PipeManager,
+    cli::{state::State, test_all::generate_ballots, CliRun}, fixtures::TestFixture, pipes::PipeManager
 };
 
 pub fn criterion_benchmark(c: &mut Criterion) {
