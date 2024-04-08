@@ -301,7 +301,6 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         })?;
 
     let template = get_public_asset_vote_receipts_template().await?;
-    dbg!(&template);
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
@@ -320,13 +319,11 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
             minio_endpoint_base, public_asset_path, file_pagedjs_lib
         ),
     };
-    dbg!(&extra_data);
 
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template,
         extra_data: serde_json::to_value(extra_data)?,
     };
-    dbg!(&vote_receipt_pipe_config);
 
     let stages_def = {
         let mut map = HashMap::new();
