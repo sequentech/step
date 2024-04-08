@@ -4,16 +4,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{{data.title}}</title>
-  <script src="{{data.file_qrcode_lib}}"></script>
-  <script src="{{data.file_pagedjs_lib}}"></script>
+  <title>{{extra_data.title}}</title>
+  <script src="{{extra_data.file_qrcode_lib}}"></script>
+  <script src="{{extra_data.file_pagedjs_lib}}"></script>
 
   <style>
     @page {
       size: A4;
 
       @top-center {
-      content: url("{{data.file_logo}}");
+      content: url("{{extra_data.file_logo}}");
       }
 
       @bottom-left {
@@ -36,7 +36,7 @@
     }
 
     .logo {
-      content: url("{{data.file_logo}}");
+      content: url("{{extra_data.file_logo}}");
       text-align: center;
       margin: 16px auto;
     }
