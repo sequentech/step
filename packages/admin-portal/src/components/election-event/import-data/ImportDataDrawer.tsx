@@ -10,6 +10,7 @@ interface ImportVotersTabsProps {
     closeDrawer: () => void
     title: string
     subtitle: string
+    paragraph: string
     doImport: (documentId: string, sha256: string) => Promise<void>
     uploadCallback?: (documentId: string) => Promise<void>
     errors: string | null
@@ -20,6 +21,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     closeDrawer,
     title,
     subtitle,
+    paragraph,
     doImport,
     uploadCallback,
     errors,
@@ -41,7 +43,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                     <DrawerStyles.Wrapper>
                         <>
                             <DrawerStyles.SubTitle>
-                                {t("electionEventScreen.import.votersSubtitle")}
+                                {t(paragraph)}
                             </DrawerStyles.SubTitle>
                             <ImportScreen
                                 refresh="electionEventScreen.import.voters"

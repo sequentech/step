@@ -487,6 +487,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 closeDrawer={() => setOpenImportDrawer(false)}
                 title="electionEventScreen.import.title"
                 subtitle="electionEventScreen.import.subtitle"
+                paragraph="electionEventScreen.import.votersParagraph"
                 doImport={handleImportVoters}
                 errors={null}
             />

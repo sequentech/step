@@ -322,6 +322,7 @@ export const CreateElectionList: React.FC = () => {
                 closeDrawer={closeImportDrawer}
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
+                paragraph={t("electionEventScreen.import.electionEventParagraph")}
                 doImport={handleImportElectionEvent}
                 uploadCallback={uploadCallback}
                 errors={errors}
