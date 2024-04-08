@@ -42,9 +42,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                     <ElectionHeader title={title} subtitle={subtitle} />
                     <DrawerStyles.Wrapper>
                         <>
-                            <DrawerStyles.SubTitle>
-                                {t(paragraph)}
-                            </DrawerStyles.SubTitle>
+                            <DrawerStyles.SubTitle>{t(paragraph)}</DrawerStyles.SubTitle>
                             <ImportScreen
                                 refresh="electionEventScreen.import.voters"
                                 doCancel={closeDrawer}
