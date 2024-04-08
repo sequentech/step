@@ -10,7 +10,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<aws.version>2.18.6</aws.version>
+		<aws.version>2.25.23</aws.version>
 		<aws.sts.version>1.12.674</aws.sts.version>
 		<keycloak.version>22.0.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
@@ -108,6 +108,7 @@
 							<artifactSet>
 								<includes>
 									<include>software.amazon.awssdk:*</include>
+									<include>com.amazonaws:*</include>
 									<include>org.reactivestreams:reactive-streams</include>
 								</includes>
 							</artifactSet>
