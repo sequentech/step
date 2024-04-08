@@ -57,6 +57,7 @@ pub async fn insert_election_event_f(
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportElectionEventOutput {
     message: String,
+    error: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -69,14 +70,23 @@ pub async fn import_election_event_f(
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
+    let check_result = import_election_event::get_document(input.clone()).await;
+
+    if let Err(err) = check_result {
+        return Ok(Json(ImportElectionEventOutput {
+            message: format!("Error checking import"),
+            error: Some(format!("Error checking import: {:?}", err)),
+        }));
+    }
+
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(import_election_event::import_election_event::new(input))
         .await
-        .map_err(|e| {
+        .map_err(|err| {
             (
                 Status::InternalServerError,
-                format!("Error sending import_election_event task: {:?}", e),
+                format!("Error sending import_election_event task: {:?}", err),
             )
         })?;
 
@@ -84,5 +94,6 @@ pub async fn import_election_event_f(
 
     Ok(Json(ImportElectionEventOutput {
         message: format!("Task created: import_election_event"),
+        error: None,
     }))
 }

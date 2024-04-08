@@ -11,7 +11,7 @@ import {useNotify} from "react-admin"
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string) => Promise<void>
     doCancel: () => void
-    errors: String | null
+    errors: string | null
     refresh?: string
 }
 

@@ -25,9 +25,7 @@ pub struct ImportElectionEventBody {
 }
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()> {
+pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElectionEventSchema> {
     let document = documents::get_document(&object.tenant_id, None, &object.document_id)
         .await?
         .ok_or(anyhow!(
@@ -42,6 +40,15 @@ pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()
     let mut file = File::open(temp_file_path)?;
 
     let data: ImportElectionEventSchema = serde_json::from_reader(file)?;
+
+    Ok(data)
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task]
+pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()> {
+    let data: ImportElectionEventSchema = get_document(object).await?;
 
     import_election_event_service::process(&data).await?;
 
