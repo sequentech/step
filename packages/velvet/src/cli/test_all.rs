@@ -284,6 +284,9 @@ mod tests {
             election_num * contest_num * (area_num - 1)
         );
 
+        // VoteReceipts
+        state.exec_next()?;
+
         // DoTally
         state.exec_next()?;
 
@@ -334,7 +337,7 @@ mod tests {
 
         // DecodeBallots
         state.exec_next()?;
-        
+
         // VoteReceipts
         state.exec_next()?;
 
@@ -370,6 +373,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
@@ -714,6 +720,9 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
+        // VoteReceipts
+        state.exec_next()?;
+
         // DoTally
         state.exec_next()?;
 
@@ -851,6 +860,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
@@ -991,6 +1003,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
@@ -1140,6 +1155,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
