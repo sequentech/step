@@ -5,6 +5,7 @@
 use crate::tasks::insert_election_event::{upsert_immu_board, upsert_keycloak_realm};
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,7 @@ pub struct Contest {
     pub id: Uuid,
     pub election_id: Uuid,
     pub data: ContestData,
+    pub created_at: Option<DateTime<Local>>,
     pub area_id: Uuid,
 }
 
