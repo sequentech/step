@@ -690,15 +690,21 @@ pub async fn transactions_wrapper(
         &hasura_transaction,
         &keycloak_transaction,
     )
-    .await
-    .with_context(|| "Error executing tally session")?;
+    .await;
 
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;
-
-    Ok(res)
+    match res {
+        Ok(res) => {
+            hasura_transaction
+                .commit()
+                .await
+                .with_context(|| "error comitting transaction")?;
+            Ok(res)
+        }
+        Err(err) => {
+            tracing::error!("Error in transactions_wrapper: {:?}", err);
+            Err(err)
+        }
+    }
 }
 
 #[instrument(err)]
