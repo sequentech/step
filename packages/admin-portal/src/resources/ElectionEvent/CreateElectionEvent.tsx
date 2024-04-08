@@ -33,6 +33,7 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
+import { ExportButton } from "@/components/tally/ExportElectionMenu"
 
 const Hidden = styled(Box)`
     display: none;
@@ -203,7 +204,22 @@ export const CreateElectionList: React.FC = () => {
                     </Toolbar>
                 }
             >
-                <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        width: "100%",
+                    }}
+                >
+                    <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
+                    <ExportButton onClick={() => setOpenDrawer(true)}>
+                        <UploadIcon />
+                        {t("common.label.import")}
+                    </ExportButton>
+                </Box>
                 <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
@@ -275,21 +291,13 @@ export const CreateElectionList: React.FC = () => {
 
             <hr />
 
-            <div>
-                <p>Import</p>
-
-                <Button onClick={() => setOpenDrawer(true)} label={t("common.label.import")}>
-                    <UploadIcon />
-                </Button>
-
-                <ImportDataDrawer
+            <ImportDataDrawer
                     open={openDrawer}
                     closeDrawer={() => setOpenDrawer(false)}
                     title="electionEventScreen.import.eetitle"
                     subtitle="electionEventScreen.import.eesubtitle"
                     doImport={handleImportElectionEvent}
                 />
-            </div>
         </>
     )
 }
