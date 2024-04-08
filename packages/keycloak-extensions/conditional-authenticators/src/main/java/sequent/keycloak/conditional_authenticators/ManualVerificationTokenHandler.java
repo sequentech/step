@@ -1,17 +1,29 @@
 package sequent.keycloak.conditional_authenticators;
 
+import java.util.List;
+
 import org.keycloak.TokenVerifier.Predicate;
+import org.keycloak.authentication.AuthenticatorUtil;
 import org.keycloak.authentication.actiontoken.AbstractActionTokenHandler;
 import org.keycloak.authentication.actiontoken.ActionTokenContext;
 import org.keycloak.authentication.actiontoken.ActionTokenHandlerFactory;
 import org.keycloak.authentication.actiontoken.TokenUtils;
 import org.keycloak.authentication.actiontoken.idpverifyemail.IdpVerifyAccountLinkActionToken;
 import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionToken;
+import org.keycloak.authentication.authenticators.resetcred.ResetPassword;
+import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
+import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.events.EventType;
+import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.UserModel;
+import org.keycloak.protocol.oidc.utils.RedirectUtils;
 
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 
 import com.google.auto.service.AutoService;
 
@@ -22,6 +34,8 @@ import lombok.extern.jbosslog.JBossLog;
 public class ManualVerificationTokenHandler 
     extends AbstractActionTokenHandler<ManualVerificationToken>
 {
+    public static final String VERIFIED_ATTRIBUTE = "sequent.read-only.id-card-number-validated";
+    public static final String VERIFIED_VALUE = "VERIFIED";
     public ManualVerificationTokenHandler() {
         super(
           /* id = */ ManualVerificationToken.TOKEN_TYPE,
@@ -50,8 +64,35 @@ public class ManualVerificationTokenHandler
         ManualVerificationToken token,
         ActionTokenContext<ManualVerificationToken> tokenContext
     ) {
-        log.info("handleToken");
-        return (Response)new Object();
+        log.info("handleToken(): start");
+        AuthenticationSessionModel authSession = tokenContext
+            .getAuthenticationSession();
+        UserModel user = authSession.getAuthenticatedUser();
+        log.info("handleToken(): user = " + user.getUsername());
+
+        KeycloakSession session = tokenContext.getSession();
+        user.setEmailVerified(true);
+        user.setAttribute(VERIFIED_ATTRIBUTE, List.of(VERIFIED_VALUE));
+        log.info("handleToken(): user.VERIFIED_ATTRIBUTE = " + user.getFirstAttribute(VERIFIED_ATTRIBUTE));
+
+        authSession.addRequiredAction(ResetPassword.PROVIDER_ID);
+        tokenContext.getEvent().success();
+        tokenContext
+            .setEvent(tokenContext.getEvent().clone().event(EventType.LOGIN));
+
+        String nextAction = AuthenticationManager.nextRequiredAction(
+            session,
+            authSession,
+            tokenContext.getRequest(),
+            tokenContext.getEvent()
+        );
+        return AuthenticationManager.redirectToRequiredActions(
+            session,
+            authSession.getRealm(),
+            authSession,
+            tokenContext.getUriInfo(),
+            nextAction
+        );
     }
 
     // to execute again, you will need a new token
