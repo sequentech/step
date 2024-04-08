@@ -66,7 +66,7 @@
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
     channel = "nightly";
-    # toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
+    toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
   languages.java = {

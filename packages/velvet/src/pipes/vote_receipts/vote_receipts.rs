@@ -75,6 +75,10 @@ impl VoteReceipts {
                 e
             ))
         })?;
+        dbg!(&bytes_html);
+        println!("***************************");
+        println!("***************************");
+        println!("***************************");
 
         let bytes_pdf = pdf::html_to_pdf(bytes_html).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
