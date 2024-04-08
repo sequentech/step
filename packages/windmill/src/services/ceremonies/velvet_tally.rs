@@ -303,11 +303,22 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
     let template = get_public_asset_vote_receipts_template().await?;
     dbg!(&template);
 
+    let minio_endpoint_base = s3::get_minio_url()?;
+
     let extra_data = VelvetTemplateData {
         title: vote_receipts_title,
-        file_logo,
-        file_qrcode_lib,
-        file_pagedjs_lib,
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_logo
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_qrcode_lib
+        ),
+        file_pagedjs_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_pagedjs_lib
+        ),
     };
     dbg!(&extra_data);
 
