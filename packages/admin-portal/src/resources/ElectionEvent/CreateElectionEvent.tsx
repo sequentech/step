@@ -205,19 +205,15 @@ export const CreateElectionList: React.FC = () => {
 
         if (data?.import_election_event?.error) {
             setErrors(data.import_election_event.error)
+            return
         }
 
-        console.log("LS -> src/resources/ElectionEvent/CreateElectionEvent.tsx:182 -> data: ", data)
-
-        // console.log("LS -> src/resources/ElectionEvent/CreateElectionEvent.tsx:187 -> data: ", data)
-
-        // refresh()
-
-        // if (!errors) {
-        //     notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
-        // } else {
-        //     notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
-        // }
+        let id = data?.import_election_event?.id
+        if (id) {
+            setNewId(id)
+            setLastCreatedResource({id, type: "sequent_backend_election_event"})
+            setIsLoading(true)
+        }
     }
 
     return (

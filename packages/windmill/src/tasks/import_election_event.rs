@@ -4,6 +4,7 @@
 
 use std::fs::File;
 
+use crate::hasura::election_event::get_election_event;
 use crate::{
     services::{
         database::get_hasura_pool,
@@ -14,8 +15,8 @@ use crate::{
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use serde_json::value::Value;
 use tracing::instrument;
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -41,6 +42,23 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
     let file = File::open(temp_file_path)?;
 
     let data: ImportElectionEventSchema = serde_json::from_reader(file)?;
+
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let tenant_id = data.tenant_id.to_string();
+    let election_event_id = data.election_event_data.id.to_string();
+
+    let events = get_election_event(auth_headers, tenant_id, election_event_id.clone())
+        .await?
+        .data
+        .ok_or(anyhow!(
+            "Error fetching election event: {}",
+            election_event_id
+        ))?
+        .sequent_backend_election_event;
+
+    if events.len() > 0 {
+        return Err(anyhow!("Election event already exists {}", election_event_id).into());
+    }
 
     Ok(data)
 }
