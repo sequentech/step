@@ -4,7 +4,7 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation} from "@/gql/graphql"
+import {CreateElectionEventMutation, ImportElectionEventMutation} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -33,7 +33,7 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
-import { ExportButton } from "@/components/tally/ExportElectionMenu"
+import {ExportButton} from "@/components/tally/ExportElectionMenu"
 
 const Hidden = styled(Box)`
     display: none;
@@ -170,15 +170,42 @@ export const CreateElectionList: React.FC = () => {
     }
 
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-    const [importElectionEvent] = useMutation(IMPORT_ELECTION_EVENT)
+    const [errors, setErrors] = useState<string | null>(null)
+    const [importElectionEvent] = useMutation<ImportElectionEventMutation>(IMPORT_ELECTION_EVENT)
+
+    const closeImportDrawer = () => {
+        setOpenDrawer(false)
+        setErrors(null)
+    }
+
+    const uploadCallback = async (documentId: string) => {
+        setErrors(null)
+        let {data, errors} = await importElectionEvent({
+            variables: {
+                tenantId,
+                documentId,
+                checkOnly: true,
+            },
+        })
+
+        if (data?.import_election_event?.error) {
+            setErrors(data.import_election_event.error)
+            throw new Error(data?.import_election_event?.error)
+        }
+    }
 
     const handleImportElectionEvent = async (documentId: string, sha256: string) => {
+        setErrors(null)
         let {data, errors} = await importElectionEvent({
             variables: {
                 tenantId,
                 documentId,
             },
         })
+
+        if (data?.import_election_event?.error) {
+            setErrors(data.import_election_event.error)
+        }
 
         console.log("LS -> src/resources/ElectionEvent/CreateElectionEvent.tsx:182 -> data: ", data)
 
@@ -204,7 +231,6 @@ export const CreateElectionList: React.FC = () => {
                     </Toolbar>
                 }
             >
-
                 <Box
                     sx={{
                         display: "flex",
@@ -292,12 +318,14 @@ export const CreateElectionList: React.FC = () => {
             <hr />
 
             <ImportDataDrawer
-                    open={openDrawer}
-                    closeDrawer={() => setOpenDrawer(false)}
-                    title="electionEventScreen.import.eetitle"
-                    subtitle="electionEventScreen.import.eesubtitle"
-                    doImport={handleImportElectionEvent}
-                />
+                open={openDrawer}
+                closeDrawer={closeImportDrawer}
+                title="electionEventScreen.import.eetitle"
+                subtitle="electionEventScreen.import.eesubtitle"
+                doImport={handleImportElectionEvent}
+                uploadCallback={uploadCallback}
+                errors={errors}
+            />
         </>
     )
 }

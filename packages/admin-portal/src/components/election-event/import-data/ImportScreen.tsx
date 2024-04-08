@@ -10,6 +10,7 @@ import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string) => Promise<void>
+    uploadCallback?: (documentId: string) => Promise<void>
     doCancel: () => void
     errors: string | null
     refresh?: string
@@ -29,7 +30,7 @@ export const ImportStyles = {
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, doImport, refresh, errors} = props
+        const {doCancel, uploadCallback, doImport, refresh, errors} = props
 
         const {t} = useTranslation()
         const notify = useNotify()
@@ -79,6 +80,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
                     setIsUploading(false)
                     setDocumentId(data.get_upload_url.document_id)
+                    if (uploadCallback) {
+                        await uploadCallback?.(data.get_upload_url.document_id)
+                    }
                     notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                 } catch (_error) {
                     setIsUploading(false)

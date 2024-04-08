@@ -721,4 +721,5 @@ custom_types:
   - name: PublishTallyOutput
   - name: InsertCastVoteOutput
   - name: CreateVoteReceiptOutput
+  - name: OptionalImportEvent
   scalars: []

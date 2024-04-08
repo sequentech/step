@@ -56,7 +56,8 @@ pub async fn insert_election_event_f(
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportElectionEventOutput {
-    message: String,
+    id: Option<String>,
+    message: Option<String>,
     error: Option<String>,
 }
 
@@ -70,12 +71,27 @@ pub async fn import_election_event_f(
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
-    let check_result = import_election_event::get_document(input.clone()).await;
+    let document_result =
+        import_election_event::get_document(input.clone()).await;
 
-    if let Err(err) = check_result {
+    if let Err(err) = document_result {
         return Ok(Json(ImportElectionEventOutput {
-            message: format!("Error checking import"),
+            id: None,
+            message: None,
             error: Some(format!("Error checking import: {:?}", err)),
+        }));
+    }
+
+    let document = document_result.unwrap();
+    let id = document.election_event_data.id.clone();
+
+    let check_only = input.check_only.unwrap_or(false);
+
+    if check_only {
+        return Ok(Json(ImportElectionEventOutput {
+            id: Some(id),
+            message: Some(format!("Import document checked")),
+            error: None,
         }));
     }
 
@@ -93,7 +109,8 @@ pub async fn import_election_event_f(
     info!("Sent IMPORT_USERS task {}", task.task_id);
 
     Ok(Json(ImportElectionEventOutput {
-        message: format!("Task created: import_election_event"),
+        id: Some(id),
+        message: Some(format!("Task created: import_election_event")),
         error: None,
     }))
 }

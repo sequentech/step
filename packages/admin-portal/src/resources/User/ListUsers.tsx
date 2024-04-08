@@ -488,6 +488,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 title="electionEventScreen.import.title"
                 subtitle="electionEventScreen.import.subtitle"
                 doImport={handleImportVoters}
+                errors={null}
             />
 
             <Dialog

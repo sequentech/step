@@ -22,6 +22,7 @@ use tracing::instrument;
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
+    pub check_only: Option<bool>,
 }
 
 #[instrument(err)]
@@ -37,7 +38,7 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
-    let mut file = File::open(temp_file_path)?;
+    let file = File::open(temp_file_path)?;
 
     let data: ImportElectionEventSchema = serde_json::from_reader(file)?;
 

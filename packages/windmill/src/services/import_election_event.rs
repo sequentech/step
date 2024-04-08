@@ -22,43 +22,43 @@ use super::database::get_hasura_pool;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Election {
-    id: Uuid,
-    election_event_id: Uuid,
-    data: ElectionData,
+    pub id: Uuid,
+    pub election_event_id: Uuid,
+    pub data: ElectionData,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Contest {
-    id: Uuid,
-    election_id: Uuid,
-    data: ContestData,
-    area_id: Uuid,
+    pub id: Uuid,
+    pub election_id: Uuid,
+    pub data: ContestData,
+    pub area_id: Uuid,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Candidate {
-    id: Uuid,
-    contest_id: Uuid,
-    data: CandidateData,
+    pub id: Uuid,
+    pub contest_id: Uuid,
+    pub data: CandidateData,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AreaContest {
-    id: Uuid,
-    area_id: Uuid,
-    contest_id: Uuid,
+    pub id: Uuid,
+    pub area_id: Uuid,
+    pub contest_id: Uuid,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
-    tenant_id: Uuid,
-    keycloak_event_realm: RealmRepresentation,
-    election_event_data: ElectionEventData,
-    elections: Vec<Election>,
-    contests: Vec<Contest>,
-    candidates: Vec<Candidate>,
-    areas: Vec<AreaData>,
-    area_contest_list: Vec<AreaContest>,
+    pub tenant_id: Uuid,
+    pub keycloak_event_realm: RealmRepresentation,
+    pub election_event_data: ElectionEventData,
+    pub elections: Vec<Election>,
+    pub contests: Vec<Contest>,
+    pub candidates: Vec<Candidate>,
+    pub areas: Vec<AreaData>,
+    pub area_contest_list: Vec<AreaContest>,
 }
 
 pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {

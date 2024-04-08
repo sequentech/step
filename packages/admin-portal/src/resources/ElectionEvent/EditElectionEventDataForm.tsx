@@ -501,6 +501,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
                 doImport={async () => {}}
+                errors={null}
             />
 
             <Dialog
