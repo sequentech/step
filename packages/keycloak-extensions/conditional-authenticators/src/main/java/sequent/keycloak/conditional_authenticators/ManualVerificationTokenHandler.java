@@ -11,8 +11,10 @@ import org.keycloak.authentication.actiontoken.TokenUtils;
 import org.keycloak.authentication.actiontoken.idpverifyemail.IdpVerifyAccountLinkActionToken;
 import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionToken;
 import org.keycloak.authentication.authenticators.resetcred.ResetPassword;
+import org.keycloak.common.ClientConnection;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
+import org.keycloak.events.EventBuilder;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -75,7 +77,8 @@ public class ManualVerificationTokenHandler
         user.setAttribute(VERIFIED_ATTRIBUTE, List.of(VERIFIED_VALUE));
         log.info("handleToken(): user.VERIFIED_ATTRIBUTE = " + user.getFirstAttribute(VERIFIED_ATTRIBUTE));
 
-        authSession.addRequiredAction(ResetPassword.PROVIDER_ID);
+        authSession.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD.name());
+        user.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD.name());
         tokenContext.getEvent().success();
         tokenContext
             .setEvent(tokenContext.getEvent().clone().event(EventType.LOGIN));
