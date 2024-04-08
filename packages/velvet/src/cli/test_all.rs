@@ -4,6 +4,7 @@
 
 use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
+use crate::pipes::pipe_inputs::BALLOTS_FILE;
 use anyhow::{Error, Result};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
@@ -70,7 +71,7 @@ pub fn generate_ballots(
                     .write(true)
                     .append(true)
                     .create(true)
-                    .open(file.join("ballots.csv"))?;
+                    .open(file.join(BALLOTS_FILE))?;
 
                 (0..ballots_num).try_for_each(|i| {
                     let mut choices = vec![

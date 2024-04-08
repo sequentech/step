@@ -105,32 +105,40 @@ impl Pipe for VoteReceipts {
                     )
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                    let bytes_pdf = self.print_vote_receipts(
-                        decoded_ballots_file.as_path(),
-                        &contest_input.contest,
-                    )?;
+                    if decoded_ballots_file.exists() {
+                        let bytes_pdf = self.print_vote_receipts(
+                            decoded_ballots_file.as_path(),
+                            &contest_input.contest,
+                        )?;
 
-                    let path = PipeInputs::build_path(
-                        &self
-                            .pipe_inputs
-                            .cli
-                            .output_dir
-                            .join(PipeNameOutputDir::VoteReceipts.as_ref())
-                            .as_path(),
-                        &election_input.id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    );
+                        let path = PipeInputs::build_path(
+                            &self
+                                .pipe_inputs
+                                .cli
+                                .output_dir
+                                .join(PipeNameOutputDir::VoteReceipts.as_ref())
+                                .as_path(),
+                            &election_input.id,
+                            Some(&contest_input.id),
+                            Some(&area_input.id),
+                        );
 
-                    fs::create_dir_all(&path)?;
+                        fs::create_dir_all(&path)?;
 
-                    let file = path.join(OUTPUT_FILE);
-                    let mut file = OpenOptions::new()
-                        .write(true)
-                        .truncate(true)
-                        .create(true)
-                        .open(file)?;
-                    file.write_all(&bytes_pdf)?;
+                        let file = path.join(OUTPUT_FILE);
+                        let mut file = OpenOptions::new()
+                            .write(true)
+                            .truncate(true)
+                            .create(true)
+                            .open(file)?;
+                        file.write_all(&bytes_pdf)?;
+                    } else {
+                        println!(
+                            "[{}] File not found: {} -- Not processed",
+                            PipeName::VoteReceipts.as_ref(),
+                            decoded_ballots_file.display()
+                        )
+                    }
                 }
             }
         }
