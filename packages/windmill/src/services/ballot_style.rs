@@ -57,7 +57,9 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     }
 }
 
-impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection> for hasura_type::Election {
+impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
+    for hasura_type::Election
+{
     fn from(election: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElection) -> Self {
         hasura_type::Election {
             id: election.id.clone(),

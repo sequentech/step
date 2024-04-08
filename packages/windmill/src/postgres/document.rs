@@ -82,7 +82,7 @@ pub async fn get_document(
         )
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
-    
+
     let documents = rows
         .into_iter()
         .map(|row| -> Result<Document> { row.try_into() })

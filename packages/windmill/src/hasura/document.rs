@@ -58,4 +58,3 @@ pub async fn insert_document(
     let response_body: Response<insert_document::ResponseData> = res.json().await?;
     response_body.ok()
 }
-

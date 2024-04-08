@@ -20,14 +20,14 @@ use sequent_core::types::hasura::core::{
 
 use super::database::get_hasura_pool;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Election {
     id: Uuid,
     election_event_id: Uuid,
     data: ElectionData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Contest {
     id: Uuid,
     election_id: Uuid,
@@ -35,21 +35,21 @@ pub struct Contest {
     area_id: Uuid,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Candidate {
     id: Uuid,
     contest_id: Uuid,
     data: CandidateData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct AreaContest {
     id: Uuid,
     area_id: Uuid,
     contest_id: Uuid,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     tenant_id: Uuid,
     keycloak_event_realm: RealmRepresentation,
@@ -61,11 +61,13 @@ pub struct ImportElectionEventSchema {
     area_contest_list: Vec<AreaContest>,
 }
 
-pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
+pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
+    let mut data = data_init.clone();
     let tenant_id = &data.tenant_id.to_string();
     let election_event_id = &data.election_event_data.id;
 
-    upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
+    let board = upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
+    data.election_event_data.bulletin_board_reference = Some(board);
     upsert_keycloak_realm(tenant_id.as_str(), &election_event_id).await?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -86,7 +88,7 @@ pub async fn process(data: &ImportElectionEventSchema) -> Result<()> {
     insert_area(&hasura_transaction, &data).await?;
     insert_area_contest(&hasura_transaction, &data).await?;
 
-    let commit = hasura_transaction
+    let _commit = hasura_transaction
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed: {}", e));

@@ -67,12 +67,7 @@ pub async fn import_election_event_f(
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
     let input = body.into_inner();
 
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![],
-    )?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
     let celery_app = get_celery_app().await;
     let task = celery_app
