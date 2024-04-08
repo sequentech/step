@@ -1,10 +1,9 @@
 package sequent.keycloak.conditional_authenticators;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import org.keycloak.authentication.actiontoken.execactions.ExecuteActionsActionToken;
+//import org.keycloak.authentication.actiontoken.execactions.ExecuteActionsActionToken;
 import org.keycloak.authorization.util.Tokens;
 import org.keycloak.common.util.Time;
 import org.keycloak.models.KeycloakSession;
@@ -28,7 +27,7 @@ import lombok.extern.jbosslog.JBossLog;
 
 /*
  * curl -v http://127.0.0.1:8090/realms/master/manual-verification/ping | jq -C .
- * curl -v http://127.0.0.1:8090/realms/master/manual-verification/generate-link?userName=edulix@nvotes.com | jq -C .
+ * curl -v http://127.0.0.1:8090/realms/master/manual-verification/generate-link?userName=admin | jq -C .
  */
 @JBossLog
 @Provider
@@ -57,12 +56,16 @@ public class ManualVerificationProvider implements RealmResourceProvider {
     @GET
     @Path("/generate-link")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response generateLink(@QueryParam("userName") String userName) {
+    public Response generateLink(
+        @QueryParam("userName") String userName,
+        @QueryParam("redirectUri") String redirectUri
+    ) {
         log.info("generateLink");
         // throws some exception if is not an admin
+        // TODO: reactivate when we have finished this
         //checkPermissions();
 
-        String tokenLink = generateTokenLink(userName);
+        String tokenLink = generateTokenLink(userName, redirectUri);
         if (tokenLink != null) {
             Map<String, String> response = new HashMap<>();
             response.put("link", tokenLink);
@@ -71,7 +74,7 @@ public class ManualVerificationProvider implements RealmResourceProvider {
         return Response.status(Response.Status.NOT_FOUND).build();
     }
 
-    private String generateTokenLink(String userName)
+    private String generateTokenLink(String userName, String redirectUri)
     {
         log.info("generateTokenLink");
         RealmModel realm = session.getContext().getRealm();
@@ -84,12 +87,17 @@ public class ManualVerificationProvider implements RealmResourceProvider {
         if (user != null)
         {
             // Generate the token
-            ExecuteActionsActionToken token = new ExecuteActionsActionToken(
+            /*ExecuteActionsActionToken token = new ExecuteActionsActionToken(
                 user.getId(),
                 expiration,
                 List.of(UserModel.RequiredAction.UPDATE_PASSWORD.name()),
-                null,
+                redirectUri,
                 CLIENT_ID
+            );*/
+            ManualVerificationToken mvToken = new ManualVerificationToken(
+                user.getId(),
+                expiration,
+                redirectUri
             );
 
             UriBuilder builder = LoginActionsService
@@ -97,7 +105,7 @@ public class ManualVerificationProvider implements RealmResourceProvider {
             builder
                 .queryParam(
                     "key",
-                    token.serialize(
+                    mvToken.serialize(
                         session,
                         realm,
                         session.getContext().getUri()
