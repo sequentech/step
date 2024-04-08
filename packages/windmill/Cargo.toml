@@ -54,6 +54,10 @@ thiserror = "1.0.50"
 # time
 time = "0.3.30"
 
+# importing voters in comelec format
+rusqlite = { version = "0.31.0", features = ["bundled", "chrono"] }
+simple-rijndael = "0.3.2"
+
 # for sending emails and sms
 lettre = "0.11.2"
 aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
