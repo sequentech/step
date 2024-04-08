@@ -1,0 +1,139 @@
+
+DELETE FROM sequent_backend.ballot_publication WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.ballot_style WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.area_contest WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.candidate WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.contest WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.election WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.area WHERE election_event_id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+DELETE FROM sequent_backend.election_event WHERE id = '1f8b9a17-d3e4-4fc4-aeeb-182f8b9a17d3';
+
+
+
+
+
+                              Table "sequent_backend.election_event"
+          Column          |           Type           | Collation | Nullable |       Default
+--------------------------+--------------------------+-----------+----------+----------------------
+ id                       | uuid                     |           | not null | gen_random_uuid()
+ created_at               | timestamp with time zone |           |          | now()
+ updated_at               | timestamp with time zone |           |          | now()
+ labels                   | jsonb                    |           |          |
+ annotations              | jsonb                    |           |          |
+ tenant_id                | uuid                     |           | not null |
+ name                     | character varying        |           | not null |
+ description              | text                     |           |          |
+ presentation             | jsonb                    |           |          |
+ bulletin_board_reference | jsonb                    |           |          |
+ is_archived              | boolean                  |           | not null | false
+ voting_channels          | jsonb                    |           |          |
+ dates                    | jsonb                    |           |          |
+ status                   | jsonb                    |           |          |
+ user_boards              | character varying        |           |          |
+ encryption_protocol      | character varying        |           | not null |
+ is_audit                 | boolean                  |           |          |
+ audit_election_event_id  | uuid                     |           |          |
+ public_key               | text                     |           |          |
+ alias                    | text                     |           |          |
+ statistics               | jsonb                    |           |          | jsonb_build_object()
+Indexes:
+    "event_pkey" PRIMARY KEY, btree (id)
+    "event_labels" btree (labels)
+
+
+                                     Table "sequent_backend.election"
+             Column              |           Type           | Collation | Nullable |       Default
+---------------------------------+--------------------------+-----------+----------+----------------------
+ id                              | uuid                     |           | not null | gen_random_uuid()
+ tenant_id                       | uuid                     |           | not null |
+ election_event_id               | uuid                     |           | not null |
+ created_at                      | timestamp with time zone |           |          | now()
+ last_updated_at                 | timestamp with time zone |           |          | now()
+ labels                          | jsonb                    |           |          |
+ annotations                     | jsonb                    |           |          |
+ name                            | character varying        |           | not null |
+ description                     | text                     |           |          |
+ presentation                    | jsonb                    |           |          |
+ dates                           | jsonb                    |           |          |
+ status                          | jsonb                    |           |          |
+ eml                             | text                     |           |          |
+ num_allowed_revotes             | integer                  |           |          |
+ is_consolidated_ballot_encoding | boolean                  |           |          |
+ spoil_ballot_option             | boolean                  |           |          |
+ alias                           | text                     |           |          |
+ voting_channels                 | jsonb                    |           |          |
+ is_kiosk                        | boolean                  |           |          | false
+ image_document_id               | text                     |           |          |
+ statistics                      | jsonb                    |           |          | jsonb_build_object()
+ receipts                        | jsonb                    |           |          |
+Indexes:
+    "election_pkey" PRIMARY KEY, btree (id, tenant_id, election_event_id)
+
+
+                               Table "sequent_backend.contest"
+         Column         |           Type           | Collation | Nullable |      Default
+------------------------+--------------------------+-----------+----------+-------------------
+ id                     | uuid                     |           | not null | gen_random_uuid()
+ tenant_id              | uuid                     |           | not null |
+ election_event_id      | uuid                     |           | not null |
+ election_id            | uuid                     |           | not null |
+ created_at             | timestamp with time zone |           |          | now()
+ last_updated_at        | timestamp with time zone |           |          | now()
+ labels                 | jsonb                    |           |          |
+ annotations            | jsonb                    |           |          |
+ is_acclaimed           | boolean                  |           |          |
+ is_active              | boolean                  |           |          |
+ name                   | character varying        |           |          |
+ description            | text                     |           |          |
+ presentation           | jsonb                    |           |          |
+ min_votes              | integer                  |           |          |
+ max_votes              | integer                  |           |          |
+ voting_type            | character varying        |           |          |
+ counting_algorithm     | character varying        |           |          |
+ is_encrypted           | boolean                  |           |          |
+ tally_configuration    | jsonb                    |           |          |
+ conditions             | jsonb                    |           |          |
+ winning_candidates_num | integer                  |           |          |
+ image_document_id      | text                     |           |          |
+ alias                  | text                     |           |          |
+Indexes:
+    "contest_pkey" PRIMARY KEY, btree (id, tenant_id, election_event_id)
+
+
+                            Table "sequent_backend.candidate"
+      Column       |           Type           | Collation | Nullable |      Default
+-------------------+--------------------------+-----------+----------+-------------------
+ id                | uuid                     |           | not null | gen_random_uuid()
+ tenant_id         | uuid                     |           | not null |
+ election_event_id | uuid                     |           | not null |
+ contest_id        | uuid                     |           |          |
+ created_at        | timestamp with time zone |           |          | now()
+ last_updated_at   | timestamp with time zone |           |          | now()
+ labels            | jsonb                    |           |          |
+ annotations       | jsonb                    |           |          |
+ name              | character varying        |           |          |
+ description       | text                     |           |          |
+ type              | character varying        |           |          |
+ presentation      | jsonb                    |           |          |
+ is_public         | boolean                  |           |          |
+ alias             | text                     |           |          |
+ image_document_id | text                     |           |          |
+Indexes:
+    "candidate_pkey" PRIMARY KEY, btree (id, tenant_id, election_event_id)
+
+
+                              Table "sequent_backend.area"
+      Column       |           Type           | Collation | Nullable |      Default
+-------------------+--------------------------+-----------+----------+-------------------
+ id                | uuid                     |           | not null | gen_random_uuid()
+ tenant_id         | uuid                     |           | not null |
+ election_event_id | uuid                     |           | not null |
+ created_at        | timestamp with time zone |           |          | now()
+ last_updated_at   | timestamp with time zone |           |          | now()
+ labels            | jsonb                    |           |          |
+ annotations       | jsonb                    |           |          |
+ name              | character varying        |           |          |
+ description       | text                     |           |          |
+ type              | character varying        |           |          |
+Indexes:
+    "area_pkey" PRIMARY KEY, btree (id, tenant_id, election_event_id)
