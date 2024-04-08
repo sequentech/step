@@ -284,11 +284,21 @@ struct VelvetTemplateData {
 }
 
 pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
-    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
-    let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")?;
-    let file_qrcode_lib = std::env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
-    let file_pagedjs_lib = std::env::var("PUBLIC_ASSETS_PAGEDJS_LIB")?;
-    let vote_receipts_title = std::env::var("VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE")?;
+    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
+    let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_LOGO_IMG var: {}", err))?;
+    let file_qrcode_lib = std::env::var("PUBLIC_ASSETS_QRCODE_LIB")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_QRCODE_LIB var: {}", err))?;
+    let file_pagedjs_lib = std::env::var("PUBLIC_ASSETS_PAGEDJS_LIB")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PAGEDJS_LIB var: {}", err))?;
+    let vote_receipts_title =
+        std::env::var("VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE").map_err(|err| {
+            anyhow!(
+                "error loading VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE var: {}",
+                err
+            )
+        })?;
 
     let template = get_public_asset_vote_receipts_template().await?;
     dbg!(&template);
