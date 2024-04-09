@@ -50,7 +50,7 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     return <CircularProgress />
 }
 
-const ExportButton = styled.div`
+export const ExportButton = styled.div`
     cursor: pointer;
     margin-left: 10px;
     margin-right: 10px;

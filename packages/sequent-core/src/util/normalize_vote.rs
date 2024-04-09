@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-use crate::types::hasura_types::Uuid;
 
 pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
     tally_type: &str,
     remove_errors: bool,
-    invalid_choice_ids: &Vec<Uuid>,
+    invalid_choice_ids: &Vec<String>,
 ) -> DecodedVoteContest {
     let mut original = input.clone();
     let filtered_choices: Vec<&DecodedVoteChoice> = original

@@ -6,7 +6,7 @@ use crate::ballot::{
     self, CandidatePresentation, ContestPresentation, ElectionDates,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
-use crate::types::hasura_types;
+use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Result};
 
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
@@ -96,7 +96,7 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
-        contests: contests,
+        contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
     })
@@ -166,14 +166,14 @@ fn create_contest(
         description: contest.description,
         description_i18n,
         alias: contest.alias.clone(),
-        alias_i18n: alias_i18n,
+        alias_i18n,
         max_votes: contest.max_votes.unwrap_or(0),
         min_votes: contest.min_votes.unwrap_or(0),
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,
         is_encrypted: contest.is_encrypted.unwrap_or(false),
-        candidates: candidates,
+        candidates,
         presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),
     })

@@ -4,7 +4,7 @@
 
 pub mod ceremonies;
 pub mod communications;
-pub mod hasura_types;
+pub mod hasura;
 pub mod keycloak;
 pub mod permissions;
 pub mod results;

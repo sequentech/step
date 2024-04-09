@@ -17,12 +17,13 @@ import {
     useGetList,
     FunctionField,
     Button as ReactAdminButton,
+    useRecordContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Drawer, Typography} from "@mui/material"
+import {Button, Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -33,19 +34,23 @@ import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {DeleteUserMutation, ExportUsersMutation} from "@/gql/graphql"
+import {
+    DeleteUserMutation,
+    ExportUsersMutation,
+    ImportUsersMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {useMutation, useQuery} from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
-import importDrawerState from "@/atoms/import-drawer-state"
-import {useAtom} from "jotai"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
+import {IMPORT_USERS} from "@/queries/ImportUsers"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -68,7 +73,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {globalSettings} = useContext(SettingsContext)
 
     const [open, setOpen] = React.useState(false)
-    const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
     const [exporting, setExporting] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
@@ -81,7 +85,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState(false)
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const [openImportDrawer, setOpenImportDrawer] = React.useState<boolean>(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
@@ -272,7 +277,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleImport = () => {
-        setOpenImport(true)
+        setOpenImportDrawer(true)
     }
 
     const handleExport = () => {
@@ -336,6 +341,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             ) : null}
         </ResourceListStyles.EmptyBox>
     )
+
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+    const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
+
+    const handleImportVoters = async (documentId: string, sha256: string) => {
+        let {data, errors} = await importUsers({
+            variables: {
+                tenantId,
+                documentId,
+                electionEventId: electionEvent.id,
+            },
+        })
+
+        refresh()
+
+        if (!errors) {
+            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
+        } else {
+            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+        }
+    }
 
     return (
         <>
@@ -454,18 +480,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
 
-            <Drawer
-                anchor="right"
-                open={openImport}
-                onClose={() => {
-                    setOpenImport(false)
-                }}
-                PaperProps={{
-                    sx: {width: "30%"},
-                }}
-            >
-                <ImportVotersBaseTabs doRefresh={() => refresh()} />
-            </Drawer>
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="electionEventScreen.import.title"
+                subtitle="electionEventScreen.import.subtitle"
+                paragraph="electionEventScreen.import.votersParagraph"
+                doImport={handleImportVoters}
+                errors={null}
+            />
 
             <Dialog
                 variant="warning"
