@@ -96,7 +96,7 @@ mod tests {
         assert!(config.stages.stages_def.contains_key("main"));
 
         let main_stage = config.stages.stages_def.get("main").unwrap();
-        assert_eq!(main_stage.pipeline.len(), 4);
+        assert_eq!(main_stage.pipeline.len(), 5);
 
         Ok(())
     }
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_clirun_validate_pipeline_definition() -> Result<()> {
         let fixture = TestFixture::new()?;
-        let mut config = fixtures::get_config();
+        let mut config = fixtures::get_config()?;
 
         config
             .stages

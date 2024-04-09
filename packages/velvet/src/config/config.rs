@@ -25,7 +25,7 @@ pub struct Stage {
     pub pipeline: Vec<PipeConfig>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PipeConfig {
     pub id: String,
     #[serde(deserialize_with = "deserialize_pipe")]

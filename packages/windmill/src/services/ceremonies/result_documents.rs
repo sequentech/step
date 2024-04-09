@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
+    OUTPUT_RECEIPT_PDF,
 };
 
 pub const MIME_PDF: &str = "application/pdf";
@@ -55,6 +56,26 @@ async fn generic_save_documents(
         )
         .await?;
         documents.pdf = Some(document.id);
+    }
+
+    // vote_receipts_pdf PDF
+    if let Some(pdf_path) = document_paths.vote_receipts_pdf.clone() {
+        let pdf_size = get_file_size(pdf_path.as_str())?;
+
+        // upload binary data into a document (s3 and hasura)
+        let document = upload_and_return_document(
+            pdf_path,
+            pdf_size,
+            MIME_PDF.to_string(),
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            OUTPUT_PDF.to_string(),
+            None,
+            false,
+        )
+        .await?;
+        documents.vote_receipts_pdf = Some(document.id);
     }
 
     // json
@@ -125,6 +146,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             pdf: None,
             html: None,
             tar_gz: Some(base_path.display().to_string()),
+            vote_receipts_pdf: None,
         }
     }
     async fn save_documents(
@@ -160,6 +182,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: Some(document.id),
+                vote_receipts_pdf: None,
             };
 
             update_results_event_documents(
@@ -178,6 +201,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 pdf: None,
                 html: None,
                 tar_gz: None,
+                vote_receipts_pdf: None,
             })
         }
     }
@@ -198,6 +222,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
             html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
             tar_gz: None,
+            vote_receipts_pdf: None,
         }
     }
 
@@ -244,7 +269,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         area_id: Option<String>,
         base_path: &PathBuf,
     ) -> ResultDocumentPaths {
-        let folder_path = match area_id {
+        let folder_path = match area_id.clone() {
             Some(area_id_str) => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}/area__{}",
                 self.contest.election_id, self.contest.id, area_id_str
@@ -254,11 +279,23 @@ impl GenerateResultDocuments for ReportDataComputed {
                 self.contest.election_id, self.contest.id
             )),
         };
+        let vote_receipts_pdf = match area_id {
+            Some(area_id_str) => {
+                let path = base_path.join(format!(
+                    "output/velvet-vote-receipts/election__{}/contest__{}/area__{}",
+                    self.contest.election_id, self.contest.id, area_id_str
+                ));
+
+                Some(path.join(OUTPUT_RECEIPT_PDF).display().to_string())
+            }
+            None => None,
+        };
         ResultDocumentPaths {
             json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
             pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
             html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
             tar_gz: None,
+            vote_receipts_pdf: vote_receipts_pdf,
         }
     }
 
