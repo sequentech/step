@@ -460,7 +460,7 @@ const englishTranslation = {
                 },
                 manualVerification: {
                     verify: "Manually Verify this voter",
-                    body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC."
+                    body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -478,7 +478,8 @@ const englishTranslation = {
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
                     manualVerificationError: "Error manually verifying the voter",
-                    manualVerificationSuccess: "Sucessfully verified manually the voter, downloading PDF..",
+                    manualVerificationSuccess:
+                        "Sucessfully verified manually the voter, downloading PDF..",
                 },
             },
             roles: {

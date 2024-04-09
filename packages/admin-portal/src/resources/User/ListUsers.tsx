@@ -180,19 +180,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 userId: recordIds[0],
             },
         })*/
-        const errors = null;
+        const errors = null
         if (errors) {
-            notify(
-                t("usersAndRolesScreen.voters.notifications.manualVerificationError"),
-                {type: "error"}
-            )
+            notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                type: "error",
+            })
             console.log(`Error manually verifying user: ${errors}`)
             return
         }
-        notify(
-            t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"),
-            {type: "success"}
-        )
+        notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
+            type: "success",
+        })
         setRecordIds([])
 
         refresh()
