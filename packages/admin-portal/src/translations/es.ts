@@ -462,6 +462,10 @@ const spanishTranslation: TranslationType = {
                     title: "Votante",
                     subtitle: "Crear votante",
                 },
+                manualVerification: {
+                    verify: "Verificar manualmente al votante",
+                    body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea."
+                },
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
@@ -475,6 +479,8 @@ const spanishTranslation: TranslationType = {
                 notifications: {
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
+                    manualVerificationError: "Error verificando manualmente al votante",
+                    manualVerificationSuccess: "Verificado exitosamente manualmente al elector, descargar PDF..",
                 },
             },
             roles: {
