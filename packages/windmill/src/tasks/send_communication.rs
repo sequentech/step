@@ -4,8 +4,10 @@
 use crate::hasura::election_event::get_election_event;
 use crate::postgres::area::get_elections_by_area;
 use crate::services::celery_app::get_celery_app;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::users::{list_users, ListUsersFilter};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
@@ -157,6 +159,7 @@ impl SmsSender {
                 );
             }
         }
+
         Ok(())
     }
 }
@@ -614,5 +617,23 @@ pub async fn send_communication(
         .commit()
         .await
         .with_context(|| "error comitting transaction")?;
+
+    println!("ABCABCABC ****");
+    println!("ABCABCABC ****");
+    println!("ABCABCABC ****");
+
+    if let Some(election_event) = election_event {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+
+        let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+
+        electoral_log.post_send_communication(election_event.id, None);
+    }
+
+    println!("ABCABCABC ****");
+    println!("ABCABCABC ****");
+    println!("ABCABCABC ****");
+
     Ok(())
 }

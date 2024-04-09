@@ -188,6 +188,20 @@ impl ElectoralLog {
         self.post(message).await
     }
 
+    #[instrument(skip(self))]
+    pub(crate) async fn post_send_communication(
+        &self,
+        event_id: String,
+        election_id: Option<String>, 
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election = ElectionIdString(election_id);
+
+        let message = Message::tally_close_message(event, election, &self.sd)?;
+
+        self.post(message).await
+    }
+
     async fn post(&self, message: Message) -> Result<()> {
         let board_message: BoardMessage = message.try_into()?;
         let ms = vec![board_message];
