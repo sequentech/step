@@ -21,13 +21,218 @@ use tracing::instrument;
 use deadpool_postgres::Transaction;
 use uuid::Uuid;
 
+const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
+const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManualVerificationData {
+    pub manual_verification_url: String,
+    pub username: String,
+    pub qrcode: String,
+    pub logo: String,
+    pub file_logo: String,
+    pub file_qrcode_lib: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManualVerificationRoot {
+    pub data: ManualVerificationData,
+}
+
+trait ToMap {
+    fn to_map(&self) -> Result<Map<String, Value>>;
+}
+
+impl ToMap for ManualVerificationRoot {
+    fn to_map(&self) -> Result<Map<String, Value>> {
+        let Value::Object(map) = serde_json::to_value(self.clone())? else {
+            return Err(anyhow!("Can't convert ManualVerificationRoot to Map"));
+        };
+        Ok(map)
+    }
+}
+
+impl ToMap for ManualVerificationData {
+    fn to_map(&self) -> Result<Map<String, Value>> {
+        let Value::Object(map) = serde_json::to_value(self.clone())? else {
+            return Err(anyhow!("Can't convert ManualVerificationData to Map"));
+        };
+        Ok(map)
+    }
+}
+
+fn get_minio_url() -> Result<String> {
+    let minio_private_uri =
+        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
+    let bucket = s3::get_public_bucket()?;
+
+    Ok(format!("{}/{}", minio_private_uri, bucket))
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_manual_verification_pdf(
     hasura_transaction: &Transaction<'_>,
-    element_id: &str,
+    document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
 ) -> Result<()> {
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+    let file_logo = env::var("PUBLIC_ASSETS_LOGO_IMG")?;
+    let file_qrcode_lib = env::var("PUBLIC_ASSETS_QRCODE_LIB")?;
+    let manual_verification_url = "http://foo.bar";
+    let username = "some-username";
+
+    let minio_endpoint_base = get_minio_url()?;
+
+    let data = ManualVerificationData {
+        manual_verification_url: manual_verification_url.to_string(),
+        username: username.to_string(),
+        qrcode: QR_CODE_TEMPLATE.to_string(),
+        logo: LOGO_TEMPLATE.to_string(),
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_logo
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_qrcode_lib
+        ),
+    };
+    let map = ManualVerificationRoot { data: data.clone() }.to_map()
+    ?;
+    let render = reports::render_template_text(
+        r#"
+        <html lang="en-US">
+
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1" />
+          <title>Authenticate to Vote</title>
+          <script src="{{data.file_qrcode_lib}}"></script>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: auto;
+              max-width: 640px;
+            }
+        
+            h1, h2, h3, h4 {
+              margin-top: 48px;
+              margin-bottom: 48px;
+            }
+
+            .logo {
+              content: url("{{data.file_logo}}");
+              text-align: center;
+              margin: 16px auto;
+            }
+        
+            .main {
+              margin-top: 32px;
+            }
+        
+            .main div {
+              margin-top: 32px;
+            }
+
+            .id-content {
+              print-color-adjust: exact;
+              font-family: monospace;
+              font-size:11px;
+              padding: 6px 12px;
+              background: #ecfdf5;
+              color: #191d23;
+              border-radius: 4px;
+            }
+
+            .info {
+              margin: 32px 0;
+            }
+            .info p {
+              margin: 12px 0;
+            }
+        
+            #qrcode {
+              margin-top: 32px;
+              display: flex;
+              justify-content: center;
+            }
+          </style>
+        </head>
+
+        <body>
+          <main class="main">
+            <div>
+            {{{data.logo}}}
+            </div>
+            <div>
+            <h2>Authenticate to Vote</h2>
+            <p>
+                The <strong>Login Link</strong> below allows you to authenticate
+                after having performed Manual Verification.
+            </p>
+            <div class="info">
+                <p>
+                Your Username:
+                <span class="id-content">{{data.username}}</span>
+                </p>
+                <p>
+                Login Link:
+                <a href="{{data.manual_verification_url}}">Login Link</a>
+                </p>
+            </div>
+            </div>
+            
+            <div>
+            <p>
+                You can enter the <strong>Login Link</strong> using the 
+                following QR code:
+            </p>
+            {{{data.qrcode}}}
+            </div>
+          </main>
+        </body>
+
+        <script>
+          const qrcode = new QRCode(document.getElementById("qrcode"), {
+            text: "{{data.manual_verification_url}}",
+            width: 180,
+            height: 180,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H,
+          });
+        </script>
+
+        </html>
+        "#,
+        map
+    )?;
+
+    // Gen pdf
+    let bytes_pdf = pdf::html_to_pdf(render)
+        .map_err(|err|
+            anyhow!("error rendering manual verification pdf: {}", err)
+        )?;
+    let (_temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&bytes_pdf, "manual-verification-", ".pdf")
+            .with_context(|| "Error writing to file")?;
+
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let _document = upload_and_return_document(
+        temp_path_string,
+        file_size,
+        "application/pdf".to_string(),
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        format!("manual-verification-{voter_id}.pdf"),
+        Some(document_id.to_string()),
+        true,
+    )
+    .await?;
+
+
     Ok(())
 }
