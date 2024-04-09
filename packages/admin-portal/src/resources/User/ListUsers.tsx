@@ -29,6 +29,7 @@ import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
+import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
@@ -82,6 +83,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     )
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
@@ -112,6 +114,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setRecordIds([])
         setOpenSendCommunication(false)
         setOpenDeleteModal(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -122,6 +125,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpen(true)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(false)
         setRecordIds([id as string])
@@ -138,6 +142,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpen(false)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
 
@@ -152,9 +157,74 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpen(false)
         setOpenNew(false)
         setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDeleteModal(true)
         setDeleteId(id as string)
+    }
+
+    const manualVerificationAction = (id: Identifier) => {
+        if (!electionEventId && authContext.userId === id) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(true)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setRecordIds([id])
+    }
+
+    const confirmManualVerificationAction = async () => {
+        console.log(`confirmManualVerificationAction: start`)
+        async function fetchData(url: string): Promise<any> {
+            try {
+                // Setting up custom headers
+                const headers = new Headers({
+                    "Content-Type": "application/json",
+                    //'Authorization': 'Bearer YOUR_TOKEN_HERE'
+                })
+
+                // Perform the HTTP GET request
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: headers,
+                })
+
+                // Check if the request was successful
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`)
+                }
+
+                // Parse and return the JSON response
+                return await response.json()
+            } catch (error) {
+                console.error("Failed to fetch data:", error)
+                throw error
+            }
+        }
+
+        const url =
+            "http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/manual-verification/generate-link?userId=788e32ca-5aad-45d8-8c98-a985fb1d9dec&redirectUri=http://127.0.0.1:3002"
+        console.log(`calling manual verification url=${url}`)
+        await fetchData(url)
+            .then((data) => {
+                console.log(`fetchData success: ${data}`)
+                notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
+                    type: "success",
+                })
+                setRecordIds([])
+                refresh()
+            })
+            .catch((error) => {
+                console.log(`Error manually verifying user: ${error}`)
+                notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                    type: "error",
+                })
+                setRecordIds([])
+                refresh()
+            })
     }
 
     const confirmDeleteAction = async () => {
@@ -203,6 +273,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         {
             icon: <DeleteIcon />,
             action: deleteAction,
+            showAction: () => canEditUsers,
+        },
+        {
+            icon: <CreditScoreIcon />,
+            action: manualVerificationAction,
             showAction: () => canEditUsers,
         },
     ]
@@ -478,6 +553,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }}
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
+            </Dialog>
+            <Dialog
+                variant="warning"
+                open={openManualVerificationModal}
+                ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmManualVerificationAction()
+                    }
+                    setOpenManualVerificationModal(false)
+                }}
+            >
+                {t(`usersAndRolesScreen.voters.manualVerification.body`)}
             </Dialog>
 
             <ImportDataDrawer
