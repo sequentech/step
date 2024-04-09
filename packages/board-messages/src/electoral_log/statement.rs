@@ -36,6 +36,7 @@ impl StatementHead {
             StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
+            StatementBody::SendCommunication(_, _) => StatementType::SendCommunication,
         };
         let timestamp = crate::timestamp();
 
@@ -89,7 +90,7 @@ pub enum StatementBody {
     //
     // "Apertura y cierre de la bóveda de votos"
     TallyClose(ElectionIdString),
-    
+
     SendCommunication(String, String),
 }
 
@@ -106,4 +107,5 @@ pub enum StatementType {
     KeyInsertionCeremony,
     TallyOpen,
     TallyClose,
+    SendCommunication,
 }
