@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use rocket::http::Status;
@@ -38,14 +35,17 @@ pub async fn fetch_document(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_DOWNLOAD],
     )?;
+
     let input = body.into_inner();
-    let url = documents::fetch_document(
-        claims.hasura_claims.tenant_id.clone(),
-        input.election_event_id.clone(),
-        input.document_id.clone(),
+
+    let url = documents::get_document_url(
+        &claims.hasura_claims.tenant_id,
+        Some(&input.election_event_id),
+        &input.document_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
 
     Ok(Json(GetDocumentUrlResponse { url }))
 }

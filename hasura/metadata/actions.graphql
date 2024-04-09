@@ -198,6 +198,14 @@ type Query {
 }
 
 type Mutation {
+  import_election_event (
+    tenant_id: String!
+    document_id: String!
+    check_only: Boolean
+  ): OptionalImportEvent
+}
+
+type Mutation {
   import_users (
     tenant_id: String!
     election_event_id: String
@@ -782,5 +790,11 @@ type CreateVoteReceiptOutput {
   id : uuid!
   ballot_id : String
   status : String
+}
+
+type OptionalImportEvent {
+  id : String
+  message : String
+  error : String
 }
 

@@ -103,7 +103,7 @@ impl ImportUsersBody {
         let s3_bucket = s3::get_private_bucket()?;
         let document_s3_key = s3::get_document_key(
             &self.tenant_id,
-            &Default::default(),
+            "",
             &self.document_id,
             &document.name.clone().unwrap_or_default(),
         );

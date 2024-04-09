@@ -1,7 +1,7 @@
-import {Box, styled, Button, TextField, CircularProgress} from "@mui/material"
+import {Box, styled, Button, TextField} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
-import React, {useEffect, memo, useRef} from "react"
+import React, {useEffect, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -9,10 +9,10 @@ import {useMutation} from "@apollo/client"
 import {useNotify} from "react-admin"
 
 interface ImportScreenProps {
-    doImport: (documentId: string, sha256: string) => void
+    doImport: (documentId: string, sha256: string) => Promise<void>
+    uploadCallback?: (documentId: string) => Promise<void>
     doCancel: () => void
-    isLoading: boolean
-    errors: String | null
+    errors: string | null
     refresh?: string
 }
 
@@ -30,10 +30,11 @@ export const ImportStyles = {
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, doImport, isLoading, refresh, errors} = props
+        const {doCancel, uploadCallback, doImport, refresh, errors} = props
 
         const {t} = useTranslation()
         const notify = useNotify()
+        const [loading, setLoading] = useState<boolean>(false)
         const [shaField, setShaField] = React.useState<string>("")
         const [showShaDialog, setShowShaDialog] = React.useState<boolean>(false)
         const [isUploading, setIsUploading] = React.useState<boolean>(false)
@@ -47,7 +48,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
             if (theFile) {
                 // Get the Upload URL
-                let {data, errors} = await getUploadUrl({
+                let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
                         media_type: theFile.type,
@@ -59,8 +60,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 try {
                     if (!data?.get_upload_url?.url) {
                         notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+
                         return
                     }
+
                     // Actually upload the CSV file
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -69,9 +72,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         },
                         body: theFile,
                     })
+
                     setIsUploading(false)
-                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                     setDocumentId(data.get_upload_url.document_id)
+                    if (uploadCallback) {
+                        await uploadCallback?.(data.get_upload_url.document_id)
+                    }
+                    notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
                 } catch (_error) {
                     setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -87,16 +94,18 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setDocumentId(null)
         }, [refresh])
 
-        const onImportButtonClick = () => {
+        const onImportButtonClick = async () => {
             if (!shaField) {
                 setShowShaDialog(true)
                 return
             }
 
-            doImport(documentId as string, shaField)
+            setLoading(true)
+            await doImport(documentId as string, shaField)
+            setLoading(false)
         }
 
-        const isWorking = () => isLoading || isUploading
+        const isWorking = () => loading || isUploading
 
         return (
             <Box sx={{padding: "0"}}>
@@ -138,6 +147,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {t("electionEventScreen.import.import")}
                     </ImportStyles.ImportButton>
                 </Box>
+
                 <Dialog
                     variant="warning"
                     open={showShaDialog}
@@ -148,6 +158,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         if (result) {
                             doImport(documentId as string, shaField)
                         }
+
                         setShowShaDialog(false)
                     }}
                 >

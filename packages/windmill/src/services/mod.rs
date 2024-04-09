@@ -18,6 +18,7 @@ pub mod election_event_statistics;
 pub mod election_event_status;
 pub mod election_statistics;
 pub mod electoral_log;
+pub mod import_election_event;
 pub mod insert_cast_vote;
 pub mod jwks;
 pub mod manual_verification;
