@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::fs::File;
-use std::io::Read;
 use crate::hasura::election_event::get_election_event;
 use crate::{
     services::{
@@ -17,9 +15,11 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use tracing::instrument;
 use uuid::Uuid;
-use std::collections::HashMap;
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportElectionEventBody {
@@ -29,25 +29,49 @@ pub struct ImportElectionEventBody {
 }
 
 #[instrument(err)]
-pub fn replace_ids(data_str: &str, original_data: &ImportElectionEventSchema, replace_event_id: bool) -> Result<ImportElectionEventSchema> {
+pub fn replace_ids(
+    data_str: &str,
+    original_data: &ImportElectionEventSchema,
+    replace_event_id: bool,
+) -> Result<ImportElectionEventSchema> {
     let mut ids_to_replace: Vec<String> = vec![];
     if replace_event_id {
         ids_to_replace.push(original_data.election_event_data.id.clone());
     }
 
-    let mut election_ids = original_data.elections.iter().map(|element| element.id.to_string()).collect();
+    let mut election_ids = original_data
+        .elections
+        .iter()
+        .map(|element| element.id.to_string())
+        .collect();
     ids_to_replace.append(&mut election_ids);
 
-    let mut contest_ids = original_data.contests.iter().map(|element| element.id.to_string()).collect();
+    let mut contest_ids = original_data
+        .contests
+        .iter()
+        .map(|element| element.id.to_string())
+        .collect();
     ids_to_replace.append(&mut contest_ids);
 
-    let mut candidate_ids = original_data.candidates.iter().map(|element| element.id.to_string()).collect();
+    let mut candidate_ids = original_data
+        .candidates
+        .iter()
+        .map(|element| element.id.to_string())
+        .collect();
     ids_to_replace.append(&mut candidate_ids);
 
-    let mut area_ids = original_data.areas.iter().map(|element| element.id.to_string()).collect();
+    let mut area_ids = original_data
+        .areas
+        .iter()
+        .map(|element| element.id.to_string())
+        .collect();
     ids_to_replace.append(&mut area_ids);
 
-    let mut area_contest_ids = original_data.area_contest_list.iter().map(|element| element.id.to_string()).collect();
+    let mut area_contest_ids = original_data
+        .area_contest_list
+        .iter()
+        .map(|element| element.id.to_string())
+        .collect();
     ids_to_replace.append(&mut area_contest_ids);
 
     let mut new_data = String::from(data_str);
