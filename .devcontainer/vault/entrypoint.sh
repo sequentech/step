@@ -1,4 +1,5 @@
 #!/bin/sh
+
 set -x
 # Check if the data directory is empty
 if [ ! -d /vault/sys ]; then
