@@ -99,8 +99,7 @@ pub async fn get_manual_verification_pdf(
             minio_endpoint_base, public_asset_path, file_qrcode_lib
         ),
     };
-    let map = ManualVerificationRoot { data: data.clone() }.to_map()
-    ?;
+    let map = ManualVerificationRoot { data: data.clone() }.to_map()?;
     let render = reports::render_template_text(
         r#"
         <html lang="en-US">
@@ -207,14 +206,12 @@ pub async fn get_manual_verification_pdf(
 
         </html>
         "#,
-        map
+        map,
     )?;
 
     // Gen pdf
     let bytes_pdf = pdf::html_to_pdf(render)
-        .map_err(|err|
-            anyhow!("error rendering manual verification pdf: {}", err)
-        )?;
+        .map_err(|err| anyhow!("error rendering manual verification pdf: {}", err))?;
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "manual-verification-", ".pdf")
             .with_context(|| "Error writing to file")?;
@@ -232,7 +229,6 @@ pub async fn get_manual_verification_pdf(
         true,
     )
     .await?;
-
 
     Ok(())
 }
