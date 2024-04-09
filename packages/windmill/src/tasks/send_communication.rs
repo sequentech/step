@@ -624,7 +624,10 @@ pub async fn send_communication(
 
         let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
 
-        electoral_log.post_send_communication(election_event.id, None);
+        electoral_log
+            .post_send_communication(election_event.id, None)
+            .await
+            .with_context(|| "error posting to the electoral log")?;
     }
 
     Ok(())
