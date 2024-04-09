@@ -9,18 +9,6 @@
   <script src="{{extra_data.file_pagedjs_lib}}"></script>
 
   <style>
-    @page {
-      size: A4;
-
-      @top-center {
-      content: url("{{extra_data.file_logo}}");
-      }
-
-      @bottom-left {
-        content: counter(page) " of " counter(pages);
-      }
-    }
-
     body {
       font-family: Arial, sans-serif;
       margin: auto;
@@ -71,7 +59,12 @@
       border: 3px dashed #43E3A1;
       border-radius: 4px;
       padding: 32px;
-      break-before: page; 
+    }
+
+    @media print {
+      .next-page {
+        page-break-after: always;
+      }
     }
 
     table {
@@ -127,10 +120,14 @@
 
   <body>
     <div class="content">
+      <div class="logo"></div>
       <h1 class="text-center">Vote Receipts</h1>
+      <div class="next-page"></div>
+
       {{#each data.receipts}}
         <div class="ballot">
           <h3 style="margin-top: 0; margin-bottom: 12px;" class="text-center">Contest: {{sanitize_html ../data.contest.name}}</h3>
+          <h4>Ballot: {{@index}}-{{this.encoded_vote}}</h4>
 
           {{#unless this.is_blank_or_invalid}}
             <table>
@@ -180,7 +177,7 @@
             </tbody>
           </table>
           
-          <div class="qrcode" id="qrcode-{{this.id}}"></div>
+          <div class="qrcode" id="qrcode-{{@index}}-{{this.encoded_vote}}"></div>
           
         </div>
       {{/each}}
@@ -189,8 +186,8 @@
   
   <script>
     {{#each data.receipts}}
-      new QRCode(document.getElementById("qrcode-{{this.id}}"), {
-          text: "{{this.id}} - {{this.encoded_vote}}",
+      new QRCode(document.getElementById("qrcode-{{@index}}-{{this.encoded_vote}}"), {
+          text: "{{@index}}-{{this.encoded_vote}}",
           width: 100,
           height: 100,
           colorDark: "#000000",
