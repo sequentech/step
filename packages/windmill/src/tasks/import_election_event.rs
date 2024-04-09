@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::fs::File;
-
+use std::io::Read;
 use crate::hasura::election_event::get_election_event;
 use crate::{
     services::{
@@ -18,12 +18,47 @@ use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use uuid::Uuid;
+use std::collections::HashMap;
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
     pub check_only: Option<bool>,
+}
+
+#[instrument(err)]
+pub fn replace_ids(data_str: &str, original_data: &ImportElectionEventSchema, replace_event_id: bool) -> Result<ImportElectionEventSchema> {
+    let mut ids_to_replace: Vec<String> = vec![];
+    if replace_event_id {
+        ids_to_replace.push(original_data.election_event_data.id.clone());
+    }
+
+    let mut election_ids = original_data.elections.iter().map(|element| element.id.to_string()).collect();
+    ids_to_replace.append(&mut election_ids);
+
+    let mut contest_ids = original_data.contests.iter().map(|element| element.id.to_string()).collect();
+    ids_to_replace.append(&mut contest_ids);
+
+    let mut candidate_ids = original_data.candidates.iter().map(|element| element.id.to_string()).collect();
+    ids_to_replace.append(&mut candidate_ids);
+
+    let mut area_ids = original_data.areas.iter().map(|element| element.id.to_string()).collect();
+    ids_to_replace.append(&mut area_ids);
+
+    let mut area_contest_ids = original_data.area_contest_list.iter().map(|element| element.id.to_string()).collect();
+    ids_to_replace.append(&mut area_contest_ids);
+
+    let mut new_data = String::from(data_str);
+
+    for id in ids_to_replace {
+        let uuid = Uuid::new_v4().to_string();
+        new_data = new_data.replace(&id, &uuid);
+    }
+
+    let data: ImportElectionEventSchema = serde_json::from_str(&new_data)?;
+    Ok(data.clone())
 }
 
 #[instrument(err)]
@@ -39,13 +74,16 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
         .await
         .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
 
-    let file = File::open(temp_file_path)?;
+    let mut file = File::open(temp_file_path)?;
 
-    let data: ImportElectionEventSchema = serde_json::from_reader(file)?;
+    let mut data_str = String::new();
+    file.read_to_string(&mut data_str)?;
+
+    let original_data: ImportElectionEventSchema = serde_json::from_str(&data_str)?;
 
     let auth_headers = keycloak::get_client_credentials().await?;
-    let tenant_id = data.tenant_id.to_string();
-    let election_event_id = data.election_event_data.id.to_string();
+    let tenant_id = original_data.tenant_id.to_string();
+    let election_event_id = original_data.election_event_data.id.to_string();
 
     let events = get_election_event(auth_headers, tenant_id, election_event_id.clone())
         .await?
@@ -56,11 +94,11 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
         ))?
         .sequent_backend_election_event;
 
-    if events.len() > 0 {
-        return Err(anyhow!("Election event already exists {}", election_event_id).into());
-    }
+    let replace_event_id = events.len() > 0;
 
-    Ok(data)
+    let data = replace_ids(&data_str, &original_data, replace_event_id)?;
+
+    Ok(original_data)
 }
 
 #[instrument(err)]
