@@ -683,7 +683,7 @@ dobSdk.addEventListener("failure", error => {
       console.log('SDK-Web onFailure()');
       // En caso de que el usuario pulse el boton redirigimos
       if (parsedFailure.clickedButton) {
-        window.location.replace('https://google.es');
+        window.location.replace('https://comelec.gov.ph/');
       }
       /*
       //En caso de querer forzar la redireccion
