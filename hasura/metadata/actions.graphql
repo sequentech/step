@@ -28,6 +28,17 @@ type Mutation {
 }
 
 type Mutation {
+  get_manual_verification_pdf (
+    body: GetManualVerificationInput!
+  ): GetManualVerificationOutput
+}
+
+type GetManualVerificationOutput {
+  document_id : String
+  status : String
+}
+
+type Mutation {
   create_role (
     tenant_id: String!
     role: KeycloakRole2!
@@ -486,6 +497,12 @@ input KeycloakPermission2 {
 input CreatePermissionInput {
   tenant_id : String!
   permission : KeycloakPermission2!
+}
+
+input GetManualVerificationInput {
+  tenant_id: String!
+  election_event_id: String!
+  voter_id: String!
 }
 
 input KeycloakRole2 {
