@@ -120,8 +120,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
-    const [getManualVerificationPdf] = 
-        useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
+    const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const notify = useNotify()
@@ -165,7 +164,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
                         type: "error",
                     })
-        
                 }
             }, globalSettings.QUERY_POLL_INTERVAL_MS)
         }
@@ -203,7 +201,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }, 0)
             }
         }
-    }, [electionEventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
+    }, [
+        electionEventId,
+        documentUrl,
+        documentOpened,
+        polling,
+        documentData,
+        documentId,
+        getDocumentUrl,
+    ])
 
     React.useEffect(() => {
         return () => {
