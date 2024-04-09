@@ -28,7 +28,7 @@ pub struct ImportElectionEventBody {
     pub check_only: Option<bool>,
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
@@ -122,7 +122,7 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
 
     let data = replace_ids(&data_str, &original_data, replace_event_id)?;
 
-    Ok(original_data)
+    Ok(data)
 }
 
 #[instrument(err)]
