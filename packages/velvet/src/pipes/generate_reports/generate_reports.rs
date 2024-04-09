@@ -32,6 +32,7 @@ use crate::{
 };
 
 pub const OUTPUT_PDF: &str = "report.pdf";
+pub const OUTPUT_RECEIPT_PDF: &str = "vote_receipts.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
 
