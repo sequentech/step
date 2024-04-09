@@ -4,6 +4,7 @@
 
 use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
+use crate::pipes::pipe_inputs::BALLOTS_FILE;
 use anyhow::{Error, Result};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
@@ -21,9 +22,10 @@ pub fn generate_ballots(
     area_num: u32,
     ballots_num: u32,
 ) -> Result<()> {
-    if ballots_num > 0 && ballots_num < 20 {
-        panic!("ballots_num should be at least 20");
-    }
+    assert!(
+        !(ballots_num > 0 && ballots_num < 20),
+        "ballots_num should be at least 20"
+    );
 
     let election_event_id = Uuid::new_v4();
 
@@ -69,7 +71,7 @@ pub fn generate_ballots(
                     .write(true)
                     .append(true)
                     .create(true)
-                    .open(file.join("ballots.csv"))?;
+                    .open(file.join(BALLOTS_FILE))?;
 
                 (0..ballots_num).try_for_each(|i| {
                     let mut choices = vec![
@@ -283,6 +285,9 @@ mod tests {
             election_num * contest_num * (area_num - 1)
         );
 
+        // VoteReceipts
+        state.exec_next()?;
+
         // DoTally
         state.exec_next()?;
 
@@ -334,6 +339,9 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
+        // VoteReceipts
+        state.exec_next()?;
+
         // DoTally
         state.exec_next()?;
 
@@ -366,6 +374,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
@@ -710,6 +721,9 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
+        // VoteReceipts
+        state.exec_next()?;
+
         // DoTally
         state.exec_next()?;
 
@@ -847,6 +861,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
@@ -987,6 +1004,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally
@@ -1136,6 +1156,9 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
+        state.exec_next()?;
+
+        // VoteReceipts
         state.exec_next()?;
 
         // DoTally

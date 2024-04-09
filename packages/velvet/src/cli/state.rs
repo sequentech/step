@@ -4,6 +4,7 @@
 
 use super::error::{Error, Result};
 use super::CliRun;
+use crate::config::PipeConfig;
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
 use crate::pipes::pipe_inputs::PipeInputs;
@@ -20,7 +21,7 @@ pub struct State {
 #[derive(Debug, Clone)]
 pub struct Stage {
     pub name: String,
-    pub pipeline: Vec<PipeName>,
+    pub pipeline: Vec<PipeConfig>,
     pub current_pipe: Option<PipeName>,
     pub previous_pipe: Option<PipeName>,
 }
@@ -28,36 +29,33 @@ pub struct Stage {
 impl State {
     #[instrument]
     pub fn new(cli: &CliRun, config: &Config) -> Result<Self> {
-        let stages = config
-            .stages
-            .order
-            .iter()
-            .map(|stage_name| {
-                let pipeline = &config
-                    .stages
-                    .stages_def
-                    .get(stage_name)
-                    .ok_or(Error::StageDefinition(format!(
-                        "Pipeline is not defined for stage '{stage_name}'"
-                    )))?
-                    .pipeline;
-                let current_pipe = pipeline
-                    .iter()
-                    .find(|p| p.id == cli.pipe_id)
-                    .ok_or(Error::StageDefinition(format!(
-                        "Pipe '{}' is not found",
-                        cli.pipe_id
-                    )))?
-                    .pipe;
+        let stages =
+            config
+                .stages
+                .order
+                .iter()
+                .map(|stage_name| {
+                    let pipeline = &config
+                        .stages
+                        .stages_def
+                        .get(stage_name)
+                        .ok_or(Error::StageDefinition(format!(
+                            "Pipeline is not defined for stage '{stage_name}'"
+                        )))?
+                        .pipeline;
 
-                Ok(Stage {
-                    name: stage_name.to_string(),
-                    pipeline: pipeline.iter().map(|p| p.pipe).collect(),
-                    previous_pipe: None,
-                    current_pipe: Some(current_pipe),
+                    let current_pipe = pipeline.iter().find(|p| p.id == cli.pipe_id).ok_or(
+                        Error::StageDefinition(format!("Pipe '{}' is not found", cli.pipe_id)),
+                    )?;
+
+                    Ok(Stage {
+                        name: stage_name.to_string(),
+                        pipeline: pipeline.to_vec(),
+                        previous_pipe: None,
+                        current_pipe: Some(current_pipe.pipe),
+                    })
                 })
-            })
-            .collect::<Result<Vec<Stage>>>()?;
+                .collect::<Result<Vec<Stage>>>()?;
 
         Ok(Self {
             cli: cli.clone(),
@@ -117,6 +115,7 @@ impl State {
 
         stage.previous_pipe = stage.current_pipe.clone();
         stage.current_pipe = next_pipe;
+        stage.current_pipe = next_pipe;
 
         Ok(())
     }
@@ -147,27 +146,36 @@ impl Stage {
     #[instrument(skip_all)]
     pub fn previous_pipe(&self) -> Option<PipeName> {
         if let Some(current_pipe) = self.current_pipe {
-            let curr_index = self.pipeline.iter().position(|p| *p == current_pipe);
+            let curr_index = self.pipeline.iter().position(|p| p.pipe == current_pipe);
             if let Some(curr_index) = curr_index {
                 if curr_index > 0 {
-                    return Some(self.pipeline[curr_index - 1]);
+                    return Some(self.pipeline[curr_index - 1].pipe);
                 }
             }
             None
         } else {
-            Some(self.pipeline[self.pipeline.len() - 1])
+            Some(self.pipeline[self.pipeline.len() - 1].pipe)
         }
     }
+
     #[instrument(skip_all)]
     pub fn next_pipe(&self) -> Option<PipeName> {
         if let Some(current_pipe) = self.current_pipe {
-            let curr_index = self.pipeline.iter().position(|p| *p == current_pipe);
+            let curr_index = self.pipeline.iter().position(|p| p.pipe == current_pipe);
             if let Some(curr_index) = curr_index {
                 if curr_index + 1 < self.pipeline.len() {
-                    return Some(self.pipeline[curr_index + 1]);
+                    return Some(self.pipeline[curr_index + 1].pipe);
                 }
             }
             None
+        } else {
+            None
+        }
+    }
+
+    pub fn pipe_config(&self, pipe: Option<PipeName>) -> Option<PipeConfig> {
+        if let Some(pipe) = pipe {
+            self.pipeline.iter().find(|pc| pc.pipe == pipe).cloned()
         } else {
             None
         }

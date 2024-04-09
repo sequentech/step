@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::config::{self, Config};
 use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
@@ -32,7 +33,7 @@ impl TestFixture {
             .create(true)
             .open(&config_path)?;
 
-        writeln!(file, "{}", serde_json::to_string(&get_config())?)?;
+        writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
 
         let root_dir = PathBuf::from(format!("./tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
@@ -156,7 +157,9 @@ impl Drop for TestFixture {
 }
 
 #[instrument]
-pub fn get_config() -> Config {
+pub fn get_config() -> Result<Config> {
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+
     let stages_def = {
         let mut map = HashMap::new();
         map.insert(
@@ -167,6 +170,11 @@ pub fn get_config() -> Config {
                         id: "decode-ballots".to_string(),
                         pipe: PipeName::DecodeBallots,
                         config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "vote-receipts".to_string(),
+                        pipe: PipeName::VoteReceipts,
+                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     config::PipeConfig {
                         id: "do-tally".to_string(),
@@ -194,8 +202,8 @@ pub fn get_config() -> Config {
         stages_def,
     };
 
-    Config {
+    Ok(Config {
         version: "0.0.0".to_string(),
         stages,
-    }
+    })
 }

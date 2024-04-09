@@ -110,6 +110,7 @@ impl PipeInputs {
 
         Ok(InputElectionConfig {
             id: election_id,
+            name: election.name,
             ballot_styles: election.ballot_styles,
             contest_list: configs,
             path: path.to_path_buf(),
@@ -184,6 +185,7 @@ impl PipeInputs {
 #[derive(Debug)]
 pub struct InputElectionConfig {
     pub id: Uuid,
+    pub name: String,
     pub ballot_styles: Vec<BallotStyle>,
     pub contest_list: Vec<InputContestConfig>,
     pub path: PathBuf,
@@ -212,6 +214,7 @@ pub struct InputAreaConfig {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ElectionConfig {
     pub id: Uuid,
+    pub name: String,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub census: u64,

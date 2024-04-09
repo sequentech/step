@@ -94,6 +94,7 @@
 						<configuration>
 							<artifactSet>
 								<includes>
+									<include>javax:*</include>
 									<include>software.amazon.awssdk:*</include>
 									<include>org.reactivestreams:reactive-streams</include>
 								</includes>

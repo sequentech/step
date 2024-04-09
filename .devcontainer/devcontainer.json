@@ -24,8 +24,8 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow && devenv shell bash -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"updateContentCommand": "direnv allow && devenv shell bash -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
@@ -94,6 +94,5 @@
 		"devpod": {
 			"prebuildRepository": "ghcr.io/sequentech/backend-services"
 			}
-		}
 	}
 }

@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.List;
 import java.util.Properties;
 
+import org.keycloak.locale.LocaleSelectorProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -22,7 +23,7 @@ public interface SmsSenderProvider extends Provider
 		UserModel user,
         KeycloakSession session
 	) throws IOException {
-		Locale locale = session.getContext().resolveLocale(user);
+        Locale locale = session.getContext().resolveLocale(user);
 
 		Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
 		Properties messages = theme.getEnhancedMessages(realm, locale);
