@@ -57,11 +57,6 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     },
                 })
 
-                console.log(
-                    "LS -> src/components/election-event/import-data/ImportScreen.tsx:57 -> data: ",
-                    data
-                )
-
                 try {
                     if (!data?.get_upload_url?.url) {
                         notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -160,22 +155,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     cancel={t("electionEventScreen.import.shaDialog.cancel")}
                     title={t("electionEventScreen.import.shaDialog.title")}
                     handleClose={(result: boolean) => {
-                        console.log(
-                            "LS -> src/components/election-event/import-data/ImportScreen.tsx:158 -> result: ",
-                            result
-                        )
-
                         if (result) {
-                            console.log("123412342341241234123")
-                            console.log(
-                                "LS -> src/components/election-event/import-data/ImportScreen.tsx:166 -> shaField: ",
-                                shaField
-                            )
-                            console.log(
-                                "LS -> src/components/election-event/import-data/ImportScreen.tsx:166 -> documentId: ",
-                                documentId
-                            )
-
                             doImport(documentId as string, shaField)
                         }
 

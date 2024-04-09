@@ -354,8 +354,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         })
 
-        console.log("LS -> src/resources/ElectionEvent/CreateElectionEvent.tsx:187 -> data: ", data)
-
         refresh()
 
         if (!errors) {
