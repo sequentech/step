@@ -21,6 +21,7 @@ pub mod electoral_log;
 pub mod import_election_event;
 pub mod insert_cast_vote;
 pub mod jwks;
+pub mod manual_verification;
 pub mod pg_lock;
 pub mod private_keys;
 pub mod protocol_manager;

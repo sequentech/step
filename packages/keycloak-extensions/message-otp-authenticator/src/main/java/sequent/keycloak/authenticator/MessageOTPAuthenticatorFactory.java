@@ -1,6 +1,9 @@
 package sequent.keycloak.authenticator;
 
 import com.google.auto.service.AutoService;
+
+import sequent.keycloak.authenticator.Utils.MessageCourier;
+
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
@@ -9,10 +12,12 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ServerInfoAwareProviderFactory;
+import org.keycloak.provider.ProviderConfigurationBuilder.ProviderConfigPropertyBuilder;
 
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import static java.util.Arrays.asList;
 
 @AutoService(AuthenticatorFactory.class)
 public class MessageOTPAuthenticatorFactory 
@@ -40,7 +45,7 @@ public class MessageOTPAuthenticatorFactory
 
 	@Override
 	public String getHelpText() {
-		return "Validates an OTP sent via SMS and/or SMS to the users mobile phone or email address.";
+		return "Validates an OTP sent via SMS and/or SMS to the users mobile phone and/or email address.";
 	}
 
 	@Override
@@ -65,6 +70,18 @@ public class MessageOTPAuthenticatorFactory
 
 	@Override
 	public List<ProviderConfigProperty> getConfigProperties() {
+		ProviderConfigProperty messageCourier = new ProviderConfigProperty(
+			Utils.MESSAGE_COURIER_ATTRIBUTE,
+			"Message Courier",
+			"Choose if the message is going to be sent via email, sms or both.", 
+			ProviderConfigProperty.LIST_TYPE,
+			Utils.MessageCourier.BOTH.name()
+		);
+		messageCourier.setOptions(asList(
+			Utils.MessageCourier.BOTH.name(),
+			Utils.MessageCourier.SMS.name(),
+			Utils.MessageCourier.EMAIL.name()
+		));
 		return List.of(
 			new ProviderConfigProperty(
 				Utils.CODE_LENGTH,
@@ -92,7 +109,15 @@ public class MessageOTPAuthenticatorFactory
 				"Name of the user attribute used to retrieve the mobile telephone number of the user. Please make sure this is a read-only attribute for security reasons.", 
 				ProviderConfigProperty.STRING_TYPE,
 				MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
-			)
+			),
+			new ProviderConfigProperty(
+				Utils.DEFERRED_USER_ATTRIBUTE,
+				"Use Deferred User",
+				"If enabled, there won't be a need to have a valid user when using this authenticator", 
+				ProviderConfigProperty.BOOLEAN_TYPE,
+				"false"
+			),
+			messageCourier
 		);
 	}
 

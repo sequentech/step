@@ -42,16 +42,25 @@ public class MessageOTPAuthenticator
 		log.info("authenticate() called");
 		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 		KeycloakSession session = context.getSession();
-		UserModel user = context.getUser();
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
 
+		Utils.MessageCourier messageCourier = Utils.MessageCourier.fromString(
+			config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE)
+		);
+		boolean deferredUser = config
+			.getConfig()
+			.get(Utils.DEFERRED_USER_ATTRIBUTE)
+			.equals("true");
 		try {
+			UserModel user = context.getUser();
 			Utils.sendCode(
 				config,
 				session,
 				user,
-				authSession
+				authSession,
+				messageCourier,
+				deferredUser
 			);
 			context
 				.challenge(
@@ -64,7 +73,7 @@ public class MessageOTPAuthenticator
 				AuthenticationFlowError.INTERNAL_ERROR,
 				context
 					.form()
-					.setError("smsAuthSmsNotSent", error.getMessage())
+					.setError("messageNotSent", error.getMessage())
 					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
 			);
 		}
@@ -136,7 +145,7 @@ public class MessageOTPAuthenticator
 	@Override
 	public boolean requiresUser() {
 		log.info("requiresUser() called");
-		return true;
+		return false;
 	}
 
 	@Override
@@ -158,11 +167,31 @@ public class MessageOTPAuthenticator
 			.getConfig(realm);
 
 		// If no configuration is found, fall back to default behavior
-	 	if (!config.isPresent()) {
+	 	if (!config.isPresent() && user != null) {
 			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 		}
-		String mobileNumber = Utils.getMobile(config.get(), user);
-		String emailAddress = user.getEmail();
+		boolean deferredUser = config
+			.get()
+			.getConfig()
+			.get(Utils.DEFERRED_USER_ATTRIBUTE)
+			.equals("true");
+		String mobileNumber = null;
+		String emailAddress = null;
+
+		if (deferredUser) {
+			AuthenticationSessionModel authSession = session
+				.getContext()
+				.getAuthenticationSession();
+			String mobileNumberAttribute = config
+				.get()
+				.getConfig()
+				.get(Utils.TEL_USER_ATTRIBUTE);
+			mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+			emailAddress = authSession.getAuthNote("email");
+		} else if (user != null) {
+			mobileNumber = Utils.getMobile(config.get(), user);
+			emailAddress = user.getEmail();
+		}
 
 		return mobileNumber != null || emailAddress != null;
 	}
@@ -174,10 +203,6 @@ public class MessageOTPAuthenticator
 		UserModel user
 	) {
 		log.info("setRequiredActions() called");
-		// this will only work if you have the required action from here
-		// configured:
-		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
-		//TODO:user.addRequiredAction(OTPMethodSelector.PROVIDER_ID);
 	}
 
 	@Override
