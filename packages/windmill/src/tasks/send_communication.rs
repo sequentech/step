@@ -618,10 +618,6 @@ pub async fn send_communication(
         .await
         .with_context(|| "error comitting transaction")?;
 
-    println!("ABCABCABC ****");
-    println!("ABCABCABC ****");
-    println!("ABCABCABC ****");
-
     if let Some(election_event) = election_event {
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
@@ -630,10 +626,6 @@ pub async fn send_communication(
 
         electoral_log.post_send_communication(election_event.id, None);
     }
-
-    println!("ABCABCABC ****");
-    println!("ABCABCABC ****");
-    println!("ABCABCABC ****");
 
     Ok(())
 }

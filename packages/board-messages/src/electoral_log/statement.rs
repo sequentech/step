@@ -89,6 +89,8 @@ pub enum StatementBody {
     //
     // "Apertura y cierre de la bóveda de votos"
     TallyClose(ElectionIdString),
+    
+    SendCommunication(String, String),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]

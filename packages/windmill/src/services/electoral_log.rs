@@ -192,12 +192,12 @@ impl ElectoralLog {
     pub(crate) async fn post_send_communication(
         &self,
         event_id: String,
-        election_id: Option<String>, 
+        election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::tally_close_message(event, election, &self.sd)?;
+        let message = Message::send_communication(event, election, &self.sd)?;
 
         self.post(message).await
     }
