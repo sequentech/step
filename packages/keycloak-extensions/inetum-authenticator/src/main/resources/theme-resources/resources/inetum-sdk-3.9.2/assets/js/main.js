@@ -92,109 +92,109 @@ if (design === 'generic') {
   removeMessagesAttach();
 }
 
-// Load custom strings
 let myStrings = {
   // DOB API
-  'dob_api_unknown_error': 'Error desconocido',
-  'dob_api_incorrect_parameters': 'Parámetros de entrada incorrectos',
-  'dob_api_incorrect_token': 'Token proporcionado incorrecto',
-  'dob_api_unknown_uid': 'Identificador desconocido',
-  'dob_api_not_available_evidence': 'Evidencia no disponible',
-  'dob_api_incorrect_upload': 'Documento no recibido correctamente',
-  'dob_api_empty_request': 'Resultado de consulta vacío',
-  'dob_api_unknown_action': 'Acción no reconocida',
-  'dob_api_so_big_evidence': 'Tamaño de evidencia demasiado grande',
-  'dob_api_evidences_already_uploaded': 'Evidencias ya cargadas',
-  'dob_api_not_identify_document': 'No se identifica el tipo de documento',
-  'dob_api_invalid_evidence': 'Tipo de evidencia no permitida',
-  'dob_api_back_doc_not_match': 'La cara del documento no se corresponde con la evidencia enviada',
-  'dob_api_expired_document': 'Documento caducado',
-  'dob_api_bad_quality_doc': 'Calidad de imagen baja',
-  'dob_api_config_not_enable': 'Configuración no habilitada',
-  'dob_api_transaction_not_finish': 'La transacción aún no ha sido procesada',
-  'dob_api_not_available_zip': 'ZIP no disponible',
-  'dob_api_incorrect_mrz': '¡Vaya! Parece que la captura no tiene la calidad suficiente. Por favor, repita la captura.',
-  'dob_api_transaction_exists': 'Proceso de alta ya existente.',
-  'dob_api_younger': 'El documento adjunto corresponde a un usuario menor de edad',
-  'dob_api_incorrect_evidence': 'La evidencia no se corresponde con la evidencia solicitada.',
-  'dob_api_incorrect_document': 'Modelo de documento no admitido',
+  'dob_api_unknown_error': 'Unknown error',
+  'dob_api_incorrect_parameters': 'Incorrect input parameters',
+  'dob_api_incorrect_token': 'Incorrect provided token',
+  'dob_api_unknown_uid': 'Unknown identifier',
+  'dob_api_not_available_evidence': 'Evidence not available',
+  'dob_api_incorrect_upload': 'Document not received correctly',
+  'dob_api_empty_request': 'Empty query result',
+  'dob_api_unknown_action': 'Unknown action',
+  'dob_api_so_big_evidence': 'Evidence size too big',
+  'dob_api_evidences_already_uploaded': 'Evidences already uploaded',
+  'dob_api_not_identify_document': 'Document type is not identified',
+  'dob_api_invalid_evidence': 'Evidence type not allowed',
+  'dob_api_back_doc_not_match': 'The face of the document does not match the evidence sent',
+  'dob_api_expired_document': 'Expired document',
+  'dob_api_bad_quality_doc': 'Low image quality',
+  'dob_api_config_not_enable': 'Configuration not enabled',
+  'dob_api_transaction_not_finish': 'The transaction has not been processed yet',
+  'dob_api_not_available_zip': 'ZIP not available',
+  'dob_api_incorrect_mrz': 'Wow! It seems that the capture is not of sufficient quality. Please repeat the capture.',
+  'dob_api_transaction_exists': 'Registration process already exists.',
+  'dob_api_younger': 'The attached document corresponds to a minor user',
+  'dob_api_incorrect_evidence': 'The evidence does not correspond to the requested evidence.',
+  'dob_api_incorrect_document': 'Unsupported document model',
   // INITIAL STEP
-  'initial_title_mobile': 'Identificación digital',
-  'initial_description_mobile': 'El proceso de identificación es muy sencillo. Sólo necesitas tener a mano tu documento de identidad. Te guiaremos para capturar el anverso y reverso, y luego tendrás que hacerte un vídeo-selfie con el documento en la mano. Busca un lugar bien iluminado y... ¡sonríe!',
-  'initial_button_mobile': 'Comenzar',
+  'initial_title_mobile': 'Digital ID',
+  'initial_description_mobile': 'The identification process is very simple. You just need to have your identification document on hand. We will guide you to capture the front and back, and then you will have to take a video selfie with the document in your hand. Find a well-lit place and... smile!',
+  'initial_button_mobile': 'Start',
   // INSTRUCTIONS STEP
-  'instructions_step_title': 'Instrucciones Vídeo',
-  'instructions_step_description': 'Ahora vamos a grabarte en vídeo. Tendrás que mostrar tu documento. Después tomaremos un selfie y tendrás que hacer coincidir los dos óvalos que verás en pantalla. Busca un sitio bien iluminado. En el vídeo solo podrá aparecer la persona que se está identificando.',
-  'instructions_step_button': 'Continuar',
+  'instructions_step_title': 'Video Instructions',
+  'instructions_step_description': 'Now we are going to video you. You will have to show your document. Then we will take a selfie and you will have to match the two ovals that you will see on the screen. Find a well-lit place. Only the person who is identifying themselves may appear in the video.',
+  'instructions_step_button': 'Continue',
   // DOC-CAPTURE STEP
-  'card_detector_evidence_not_focus': 'La imagen está desenfocada',
-  'card_detector_no_detect_docs': 'No estamos detectando nada...',
-  'card_detector_in_progress': 'Escaneando...',
-  'card_detector_adjust_doc': 'Ajusta un poco más el documento...',
-  'card_detector_more_near_doc': 'Acerca el documento...',
-  'card_detector_automatic_help_text': 'Ajusta el documento para hacer la captura automática',
-  'card_detector_manual_help_text': 'Ajusta el documento para hacer la captura manual',
-  'card_detector_passport_manual_help_text': 'Ajusta el pasaporte para hacer la captura',
-  'card_detector_certificate_manual_help_text': 'Ajusta el certificado de residencia para hacer la captura',
+  'card_detector_evidence_not_focus': 'The image is out of focus',
+  'card_detector_no_detect_docs': 'We are not detecting anything...',
+  'card_detector_in_progress': 'Scanning...',
+  'card_detector_adjust_doc': 'Adjust the document a little more...',
+  'card_detector_more_near_doc': 'Near the document...',
+  'card_detector_automatic_help_text': 'Set the document to do automatic capture',
+  'card_detector_manual_help_text': 'Set the document to do manual capture',
+  'card_detector_passport_manual_help_text': 'Set the passport to capture',
+  'card_detector_certificate_manual_help_text': 'Set the residence certificate to capture',
   // VIDEO IDENTIF. STEP
-  'video_identification_message_front': 'Muestra el anverso del documento',
-  'video_identification_message_back': 'Da la vuelta al documento',
-  'video_identification_message_passport': 'Muestra el pasaporte',
-  'video_identification_message_certificate': 'Muestra el certificado',
+  'video_identification_message_front': 'Shows the front of the document',
+  'video_identification_message_back': 'Turn the document over',
+  'video_identification_message_passport': 'Show passport',
+  'video_identification_message_certificate': 'Show the certificate',
   // FACE-CAPTURE STEP
-  'permissions_orientation_dialog_title': 'Para mejorar tu experiencia, necesitamos que nos proporciones acceso a la orientación de tu teléfono',
+  'permissions_orientation_dialog_title': 'To improve your experience, we need you to give us access to your phone\'s orientation',
   'permissions_orientation_dialog_button': 'OK',
-  'face_capture_device_motion_down': 'Baja el dispositivo',
-  'face_capture_device_motion_up': 'Eleva el dispositivo',
-  'face_capture_detection_closer': 'Acércate',
-  'face_capture_detection_further': 'Aléjate',
-  'face_capture_detection_multi_face': 'Solo una cara por favor',
+  'face_capture_device_motion_down': 'Lower device',
+  'face_capture_device_motion_up': 'Raise the device',
+  'face_capture_detection_closer': 'Get closer',
+  'face_capture_detection_further': 'Stay away',
+  'face_capture_detection_multi_face': 'Only one face please',
   // DOC-CAPTURE STEP & IDEO IDENTIF. STEP & FACE-CAPTURE STEP
-  'media_recorder_unknown_exception': 'El dispositivo o navegador no soporta la grabación de vídeo',
-  'media_recorder_experimental_feature_exception': 'La grabación de vídeo no está habilitada en su dispositivo. Por favor, vaya a Ajustes>Safari>Avanzado>Experimental Features y active el flag MediaRecorder',
+  'media_recorder_unknown_exception': 'The device or browser does not support video recording',
+  'media_recorder_experimental_feature_exception': 'Video recording is not enabled on your device. Please go to Settings>Safari>Advanced>Experimental Features and activate the MediaRecorder flag',
   // ATTACH STEP
-  'attach_instructions_text': 'Arrastra y suelta el archivo aquí o',
-  'attach_button_text': 'Busca el archivo',
-  'attach_file_successfully_submited': '¡Tu archivo ha sido subido con éxito!',
-  'attach_on_uploading_file': 'Subiendo el archivo, un momento por favor',
-  'attach_multi_files_upload_error': 'Solo se permite subir un archivo',
-  'attach_invalid_file_type_error': 'Hubo un error leyendo este archivo',
-  'attach_processing_file': 'Procesando archivo...',
-  'attach_default_error': 'Parece que el archivo adjunto no cumple con los criterios necesarios',
-  'attach_error_button_text': 'REINTENTAR',
-  'attach_not_supported_file': 'Tipo de archivo no permitido',
+  'attach_instructions_text': 'Drag and drop the file here or',
+  'attach_button_text': 'Browse the file',
+  'attach_file_successfully_submitted': 'Your file has been successfully uploaded!',
+  'attach_on_uploading_file': 'Uploading the file, one moment please',
+  'attach_multi_files_upload_error': 'Only one file upload is allowed',
+  'attach_invalid_file_type_error': 'There was an error reading this file',
+  'attach_processing_file': 'Processing file...',
+  'attach_default_error': 'The attachment does not appear to meet the required criteria',
+  'attach_error_button_text': 'RETRY',
+ 
+ 'attach_not_supported_file': 'Not supported file type',
   // OTP STEP
-  'otp_verification_title': 'Verificación OTP',
-  'otp_verification_email': 'Te hemos enviado el código de acceso por correo electrónico para la verificación.',
-  'otp_verification_sms': 'Te hemos enviado el código de acceso por SMS para la verificación.',
-  'otp_verification_resend_question': '¿No has recibido el código OTP?',
-  'otp_verification_resended_email': 'Se ha enviado un nuevo código OTP a su dirección de correo electrónico.',
-  'otp_verification_resended_sms': 'Se ha enviado un nuevo código OTP a su número de teléfono móvil.',
-  'otp_verification_invalid': 'El código OTP no es válido',
-  'otp_verification_expired': 'El código OTP ha expirado',
+  'otp_verification_title': 'OTP Verification',
+  'otp_verification_email': 'We have sent you the access code by email for verification.',
+  'otp_verification_sms': 'We have sent you the access code via SMS for verification.',
+  'otp_verification_resend_question': 'Have you not received the OTP code?',
+  'otp_verification_resended_email': 'A new OTP code has been sent to your email address.',
+  'otp_verification_resended_sms': 'A new OTP code has been sent to your mobile number.',
+  'otp_verification_invalid': 'OTP code is invalid',
+  'otp_verification_expired': 'OTP code has expired',
   // END STEP
-  'end_title': 'Identificación digital',
-  'end_description': 'El proceso de identificación es muy sencillo. Sólo necesitas tener a mano tu documento de identidad y capturar con la cámara del móvil lo siguiente:',
-  'end_subtitle': '¡Proceso finalizado!',
-  'end_button_text': 'Finalizar',
+  'end_title': 'Digital ID',
+  'end_description': 'The identification process is very simple. You just need to have your identity document on hand and capture the following with your mobile camera:',
+  'end_subtitle': 'Process finished!',
+  'end_button_text': 'End',
   // INITIAL STEP & END STEP
-  'intro_row_obverse': 'Anverso del documento',
-  'intro_row_reverse': 'Reverso del documento',
-  'intro_row_face': 'Rostro e Identidad',
+  'intro_row_obverse': 'Front of document',
+  'intro_row_reverse': 'Reverse of document',
+  'intro_row_face': 'Face and Identity',
   // EXCEPTION VIEW
-  'exception_button_text_retry': 'Reintentar',
-  'exception_button_text_go_init': 'Volver',
+  'exception_button_text_retry': 'Retry',
+  'exception_button_text_go_init': 'Return',
   'new_flow_exception_tips': [
-    'No se pudo iniciar un nuevo proceso de identificación desde el dispositivo.',
-    'Por favor, pulse reintentar o inténtelo de nuevo más tarde'
+    'Could not start a new identification process from the device.',
+    'Please press retry or try again later'
   ],
   'not_readable_exception_tips': [
-    'Tu dispositivo de audio/vídeo está siendo utilizado por otra aplicación.',
-    'Por favor, cierra la aplicación que está utilizando tu dispositivo y reinicia el proceso.'
+    'Your audio/video device is being used by another application.',
+    'Please close the application that is using your device and restart the process.'
   ],
   'recording_exception_tips': [
-    'El dispositivo o navegador no soporta la grabación de vídeo',
-    'Los navegadores que soportan la grabación de vídeo son: ',
+    'The device or browser does not support video recording',
+    'The browsers that support video recording are: ',
     [
       'Chrome Desktop (>v49)',
       'Firefox Desktop (>v29)',
@@ -205,294 +205,294 @@ let myStrings = {
     ]
   ],
   'connection_generic_error_tips': [
-    '¡Vaya! Parece que hubo un error al intentar establecer conexión con el servidor',
-    'Por favor, revisa tu conexión a internet o vuelve a intentarlo en cinco minutos.'
+    'Oh! It seems there was an error trying to connect to the server',
+    'Please check your internet connection or try again in five minutes.'
   ],
   'unknown_media_exception_tips': [
-    'Hubo un error desconocido al intentar acceder a tu dispositivo de vídeo/audio',
-    'Por favor, reinicia el proceso de video-identificación'
+    'There was an unknown error while trying to access your video/audio device',
+    'Please restart the video identification process'
   ],
-  'unknown_attach_exception_tips': [
-    'Hubo un error desconocido al adjuntar la evidencia',
-    'Por favor, reinténtelo de nuevo más tarde'
+ 'unknown_attach_exception_tips': [
+    'There was an unknown error when attaching the evidence',
+    'Please try again later'
   ],
   'webrtc_exception_tips': [
-    'Se ha interrumpido la conexión con el servidor de streaming.',
+    'The connection to the streaming server has been interrupted.',
     [
-      'Es posible que ocurriera un fallo de red que provocó la perdida.',
-      'Por favor, vuelve a intentarlo en unos momentos.'
+      'It is possible that a network failure occurred that caused the loss.',
+      'Please try again in a few moments.'
     ]
   ],
   'global_timeout_exception_tips': [
-    'Se ha excedido el tiempo total de flujo',
-    'Por favor, pulse reintentar para reiniciar el flujo'
+    'Total flow time has been exceeded',
+    'Please press retry to restart the flow'
   ],
   'no_devices_found_tips': [
-    'No se ha encontrado ningún dispositivo de audio/vídeo.',
-    'Por favor, conecta un dispositivo y reinicia el proceso.'
+    'No audio/video device found.',
+    'Please connect a device and restart the process.'
   ],
   'upload_exception_tips': [
-    'Se produjo un error de conexión mientras se enviaba la evidencia de identificación.',
+    'A connection error occurred while sending identification evidence.',
     [
-      'Es posible que ocurriera un fallo de red que provocó la perdida.',
-      'Por favor, vuelve a intentarlo en unos momentos.'
+      'It is possible that a network failure occurred that caused the loss.',
+      'Please try again in a few moments.'
     ]
   ],
   'upload_check_exception_tips': [
-    'Se produjo un error al verificar el documento. Esto podría deberse a:',
+    'An error occurred while verifying the document. This could be due to:',
     [
-      'La imagen no tiene la calidad suficiente. Recuerde que debe estar bien enfocada.',
-      'El documento no se identifica como un tipo válido.',
-      'El documento está caducado',
-      'La cara del documento no se corresponde con la evidencia enviada'
+      'The image is not of sufficient quality. Remember that it must be well focused.',
+      'The document is not identified as a valid type.',
+      'The document is expired',
+      'The face of the document does not correspond to the evidence sent'
     ],
-    'Por favor, prueba de nuevo haciendo lo siguiente:',
+    'Please try again by doing the following:',
     [
-      'Coloca el documento de identidad en una superficie plana y luminosa',
-      'Asegurate de que tienes suficiente luz',
-      'Asegúrate de que no hay brillos o zonas oscuras en el documento',
-      'Haz coincidir la silueta dibujada en la pantalla con la imagen de tu cámara.'
+      'Place the ID on a flat, bright surface',
+      'Make sure you have enough light',
+      'Make sure there are no highlights or dark areas in the document',
+      'Match the silhouette drawn on the screen with the image on your camera.'
     ]
   ],
   'face_detector_timeout_exception_tips': [
-    '¡Vaya! Algo no va bien, no conseguimos capturar su rostro.',
-    'Por favor, prueba de nuevo haciendo lo siguiente:',
+    'Oh! Something is wrong, we couldn\'t capture his face.',
+    'Please try again by doing the following:',
     [
-      'Colócate en un lugar luminoso',
-      'Procura colocar tu rostro dentro de la guía que aparece en la pantalla',
-      'Mira de frente a la cámara.'
+      'Place yourself in a bright place',
+      'Try to place your face within the guide that appears on the screen',
+      'Look straight into the camera.'
     ]
   ],
   'manual_face_detector_exception_tips': [
-    'No se ha detectado una cara en la foto selfie:',
+    'No face detected in selfie photo:',
     [
-      'Por favor, enfocate a la cara al hacerte la foto.',
+      'Please focus on your face when taking the photo.',
     ]
   ],
   'manual_multi_face_detector_exception_tips': [
-    'Se han detectado varias caras en la foto selfie:',
+    'Several faces have been detected in the selfie photo:',
     [
-      'Por favor, solo puede aparecer una cara.',
+     'Please, only one face can appear.',
     ]
   ],
   'card_detector_timeout_exception_tips':
     [
-      '¡Vaya! Algo no va bien, no conseguimos capturar tu documento de identidad.',
-      'Por favor, prueba de nuevo haciendo lo siguiente:',
+      'Oh! Something is wrong, we couldn\'t capture your ID.',
+      'Please try again by doing the following:',
       [
-        'Situa el documento de identidad en una superficie plana y luminosa.',
-        'Haz coincidir la silueta dibujada en la pantalla con la imagen de tu cámara.'
+        'Place the ID document on a flat, bright surface.',
+        'Match the silhouette drawn on the screen with the image on your camera.'
       ]
     ],
   'not_allowed_permission_exception_tips': [
-    'No hemos podido acceder al dispositivo porque no has permitido el acceso a la cámara y/o al micrófono.',
-    'Por favor, habilita los permisos de cámara y audio y reinicia el proceso.'
+    'We have not been able to access the device because you have not allowed access to the camera and/or microphone.',
+    'Please enable camera and audio permissions and restart the process.'
   ],
   'overconstraint_exception_tips': [
-    'Tu dispositivo no cumple los requisitos mínimos para realizar el proceso.',
-    'Por favor, cambie de dispositivo y repita el proceso'
+    'Your device does not meet the minimum requirements to carry out the process.',
+    'Please change devices and repeat the process'
   ],
   'invalid_flow_exception': [
-    'El flujo configurado es inválido.',
-    'Por favor, contacte con el administrador del sistema.'
+    'The configured flow is invalid.',
+    'Please contact your system administrator.'
   ],
   'unsupported_browser_exception_tips': [
-    'Navegador no compatible con el VideoStreaming.', 'Por favor, utilice otro como Chrome o Firefox.'
+    'Browser not compatible with VideoStreaming.', 'Please use another browser such as Chrome or Firefox.'
   ],
   'unsupported_browser_exception_ios_tips': [
-    'Navegador no compatible con el VideoStreaming.', 'Por favor, utilice Safari.'
+    'Browser does not support VideoStreaming.', 'Please use Safari.'
   ],
   'unupdate_browser_exception_tips': [
-    'La versión de tú navegador no es compatible.',
-    'Por favor, actualiza tu navegador y vuelve a intentarlo'
+    'Your browser version is not compatible.',
+    'Please update your browser and try again'
   ],
   'dob_api_face_too_close_tips': [
-    'La cara está demasiado cerca en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The face is too close in the selfie.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_eyes_closed_tips': [
-    'El selfie ha salido con los ojos cerrados.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The selfie came out with my eyes closed.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_close_to_border_tips': [
-    'La cara está demasiado cerca del borde.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The face is too close to the edge.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_cropped_tips': [
-    'La cara sale cortada en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The face is cut off in the selfie.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_is_occluded_tips': [
-    'La cara sale tapada en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The face is covered in the selfie.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_not_found_tips': [
-    'No detectamos cara en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'We did not detect a face in the selfie.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_too_many_faces_tips': [
-    'Hay demasiadas caras en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'There are too many faces in the selfie.',
+'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_too_small_tips': [
-    'La cara es demasiado pequeña en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The face is too small in the selfie.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_face_angle_too_large_tips': [
-    'Se ha inclinado la cámara en el selfie.',
-    'Centra la cara en el óvalo al hacer la foto y asegúrate de que se te ve bien.'
+    'The camera has been tilted in the selfie.',
+    'Center your face in the oval when taking the photo and make sure it looks good.'
   ],
   'dob_api_non_configured_otp_contact_method': [
-    'Método de contacto OTP no configurado.',
-    'Por favor, contacte con el administrador del sistema.'
+    'OTP contact method not configured.',
+    'Please contact your system administrator.'
   ],
   'dob_api_maximum_number_of_otp_forwards_has_been_exceeded': [
-    'Se ha superado el número máximo de reenvíos OTP.'
+    'The maximum number of OTP forwards has been exceeded.'
   ],
   'dob_api_maximum_number_of_otp_reintent_has_been_exceeded': [
-    'Se ha superado el número máximo de reintentos OTP.'
+    'The maximum number of OTP retries has been exceeded.'
   ],
   'dob_api_contact_method_does_not_exist': [
-    'Método de contacto no existe.',
-    'Por favor, contacte con el administrador del sistema.'
+    'Contact method does not exist.',
+    'Please contact your system administrator.'
   ],
   'dob_api_mandatory_otp_phone_number_not_informed': [
-    'Número de teléfono OTP obligatorio, no informado.',
-    'Por favor, contacte con el administrador del sistema o vuelva a intentarlo.'
+    'OTP phone number required, not reported.',
+    'Please contact your system administrator or try again.'
   ],
   'dob_api_mandatory_otp_email_not_informed': [
-    'Correo electrónico OTP obligatorio, no informado.',
-    'Por favor, contacte con el administrador del sistema o vuelva a intentarlo.'
+    'OTP email required, not reported.',
+    'Please contact your system administrator or try again.'
   ],
   'dob_api_non_valid_otp_phone_number': [
-    'Número de teléfono OTP no válido.',
-    'Por favor, contacte con el administrador del sistema o vuelva a intentarlo.'
+    'Invalid OTP phone number.',
+    'Please contact your system administrator or try again.'
   ],
   'dob_api_non_valid_otp_email': [
-    'Correo electrónico OTP no válido.',
-    'Por favor, contacte con el administrador del sistema o vuelva a intentarlo.'
+    'Invalid OTP email.',
+    'Please contact your system administrator or try again.'
   ],
   'dob_api_otp_has_already_been_validated': [
-    'El OTP ya ha sido validado.',
-    'Por favor, contacte con el administrador del sistema.'
+    'The OTP has already been validated.',
+    'Please contact your system administrator.'
   ],
   'dob_api_transaction_does_not_exist': [
-    'La transacción no existe.',
-    'Por favor, contacte con el administrador del sistema o vuelva a intentarlo.'
+    'The transaction does not exist.',
+    'Please contact your system administrator or try again.'
   ],
   // HELP DIALOG VIEW
-  'secondarytoolbar_help_title': 'INFORMACIÓN',
+  'secondarytoolbar_help_title': 'INFORMATION',
   'default_instructions_docs': [
-    'Sitúa el documento de identidad en una superficie plana y luminosa',
-    'El documento no debe tener brillos o reflejos que puedan dificultar la lectura',
-    'Haz coincidir la silueta dibujada en la pantalla con la imagen de tu cámara',
-    'La captura se realizará de forma automática cuando silueta e imagen coincidan'
+    'Place the identity document on a flat, bright surface',
+    'The document should not have shine or reflections that could make reading difficult',
+    'Match the silhouette drawn on the screen with the image on your camera',
+    'The capture will be done automatically when the silhouette and image match'
   ],
   'default_instructions_face': [
-    'Colócate en un lugar luminoso',
-    'Procura colocar tu rostro dentro de la guía que aparece en la pantalla',
-    'Mira de frente a la cámara',
-    'Recuerda enseñar el documento de identidad por las dos caras',
-    'Recuerda que no deben aparecer más personas en el vídeo'
+    'Place yourself in a bright place',
+    'Try to place your face within the guide that appears on the screen',
+    'Look straight into the camera',
+'Remember to show your ID on both sides',
+    'Remember that no more people should appear in the video'
   ],
-  'secondarytoolbar_help_button': 'CERRAR',
+  'secondarytoolbar_help_button': 'CLOSE',
   // MANUAL CAPTURE VIEW
-  'manual_capture_doc_title_text': 'Modo de captura manual',
-  'manual_capture_doc_lead_text': 'Encuadra el documento y pulsa el botón',
-  'manual_capture_face_title_text': 'Modo de captura selfie manual',
-  'manual_capture_face_lead_text': 'Enfocate a la cara para hacerte un selfie y haz click en el botón para capturar la foto',
+  'manual_capture_doc_title_text': 'Manual capture mode',
+  'manual_capture_doc_lead_text': 'Frame the document and press the button',
+  'manual_capture_face_title_text': 'Manual selfie capture mode',
+  'manual_capture_face_lead_text': 'Focus on the face to take a selfie and click the button to capture the photo',
   // PREVIEW VIEW
-  'attach_preview_retry_button': 'Repetir',
-  'attach_preview_continue_button': 'Continuar',
+  'attach_preview_retry_button': 'Repeat',
+  'attach_preview_continue_button': 'Continue',
   // PREVIEW VIEW | ONLY DESIGN GENERIC
-  'preview_capture_doc_text': 'Compruebe que la foto es legible, no se ve borrosa, está bien enfocada y no tiene brillos',
-  // PREVIEW VIEW | ONLY DESIGN RESPONSIVE
-  'attach_preview_text': 'Recuerde que la imagen debe estar orientada correctamente y que debe visualizarse correctamente',
+  'preview_capture_doc_text': 'Check that the photo is readable, not blurry, in focus and glare-free',
+  // PREVIEW VIEW | ONLY RESPONSIVE DESIGN
+  'attach_preview_text': 'Remember that the image must be oriented correctly and that it must display correctly',
   // LOADER VIEW
-  'default_progress_description': 'Conectando...',
-  'video_progress_description': 'Conectando...',
-  'end_progress_description': 'Finalizando...',
-  'new_device_progress_description': 'Iniciando nuevo flujo desde dispositivo...',
-  'otp_configuration_progress_description': 'Cargando configuración...',
-  'otp_forwarding_progress_description': 'Enviando OTP...',
-  'otp_verification_progress_description': 'Verificando OTP...',
+  'default_progress_description': 'Connecting...',
+  'video_progress_description': 'Connecting...',
+  'end_progress_description': 'Ending...',
+  'new_device_progress_description': 'Starting new flow from device...',
+  'otp_configuration_progress_description': 'Loading configuration...',
+  'otp_forwarding_progress_description': 'Sending OTP...',
+  'otp_verification_progress_description': 'Verifying OTP...',
   // TOOLBAR COMPONENT
-  'secondarytoolbar_identification_error': 'Error de identificación',
-  'secondarytoolbar_obverse': 'Anverso del documento',
-  'secondarytoolbar_reverse': 'Reverso del documento',
-  'secondarytoolbar_face': 'Rostro e Identidad',
-  'secondarytoolbar_passport': 'Pasaporte',
-  'secondarytoolbar_certificate': 'Certificado de residencia',
-  'secondarytoolbar_exit_button': 'Salir',
+  'secondarytoolbar_identification_error': 'Identification error',
+  'secondarytoolbar_obverse': 'Document front',
+  'secondarytoolbar_reverse': 'Reverse of document',
+  'secondarytoolbar_face': 'Face and Identity',
+  'secondarytoolbar_passport': 'Passport',
+  'secondarytoolbar_certificate': 'Residency certificate',
+  'secondarytoolbar_exit_button': 'Exit',
   // INFOBAR COMPONENT
-  'card_detector_verifying': 'Verificando documento...',
-  'infobar_start_text': 'Configurando escáner',
-  'infobar_working_card_capture_text': 'Coloca el documento de identidad en una superficie plana y luminosa',
-  'infobar_uploading_text': 'Enviando archivos...',
-  'infobar_finish_text': '¡Perfecto!',
-  'infobar_passport_start_text': 'Coloca el pasaporte en una superfice plana y luminosa',
-  'infobar_passport_working_card_capture_text': 'Coloca el pasaporte en una superfice plana y luminosa',
-  'infobar_passport_uploading_text': 'Estamos enviando la fotografía',
-  'infobar_passport_finish_text': '¡Perfecto!',
-  'infobar_passport_end_text': 'Ya tenemos el pasaporte',
-  'infobar_certificate_start_text': 'Coloca el certificado en una superfice plana y luminosa',
-  'infobar_certificate_working_card_capture_text': 'Coloca el certificado en una superfice plana y luminosa',
-  'infobar_certificate_uploading_text': 'Estamos enviando la fotografía',
-  'infobar_certificate_finish_text': '¡Perfecto!',
-  'infobar_certificate_end_text': 'Ya tenemos el certificado',
-  'infobar_working_face_capture_text': 'Procura colocar tu rostro dentro de la guía que aparece en la pantalla',
-  'infobar_video_identification_front_text': 'Coge el documento de identidad por el borde, enseñando la parte delantera y colócate para el vídeo',
-  'infobar_video_identification_back_text': 'Ahora enseña la parte trasera del documento de indentidad. No olvides cogerlo por el borde',
-  'infobar_face_detector_verifying': 'Verificando selfie...',
+  'card_detector_verifying': 'Verifying document...',
+  'infobar_start_text': 'Configuring scanner',
+  'infobar_working_card_capture_text': 'Place the ID card on a flat, bright surface',
+  'infobar_uploading_text': 'Sending files...',
+  'infobar_finish_text': 'Perfect!',
+  'infobar_passport_start_text': 'Place the passport on a flat, bright surface',
+  'infobar_passport_working_card_capture_text': 'Place the passport on a flat, bright surface',
+'infobar_passport_uploading_text': 'We are sending the photo',
+  'infobar_passport_finish_text': 'Perfect!',
+  'infobar_passport_end_text': 'We already have the passport',
+  'infobar_certificate_start_text': 'Place the certificate on a flat, bright surface',
+  'infobar_certificate_working_card_capture_text': 'Place the certificate on a flat, bright surface',
+  'infobar_certificate_uploading_text': 'We are sending the photograph',
+  'infobar_certificate_finish_text': 'Perfect!',
+  'infobar_certificate_end_text': 'We already have the certificate',
+  'infobar_working_face_capture_text': 'Try to place your face within the guide that appears on the screen',
+  'infobar_video_identification_front_text': 'Hold the ID by the edge, showing the front and position yourself for the video',
+  'infobar_video_identification_back_text': 'Now show the back of the identity document. Don\'t forget to grab it by the edge',
+  'infobar_face_detector_verifying': 'Verifying selfie...',
   // SPEECH SYNTHESIS
-  'speech_synthesis_capture_doc_front': 'Haz que coincida la parte delantera de tu documento con la silueta',
-  'speech_synthesis_capture_doc_front_manual': 'Haz una foto de la parte delantera de tu documento',
-  'speech_synthesis_capture_doc_front_qr': 'Utilice el móvil, para escanear el código qr y hacer una foto del anverso del documento',
-  'speech_synthesis_capture_doc_back': 'Haz que coincida la parte trasera de tu documento con la silueta',
-  'speech_synthesis_capture_doc_back_manual': 'Haz una foto de la parte trasera de tu documento',
-  'speech_synthesis_capture_doc_back_qr': 'Ahora con el móvil, realiza una foto del reverso del documento',
-  'speech_synthesis_capture_doc_passport': 'Haz una foto del pasaporte',
-  'speech_synthesis_capture_doc_passport_qr': 'Utilice el móvil, para escanear el código qr y hacer una foto del pasaporte',
-  'speech_synthesis_capture_doc_certificate': 'Haz una foto del certificado de residencia',
-  'speech_synthesis_capture_doc_certificate_qr': 'Ahora con el móvil, realiza una foto del certificado',
-  'speech_synthesis_capture_doc_finish_qr': 'Continua el proceso por este dispositivo',
-  'speech_synthesis_video_identification_front': 'Muestra la parte delantera del documento',
-  'speech_synthesis_video_identification_back': 'Muestra la parte trasera del documento',
-  'speech_synthesis_video_identification_passport': 'Muestra el pasaporte',
-  'speech_synthesis_video_identification_certificate': 'Muestra el certificado',
-  'speech_synthesis_face_capture': 'Prepárate para hacerte un selfie',
-  'speech_synthesis_face_capture_manual': 'Hazte un selfie haciendo click en el botón de captura',
-  'speech_synthesis_attach_doc_front': 'Adjunta una foto del anverso del documento',
-  'speech_synthesis_attach_doc_back': 'Adjunta una foto del reverso del documento',
-  'speech_synthesis_attach_video_identification': 'Adjunta un vídeo identificador con tu rostro',
-  'speech_synthesis_attach_face': 'Adjunta una foto de tu rostro',
-  'speech_synthesis_attach_passport': 'Adjunta una foto del pasaporte',
-  'speech_synthesis_attach_ue': 'Adjunta una foto del certificado de residencia de la unión europea',
+  'speech_synthesis_capture_doc_front': 'Match the front of your document to the silhouette',
+  'speech_synthesis_capture_doc_front_manual': 'Take a photo of the front of your document',
+  'speech_synthesis_capture_doc_front_qr': 'Use your mobile to scan the qr code and take a photo of the front of the document',
+  'speech_synthesis_capture_doc_back': 'Match the back of your document to the silhouette',
+  'speech_synthesis_capture_doc_back_manual': 'Take a photo of the back of your document',
+  'speech_synthesis_capture_doc_back_qr': 'Now with your mobile, take a photo of the back of the document',
+  'speech_synthesis_capture_doc_passport': 'Take a passport photo',
+  'speech_synthesis_capture_doc_passport_qr': 'Use your mobile to scan the qr code and take a photo of the passport',
+  'speech_synthesis_capture_doc_certificate': 'Take a photo of the residence certificate',
+  'speech_synthesis_capture_doc_certificate_qr': 'Now with your mobile, take a photo of the certificate',
+  'speech_synthesis_capture_doc_finish_qr': 'Continue processing for this device',
+  'speech_synthesis_video_identification_front': 'Show the front of the document',
+  'speech_synthesis_video_identification_back': 'Show the back of the document',
+  'speech_synthesis_video_identification_passport': 'Show passport',
+  'speech_synthesis_video_identification_certificate': 'Show the certificate',
+  'speech_synthesis_face_capture': 'Get ready to take a selfie',
+  'speech_synthesis_face_capture_manual': 'Take a selfie by clicking the capture button',
+  'speech_synthesis_attach_doc_front': 'Attach a photo of the front of the document',
+  'speech_synthesis_attach_doc_back': 'Attach a photo of the back of the document',
+  'speech_synthesis_attach_video_identification': 'Attach a video identifier with your face',
+  'speech_synthesis_attach_face': 'Attach a photo of your face',
+  'speech_synthesis_attach_passport': 'Attach a passport photo',
+  'speech_synthesis_attach_ue': 'Attach a photo of the European Union residence certificate',
   // HELP ORIENTATION
-  'helporientation_title': 'Por favor cambia la orientación a vertical',
-  'helporientation_button': 'CERRAR',
+  'helporientation_title': 'Please change the orientation to portrait',
+  'helporientation_button': 'CLOSE',
   // HELP PERMISSIONS VIEW
-  'help_permissions_title': 'Permisos cámara y micrófono',
-  'help_permissions_description': 'Necesitamos que aceptes los permisos para acceder a la cámara y al micrófono. Son imprescindibles para realizar la videoidentificación.',
+  'help_permissions_title': 'Camera and microphone permissions',
+  'help_permissions_description': 'We need you to accept the permissions to access the camera and microphone. They are essential to carry out video identification.',
   // EXIT DIALOG VIEW
-  'exit_dialog_title': 'Aviso',
-  'exit_dialog_subtitle': '¿Desea cancelar el proceso?',
-  'exit_dialog_accept': 'Sí',
+  'exit_dialog_title': 'Notice',
+  'exit_dialog_subtitle': 'Do you want to cancel the process?',
+  'exit_dialog_accept': 'Yes',
   'exit_dialog_cancel': 'No',
   // QR VIEW
-  'qr_capture_doc_front': 'Escanea el código QR con el móvil para hacer una foto del anverso del documento.',
-  'qr_capture_doc_back': 'Ahora con el móvil realiza una foto del reverso del documento.',
-  'qr_connect_error': 'Problemas de conexión, por favor vuelve a escanear el código QR en unos momentos.',
+  'qr_capture_doc_front': 'Scan the QR code with your mobile to take a photo of the front of the document.',
+  'qr_capture_doc_back': 'Now take a photo of the back of the document with your mobile.',
+  'qr_connect_error': 'Connection problems, please scan the QR code again in a few moments.',
   // CUSTOM STRINGS INSTRUCTIONS STEP
-  'custom_instructions_doc_title': 'Identificación Digital',
-  'custom_instructions_doc_description': 'A continuación vamos a capturar el anverso y el reverso. Si es posible, busca un fondo oscuro y apoya el documento en una superficie plana.',
-  'custom_instructions_doc_button': 'Continuar',
+  'custom_instructions_doc_title': 'Digital Identification',
+  'custom_instructions_doc_description': 'Next we are going to capture the front and back. If possible, find a dark background and place the document on a flat surface.',
+  'custom_instructions_doc_button': 'Continue',
   // CUSTOM STRINGS INITIAL/END STEP - EXAMPLE: PASSPORT
-  'custom_intro_row_obverse': 'Pasaporte',
-  'custom_intro_row_reverse': 'Certificado de residencia',
+  'custom_intro_row_obverse': 'Passport',
+  'custom_intro_row_reverse': 'Residence Certificate',
   // CUSTOM STRINGS INSTRUCTIONS STEP - EXAMPLE: PASSPORT
-  'custom_instructions_step_title': 'Instrucciones Pasaporte',
-  'custom_instructions_step_description': 'Primero comenzaremos con la captura del pasaporte.'
+  'custom_instructions_step_title': 'Passport Instructions',
+  'custom_instructions_step_description': 'First we will start with capturing the passport.'
 };
 
 // Configuramos el SDK
