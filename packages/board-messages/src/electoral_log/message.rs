@@ -126,7 +126,7 @@ impl Message {
         election: ElectionIdString,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::SendCommunication("abc".to_string(), "123".to_string());
+        let body = StatementBody::SendCommunication;
         Self::from_body(event, body, sd)
     }
 
