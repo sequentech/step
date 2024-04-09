@@ -33,9 +33,10 @@ pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
     replace_event_id: bool,
+    id_opt: Option<String>,
 ) -> Result<ImportElectionEventSchema> {
     let mut ids_to_replace: Vec<String> = vec![];
-    if replace_event_id {
+    if replace_event_id && id_opt.is_none() {
         ids_to_replace.push(original_data.election_event_data.id.clone());
     }
 
@@ -76,6 +77,9 @@ pub fn replace_ids(
 
     let mut new_data = String::from(data_str);
 
+    if let Some(id) = id_opt {
+        new_data = new_data.replace(&original_data.election_event_data.id, &id);
+    }
     for id in ids_to_replace {
         let uuid = Uuid::new_v4().to_string();
         new_data = new_data.replace(&id, &uuid);
@@ -86,7 +90,10 @@ pub fn replace_ids(
 }
 
 #[instrument(err)]
-pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElectionEventSchema> {
+pub async fn get_document(
+    object: ImportElectionEventBody,
+    id: Option<String>,
+) -> Result<ImportElectionEventSchema> {
     let document = documents::get_document(&object.tenant_id, None, &object.document_id)
         .await?
         .ok_or(anyhow!(
@@ -120,7 +127,7 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
 
     let replace_event_id = events.len() > 0;
 
-    let data = replace_ids(&data_str, &original_data, replace_event_id)?;
+    let data = replace_ids(&data_str, &original_data, replace_event_id, id)?;
 
     Ok(data)
 }
@@ -128,8 +135,8 @@ pub async fn get_document(object: ImportElectionEventBody) -> Result<ImportElect
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn import_election_event(object: ImportElectionEventBody) -> Result<()> {
-    let data: ImportElectionEventSchema = get_document(object).await?;
+pub async fn import_election_event(object: ImportElectionEventBody, id: String) -> Result<()> {
+    let data: ImportElectionEventSchema = get_document(object, Some(id)).await?;
 
     import_election_event_service::process(&data).await?;
 
