@@ -280,7 +280,6 @@ struct VelvetTemplateData {
     pub title: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
-    pub file_pagedjs_lib: String,
 }
 
 pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
@@ -290,8 +289,6 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_LOGO_IMG var: {}", err))?;
     let file_qrcode_lib = std::env::var("PUBLIC_ASSETS_QRCODE_LIB")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_QRCODE_LIB var: {}", err))?;
-    let file_pagedjs_lib = std::env::var("PUBLIC_ASSETS_PAGEDJS_LIB")
-        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PAGEDJS_LIB var: {}", err))?;
     let vote_receipts_title =
         std::env::var("VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE").map_err(|err| {
             anyhow!(
@@ -313,10 +310,6 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         file_qrcode_lib: format!(
             "{}/{}/{}",
             minio_endpoint_base, public_asset_path, file_qrcode_lib
-        ),
-        file_pagedjs_lib: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, file_pagedjs_lib
         ),
     };
 
