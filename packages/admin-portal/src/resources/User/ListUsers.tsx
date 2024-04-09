@@ -43,8 +43,9 @@ import {
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
+import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
@@ -72,7 +73,7 @@ export interface ListUsersProps {
 }
 
 function useGetPublicDocumentUrl() {
-    const {tenantId} = useParams<TenantEventType>()
+    const [tenantId] = useTenantStore()
     const {globalSettings} = React.useContext(SettingsContext)
 
     function getDocumentUrl(documentId: string, documentName: string): string {
@@ -103,6 +104,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [documentId, setDocumentId] = React.useState<string | null>(null)
     const [documentOpened, setDocumentOpened] = React.useState<boolean>(false)
     const [documentUrl, setDocumentUrl] = React.useState<string | null>(null)
+    const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
 
@@ -160,9 +162,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setTimeout(() => {
                 setPolling(null)
                 if (!documentUrlRef.current) {
-                    setErrorDialog(true)
+                    notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                        type: "error",
+                    })
+        
                 }
-            }, globalSettings.POLLING_DURATION_TIMEOUT)
+            }, globalSettings.QUERY_POLL_INTERVAL_MS)
         }
     }
 
@@ -198,7 +203,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }, 0)
             }
         }
-    }, [eventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
+    }, [electionEventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
 
     React.useEffect(() => {
         return () => {
@@ -279,66 +284,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             variables: {
                 tenantId: tenantId,
                 electionEventId: electionEventId,
-                userId: deleteId,
+                voterId: recordIds[0],
             },
         })
-        let docId = data?.get_manual_verification_pdf?.document_id
 
+        if (errors) {
+            console.log(`Error manually verifying user: ${errors}`)
+            notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                type: "error",
+            })
+            setRecordIds([])
+            refresh()
+            return
+        }
+        console.log(`fetchData success: ${data}`)
+        notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
+            type: "success",
+        })
+        setRecordIds([])
+        refresh()
+
+        let docId = data?.get_manual_verification_pdf?.document_id
         if (docId) {
             setDocumentId(docId)
             startPolling(docId)
             setDocumentOpened(false)
         }
-
-
-        console.log(`confirmManualVerificationAction: start`)
-        async function fetchData(url: string): Promise<any> {
-            try {
-                // Setting up custom headers
-                const headers = new Headers({
-                    "Content-Type": "application/json",
-                    //'Authorization': 'Bearer YOUR_TOKEN_HERE'
-                })
-
-                // Perform the HTTP GET request
-                const response = await fetch(url, {
-                    method: "GET",
-                    headers: headers,
-                })
-
-                // Check if the request was successful
-                if (!response.ok) {
-                    throw new Error(`Error: ${response.status}`)
-                }
-
-                // Parse and return the JSON response
-                return await response.json()
-            } catch (error) {
-                console.error("Failed to fetch data:", error)
-                throw error
-            }
-        }
-
-        const url =
-            "http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/manual-verification/generate-link?userId=788e32ca-5aad-45d8-8c98-a985fb1d9dec&redirectUri=http://127.0.0.1:3002"
-        console.log(`calling manual verification url=${url}`)
-        await fetchData(url)
-            .then((data) => {
-                console.log(`fetchData success: ${data}`)
-                notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
-                    type: "success",
-                })
-                setRecordIds([])
-                refresh()
-            })
-            .catch((error) => {
-                console.log(`Error manually verifying user: ${error}`)
-                notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
-                    type: "error",
-                })
-                setRecordIds([])
-                refresh()
-            })
     }
 
     const confirmDeleteAction = async () => {
