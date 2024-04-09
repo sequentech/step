@@ -75,6 +75,7 @@ async fn rocket() -> _ {
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
                 routes::tally_ceremony::update_tally_ceremony,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::tally_sheets::publish_tally_sheet,
                 routes::create_vote_receipt::create_vote_receipt
             ],

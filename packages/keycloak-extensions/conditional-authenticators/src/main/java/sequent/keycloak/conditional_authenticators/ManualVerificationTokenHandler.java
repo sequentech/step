@@ -3,17 +3,10 @@ package sequent.keycloak.conditional_authenticators;
 import java.util.List;
 
 import org.keycloak.TokenVerifier.Predicate;
-import org.keycloak.authentication.AuthenticatorUtil;
 import org.keycloak.authentication.actiontoken.AbstractActionTokenHandler;
 import org.keycloak.authentication.actiontoken.ActionTokenContext;
 import org.keycloak.authentication.actiontoken.ActionTokenHandlerFactory;
 import org.keycloak.authentication.actiontoken.TokenUtils;
-import org.keycloak.authentication.actiontoken.idpverifyemail.IdpVerifyAccountLinkActionToken;
-import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionToken;
-import org.keycloak.authentication.authenticators.resetcred.ResetPassword;
-import org.keycloak.common.ClientConnection;
-import org.keycloak.events.Details;
-import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;

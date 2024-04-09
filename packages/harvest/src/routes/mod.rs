@@ -13,6 +13,7 @@ pub mod immudb_log_audit;
 pub mod insert_cast_vote;
 pub mod insert_election_event;
 pub mod insert_tenant;
+pub mod manual_verification_pdf;
 pub mod keys_ceremony;
 pub mod permissions;
 pub mod roles;

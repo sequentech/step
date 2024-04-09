@@ -23,6 +23,7 @@ pub mod jwks;
 pub mod pg_lock;
 pub mod private_keys;
 pub mod protocol_manager;
+pub mod manual_verification;
 pub mod public_keys;
 pub mod s3;
 pub mod temp_path;

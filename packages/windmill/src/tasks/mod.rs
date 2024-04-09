@@ -13,6 +13,7 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod process_board;
 pub mod render_report;
+pub mod manual_verification_pdf;
 pub mod review_boards;
 pub mod send_communication;
 pub mod set_public_key;
