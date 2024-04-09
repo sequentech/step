@@ -39,9 +39,11 @@ import {
     DeleteUserMutation,
     ExportUsersMutation,
     ImportUsersMutation,
+    ManualVerificationMutation,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
+import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
@@ -52,6 +54,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {useParams} from "react-router-dom"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -68,6 +71,21 @@ export interface ListUsersProps {
     electionId?: string
 }
 
+function useGetPublicDocumentUrl() {
+    const {tenantId} = useParams<TenantEventType>()
+    const {globalSettings} = React.useContext(SettingsContext)
+
+    function getDocumentUrl(documentId: string, documentName: string): string {
+        return encodeURI(
+            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
+        )
+    }
+
+    return {
+        getDocumentUrl,
+    }
+}
+
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -81,6 +99,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
     )
+    const [polling, setPolling] = React.useState<NodeJS.Timer | null>(null)
+    const [documentId, setDocumentId] = React.useState<string | null>(null)
+    const [documentOpened, setDocumentOpened] = React.useState<boolean>(false)
+    const [documentUrl, setDocumentUrl] = React.useState<string | null>(null)
+    const documentUrlRef = React.useRef(documentUrl)
+    const {getDocumentUrl} = useGetPublicDocumentUrl()
+
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
@@ -93,6 +118,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [getManualVerificationPdf] = 
+        useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const notify = useNotify()
@@ -109,6 +136,77 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
+
+    function fetchData(documentId: string) {
+        getDocument({
+            variables: {
+                id: documentId,
+                tenantId,
+            },
+            fetchPolicy: "network-only",
+        })
+    }
+
+    function startPolling(documentId: string) {
+        if (!polling) {
+            fetchData(documentId)
+
+            const intervalId = setInterval(() => {
+                fetchData(documentId)
+            }, 1000)
+
+            setPolling(intervalId)
+
+            setTimeout(() => {
+                setPolling(null)
+                if (!documentUrlRef.current) {
+                    setErrorDialog(true)
+                }
+            }, globalSettings.POLLING_DURATION_TIMEOUT)
+        }
+    }
+
+    React.useEffect(() => {
+        documentUrlRef.current = documentUrl
+    }, [documentUrl])
+
+    React.useEffect(() => {
+        function stopPolling() {
+            if (polling) {
+                clearInterval(polling)
+                setPolling(null)
+            }
+        }
+
+        if (documentData?.sequent_backend_document?.length > 0) {
+            stopPolling()
+
+            if (!documentOpened) {
+                const newDocumentUrl = getDocumentUrl(
+                    documentId!,
+                    documentData?.sequent_backend_document[0]?.name
+                )
+
+                setDocumentUrl(newDocumentUrl)
+                setDocumentOpened(true)
+
+                setTimeout(() => {
+                    // We use a setTimeout as a work around due to this issue in React:
+                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
+                    // https://github.com/facebook/react/issues/17355
+                    window.open(newDocumentUrl, "_blank")
+                }, 0)
+            }
+        }
+    }, [eventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
+
+    React.useEffect(() => {
+        return () => {
+            if (polling) {
+                clearInterval(polling)
+            }
+        }
+    }, [polling])
 
     const handleClose = () => {
         setRecordIds([])
@@ -177,6 +275,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const confirmManualVerificationAction = async () => {
+        const {errors, data} = await getManualVerificationPdf({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                userId: deleteId,
+            },
+        })
+        let docId = data?.get_manual_verification_pdf?.document_id
+
+        if (docId) {
+            setDocumentId(docId)
+            startPolling(docId)
+            setDocumentOpened(false)
+        }
+
+
         console.log(`confirmManualVerificationAction: start`)
         async function fetchData(url: string): Promise<any> {
             try {
