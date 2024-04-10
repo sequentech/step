@@ -789,6 +789,7 @@
       "oidc.ciba.grant.enabled" : "false",
       "backchannel.logout.session.required" : "true",
       "login_theme" : "sequent.voting-portal",
+      "use.refresh.tokens" : "true",
       "post.logout.redirect.uris" : "*",
       "display.on.consent.screen" : "false",
       "oauth2.device.authorization.grant.enabled" : "false",
