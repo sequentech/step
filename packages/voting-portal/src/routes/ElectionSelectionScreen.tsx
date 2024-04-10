@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, Typography} from "@mui/material"
+import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -253,14 +253,16 @@ export const ElectionSelectionScreen: React.FC = () => {
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
-    const {error: errorElections, data: dataElections} = useQuery<GetElectionsQuery>(
-        GET_ELECTIONS,
-        {
-            variables: {
-                electionIds: ballotStyleElectionIds,
-            },
-        }
-    )
+    const [hasLoadElections, setHasLoadElections] = useState<boolean>(false)
+    const {
+        error: errorElections,
+        data: dataElections,
+        loading: loadingElections,
+    } = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
+        variables: {
+            electionIds: ballotStyleElectionIds,
+        },
+    })
 
     const {error: errorElectionEvent, data: dataElectionEvent} = useQuery<GetElectionEventQuery>(
         GET_ELECTION_EVENT,
@@ -274,7 +276,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
 
-    const hasNoResults = electionIds.length === 0
+    const hasNoResults = hasLoadElections && electionIds.length === 0
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
@@ -299,12 +301,17 @@ export const ElectionSelectionScreen: React.FC = () => {
             for (let election of dataElections.sequent_backend_election) {
                 dispatch(setElection(election))
             }
+
+            setHasLoadElections(true)
+
             let foundTestElection = dataElections.sequent_backend_election.find((election) =>
                 election.name.includes("TEST")
             )
+
             if (foundTestElection) {
                 setCanVoteTest(false)
             }
+
             setTestElectionId(foundTestElection?.id || null)
         }
     }, [dataElections, dispatch])
@@ -410,6 +417,8 @@ export const ElectionSelectionScreen: React.FC = () => {
                         <Typography>{t("electionSelectionScreen.noResults")}</Typography>
                     </Box>
                 )}
+
+                {loadingElections && <CircularProgress />}
             </ElectionContainer>
         </PageLimit>
     )
