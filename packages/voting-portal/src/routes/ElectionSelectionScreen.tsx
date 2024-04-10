@@ -78,9 +78,14 @@ const ElectionContainer = styled(Box)`
 interface ElectionWrapperProps {
     electionId: string
     bypassChooser: boolean
+    canVoteTest: boolean
 }
 
-const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChooser}) => {
+const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
+    electionId,
+    bypassChooser,
+    canVoteTest,
+}) => {
     const navigate = useNavigate()
     const {i18n} = useTranslation()
 
@@ -97,8 +102,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId, bypassChoo
 
     const eventStatus = electionEvent?.status as IElectionEventStatus | null
     const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
-    const canVote = () =>
-        castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
+    const canVote = () => {
+        if (!canVoteTest && !election.name?.includes("TEST")) {
+            return false
+        }
+
+        return castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
+    }
 
     const onClickToVote = () => {
         if (!canVote()) {
@@ -229,9 +239,11 @@ export const ElectionSelectionScreen: React.FC = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
-    const [canVoteTest, setCanVoteTest] = useState<boolean>(false)
+    const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
-    const castVotesTestElection = useAppSelector(selectCastVotesByElectionId(String(testElectionId || tenantId)))
+    const castVotesTestElection = useAppSelector(
+        selectCastVotesByElectionId(String(testElectionId || tenantId))
+    )
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
@@ -287,7 +299,12 @@ export const ElectionSelectionScreen: React.FC = () => {
             for (let election of dataElections.sequent_backend_election) {
                 dispatch(setElection(election))
             }
-            let foundTestElection = dataElections.sequent_backend_election.find(election => election.name.includes("TEST"))
+            let foundTestElection = dataElections.sequent_backend_election.find((election) =>
+                election.name.includes("TEST")
+            )
+            if (foundTestElection) {
+                setCanVoteTest(false)
+            }
             setTestElectionId(foundTestElection?.id || null)
         }
     }, [dataElections, dispatch])
@@ -385,6 +402,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                             electionId={electionId}
                             key={electionId}
                             bypassChooser={bypassChooser}
+                            canVoteTest={canVoteTest}
                         />
                     ))
                 ) : (
