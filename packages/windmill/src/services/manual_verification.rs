@@ -16,7 +16,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use deadpool_postgres::Transaction;
 use uuid::Uuid;
@@ -73,6 +73,7 @@ fn get_minio_url() -> Result<String> {
     Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
+#[instrument(err)]
 async fn get_manual_verification_url(
     tenant_id: &str,
     election_event_id: &str,
@@ -91,7 +92,9 @@ async fn get_manual_verification_url(
   );
 
     let client = reqwest::Client::new();
-    let response = client.get(generate_token_url).send().await?;
+
+    event!(Level::INFO, "Requesting HTTP GET {:?}", generate_token_url);
+    /*let response = client.get(generate_token_url).send().await?;
 
     let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
         return Err(anyhow!("Error during generate_token_url"));
@@ -100,7 +103,8 @@ async fn get_manual_verification_url(
     };
     let response_body: ManualVerificationOutput = unwrapped_response.json().await?;
 
-    Ok(response_body.link)
+    Ok(response_body.link)*/
+    Ok(generate_token_url)
 }
 
 #[instrument(skip(hasura_transaction), err)]
