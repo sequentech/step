@@ -325,6 +325,10 @@ const spanishTranslation: TranslationType = {
                 logs: {
                     noLogs: "No hay registros disponibles",
                 },
+                notify: {
+                    participateNow:
+                    "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                },
             },
             import: {
                 eetitle: "Importar Evento Electoral",

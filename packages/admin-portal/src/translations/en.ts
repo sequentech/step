@@ -323,6 +323,10 @@ const englishTranslation = {
                 logs: {
                     noLogs: "No logs available",
                 },
+                notify: {
+                    participateNow:
+                        "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                },
             },
             import: {
                 eetitle: "Import Election Event",
