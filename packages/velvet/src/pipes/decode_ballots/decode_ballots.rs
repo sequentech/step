@@ -83,14 +83,6 @@ impl Pipe for DecodeBallots {
                         &contest_input.contest,
                     );
 
-                    if let Err(Error::FileAccess(file, _)) = &res {
-                        println!(
-                            "[{}] File not found: {} -- Not processed",
-                            PipeName::DecodeBallots.as_ref(),
-                            file.display()
-                        );
-                    }
-
                     match res {
                         Ok(decoded_ballots) => {
                             let mut output_path = PipeInputs::build_path(

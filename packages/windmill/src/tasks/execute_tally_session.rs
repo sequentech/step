@@ -587,11 +587,14 @@ pub async fn execute_tally_session_wrapped(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = if plaintexts_data.len() > 0 {
-        Some(run_velvet_tally(
-            base_tempdir.path().to_path_buf(),
-            &plaintexts_data,
-            &cast_votes_count,
-        )?)
+        Some(
+            run_velvet_tally(
+                base_tempdir.path().to_path_buf(),
+                &plaintexts_data,
+                &cast_votes_count,
+            )
+            .await?,
+        )
     } else {
         None
     };
@@ -687,15 +690,21 @@ pub async fn transactions_wrapper(
         &hasura_transaction,
         &keycloak_transaction,
     )
-    .await
-    .with_context(|| "Error executing tally session")?;
+    .await;
 
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;
-
-    Ok(res)
+    match res {
+        Ok(res) => {
+            hasura_transaction
+                .commit()
+                .await
+                .with_context(|| "error comitting transaction")?;
+            Ok(res)
+        }
+        Err(err) => {
+            tracing::error!("Error in transactions_wrapper: {:?}", err);
+            Err(err)
+        }
+    }
 }
 
 #[instrument(err)]
