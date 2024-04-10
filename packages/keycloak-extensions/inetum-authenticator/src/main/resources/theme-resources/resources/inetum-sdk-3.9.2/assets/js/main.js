@@ -18,7 +18,11 @@ let design = 'generic';
   // Ejemplo con responsive
   let design = 'responsive';
 */
-let isPassportFlow = (window.DOB_DOC_ID_TYPE === 'Pilippine Passport');
+
+let isPassportFlow = (
+  (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
+  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+);
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
  let isPassportFlow = true;
@@ -33,19 +37,21 @@ let env_config;   // Configuration parametres for Environments
 function flow() {
   if (design === 'generic') {
     if (isPassportFlow === true) {
+      console.log("Pilippine Passport YES");
       // Esto simplemente es un ejemplo en caso de ser un flujo para pasaporte
       return [
         new InitialStep('permissions-passport'),
         new InstructionsStep('instructions-passport', 'instructions_face_passport.gif', InstructionsResourceType.image, -1),
         new DocCaptureStep('passport-capture', DocSide.front, Evidence.imgPassport, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
-        new DocCaptureStep('certificate-capture', DocSide.front, Evidence.imgEUResidenceCertificate, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
+        //new DocCaptureStep('certificate-capture', DocSide.front, Evidence.imgEUResidenceCertificate, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
         new InstructionsStep('instructions-face', SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop', InstructionsResourceType.video, -1),
         new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgPassport, 22),
-        new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgEUResidenceCertificate, 22),
+        //new VideoIdentificationStep('show_front', 'user', VideoType.webrtc, DocSide.front, Evidence.imgEUResidenceCertificate, 22),
         new FaceCaptureStep('face-capture', 'user', VideoType.photo, 30),
         new EndStep('end-passport')
       ];
     } else {
+      console.log("Pilippine Passport NO");
       // Esto simplemente es un ejemplo en caso de ser un flujo para dni
       return [
         new InitialStep('permissions'),
