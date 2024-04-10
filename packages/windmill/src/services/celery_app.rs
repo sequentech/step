@@ -17,6 +17,7 @@ use crate::tasks::import_users::import_users;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
+use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -80,10 +81,12 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_users,
             export_users,
             import_election_event,
+            get_manual_verification_pdf,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
             "create_keys" => "short_queue",
+            "get_manual_verification_pdf" => "short_queue",
             "insert_ballots" => "tally_queue",
             "review_boards" => "beat",
             "process_board" => "beat",
