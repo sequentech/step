@@ -38,6 +38,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     DeleteUserMutation,
     ExportUsersMutation,
+    GetDocumentQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
     Sequent_Backend_Election_Event,
@@ -104,7 +105,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [documentId, setDocumentId] = React.useState<string | null>(null)
     const [documentOpened, setDocumentOpened] = React.useState<boolean>(false)
     const [documentUrl, setDocumentUrl] = React.useState<string | null>(null)
-    const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
+    const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
     const documentUrlRef = React.useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
 
@@ -138,8 +139,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         IPermissions.NOTIFICATION_SEND
     )
 
-    function fetchData(documentId: string) {
-        getDocument({
+    const fetchData = async (documentId: string) => {
+        let {data, error} = await getDocument({
             variables: {
                 id: documentId,
                 tenantId,
@@ -159,13 +160,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setPolling(intervalId)
 
             setTimeout(() => {
+                clearInterval(intervalId)
                 setPolling(null)
                 if (!documentUrlRef.current) {
                     notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
                         type: "error",
                     })
                 }
-            }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }, 5 * globalSettings.QUERY_POLL_INTERVAL_MS)
         }
     }
 
@@ -181,14 +183,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
 
-        if (documentData?.sequent_backend_document?.length > 0) {
+        if (documentData && documentData?.sequent_backend_document?.length > 0) {
+            let name = documentData?.sequent_backend_document[0]?.name
             stopPolling()
 
-            if (!documentOpened) {
-                const newDocumentUrl = getDocumentUrl(
-                    documentId!,
-                    documentData?.sequent_backend_document[0]?.name
-                )
+            if (name && !documentOpened) {
+                const newDocumentUrl = getDocumentUrl(documentId!, name)
 
                 setDocumentUrl(newDocumentUrl)
                 setDocumentOpened(true)
