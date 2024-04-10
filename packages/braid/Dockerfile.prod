@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /app/target/release/bb_helper /usr/bin
 COPY --from=builder /app/target/release/main /usr/bin/trustee
+COPY --from=builder /app/target/release/verify /usr/bin/verify
 COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
 COPY --from=builder /app/target/release/main /usr/bin/trustee
 COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
