@@ -229,6 +229,9 @@ export const ElectionSelectionScreen: React.FC = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
+    const [canVoteTest, setCanVoteTest] = useState<boolean>(false)
+    const [testElectionId, setTestElectionId] = useState<string | null>(null)
+    const castVotesTestElection = useAppSelector(selectCastVotesByElectionId(String(testElectionId || tenantId)))
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
@@ -284,8 +287,17 @@ export const ElectionSelectionScreen: React.FC = () => {
             for (let election of dataElections.sequent_backend_election) {
                 dispatch(setElection(election))
             }
+            let foundTestElection = dataElections.sequent_backend_election.find(election => election.name.includes("TEST"))
+            setTestElectionId(foundTestElection?.id || null)
         }
     }, [dataElections, dispatch])
+
+    useEffect(() => {
+        if (!testElectionId) {
+            return
+        }
+        setCanVoteTest(castVotesTestElection.length > 0)
+    }, [castVotesTestElection, testElectionId, setCanVoteTest])
 
     useEffect(() => {
         const record = dataElectionEvent?.sequent_backend_election_event?.[0]
