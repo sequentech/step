@@ -332,33 +332,44 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 			}
 			String responseStr = response.asString();
 			log.info("verifyResults: response Str = " + responseStr);
-			String mrzPersonalNumber = response
-				.asJson()
-				.get("response")
-				.get("mrz")
-				.get("personal_number")
-				.asText();
-			log.info("verifyResults: mrzPersonalNumber = " + mrzPersonalNumber);
-			if (mrzPersonalNumber == null) {
-				// try ocr
-				log.info("verifyResults: mrzPersonalNumber is null, trying ocr");
-
-				mrzPersonalNumber = response
+			String personalNumber = null;
+			try {
+				personalNumber = response
 					.asJson()
 					.get("response")
-					.get("ocr")
+					.get("mrz")
 					.get("personal_number")
 					.asText();
-				if (mrzPersonalNumber == null) {
-					log.error("verifyResults: ocr is also null, failing");
+				log.info("verifyResults: personalNumber = " + personalNumber);
+			} catch (Exception error) {
+				// ignore, we'll try the ocr
+			}
+			if (personalNumber == null) {
+				// try ocr
+				log.info("verifyResults: personalNumber is null, trying ocr");
+
+				try {
+					personalNumber = response
+						.asJson()
+						.get("response")
+						.get("ocr")
+						.get("personal_number")
+						.asText();
+				} catch (Exception error) {
+					log.error("verifyResults: ocr is also null, return false");
+					return false;
+				}
+
+				if (personalNumber == null) {
+					log.error("verifyResults: ocr is also null, return false");
 					return false;
 				}
 			}
-			log.info("verifyResults: TRUE, mrzPersonalNumber = " + mrzPersonalNumber);
+			log.info("verifyResults: TRUE, personalNumber = " + personalNumber);
 
 			sessionModel.setAuthNote(
 				configMap.get(Utils.DOC_ID_ATTRIBUTE),
-				mrzPersonalNumber
+				personalNumber
 			);
 			sessionModel.setAuthNote(
 				configMap.get(Utils.USER_STATUS_ATTRIBUTE),
