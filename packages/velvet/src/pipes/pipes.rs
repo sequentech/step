@@ -8,6 +8,7 @@ use super::generate_reports::GenerateReports;
 use super::mark_winners::MarkWinners;
 use super::pipe_inputs::PipeInputs;
 use super::pipe_name::PipeName;
+use super::vote_receipts::VoteReceipts;
 use crate::cli::state::Stage;
 use crate::cli::CliRun;
 use crate::pipes::do_tally::DoTally;
@@ -27,6 +28,7 @@ impl PipeManager {
         if let Some(current_pipe) = pipe_inputs.stage.current_pipe {
             Ok(match current_pipe {
                 PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
+                PipeName::VoteReceipts => Some(Box::new(VoteReceipts::new(pipe_inputs))),
                 PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
                 PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
                 PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),

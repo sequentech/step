@@ -4,7 +4,7 @@
 
 mod counting_algorithm;
 mod error;
-mod tally;
+pub mod tally;
 
 mod do_tally;
 pub use do_tally::*;

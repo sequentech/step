@@ -36,6 +36,11 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
     };
 
     if !has_board {
+        event!(
+            Level::INFO,
+            "FF creating protocol manager keys for Election event {}",
+            election_event_id
+        );
         create_protocol_manager_keys(&board_name).await?;
     }
 

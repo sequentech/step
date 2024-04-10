@@ -121,6 +121,15 @@ impl Message {
         Self::from_body(event, body, sd)
     }
 
+    pub fn send_communication(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::SendCommunication;
+        Self::from_body(event, body, sd)
+    }
+
     fn from_body(event: EventIdString, body: StatementBody, sd: &SigningData) -> Result<Self> {
         let head = StatementHead::from_body(event, &body);
         let statement = Statement::new(head, body);

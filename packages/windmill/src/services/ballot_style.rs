@@ -7,6 +7,8 @@ use anyhow::Context;
 use chrono::Duration;
 use sequent_core;
 use sequent_core::services::connection;
+use sequent_core::types::hasura::core as hasura_type;
+
 use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
@@ -18,12 +20,12 @@ use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
-    for sequent_core::types::hasura_types::ElectionEvent
+    for hasura_type::ElectionEvent
 {
     fn from(
         election_event: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent,
     ) -> Self {
-        sequent_core::types::hasura_types::ElectionEvent {
+        hasura_type::ElectionEvent {
             id: election_event.id.clone(),
             created_at: election_event
                 .created_at
@@ -49,15 +51,17 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
             is_audit: election_event.is_audit.clone(),
             audit_election_event_id: election_event.audit_election_event_id.clone(),
             public_key: election_event.public_key.clone(),
+            alias: None,
+            statistics: None,
         }
     }
 }
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
-    for sequent_core::types::hasura_types::Election
+    for hasura_type::Election
 {
     fn from(election: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElection) -> Self {
-        sequent_core::types::hasura_types::Election {
+        hasura_type::Election {
             id: election.id.clone(),
             tenant_id: election.tenant_id.clone(),
             election_event_id: election.election_event_id.clone(),
@@ -91,12 +95,12 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
 }
 
 impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContest>
-    for sequent_core::types::hasura_types::Contest
+    for hasura_type::Contest
 {
     fn from(
         contest: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContest,
     ) -> Self {
-        sequent_core::types::hasura_types::Contest {
+        hasura_type::Contest {
             id: contest.id.clone(),
             tenant_id: contest.tenant_id.clone(),
             election_event_id: contest.election_event_id.clone(),
@@ -125,17 +129,18 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             is_encrypted: contest.is_encrypted.clone(),
             tally_configuration: contest.tally_configuration.clone(),
             conditions: contest.conditions.clone(),
+            image_document_id: None,
         }
     }
 }
 
 impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates>
-    for sequent_core::types::hasura_types::Candidate
+    for hasura_type::Candidate
 {
     fn from(
         candidate: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates,
     ) -> Self {
-        sequent_core::types::hasura_types::Candidate {
+        hasura_type::Candidate {
             id: candidate.id.clone(),
             tenant_id: candidate.tenant_id.clone(),
             election_event_id: candidate.election_event_id.clone(),
@@ -156,15 +161,14 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             r#type: candidate.type_.clone(),
             presentation: candidate.presentation.clone(),
             is_public: candidate.is_public,
+            image_document_id: None,
         }
     }
 }
 
-impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
-    for sequent_core::types::hasura_types::Area
-{
+impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea> for hasura_type::Area {
     fn from(area: &get_ballot_style_area::GetBallotStyleAreaSequentBackendArea) -> Self {
-        sequent_core::types::hasura_types::Area {
+        hasura_type::Area {
             id: area.id.clone(),
             tenant_id: area.tenant_id.clone(),
             election_event_id: area.election_event_id.clone(),
@@ -249,43 +253,35 @@ pub async fn create_ballot_style(
         let contests = contest_ids
             .clone()
             .into_iter()
-            .map(
-                |contest_id| -> Result<sequent_core::types::hasura_types::Contest> {
-                    let area_contest = area_contests
-                        .iter()
-                        .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
-                        .with_context(|| format!("contest id not found {}", contest_id))?;
-                    Ok(sequent_core::types::hasura_types::Contest::from(
-                        area_contest.contest.clone().unwrap(),
-                    ))
-                },
-            )
-            .collect::<Result<Vec<sequent_core::types::hasura_types::Contest>>>()?;
-        let candidates: Vec<sequent_core::types::hasura_types::Candidate> = contest_ids
+            .map(|contest_id| -> Result<hasura_type::Contest> {
+                let area_contest = area_contests
+                    .iter()
+                    .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
+                    .with_context(|| format!("contest id not found {}", contest_id))?;
+                Ok(hasura_type::Contest::from(
+                    area_contest.contest.clone().unwrap(),
+                ))
+            })
+            .collect::<Result<Vec<hasura_type::Contest>>>()?;
+        let candidates: Vec<hasura_type::Candidate> = contest_ids
             .into_iter()
-            .map(
-                |contest_id| -> Result<Vec<sequent_core::types::hasura_types::Candidate>> {
-                    let area_contest = area_contests
-                        .iter()
-                        .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
-                        .with_context(|| format!("contest id not found {}", contest_id))?;
-                    area_contest
-                        .contest
-                        .clone()
-                        .with_context(|| {
-                            format!("contest missing on area contest id {}", area_contest.id)
-                        })?
-                        .candidates
-                        .into_iter()
-                        .map(|candidate| {
-                            Ok(sequent_core::types::hasura_types::Candidate::from(
-                                candidate.clone(),
-                            ))
-                        })
-                        .collect::<Result<Vec<sequent_core::types::hasura_types::Candidate>>>()
-                },
-            )
-            .collect::<Result<Vec<Vec<sequent_core::types::hasura_types::Candidate>>>>()?
+            .map(|contest_id| -> Result<Vec<hasura_type::Candidate>> {
+                let area_contest = area_contests
+                    .iter()
+                    .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
+                    .with_context(|| format!("contest id not found {}", contest_id))?;
+                area_contest
+                    .contest
+                    .clone()
+                    .with_context(|| {
+                        format!("contest missing on area contest id {}", area_contest.id)
+                    })?
+                    .candidates
+                    .into_iter()
+                    .map(|candidate| Ok(hasura_type::Candidate::from(candidate.clone())))
+                    .collect::<Result<Vec<hasura_type::Candidate>>>()
+            })
+            .collect::<Result<Vec<Vec<hasura_type::Candidate>>>>()?
             .into_iter()
             .flatten()
             .collect();
@@ -293,9 +289,9 @@ pub async fn create_ballot_style(
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
             ballot_style_id.clone().to_string(),
-            sequent_core::types::hasura_types::Area::from(area),
-            sequent_core::types::hasura_types::ElectionEvent::from(election_event),
-            sequent_core::types::hasura_types::Election::from(election),
+            hasura_type::Area::from(area),
+            hasura_type::ElectionEvent::from(election_event),
+            hasura_type::Election::from(election),
             contests,
             candidates,
         )?;

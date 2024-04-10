@@ -17,35 +17,46 @@ import {
     useGetList,
     FunctionField,
     Button as ReactAdminButton,
+    useRecordContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Drawer, Typography} from "@mui/material"
+import {Button, Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
+import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
 import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {DeleteUserMutation, ExportUsersMutation} from "@/gql/graphql"
+import {
+    DeleteUserMutation,
+    ExportUsersMutation,
+    GetDocumentQuery,
+    ImportUsersMutation,
+    ManualVerificationMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {useMutation, useQuery} from "@apollo/client"
+import {GET_DOCUMENT} from "@/queries/GetDocument"
+import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
+import {useLazyQuery, useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
-import importDrawerState from "@/atoms/import-drawer-state"
-import {useAtom} from "jotai"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
+import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {useParams} from "react-router-dom"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -62,13 +73,27 @@ export interface ListUsersProps {
     electionId?: string
 }
 
+function useGetPublicDocumentUrl() {
+    const [tenantId] = useTenantStore()
+    const {globalSettings} = React.useContext(SettingsContext)
+
+    function getDocumentUrl(documentId: string, documentName: string): string {
+        return encodeURI(
+            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
+        )
+    }
+
+    return {
+        getDocumentUrl,
+    }
+}
+
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
 
     const [open, setOpen] = React.useState(false)
-    const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
     const [exporting, setExporting] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
@@ -76,16 +101,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
     )
+    const [polling, setPolling] = React.useState<NodeJS.Timer | null>(null)
+    const [documentId, setDocumentId] = React.useState<string | null>(null)
+    const [documentOpened, setDocumentOpened] = React.useState<boolean>(false)
+    const [documentUrl, setDocumentUrl] = React.useState<string | null>(null)
+    const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
+    const documentUrlRef = React.useRef(documentUrl)
+    const {getDocumentUrl} = useGetPublicDocumentUrl()
+
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState(false)
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const [openImportDrawer, setOpenImportDrawer] = React.useState<boolean>(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const notify = useNotify()
@@ -103,10 +139,91 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         IPermissions.NOTIFICATION_SEND
     )
 
+    const fetchData = async (documentId: string) => {
+        let {data, error} = await getDocument({
+            variables: {
+                id: documentId,
+                tenantId,
+            },
+            fetchPolicy: "network-only",
+        })
+    }
+
+    function startPolling(documentId: string) {
+        if (!polling) {
+            fetchData(documentId)
+
+            const intervalId = setInterval(() => {
+                fetchData(documentId)
+            }, 1000)
+
+            setPolling(intervalId)
+
+            setTimeout(() => {
+                clearInterval(intervalId)
+                setPolling(null)
+                if (!documentUrlRef.current) {
+                    notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                        type: "error",
+                    })
+                }
+            }, 5 * globalSettings.QUERY_POLL_INTERVAL_MS)
+        }
+    }
+
+    React.useEffect(() => {
+        documentUrlRef.current = documentUrl
+    }, [documentUrl])
+
+    React.useEffect(() => {
+        function stopPolling() {
+            if (polling) {
+                clearInterval(polling)
+                setPolling(null)
+            }
+        }
+
+        if (documentData && documentData?.sequent_backend_document?.length > 0) {
+            let name = documentData?.sequent_backend_document[0]?.name
+            stopPolling()
+
+            if (name && !documentOpened) {
+                const newDocumentUrl = getDocumentUrl(documentId!, name)
+
+                setDocumentUrl(newDocumentUrl)
+                setDocumentOpened(true)
+
+                setTimeout(() => {
+                    // We use a setTimeout as a work around due to this issue in React:
+                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
+                    // https://github.com/facebook/react/issues/17355
+                    window.open(newDocumentUrl, "_blank")
+                }, 0)
+            }
+        }
+    }, [
+        electionEventId,
+        documentUrl,
+        documentOpened,
+        polling,
+        documentData,
+        documentId,
+        getDocumentUrl,
+    ])
+
+    React.useEffect(() => {
+        return () => {
+            if (polling) {
+                clearInterval(polling)
+            }
+        }
+    }, [polling])
+
     const handleClose = () => {
         setRecordIds([])
         setOpenSendCommunication(false)
         setOpenDeleteModal(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -117,6 +234,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpen(true)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(false)
         setRecordIds([id as string])
@@ -133,6 +251,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpen(false)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
 
@@ -147,9 +266,56 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpen(false)
         setOpenNew(false)
         setOpenSendCommunication(false)
+        setOpenManualVerificationModal(false)
         setOpenDeleteBulkModal(false)
         setOpenDeleteModal(true)
         setDeleteId(id as string)
+    }
+
+    const manualVerificationAction = (id: Identifier) => {
+        if (!electionEventId && authContext.userId === id) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
+        setOpenManualVerificationModal(true)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setRecordIds([id])
+    }
+
+    const confirmManualVerificationAction = async () => {
+        const {errors, data} = await getManualVerificationPdf({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                voterId: recordIds[0],
+            },
+        })
+
+        if (errors) {
+            console.log(`Error manually verifying user: ${errors}`)
+            notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                type: "error",
+            })
+            setRecordIds([])
+            refresh()
+            return
+        }
+        console.log(`fetchData success: ${data}`)
+        notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
+            type: "success",
+        })
+        setRecordIds([])
+        refresh()
+
+        let docId = data?.get_manual_verification_pdf?.document_id
+        if (docId) {
+            setDocumentId(docId)
+            startPolling(docId)
+            setDocumentOpened(false)
+        }
     }
 
     const confirmDeleteAction = async () => {
@@ -198,6 +364,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         {
             icon: <DeleteIcon />,
             action: deleteAction,
+            showAction: () => canEditUsers,
+        },
+        {
+            icon: <CreditScoreIcon />,
+            action: manualVerificationAction,
             showAction: () => canEditUsers,
         },
     ]
@@ -272,7 +443,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleImport = () => {
-        setOpenImport(true)
+        setOpenImportDrawer(true)
     }
 
     const handleExport = () => {
@@ -336,6 +507,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             ) : null}
         </ResourceListStyles.EmptyBox>
     )
+
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+    const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
+
+    const handleImportVoters = async (documentId: string, sha256: string) => {
+        let {data, errors} = await importUsers({
+            variables: {
+                tenantId,
+                documentId,
+                electionEventId: electionEvent.id,
+            },
+        })
+
+        refresh()
+
+        if (!errors) {
+            notify(t("electionEventScreen.import.importVotersSuccess"), {type: "success"})
+        } else {
+            notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+        }
+    }
 
     return (
         <>
@@ -453,19 +645,31 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
-
-            <Drawer
-                anchor="right"
-                open={openImport}
-                onClose={() => {
-                    setOpenImport(false)
-                }}
-                PaperProps={{
-                    sx: {width: "30%"},
+            <Dialog
+                variant="warning"
+                open={openManualVerificationModal}
+                ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmManualVerificationAction()
+                    }
+                    setOpenManualVerificationModal(false)
                 }}
             >
-                <ImportVotersBaseTabs doRefresh={() => refresh()} />
-            </Drawer>
+                {t(`usersAndRolesScreen.voters.manualVerification.body`)}
+            </Dialog>
+
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="electionEventScreen.import.title"
+                subtitle="electionEventScreen.import.subtitle"
+                paragraph="electionEventScreen.import.votersParagraph"
+                doImport={handleImportVoters}
+                errors={null}
+            />
 
             <Dialog
                 variant="warning"

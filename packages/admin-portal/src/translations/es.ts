@@ -325,6 +325,10 @@ const spanishTranslation: TranslationType = {
                 logs: {
                     noLogs: "No hay registros disponibles",
                 },
+                notify: {
+                    participateNow:
+                        "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                },
             },
             import: {
                 eetitle: "Importar Evento Electoral",
@@ -332,8 +336,9 @@ const spanishTranslation: TranslationType = {
                 title: "Importar votantes",
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
-                votersSubtitle:
+                votersParagraph:
                     "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
+                electionEventParagraph: "Importa Eventos Electorales usando un fichero JSON.",
                 elections: "Elections",
                 areas: "Areas",
                 sha: "Verificación de Integridad (SHA 256)",
@@ -462,6 +467,10 @@ const spanishTranslation: TranslationType = {
                     title: "Votante",
                     subtitle: "Crear votante",
                 },
+                manualVerification: {
+                    verify: "Verificar manualmente al votante",
+                    body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                },
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
@@ -475,6 +484,9 @@ const spanishTranslation: TranslationType = {
                 notifications: {
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
+                    manualVerificationError: "Error verificando manualmente al votante",
+                    manualVerificationSuccess:
+                        "Verificado exitosamente manualmente al elector, descargar PDF..",
                 },
             },
             roles: {

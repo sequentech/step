@@ -107,14 +107,6 @@ pub async fn get_template(
     Ok(Some(communication_template_value.document))
 }
 
-fn get_minio_url() -> Result<String> {
-    let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
-    let bucket = s3::get_public_bucket()?;
-
-    Ok(format!("{}/{}", minio_private_uri, bucket))
-}
-
 async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Result<String> {
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
 
@@ -123,7 +115,7 @@ async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Resul
         TemplateType::Content => env::var("PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT")?,
     };
 
-    let minio_endpoint_base = get_minio_url()?;
+    let minio_endpoint_base = s3::get_minio_url()?;
     let vote_receipt_template = format!(
         "{}/{}/{}",
         minio_endpoint_base, public_asset_path, file_vote_receipt_template
@@ -272,7 +264,7 @@ pub async fn create_vote_receipt(
         get_public_asset_vote_receipt_template(TemplateType::Content).await?
     };
 
-    let minio_endpoint_base = get_minio_url()?;
+    let minio_endpoint_base = s3::get_minio_url()?;
 
     let mut data = VoteReceiptData {
         ballot_id: ballot_id.to_string(),

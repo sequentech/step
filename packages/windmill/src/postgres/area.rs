@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::{hasura_types::Area, keycloak::UserArea};
+use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;

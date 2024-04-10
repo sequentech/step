@@ -13,6 +13,7 @@ pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
 
     ElectionConfig {
         id: election_id,
+        name: "Election 1".to_string(),
         tenant_id,
         election_event_id: *election_event_id,
         census: 0,
@@ -37,6 +38,7 @@ pub fn get_election_config_2() -> ElectionConfig {
 
     ElectionConfig {
         id: election_id,
+        name: "Election 2".to_string(),
         tenant_id,
         election_event_id,
         census: 0,
