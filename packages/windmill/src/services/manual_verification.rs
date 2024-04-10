@@ -88,13 +88,13 @@ async fn get_manual_verification_url(
     let login_url = format!("{base_url}/tenant/{tenant_id}/event/{election_event_id}/login");
 
     let generate_token_url = format!(
-    "{keycloak_url}/realms/{tenant_id}/manual-verification/generate-link?userId={voter_id}&redirectUri={login_url}"
+    "{keycloak_url}/realms/tenant-{tenant_id}-event-{election_event_id}/manual-verification/generate-link?userId={voter_id}&redirectUri={login_url}"
   );
 
     let client = reqwest::Client::new();
 
     event!(Level::INFO, "Requesting HTTP GET {:?}", generate_token_url);
-    /*let response = client.get(generate_token_url).send().await?;
+    let response = client.get(generate_token_url).send().await?;
 
     let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
         return Err(anyhow!("Error during generate_token_url"));
@@ -103,8 +103,7 @@ async fn get_manual_verification_url(
     };
     let response_body: ManualVerificationOutput = unwrapped_response.json().await?;
 
-    Ok(response_body.link)*/
-    Ok(generate_token_url)
+    Ok(response_body.link)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -205,12 +204,11 @@ pub async fn get_manual_verification_pdf(
             <div>
             <h2>Authenticate to Vote</h2>
             <p>
-                The <strong>Login Link</strong> below allows you to authenticate
-                after having performed Manual Verification.
+                Use the link below allows you to authenticate
+                after having performed Manual Verification:
             </p>
             <div class="info">
                 <p>
-                Login Link:
                 <a href="{{data.manual_verification_url}}">Login Link</a>
                 </p>
             </div>
@@ -218,8 +216,7 @@ pub async fn get_manual_verification_pdf(
             
             <div>
             <p>
-                You can enter the <strong>Login Link</strong> using the 
-                following QR code:
+                You can also enter the link using the following QR code:
             </p>
             {{{data.qrcode}}}
             </div>

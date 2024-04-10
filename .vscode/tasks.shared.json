@@ -7,6 +7,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "cd packages && yarn start:admin-portal",
             ],
@@ -30,6 +31,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "cd packages && yarn && yarn build:ui-essentials && yarn start:admin-portal",
             ],
@@ -53,6 +55,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "cd packages && yarn start:voting-portal",
             ],
@@ -76,6 +79,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "cd packages && yarn start:ballot-verifier",
             ],
@@ -488,6 +492,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix",
             ],
