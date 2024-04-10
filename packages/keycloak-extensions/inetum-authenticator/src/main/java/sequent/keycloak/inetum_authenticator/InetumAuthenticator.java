@@ -338,9 +338,21 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory
 				.get("mrz")
 				.get("personal_number")
 				.asText();
+			log.info("verifyResults: mrzPersonalNumber = " + mrzPersonalNumber);
 			if (mrzPersonalNumber == null) {
-				log.error("verifyResults: mrzPersonalNumber is null");
-				return false;
+				// try ocr
+				log.info("verifyResults: mrzPersonalNumber is null, trying ocr");
+
+				mrzPersonalNumber = response
+					.asJson()
+					.get("response")
+					.get("ocr")
+					.get("personal_number")
+					.asText();
+				if (mrzPersonalNumber == null) {
+					log.error("verifyResults: ocr is also null, failing");
+					return false;
+				}
 			}
 			log.info("verifyResults: TRUE, mrzPersonalNumber = " + mrzPersonalNumber);
 
