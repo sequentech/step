@@ -38,11 +38,15 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     DeleteUserMutation,
     ExportUsersMutation,
+    GetDocumentQuery,
     ImportUsersMutation,
+    ManualVerificationMutation,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {useMutation} from "@apollo/client"
+import {GET_DOCUMENT} from "@/queries/GetDocument"
+import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
+import {useLazyQuery, useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
@@ -52,6 +56,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
+import {useParams} from "react-router-dom"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -68,6 +73,21 @@ export interface ListUsersProps {
     electionId?: string
 }
 
+function useGetPublicDocumentUrl() {
+    const [tenantId] = useTenantStore()
+    const {globalSettings} = React.useContext(SettingsContext)
+
+    function getDocumentUrl(documentId: string, documentName: string): string {
+        return encodeURI(
+            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
+        )
+    }
+
+    return {
+        getDocumentUrl,
+    }
+}
+
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -81,6 +101,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
     )
+    const [polling, setPolling] = React.useState<NodeJS.Timer | null>(null)
+    const [documentId, setDocumentId] = React.useState<string | null>(null)
+    const [documentOpened, setDocumentOpened] = React.useState<boolean>(false)
+    const [documentUrl, setDocumentUrl] = React.useState<string | null>(null)
+    const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
+    const documentUrlRef = React.useRef(documentUrl)
+    const {getDocumentUrl} = useGetPublicDocumentUrl()
+
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
@@ -93,6 +121,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const notify = useNotify()
@@ -109,6 +138,86 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
+
+    const fetchData = async (documentId: string) => {
+        let {data, error} = await getDocument({
+            variables: {
+                id: documentId,
+                tenantId,
+            },
+            fetchPolicy: "network-only",
+        })
+    }
+
+    function startPolling(documentId: string) {
+        if (!polling) {
+            fetchData(documentId)
+
+            const intervalId = setInterval(() => {
+                fetchData(documentId)
+            }, 1000)
+
+            setPolling(intervalId)
+
+            setTimeout(() => {
+                clearInterval(intervalId)
+                setPolling(null)
+                if (!documentUrlRef.current) {
+                    notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                        type: "error",
+                    })
+                }
+            }, 5 * globalSettings.QUERY_POLL_INTERVAL_MS)
+        }
+    }
+
+    React.useEffect(() => {
+        documentUrlRef.current = documentUrl
+    }, [documentUrl])
+
+    React.useEffect(() => {
+        function stopPolling() {
+            if (polling) {
+                clearInterval(polling)
+                setPolling(null)
+            }
+        }
+
+        if (documentData && documentData?.sequent_backend_document?.length > 0) {
+            let name = documentData?.sequent_backend_document[0]?.name
+            stopPolling()
+
+            if (name && !documentOpened) {
+                const newDocumentUrl = getDocumentUrl(documentId!, name)
+
+                setDocumentUrl(newDocumentUrl)
+                setDocumentOpened(true)
+
+                setTimeout(() => {
+                    // We use a setTimeout as a work around due to this issue in React:
+                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
+                    // https://github.com/facebook/react/issues/17355
+                    window.open(newDocumentUrl, "_blank")
+                }, 0)
+            }
+        }
+    }, [
+        electionEventId,
+        documentUrl,
+        documentOpened,
+        polling,
+        documentData,
+        documentId,
+        getDocumentUrl,
+    ])
+
+    React.useEffect(() => {
+        return () => {
+            if (polling) {
+                clearInterval(polling)
+            }
+        }
+    }, [polling])
 
     const handleClose = () => {
         setRecordIds([])
@@ -177,54 +286,36 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const confirmManualVerificationAction = async () => {
-        console.log(`confirmManualVerificationAction: start`)
-        async function fetchData(url: string): Promise<any> {
-            try {
-                // Setting up custom headers
-                const headers = new Headers({
-                    "Content-Type": "application/json",
-                    //'Authorization': 'Bearer YOUR_TOKEN_HERE'
-                })
+        const {errors, data} = await getManualVerificationPdf({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                voterId: recordIds[0],
+            },
+        })
 
-                // Perform the HTTP GET request
-                const response = await fetch(url, {
-                    method: "GET",
-                    headers: headers,
-                })
-
-                // Check if the request was successful
-                if (!response.ok) {
-                    throw new Error(`Error: ${response.status}`)
-                }
-
-                // Parse and return the JSON response
-                return await response.json()
-            } catch (error) {
-                console.error("Failed to fetch data:", error)
-                throw error
-            }
+        if (errors) {
+            console.log(`Error manually verifying user: ${errors}`)
+            notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
+                type: "error",
+            })
+            setRecordIds([])
+            refresh()
+            return
         }
+        console.log(`fetchData success: ${data}`)
+        notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
+            type: "success",
+        })
+        setRecordIds([])
+        refresh()
 
-        const url =
-            "http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/manual-verification/generate-link?userId=788e32ca-5aad-45d8-8c98-a985fb1d9dec&redirectUri=http://127.0.0.1:3002"
-        console.log(`calling manual verification url=${url}`)
-        await fetchData(url)
-            .then((data) => {
-                console.log(`fetchData success: ${data}`)
-                notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
-                    type: "success",
-                })
-                setRecordIds([])
-                refresh()
-            })
-            .catch((error) => {
-                console.log(`Error manually verifying user: ${error}`)
-                notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
-                    type: "error",
-                })
-                setRecordIds([])
-                refresh()
-            })
+        let docId = data?.get_manual_verification_pdf?.document_id
+        if (docId) {
+            setDocumentId(docId)
+            startPolling(docId)
+            setDocumentOpened(false)
+        }
     }
 
     const confirmDeleteAction = async () => {
