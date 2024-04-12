@@ -43,18 +43,28 @@ fn decode_plantexts_to_biguints(
     plaintexts
         .iter()
         .filter_map(|plaintext| {
-            let plaintext_format = plaintext.iter().map(|b| format!("{:02X}", b)).collect::<Vec<String>>().join(" ");
+            let plaintext_format = plaintext
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .join(" ");
             let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
 
             match biguint {
                 Ok(v) => {
                     let biguit_str = v.to_str_radix(10);
-                    event!(Level::INFO, "Decoding plaintext {plaintext_format} into string '{biguit_str}'");
+                    event!(
+                        Level::INFO,
+                        "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
+                    );
 
                     Some(biguit_str)
                 }
                 Err(e) => {
-                    event!(Level::WARN, "Decoding plaintext {plaintext_format} has failed: {e}");
+                    event!(
+                        Level::WARN,
+                        "Decoding plaintext {plaintext_format} has failed: {e}"
+                    );
                     None
                 }
             }
