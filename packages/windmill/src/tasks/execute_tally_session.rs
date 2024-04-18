@@ -307,9 +307,9 @@ async fn insert_ballots_messages(
     tenant_id: &str,
     election_event_id: &str,
     board_name: &str,
+    trustee_names: Vec<String>,
     tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
 ) -> Result<()> {
-    let trustee_names = vec!["trustee1".to_string(), "trustee2".to_string()];
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
         .await?
         .data
@@ -391,6 +391,7 @@ pub async fn upsert_ballots_messages(
     tenant_id: &str,
     election_event_id: &str,
     board_name: &str,
+    trustee_names: Vec<String>,
     messages: &Vec<Message>,
     tally_session_contests: &Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
 ) -> Result<Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>> {
@@ -434,6 +435,7 @@ pub async fn upsert_ballots_messages(
             tenant_id,
             election_event_id,
             board_name,
+            trustee_names,
             missing_ballots_batches.clone(),
         )
         .await?;
@@ -461,6 +463,7 @@ async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    ceremony_status: TallyCeremonyStatus,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -529,6 +532,11 @@ async fn map_plaintext_data(
     else {
         return Ok(None);
     };
+    let trustee_names: Vec<String> = ceremony_status
+        .trustees
+        .iter()
+        .map(|trustee| trustee.name.clone())
+        .collect();
 
     if execution_status != TallyExecutionStatus::IN_PROGRESS {
         event!(
@@ -567,6 +575,7 @@ async fn map_plaintext_data(
         &tenant_id,
         &election_event_id,
         &bulletin_board,
+        trustee_names,
         &messages,
         &tally_session_data.sequent_backend_tally_session_contest,
     )
@@ -720,14 +729,20 @@ pub async fn execute_tally_session_wrapped(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
-    let (tally_session_execution, _tally_session) = find_last_tally_session_execution(
+    let Some((tally_session_execution, _)) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
     )
     .await?
-    .unwrap();
+    else {
+        event!(Level::INFO, "Can't find last execution status, skipping");
+        return Ok(());
+    };
+
+    let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
+
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         auth_headers.clone(),
@@ -736,6 +751,7 @@ pub async fn execute_tally_session_wrapped(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
+        status,
     )
     .await?;
 
