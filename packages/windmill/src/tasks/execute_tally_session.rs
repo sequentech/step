@@ -405,6 +405,11 @@ async fn map_plaintext_data(
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
     event!(Level::INFO, "Num board_messages {}", board_messages.len());
 
+    // convert board messages into messages
+    let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+
+    print_messages(&messages, &bulletin_board)?;
+
     // find a new board message
     let next_new_board_message_opt = board_messages
         .iter()
@@ -434,11 +439,6 @@ async fn map_plaintext_data(
         .map(|tsc| tsc.session_id)
         .collect::<Vec<_>>();
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
-
-    // convert board messages into messages
-    let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
-
-    print_messages(&messages, &bulletin_board)?;
 
     // find if there are new plaintexs (= with equal/higher timestamp) that have the batch ids we need
     let has_next_plaintext = messages.iter().any(|message| {
