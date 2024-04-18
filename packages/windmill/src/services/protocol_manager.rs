@@ -263,6 +263,20 @@ pub async fn add_ballots_to_board<C: Ctx>(
     let mut board = get_board_client().await?;
     let board_messages = board.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
+    let existing_message = messages.iter().find(|message| {
+        let batch_number = message.statement.get_batch_number();
+        let kind = message.statement.get_kind();
+        batch_number == batch && StatementType::Ballots == kind
+    });
+    if let Some(_message) = existing_message {
+        event!(
+            Level::INFO,
+            "Not adding Ballot to board {} as it already exists for batch {}",
+            board_name,
+            batch
+        );
+        return Ok(());
+    }
     let configuration = get_configuration::<C>(&messages)?;
     let public_key_hash = get_public_key_hash::<C>(&messages)?;
     let selected_trustees: TrusteeSet = generate_trustee_set::<C>(&configuration, trustee_pks);

@@ -13,6 +13,7 @@ use crate::hasura::tally_session_execution::{
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
+use crate::services::ceremonies::serialize_logs::print_messages;
 use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
@@ -436,6 +437,8 @@ async fn map_plaintext_data(
 
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+
+    print_messages(&messages, &bulletin_board)?;
 
     // find if there are new plaintexs (= with equal/higher timestamp) that have the batch ids we need
     let has_next_plaintext = messages.iter().any(|message| {
