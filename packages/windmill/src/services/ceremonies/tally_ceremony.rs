@@ -467,6 +467,7 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
+    /*
     if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let trustee_names: Vec<String> = status
             .trustees
@@ -506,7 +507,7 @@ pub async fn update_tally_ceremony(
             .post_tally_open(election_event_id.to_string(), None)
             .await
             .with_context(|| "error posting to the electoral log")?;
-    }
+    }*/
 
     Ok(())
 }
