@@ -732,6 +732,7 @@ pub async fn execute_tally_session_wrapped(
         cast_votes_count,
     )) = plaintexts_data_opt
     else {
+        event!(Level::INFO, "map_plaintext_data is None, skipping");
         return Ok(());
     };
 
