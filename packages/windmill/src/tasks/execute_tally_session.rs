@@ -403,9 +403,15 @@ pub async fn upsert_ballots_messages(
         .iter()
         .filter(|message| {
             expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
+                && StatementType::Ballots == message.statement.get_kind()
         })
         .map(|message| message.statement.get_batch_number() as i64)
         .collect();
+    event!(
+        Level::INFO,
+        "existing_ballots_batches: '{:?}'",
+        existing_ballots_batches
+    );
     let missing_ballots_batches: Vec<
         GetLastTallySessionExecutionSequentBackendTallySessionContest,
     > = tally_session_contests
@@ -415,6 +421,12 @@ pub async fn upsert_ballots_messages(
             !existing_ballots_batches.contains(&tally_session_contest.session_id)
         })
         .collect();
+
+    event!(
+        Level::INFO,
+        "missing_ballots_batches num: {}",
+        missing_ballots_batches.len()
+    );
     if missing_ballots_batches.len() > 0 {
         insert_ballots_messages(
             &auth_headers,
@@ -561,7 +573,11 @@ async fn map_plaintext_data(
     .await?;
 
     if 0 != new_ballots_messages.len() {
-        event!(Level::INFO, "Ballots messages inserted: {} skipping iteration", new_ballots_messages.len());
+        event!(
+            Level::INFO,
+            "Ballots messages inserted: {} skipping iteration",
+            new_ballots_messages.len()
+        );
         return Ok(None);
     }
 
