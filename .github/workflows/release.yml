@@ -104,7 +104,7 @@ jobs:
           # Required Input
           repo_token: ${{secrets.GITHUB_TOKEN}}
           slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
-          # Optional Input
+          # Optional Input 
           name: 'Github Actions'
 
       - name: Slack additional info
