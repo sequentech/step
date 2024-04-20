@@ -90,4 +90,4 @@ handle_trustee_config() {
 handle_trustee_config
 
 # Run trustee with the generated or fetched config
-trustee --server-url "$IMMUDB_URL" --board-index "$IMMUDB_INDEX_DB" --trustee-config "$TRUSTEE_CONFIG_PATH"
+trustee --server-url "$IMMUDB_URL" --board-index "$IMMUDB_INDEX_DB" --trustee-config "$TRUSTEE_CONFIG_PATH" --user "$IMMUDB_USER" --password "$IMMUDB_PASSWORD"
