@@ -3,14 +3,15 @@ name: DevPod Prebuild
 on:
   push:
     branches: [ 'main', 'feat/meta-703/main' ]
-permissions:
-  contents: read
-  packages: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
