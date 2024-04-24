@@ -41,7 +41,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -156,9 +156,7 @@ const VotingScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
-    let [invalidErrors, setInvalidErrors] = useState<Record<string, Array<IInvalidPlaintextError>>>(
-        {}
-    )
+    let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
 
@@ -181,9 +179,9 @@ const VotingScreen: React.FC = () => {
             [id]: value,
         })
     }
-    const onSetInvalidErrors = (id: string) => (value: Array<IInvalidPlaintextError>) => {
-        setInvalidErrors({
-            ...invalidErrors,
+    const onSetDecodedContests = (id: string) => (value: IDecodedVoteContest) => {
+        setDecodedContests({
+            ...decodedContests,
             [id]: value,
         })
     }
@@ -196,7 +194,8 @@ const VotingScreen: React.FC = () => {
                 .map((contest) => {
                     let policy =
                         contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
-                    let explicitError = invalidErrors[contest.id]?.find((error) =>
+                    let invalidErrors = decodedContests[contest.id]?.invalid_errors ?? []
+                    let explicitError = invalidErrors.find((error) =>
                         [
                             EInvalidPlaintextErrorType.Explicit,
                             EInvalidPlaintextErrorType.EncodingError,
@@ -204,7 +203,7 @@ const VotingScreen: React.FC = () => {
                     )
                     return (
                         explicitError ||
-                        ((invalidErrors[contest.id]?.length ?? 0) > 0 &&
+                        ((invalidErrors?.length ?? 0) > 0 &&
                             EInvalidVotePolicy.NOT_ALLOWED === policy)
                     )
                 })
@@ -219,8 +218,10 @@ const VotingScreen: React.FC = () => {
                     let policy =
                         contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
                     return (
-                        EInvalidVotePolicy.ALLOWED !== policy &&
-                        (invalidErrors[contest.id]?.length ?? 0) > 0
+                        (EInvalidVotePolicy.ALLOWED !== policy &&
+                            (decodedContests[contest.id]?.invalid_errors?.length ?? 0) > 0) ||
+                        (EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT === policy &&
+                            decodedContests[contest.id]?.is_explicit_invalid)
                     )
                 })
                 .includes(true) ?? false
@@ -347,7 +348,7 @@ const VotingScreen: React.FC = () => {
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
-                    setInvalidErrors={onSetInvalidErrors(contest.id)}
+                    setDecodedContests={onSetDecodedContests(contest.id)}
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} />

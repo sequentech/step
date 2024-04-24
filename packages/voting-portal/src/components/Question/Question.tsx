@@ -32,7 +32,7 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
-import {IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -53,7 +53,7 @@ export interface IQuestionProps {
     question: IContest
     isReview: boolean
     setDisableNext?: (value: boolean) => void
-    setInvalidErrors: (input: Array<IInvalidPlaintextError>) => void
+    setDecodedContests: (input: IDecodedVoteContest) => void
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -61,7 +61,7 @@ export const Question: React.FC<IQuestionProps> = ({
     question,
     isReview,
     setDisableNext,
-    setInvalidErrors,
+    setDecodedContests,
 }) => {
     const {i18n} = useTranslation()
 
@@ -124,7 +124,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 question={question}
                 isInvalidWriteIns={isInvalidWriteIns}
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
-                setInvalidErrors={setInvalidErrors}
+                setDecodedContests={setDecodedContests}
             />
             <CandidatesWrapper className="candidates-list">
                 {invalidTopCandidates.map((answer, answerIndex) => (
