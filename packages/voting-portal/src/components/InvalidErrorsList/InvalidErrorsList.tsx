@@ -8,12 +8,14 @@ import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
+import {IInvalidPlaintextError} from "sequent-core"
 
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
     question: IContest
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
+    setInvalidErrors: (input: Array<IInvalidPlaintextError>) => void
 }
 
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
@@ -21,6 +23,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     question,
     isInvalidWriteIns,
     setIsInvalidWriteIns,
+    setInvalidErrors,
 }) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
@@ -48,6 +51,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
             (error) => error.message !== "errors.implicit.selectedMin"
         )
     }
+
+    useEffect(() => {
+        setInvalidErrors(decodedContestSelection?.invalid_errors ?? [])
+    }, [decodedContestSelection?.invalid_errors])
 
     const numAvailableChars = contestSelection
         ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)

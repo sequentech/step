@@ -30,6 +30,8 @@ const spanishTranslation: TranslationType = {
                 content:
                     "Algunas de sus respuestas podrían hacer que la papeleta en una o más preguntas sea inválida o en blanco.",
                 ok: "Volver y revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
             },
         },
         startScreen: {

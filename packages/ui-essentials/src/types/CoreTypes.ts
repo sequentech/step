@@ -108,3 +108,9 @@ export interface IHashableBallot {
     contests: Array<string>
     config: IBallotStyle
 }
+
+export enum EInvalidPlaintextErrorType {
+    Explicit = "Explicit",
+    Implicit = "Implicit",
+    EncodingError = "EncodingError",
+}

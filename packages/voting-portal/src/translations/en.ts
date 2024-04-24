@@ -28,6 +28,8 @@ const englishTranslation = {
                 content:
                     "Some of your answers might render the ballot in one or more questions invalid or blank.",
                 ok: "Back and review",
+                continue: "Continue",
+                cancel: "Cancel",
             },
         },
         startScreen: {
