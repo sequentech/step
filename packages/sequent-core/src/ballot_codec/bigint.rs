@@ -6,6 +6,7 @@ use crate::ballot_codec::RawBallotContest;
 use crate::ballot_codec::*;
 use crate::mixed_radix::{decode, encode};
 use crate::plaintext::*;
+use crate::services::error_checker::check_contest;
 use num_bigint::BigUint;
 
 pub fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
@@ -136,7 +137,9 @@ impl BigUIntCodec for Contest {
     ) -> Result<DecodedVoteContest, String> {
         let raw_ballot = self.bigint_to_raw_ballot(&bigint)?;
 
-        self.decode_from_raw_ballot(&raw_ballot)
+        let decoded_base = self.decode_from_raw_ballot(&raw_ballot)?;
+        let with_more_errors = check_contest(&self, &decoded_base);
+        Ok(with_more_errors)
     }
 }
 

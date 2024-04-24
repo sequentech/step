@@ -459,6 +459,12 @@ export const ContestDataForm: React.FC = () => {
                                     choices={checkableListChoices()}
                                     validate={required()}
                                 />
+
+                                <NumberInput
+                                    source="presentation.max_selections_per_type"
+                                    min={0}
+                                    isRequired={false}
+                                />
                             </AccordionDetails>
                         </Accordion>
 

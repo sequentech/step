@@ -17,6 +17,8 @@ import {
     translateElection,
     sortContestByCreationDate,
     IContest,
+    EInvalidVotePolicy,
+    EInvalidPlaintextErrorType,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -39,6 +41,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -153,6 +156,7 @@ const VotingScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
+    let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
 
@@ -175,15 +179,59 @@ const VotingScreen: React.FC = () => {
             [id]: value,
         })
     }
+    const onSetDecodedContests = (id: string) => (value: IDecodedVoteContest) => {
+        setDecodedContests({
+            ...decodedContests,
+            [id]: value,
+        })
+    }
 
     // if true, when the user clicks next, there will be a dialog
     // that doesn't allow to continue and forces the user to fix the issues
-    const skipNextButton = Object.values(disableNext).some((v) => v)
+    const disableNextButton = (): boolean => {
+        return (
+            ballotStyle?.ballot_eml.contests
+                .map((contest) => {
+                    let policy =
+                        contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
+                    let invalidErrors = decodedContests[contest.id]?.invalid_errors ?? []
+                    let explicitError = invalidErrors.find((error) =>
+                        [
+                            EInvalidPlaintextErrorType.Explicit,
+                            EInvalidPlaintextErrorType.EncodingError,
+                        ].includes(error.error_type as any)
+                    )
+                    return (
+                        explicitError ||
+                        ((invalidErrors?.length ?? 0) > 0 &&
+                            EInvalidVotePolicy.NOT_ALLOWED === policy)
+                    )
+                })
+                .includes(true) ?? false
+        )
+    }
+
+    const showNextDialog = () => {
+        return (
+            ballotStyle?.ballot_eml.contests
+                .map((contest) => {
+                    let policy =
+                        contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
+                    return (
+                        (EInvalidVotePolicy.ALLOWED !== policy &&
+                            (decodedContests[contest.id]?.invalid_errors?.length ?? 0) > 0) ||
+                        (EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT === policy &&
+                            decodedContests[contest.id]?.is_explicit_invalid)
+                    )
+                })
+                .includes(true) ?? false
+        )
+    }
 
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
-        } else if (skipNextButton) {
+        } else if (showNextDialog()) {
             setOpenNonVoted(true)
         } else {
             finallyEncryptAndReview()
@@ -256,6 +304,13 @@ const VotingScreen: React.FC = () => {
 
     const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
 
+    const warnAllowContinue = (value: boolean) => {
+        setOpenNonVoted(false)
+        if (value) {
+            finallyEncryptAndReview()
+        }
+    }
+
     return (
         <PageLimit maxWidth="lg" className="voting-screen screen">
             <Box marginTop="48px">
@@ -293,19 +348,33 @@ const VotingScreen: React.FC = () => {
                     key={index}
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
+                    setDecodedContests={onSetDecodedContests(contest.id)}
                 />
             ))}
             <ActionButtons handleNext={encryptAndReview} />
 
-            <Dialog
-                handleClose={() => setOpenNonVoted(false)}
-                open={openNotVoted}
-                title={t("votingScreen.nonVotedDialog.title")}
-                ok={t("votingScreen.nonVotedDialog.ok")}
-                variant="softwarning"
-            >
-                {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
-            </Dialog>
+            {disableNextButton() ? (
+                <Dialog
+                    handleClose={(value) => setOpenNonVoted(false)}
+                    open={openNotVoted}
+                    title={t("votingScreen.nonVotedDialog.title")}
+                    ok={t("votingScreen.nonVotedDialog.ok")}
+                    variant="softwarning"
+                >
+                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                </Dialog>
+            ) : (
+                <Dialog
+                    handleClose={(value) => warnAllowContinue(value)}
+                    open={openNotVoted}
+                    title={t("votingScreen.nonVotedDialog.title")}
+                    ok={t("votingScreen.nonVotedDialog.continue")}
+                    cancel={t("votingScreen.nonVotedDialog.cancel")}
+                    variant="action"
+                >
+                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                </Dialog>
+            )}
         </PageLimit>
     )
 }

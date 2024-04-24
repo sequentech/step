@@ -89,6 +89,7 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
     return (
         <>
             <StepNumber
+                className="step-number"
                 variant={variant}
                 isselected={(isSelected || colorStep).toString()}
                 warning={(!!warning).toString()}
@@ -107,7 +108,7 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
             >
                 {t(label)}
             </StepLabel>
-            {isLast ? null : <StepSeparator />}
+            {isLast ? null : <StepSeparator className="step-separator" />}
         </>
     )
 }
@@ -128,7 +129,7 @@ export default function BreadCrumbSteps({
     colorPreviousSteps = false,
 }: BreadCrumbStepsProps) {
     return (
-        <StepsContainer>
+        <StepsContainer className="step-container">
             {labels.map((label, index) => (
                 <Step
                     key={index}
