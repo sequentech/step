@@ -14,3 +14,5 @@ pub mod pdf;
 pub mod probe;
 #[cfg(feature = "reports")]
 pub mod reports;
+
+pub mod error_checker;
