@@ -38,8 +38,7 @@ jobs:
       - name: Build with DevPod
         run: |
           bash $GITHUB_WORKSPACE/.devcontainer/scripts/initialize-command.sh
-          source .devcontainer/.env
-          export
+          export COMPOSE_PROFILES=base
           /usr/local/bin/devpod version
           /usr/local/bin/devpod build \
             $GITHUB_WORKSPACE \
