@@ -26,6 +26,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
     return (
         <CustomDropFile handleFiles={handleFiles} ref={inputRef}>
             <div
+                className="drop-file-container"
                 // variant="responsive"
                 // sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
                 style={{

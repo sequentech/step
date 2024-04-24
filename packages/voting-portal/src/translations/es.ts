@@ -30,6 +30,8 @@ const spanishTranslation: TranslationType = {
                 content:
                     "Algunas de sus respuestas podrían hacer que la papeleta en una o más preguntas sea inválida o en blanco.",
                 ok: "Volver y revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
             },
         },
         startScreen: {
@@ -158,6 +160,8 @@ const spanishTranslation: TranslationType = {
                     "El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
                 selectedMin:
                     "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
+                maxSelectionsPerType:
+                    "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
             },
             explicit: {
                 notAllowed:

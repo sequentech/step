@@ -317,6 +317,7 @@ export const ReviewScreen: React.FC = () => {
                     question={question}
                     key={index}
                     isReview={true}
+                    setDecodedContests={() => undefined}
                 />
             ))}
             <ActionButtons
