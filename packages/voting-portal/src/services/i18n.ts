@@ -10,6 +10,6 @@ import frenchTranslation from "../translations/fr"
 initializeLanguages({
     en: englishTranslation,
     es: spanishTranslation,
-    cat: catalanTranslation, 
-    fr: frenchTranslation, 
+    cat: catalanTranslation,
+    fr: frenchTranslation,
 })

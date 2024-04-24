@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -6,195 +6,194 @@ import {TranslationType} from "./en"
 const frenchTranslation: TranslationType = {
     translations: {
         common: {
-            goBack: "Regresar",
+            goBack: "Revenir",
         },
         breadcrumbSteps: {
-            electionList: "Lista de Votaciones",
-            ballot: "Papeleta",
-            review: "Revisión",
-            confirmation: "Confirmación",
-            audit: "Auditar",
+            electionList: "Liste des Élections",
+            ballot: "Bulletin de vote",
+            review: "Révision",
+            confirmation: "Confirmation",
+            audit: "Auditer",
         },
         votingScreen: {
-            backButton: "Atrás",
-            reviewButton: "Siguente",
-            clearButton: "Limpiar selección",
+            backButton: "Retour",
+            reviewButton: "Suivant",
+            clearButton: "Effacer la sélection",
             ballotHelpDialog: {
-                title: "Información: Pantalla de votación",
+                title: "Information : Écran de vote",
                 content:
-                    "Esta pantalla muestra la votación en la que usted es elegible para votar. Puede seleccionar su sección activando la casilla de la derecha Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Borrar selección</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
+                    "Cet écran affiche le vote pour lequel vous êtes éligible. Vous pouvez sélectionner votre section en activant la case à droite Candidat/Réponse. Pour réinitialiser vos sélections, cliquez sur le bouton “<b>Effacer la sélection</b>”, pour passer à l'étape suivante, cliquez sur le bouton “<b>Suivant</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
-                title: "Voto inválido o en blanco",
+                title: "Vote invalide ou blanc",
                 content:
-                    "Algunas de sus respuestas podrían hacer que la papeleta en una o más preguntas sea inválida o en blanco.",
-                ok: "Volver y revisar",
+                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
+                ok: "Revenir et réviser",
             },
         },
         startScreen: {
-            startButton: "Empezar a votar",
-            instructionsTitle: "Instrucciones",
-            instructionsDescription: "Por favor, siga estos pasos para emitir su voto:",
-            step1Title: "1. Seleccione su opción de voto",
+            startButton: "Commencer à voter",
+            instructionsTitle: "Instructions",
+            instructionsDescription: "Veuillez suivre ces étapes pour voter :",
+            step1Title: "1. Sélectionnez votre option de vote",
             step1Description:
-                "Seleccione sus candidatos preferidos y responda las preguntas de la elección una por una a medida que aparezcan. Puede editar su papeleta hasta que esté listo para continuar.",
-            step2Title: "2. Revise su papeleta",
+                "Sélectionnez vos candidats préférés et répondez aux questions de l'élection une par une au fur et à mesure qu'elles apparaissent. Vous pouvez modifier votre bulletin jusqu'à ce que vous soyez prêt à continuer.",
+            step2Title: "2. Révisez votre bulletin",
             step2Description:
-                "Una vez que esté satisfecho con sus selecciones, encriptaremos su papeleta y le mostraremos una revisión final de sus elecciones. También recibirá un ID de seguimiento único para su papeleta.",
-            step3Title: "3. Envíe su voto",
+                "Une fois que vous êtes satisfait de vos sélections, nous chiffrerons votre bulletin et vous montrerons une révision finale de vos choix. Vous recevrez également un ID de suivi unique pour votre bulletin.",
+            step3Title: "3. Envoyez votre vote",
             step3Description:
-                "Envía tu papeleta: Finalmente, puedes enviar tu papeleta para que se registre correctamente. Alternativamente, puedes optar por auditar y confirmar que tu papeleta fue capturada y cifrada correctamente.",
+                "Envoyez votre bulletin : Enfin, vous pouvez envoyer votre bulletin pour qu'il soit correctement enregistré. Alternativement, vous pouvez opter pour auditer et confirmer que votre bulletin a été capturé et chiffré correctement.",
         },
         reviewScreen: {
-            title: "Revisa tu voto",
+            title: "Révisez votre vote",
             description:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar la papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Changer sélection</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer le bulletin</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
             descriptionNoAudit:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
-            backButton: "Editar tu voto",
-            castBallotButton: "Enviar tu voto",
-            auditButton: "Auditar papeleta",
+                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Changer sélection</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer le bulletin</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
+            backButton: "Modifier votre vote",
+            castBallotButton: "Envoyer votre vote",
+            auditButton: "Auditer le bulletin",
             reviewScreenHelpDialog: {
-                title: "Información: Pantalla de revisión",
-                content:
-                    "Esta pantalla le permite revisar sus selecciones antes de emitir su voto.",
+                title: "Information : Écran de révision",
+                content: "Cet écran vous permet de réviser vos sélections avant de voter.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Voto no emitido",
+                title: "Vote non émis",
                 content:
-                    "<p>Está a punto de copiar el Localizador del Voto, pero <b>su voto aún no se ha emitido</b>. Si intenta buscar el Localizador del Voto, no lo encontrará.</p><p>La razón por la que mostramos el Localizador del Voto en este momento es para que pueda auditar la corrección del voto cifrado antes de emitirlo. Si esa es la razón por la que desea copiar el Localizador del Voto, proceda a copiarlo y luego audite su voto.</p>",
-                ok: "Acepto que mi voto NO ha sido emitido",
-                cancel: "Cancelq4",
+                    "<p>Vous êtes sur le point de copier le Localisateur de Vote, mais <b>votre vote n'a pas encore été émis</b>. Si vous tentez de rechercher le Localisateur de Vote, vous ne le trouverez pas.</p><p>La raison pour laquelle nous affichons le Localisateur de Vote à ce moment est pour que vous puissiez auditer la correction du vote chiffré avant de l'émettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de Vote, procédez à sa copie puis auditez votre vote.</p>",
+                ok: "J'accepte que mon vote N'A PAS été émis",
+                cancel: "Annuler",
             },
             auditBallotHelpDialog: {
-                title: "¿Realmente quieres Auditar tu papeleta?",
+                title: "Voulez-vous vraiment Auditer votre bulletin ?",
                 content:
-                    "<p>La auditoría de la papeleta lo invalidará y tendrás que iniciar el proceso de votación de nuevo si deseas emitir tu voto. El proceso de auditoría de la papeleta permite verificar que está codificada correctamente. Hacer este proceso requiere que unos conocimientos técnicos importantes, por lo que no se recomienda si no sabes lo que estás haciendo.</p><p><b>Si lo que desea es emitir su voto, en <u>Cancelar</u> para volver a la pantalla de revisión de votación.</b></p>",
-                ok: "Si, quiero INVALIDAR mi papeleta para AUDITARLA",
-                cancel: "Cancelar",
+                    "<p>L'audit du bulletin l'invalidera et vous devrez recommencer le processus de vote si vous souhaitez émettre votre vote. Le processus d'audit du bulletin permet de vérifier qu'il est correctement codé. Ce processus nécessite des connaissances techniques importantes, donc il n'est pas recommandé si vous ne savez pas ce que vous faites.</p><p><b>Si vous souhaitez émettre votre vote, cliquez sur <u>Annuler</u> pour revenir à l'écran de révision du vote.</b></p>",
+                ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
+                cancel: "Annuler",
             },
         },
         confirmationScreen: {
-            title: "Su voto ha sido emitido",
+            title: "Votre vote a été émis",
             description:
-                "El código de confirmación que aparece a continuación verifica que <b>su voto se ha emitido correctamente</b>. Puede utilizar este código para verificar que su voto ha sido contabilizado.",
-            ballotId: "Localizador del Voto",
-            printButton: "Imprimir",
-            finishButton: "Finalizar",
-            verifyCastTitle: "Compruebe que su voto ha sido emitido",
+                "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
+            ballotId: "Localisateur de Vote",
+            printButton: "Imprimer",
+            finishButton: "Terminer",
+            verifyCastTitle: "Vérifiez que votre vote a été émis",
             verifyCastDescription:
-                "Puede comprobar en todo momento que su papeleta se ha emitido correctamente utilizando el siguiente código QR:",
+                "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous :",
             confirmationHelpDialog: {
-                title: "Información: Pantalla de confirmación",
+                title: "Information : Écran de confirmation",
                 content:
-                    "Esta pantalla muestra que su voto se ha emitido correctamente. La información proporcionada en esta página le permite verificar que la papeleta ha sido almacenada en la urna , este proceso puede ser ejecutado en cualquier momento durante el periodo de votación y después de que la elección haya sido cerrada.",
+                    "Cet écran montre que votre vote a été émis correctement. Les informations fournies sur cette page vous permettent de vérifier que le bulletin a été stocké dans l'urne, ce processus peut être exécuté à tout moment pendant la période de vote et après que l'élection a été clôturée.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Información: Localizador del Voto",
+                title: "Information : Localisateur de votre Bulletin",
                 content:
-                    "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
+                    "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos sélections.",
                 ok: "OK",
             },
             errorDialogPrintVoteReceipt: {
-                title: "Error",
-                content: "Ha ocurrido un error, por favor intenta de nuevo",
-                ok: "Aceptar",
+                title: "Erreur",
+                content: "Une erreur s'est produite, veuillez réessayer",
+                ok: "Accepter",
             },
         },
         auditScreen: {
-            printButton: "Imprimir",
-            restartButton: "Iniciar votación",
-            title: "Audite su Papeleta",
-            description: "Para verificar su papeleta deberá seguir los siguientes pasos:",
-            step1Title: "1. Descargue o copie la siguiente información",
+            printButton: "Imprimer",
+            restartButton: "Démarrer le vote",
+            title: "Auditez votre Bulletin",
+            description: "Pour vérifier votre bulletin, vous devez suivre les étapes suivantes :",
+            step1Title: "1. Téléchargez ou copiez les informations suivantes",
             step1Description:
-                "Tu <b>Localizador del Voto</b> que aparece en la parte superior de la pantalla y tu papeleta encriptada a continuación:",
+                "Votre <b>Localisateur de Vote</b> qui apparaît en haut de l'écran et votre bulletin chiffré ci-dessous :",
             step1HelpDialog: {
-                title: "Copiar el Voto Cifrado",
+                title: "Copier le Vote Chiffré",
                 content:
-                    "Puede descargar o copiar su Voto Cifrado para auditarlo y verificar que el contenido encriptado contiene sus selecciones.",
+                    "Vous pouvez télécharger ou copier votre Vote Chiffré pour l'auditer et vérifier que le contenu chiffré contient vos sélections.",
                 ok: "OK",
             },
-            downloadButton: "Descargar",
-            step2Title: "2. Verifica tu papeleta",
+            downloadButton: "Télécharger",
+            step2Title: "2. Vérifiez votre bulletin",
             step2Description:
-                "<a class=\"link\" href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
+                "<a class=\"link\" href='{{linkToBallotVerifier}}' target='_blank'>Accédez au vérificateur de vote</a>, qui s'ouvrira dans un nouvel onglet de votre navigateur.",
             step2HelpDialog: {
-                title: "Tutorial sobre la Auditoría del Voto",
+                title: "Tutoriel sur l'Audit du Vote",
                 content:
-                    "Para auditar su voto deberá seguir los pasos indicados en el tutorial, que incluyen la descarga de una aplicación de escritorio utilizada para verificar el voto cifrado independientemente del sitio web.",
+                    "Pour auditer votre vote, vous devez suivre les étapes indiquées dans le tutoriel, qui incluent le téléchargement d'une application de bureau utilisée pour vérifier le vote chiffré indépendamment du site web.",
                 ok: "OK",
             },
             bottomWarning:
-                "Por motivos de seguridad, cuando audite su papeleta, deberá invalidarla. Para continuar con el proceso de votación, haga clic en ‘<b>Iniciar votación</b>’.",
+                "Pour des raisons de sécurité, lorsque vous auditez votre bulletin, vous devrez l'invalider. Pour continuer avec le processus de vote, cliquez sur ‘<b>Démarrer le vote</b>’.",
         },
         electionSelectionScreen: {
-            title: "Lista de Votaciones",
-            description: "Seleccione la votación que desea votar",
+            title: "Liste des Élections",
+            description: "Sélectionnez l'élection pour laquelle vous souhaitez voter",
             chooserHelpDialog: {
-                title: "Información: Lista de Votaciones",
+                title: "Information : Liste des Élections",
                 content:
-                    'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto. En el caso de que una elección esté cerrada y su administrador electoral haya publicado el resultado, verá un botón "Resultado electoral" que le llevará a la página pública de resultados.',
+                    "Bienvenue dans le bureau de vote, cet écran montre la liste des élections dans lesquelles vous pouvez voter. Les élections affichées sur cette liste peuvent être ouvertes au vote, programmées ou fermées. Vous ne pourrez accéder au vote que si la période de vote est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton 'Résultat électoral' qui vous mènera à la page publique des résultats.",
                 ok: "OK",
             },
-            noResults: "No hay elecciones por ahora.",
+            noResults: "Il n'y a pas d'élections pour le moment.",
         },
         errors: {
             encoding: {
-                notEnoughChoices: "No hay suficientes opciones para decodificar",
-                writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
-                writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
+                notEnoughChoices: "Il n'y a pas assez d'options pour décoder",
+                writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
+                writeInNotEndInZero: "Option de vote écrite ne finit pas en 0",
                 writeInCharsExceeded:
-                    "Opción de voto escrita excede el número de caracters por {{numCharsExceeded}} caracteres. Requiere arreglo.",
+                    "Option de vote écrite dépasse le nombre de caractères de {{numCharsExceeded}} caractères. Nécessite une correction.",
                 bytesToUtf8Conversion:
-                    "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Voto más grande de lo esperado",
+                    "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
+                ballotTooLarge: "Bulletin plus grand que prévu",
             },
             implicit: {
                 selectedMax:
-                    "El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
+                    "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
                 selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
+                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
             },
             explicit: {
                 notAllowed:
-                    "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
+                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
             },
             page: {
-                oopsWithStatus: "¡Vaya! {{status}}",
-                oopsWithoutStatus: "¡Vaya! Error Inesperado",
-                somethingWrong: "Algo salió mal.",
+                oopsWithStatus: "Oups ! {{status}}",
+                oopsWithoutStatus: "Oups ! Erreur inattendue",
+                somethingWrong: "Quelque chose s'est mal passé.",
             },
         },
         materials: {
             common: {
-                label: "Materiales de Soporte",
-                back: "Volver a la Lista de Votaciones",
-                close: "Cerrar",
-                preview: "Vista previa",
+                label: "Matériaux de Support",
+                back: "Revenir à la Liste des Élections",
+                close: "Fermer",
+                preview: "Aperçu",
             },
         },
         ballotLocator: {
-            title: "Localiza tu Papeleta",
-            titleResult: "Resultado de la búsqueda de tu Boleta",
-            description: "Verify that your Papeleta has been correctly emitted",
-            locate: "Localiza tu Papeleta",
-            locateAgain: "Localiza otra Papeleta",
-            found: "Tu ID de Papeleta {{ballotId}} ha sido localizada",
-            notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
-            contentDesc: "Este es el contenido de tu Papeleta: ",
-            wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
+            title: "Localisez votre Bulletin",
+            titleResult: "Résultat de la recherche de votre Bulletin",
+            description: "Vérifiez que votre bulletin a été émis correctement",
+            locate: "Localisez votre Bulletin",
+            locateAgain: "Localisez un autre Bulletin",
+            found: "Votre ID de Bulletin {{ballotId}} a été localisé",
+            notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
+            contentDesc: "Voici le contenu de votre Bulletin : ",
+            wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
             steps: {
-                lookup: "Localiza tu Papeleta",
-                result: "Result",
+                lookup: "Localisez votre Bulletin",
+                result: "Résultat",
             },
             titleHelpDialog: {
-                title: "Información: pantalla de Localización de tu Papeleta",
+                title: "Information : écran de Localisation de votre Bulletin",
                 content:
-                    "Esta pantalla le permite al votante encontrar su Papeleta utilizando el ID de la Papeleta para recuperarlo. Este procedimiento permite comprobar que su voto fue emitido correctamente y que el voto registrado coincide con el voto cifrado que emitió.",
+                    "Cet écran permet au votant de trouver son bulletin en utilisant l'ID du Bulletin pour le récupérer. Cette procédure permet de vérifier que son vote a été émis correctement et que le vote enregistré correspond au vote chiffré émis.",
                 ok: "OK",
             },
         },
