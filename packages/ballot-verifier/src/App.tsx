@@ -21,6 +21,7 @@ const StyledApp = styled(Stack)`
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
+    const languagesList = ["en", "es", "cat", "fr"]
 
     return (
         <Header
@@ -30,6 +31,7 @@ const HeaderWithContext: React.FC = () => {
                 openLink: authContext.openProfileLink,
             }}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
+            languagesList={languagesList}
         />
     )
 }

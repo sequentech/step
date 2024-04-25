@@ -618,6 +618,8 @@ const spanishTranslation: TranslationType = {
             language: {
                 es: "Español",
                 en: "Inglés",
+                fr: "Francés",
+                cat: "Catalán",
             },
             channel: {
                 online: "En línea",
