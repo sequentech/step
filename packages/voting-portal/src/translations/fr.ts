@@ -30,6 +30,8 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
                 ok: "Revenir et réviser",
+                continue: "Continuer",
+                cancel: "Annuler",
             },
         },
         startScreen: {
@@ -157,6 +159,8 @@ const frenchTranslation: TranslationType = {
                     "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
                 selectedMin:
                     "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
+                maxSelectionsPerType:
+                    "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
             },
             explicit: {
                 notAllowed:

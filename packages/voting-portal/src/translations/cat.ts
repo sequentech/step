@@ -30,6 +30,8 @@ const catalanTranslation: TranslationType = {
                 content:
                     "Algunes de les seves respostes podrien fer que la papereta en una o més preguntes sigui invàlida o en blanc.",
                 ok: "Tornar i revisar",
+                continue: "Continuar",
+                cancel: "Cancel·lar",
             },
         },
         startScreen: {
@@ -158,6 +160,8 @@ const catalanTranslation: TranslationType = {
                     "El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
                 selectedMin:
                     "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
+                maxSelectionsPerType:
+                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
