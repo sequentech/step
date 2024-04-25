@@ -10,7 +10,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write
+      packages: admin
     
     steps:
       - name: Checkout code
@@ -44,4 +44,5 @@ jobs:
           /usr/local/bin/devpod build \
             $GITHUB_WORKSPACE \
             --debug \
-            --repository ghcr.io/${{ github.repository }} --provider docker
+            --repository ghcr.io/${{ github.repository }} \
+            --provider docker
