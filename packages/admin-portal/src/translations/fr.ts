@@ -371,6 +371,7 @@ const frenchTranslation: TranslationType = {
                 language: "Langue",
                 allowed: "Canaux de Vote Permis",
                 default: "Par défaut",
+                defaultLang: "Langue par défaut",
                 receipts: "Reçus",
                 image: "Image",
                 advanced: "Configuration Avancée",
@@ -580,6 +581,9 @@ const frenchTranslation: TranslationType = {
                 "support-material-read": "Lire Matériaux de Support",
                 "support-material-write": "Éditer Matériaux de Support",
             },
+        },
+        generalSettingsScreen: {
+            body: "Activez les langues dans le système. Seules les langues activées ici seront disponibles pour les événements électoraux.",
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",

@@ -370,6 +370,7 @@ const catalanTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canals de Vot Permesos",
                 default: "Per defecte",
+                defaultLang: "Idioma per defecte",
                 receipts: "Rebuts",
                 image: "Imatge",
                 advanced: "Configuració Avançada",
@@ -578,6 +579,9 @@ const catalanTranslation: TranslationType = {
                 "support-material-read": "Llegir Materials de Suport",
                 "support-material-write": "Editar Materials de Suport",
             },
+        },
+        generalSettingsScreen: {
+            body: "Activeu els idiomes al sistema. Només els idiomes activats aquí estaran disponibles per a esdeveniments electorals.",
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",

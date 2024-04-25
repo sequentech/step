@@ -369,6 +369,7 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canales de Voto Permitidos",
                 default: "Por defecto",
+                defaultLang: "Idioma predeterminado",
                 receipts: "Comprobantes",
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
@@ -577,6 +578,9 @@ const spanishTranslation: TranslationType = {
                 "support-material-read": "Leer Materiales de Soporte",
                 "support-material-write": "Editar Materiales de Soporte",
             },
+        },
+        generalSettingsScreen: {
+            body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",

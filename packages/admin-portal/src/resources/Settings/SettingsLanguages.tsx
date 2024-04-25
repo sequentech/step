@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 
-import {Switch} from "@mui/material"
+import {Switch, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useEditController} from "react-admin"
 
@@ -90,6 +90,9 @@ export const SettingsLanguages: React.FC<void> = () => {
 
     return (
         <SettingsLanguagesStyles.Wrapper>
+            <Typography variant="body2" paragraph>
+                {t("generalSettingsScreen.body")}
+            </Typography>
             {listLangs.map((lang: string) => (
                 <SettingsLanguagesStyles.Content key={lang}>
                     <SettingsLanguagesStyles.Text>

@@ -11,8 +11,8 @@ export const EditElectionData: React.FC = () => {
         for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
             const key = Object.keys(ICommunicationMethod)[value]
             receipts[key] = {}
-            receipts[key]["allowed"] = data.allowed[key]
-            receipts[key]["template"] = data.template[key] || null
+            receipts[key]["allowed"] = data.allowed?.[key] || false
+            receipts[key]["template"] = data.template?.[key] || null
         }
 
         data.receipts = {...receipts}
@@ -59,7 +59,7 @@ export const EditElectionData: React.FC = () => {
                 ...data.configuration,
                 language_conf: {
                     ...language_conf,
-                    default_language_code: data.defaultLanguage,
+                    default_language_code: data?.presentation?.language_conf?.default_language_code,
                 },
             },
         }
