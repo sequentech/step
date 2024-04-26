@@ -116,7 +116,6 @@ export const ElectionDataForm: React.FC = () => {
         )
         let completeList = eventAvailableLangs.concat(newElectionLangs)
 
-        console.log(`1 ${JSON.stringify(completeList)}`)
         setLanguageSettings(completeList)
     }, [
         data?.presentation?.language_conf?.enabled_language_codes,
@@ -156,18 +155,12 @@ export const ElectionDataForm: React.FC = () => {
 
                     temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
-                console.log(
-                    `2 ${JSON.stringify(
-                        temp.enabled_languages
-                    )} languageSettings ${languageSettings}`
-                )
             } else {
                 // if presentation has no lang then use always the default settings
+                temp.enabled_languages = {...temp.enabled_languages}
                 for (const item of languageSettings) {
-                    temp.enabled_languages = {...temp.enabled_languages}
                     temp.enabled_languages[item] = false
                 }
-                console.log(`3 ${JSON.stringify(temp.enabled_languages)}`)
             }
 
             if (!incoming.presentation) {

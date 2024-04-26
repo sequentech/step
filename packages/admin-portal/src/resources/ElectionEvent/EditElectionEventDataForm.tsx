@@ -60,12 +60,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
-    const [languageSettings, setLanguageSettings] = useState<Array<{[key: string]: boolean}>>([
-        {es: true},
-        {en: true},
-        {cat: true},
-        {fr: true},
-    ])
+    const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const [openExport, setOpenExport] = React.useState(false)
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
 
@@ -92,23 +87,15 @@ export const EditElectionEventDataForm: React.FC = () => {
         )
         let completeList = tenantAvailableLangs.concat(newEventLangs)
 
-        setLanguageSettings(
-            completeList.map((lang) => {
-                let value: {[key: string]: boolean} = {}
-
-                const isInEnabled = eventAvailableLangs?.includes(lang) ?? false
-                value[lang] = isInEnabled
-
-                return value
-            })
-        )
+        setLanguageSettings(completeList)
     }, [
         tenant?.settings?.language_conf?.enabled_language_codes,
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
 
     const parseValues = (
-        incoming: Sequent_Backend_Election_Event_Extended
+        incoming: Sequent_Backend_Election_Event_Extended,
+        languageSettings: Array<string>
     ): Sequent_Backend_Election_Event_Extended => {
         const temp = {...incoming}
 
@@ -128,17 +115,18 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                 const isInEnabled =
                     incomingLangConf?.enabled_language_codes?.find(
-                        (item: string) => Object.keys(setting)[0] === item
+                        (item: string) => setting === item
                     ) ?? false
 
-                enabled_item[Object.keys(setting)[0]] = !!isInEnabled
+                enabled_item[setting] = !!isInEnabled
 
                 temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
             }
         } else {
             // if presentation has no lang then use always the default settings
+            temp.enabled_languages = {...temp.enabled_languages}
             for (const item of languageSettings) {
-                temp.enabled_languages = {...temp.enabled_languages, ...item}
+                temp.enabled_languages[item] = false
             }
         }
 
@@ -186,10 +174,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             <Box>
                 {languageSettings.map((lang) => (
                     <BooleanInput
-                        key={Object.keys(lang)[0]}
+                        key={lang}
                         disabled={!canEdit}
-                        source={`enabled_languages.${Object.keys(lang)[0]}`}
-                        label={t(`common.language.${Object.keys(lang)[0]}`)}
+                        source={`enabled_languages.${lang}`}
+                        label={t(`common.language.${lang}`)}
                     />
                 ))}
             </Box>
@@ -329,7 +317,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             <RecordContext.Consumer>
                 {(incoming) => {
                     const parsedValue = parseValues(
-                        incoming as Sequent_Backend_Election_Event_Extended
+                        incoming as Sequent_Backend_Election_Event_Extended,
+                        languageSettings
                     )
                     return (
                         <SimpleForm
