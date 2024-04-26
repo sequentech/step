@@ -88,7 +88,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             (record?.presentation as IElectionEventPresentation | undefined)?.language_conf
                 ?.enabled_language_codes ?? []
         let newEventLangs = eventAvailableLangs.filter(
-            (eventLang) => !eventAvailableLangs.includes(eventLang)
+            (eventLang) => !tenantAvailableLangs.includes(eventLang)
         )
         let completeList = tenantAvailableLangs.concat(newEventLangs)
 

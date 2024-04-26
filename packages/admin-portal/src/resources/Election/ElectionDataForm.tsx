@@ -71,7 +71,7 @@ export const ElectionDataForm: React.FC = () => {
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
-    const [availableLangs, setAvailableLangs] = useState<Array<string>>(["en"])
+    const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
@@ -101,7 +101,11 @@ export const ElectionDataForm: React.FC = () => {
     )
 
     const [updateImage] = useUpdate()
+
     useEffect(() => {
+        if (!data || !record) {
+            return
+        }
         let eventAvailableLangs = (data?.presentation as IElectionEventPresentation | undefined)
             ?.language_conf?.enabled_language_codes ?? ["en"]
         let electionAvailableLangs =
@@ -110,30 +114,20 @@ export const ElectionDataForm: React.FC = () => {
         let newElectionLangs = electionAvailableLangs.filter(
             (electionLang) => !eventAvailableLangs.includes(electionLang)
         )
-        setAvailableLangs(eventAvailableLangs.concat(newElectionLangs))
+        let completeList = eventAvailableLangs.concat(newElectionLangs)
+
+        console.log(`1 ${JSON.stringify(completeList)}`)
+        setLanguageSettings(completeList)
     }, [
         data?.presentation?.language_conf?.enabled_language_codes,
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
 
     const parseValues = useCallback(
-        (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
-            /*const buildLanguageSettings = () => {
-                const presentation = data?.presentation as IElectionPresentation
-                const tempSettings = presentation?.language_conf?.enabled_language_codes
-
-                const temp = []
-                if (tempSettings) {
-                    for (const item of tempSettings) {
-                        const enabled_item: any = {}
-                        enabled_item[item] = true
-                        temp.push(enabled_item)
-                    }
-                }
-
-                return temp
-            }*/
-
+        (
+            incoming: Sequent_Backend_Election_Extended,
+            languageSettings: Array<string>
+        ): Sequent_Backend_Election_Extended => {
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
@@ -142,90 +136,49 @@ export const ElectionDataForm: React.FC = () => {
                 ...incoming,
             }
 
-            let eventLangConfig = (data.presentation as IElectionEventPresentation | undefined)
-                ?.language_conf
-            let electionLangConfig = (incoming?.presentation as IElectionPresentation | undefined)
+            const incomingLangConf = (incoming?.presentation as IElectionPresentation | undefined)
                 ?.language_conf
 
-            let defaultLangCode =
-                electionLangConfig?.default_language_code ||
-                eventLangConfig?.default_language_code ||
-                "en"
+            if (
+                incomingLangConf?.enabled_language_codes &&
+                incomingLangConf?.enabled_language_codes.length > 0
+            ) {
+                // if presentation has lang then set from event
+                for (const setting of languageSettings) {
+                    const enabled_item: {[key: string]: boolean} = {}
 
-            if (!incoming.enabled_languages?.enabled_language_codes) {
-                let enabledLanguages: {[key: string]: boolean} = {}
-                let writeLangs: Array<string> = []
-                if (electionLangConfig?.enabled_language_codes) {
-                    writeLangs = electionLangConfig.enabled_language_codes
-                } else {
-                    writeLangs = eventLangConfig?.enabled_language_codes ?? ["en"]
+                    const isInEnabled =
+                        incomingLangConf?.enabled_language_codes?.find(
+                            (item: string) => setting === item
+                        ) ?? false
+
+                    enabled_item[setting] = !!isInEnabled
+
+                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
-                for (const lang of writeLangs) {
-                    enabledLanguages[lang] = true
+                console.log(
+                    `2 ${JSON.stringify(
+                        temp.enabled_languages
+                    )} languageSettings ${languageSettings}`
+                )
+            } else {
+                // if presentation has no lang then use always the default settings
+                for (const item of languageSettings) {
+                    temp.enabled_languages = {...temp.enabled_languages}
+                    temp.enabled_languages[item] = false
                 }
-                temp.enabled_languages = enabledLanguages
+                console.log(`3 ${JSON.stringify(temp.enabled_languages)}`)
             }
 
             if (!incoming.presentation) {
                 temp.presentation = {}
             }
 
-            if (temp.presentation && !electionLangConfig) {
+            if (temp.presentation && !temp.presentation.language_conf) {
                 temp.presentation.language_conf = {}
             }
 
-            if (temp.presentation?.language_conf) {
-                temp.presentation.language_conf.default_language_code = defaultLangCode
-            }
-
-            //let languageSettings
-            // if (!incoming?.presentation) languageSettings = buildLanguageSettings()
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
-
-            /*
-            // languages
-            // temp.configuration = {...jsonConfiguration}
-            temp.enabled_languages = {}
-
-            // if (languageSettings) {
-            if (
-                incoming?.presentation?.language_conf?.enabled_language_codes &&
-                incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-            ) {
-                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
-
-                // if presentation has lang then set from event
-                temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
-                for (const setting of languageSettings) {
-                    const enabled_item: any = {}
-
-                    const isInEnabled =
-                        incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-                            ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => setting === item
-                              )
-                            : false
-
-                    if (isInEnabled) {
-                        enabled_item[setting] = true
-                    } else {
-                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
-                    }
-
-                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
-                }
-            } else {
-                // if presentation has no lang then use always the default settings
-                languageSettings = buildLanguageSettings()
-
-                temp.defaultLanguage = ""
-                let enabled_items: any = {}
-                for (const item of languageSettings) {
-                    enabled_items = {...enabled_items, ...item}
-                }
-                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
-            }*/
-            // }
 
             // set english first lang always
             if (temp.enabled_languages) {
@@ -292,7 +245,7 @@ export const ElectionDataForm: React.FC = () => {
     const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
         return (
             <LangsWrapper>
-                {availableLangs.map((lang) => (
+                {languageSettings.map((lang) => (
                     <BooleanInput
                         key={lang}
                         source={`enabled_languages.${lang}`}
@@ -305,7 +258,7 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     const renderDefaultLangs = (_parsedValue: Sequent_Backend_Election_Extended) => {
-        let langNodes = availableLangs.map((lang) => ({
+        let langNodes = languageSettings.map((lang) => ({
             id: lang,
             name: t(`electionScreen.edit.default`),
         }))
@@ -433,7 +386,10 @@ export const ElectionDataForm: React.FC = () => {
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
-                const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
+                const parsedValue = parseValues(
+                    incoming as Sequent_Backend_Election_Extended,
+                    languageSettings
+                )
 
                 return (
                     <SimpleForm

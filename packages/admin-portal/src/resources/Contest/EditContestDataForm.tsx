@@ -36,6 +36,7 @@ import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
@@ -54,6 +55,7 @@ import {
     IElectionEventPresentation,
     isArray,
     ICandidatePresentation,
+    IElectionPresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -107,6 +109,10 @@ export const ContestDataForm: React.FC = () => {
         }
     )
 
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
+        id: record.election_id,
+    })
+
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
@@ -126,15 +132,23 @@ export const ContestDataForm: React.FC = () => {
     })
 
     useEffect(() => {
-        if (!electionEvent) {
-            return
+        if (election) {
+            let langConf = (election.presentation as IElectionPresentation | undefined)
+                ?.language_conf
+            if (langConf) {
+                setLanguageConf(langConf)
+                return
+            }
         }
-        let presentation = electionEvent.presentation as IElectionEventPresentation | undefined
-        if (!presentation?.language_conf) {
-            return
+        if (electionEvent) {
+            let langConf = (electionEvent.presentation as IElectionEventPresentation | undefined)
+                ?.language_conf
+            if (langConf) {
+                setLanguageConf(langConf)
+                return
+            }
         }
-        setLanguageConf(presentation.language_conf)
-    }, [electionEvent?.presentation?.language_conf])
+    }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
     const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
         return Object.values(IVotingType).map((value) => ({
