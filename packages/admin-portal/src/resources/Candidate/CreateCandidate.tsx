@@ -14,12 +14,18 @@ import {
     useRedirect,
     Toolbar,
     SaveButton,
+    RaRecord,
+    Identifier,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
+import {ICandidatePresentation} from "@sequentech/ui-essentials"
+import {isString} from "lodash"
+import { addDefaultTranslationsToElement } from "@/services/i18n"
 
 const Hidden = styled(Box)`
     display: none;
@@ -38,15 +44,27 @@ export const CreateCandidate: React.FC = () => {
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
 
+    const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
+        let i18n = addDefaultTranslationsToElement(data)
+        return {
+            ...data,
+            presentation: {
+                ...data.presentation,
+                i18n,
+            },
+        }
+    }
+
     return (
         <Create
             mutationOptions={{
-                onSuccess: (data: any) => {
+                onSuccess: (data: Sequent_Backend_Candidate_Extended) => {
                     refetch()
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
                     redirect(`/sequent_backend_candidate/${data.id}`)
                 },
             }}
+            transform={transform}
         >
             <SimpleForm
                 toolbar={

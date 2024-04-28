@@ -91,10 +91,7 @@ export const ContestDataForm: React.FC = () => {
 
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [languageConf, setLanguageConf] = useState<ILanguageConf>({
-        enabled_language_codes: ["en"],
-        default_language_code: "en",
-    })
+    const [languageConf, setLanguageConf] = useState<Array<string>>(["en"])
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -106,6 +103,7 @@ export const ContestDataForm: React.FC = () => {
         "sequent_backend_election_event",
         {
             id: record.election_event_id,
+            meta: {tenant_id: record.tenant_id},
         }
     )
 
@@ -135,16 +133,16 @@ export const ContestDataForm: React.FC = () => {
         if (election) {
             let langConf = (election.presentation as IElectionPresentation | undefined)
                 ?.language_conf
-            if (langConf) {
-                setLanguageConf(langConf)
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
                 return
             }
         }
         if (electionEvent) {
             let langConf = (electionEvent.presentation as IElectionEventPresentation | undefined)
                 ?.language_conf
-            if (langConf) {
-                setLanguageConf(langConf)
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
                 return
             }
         }
@@ -259,7 +257,7 @@ export const ContestDataForm: React.FC = () => {
     const renderTabs = () => {
         let tabNodes: Array<ReactNode> = []
 
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
         })
 
@@ -274,7 +272,7 @@ export const ContestDataForm: React.FC = () => {
     const renderTabContent = () => {
         let tabNodes: Array<ReactNode> = []
         let index = 0
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <div style={{marginTop: "16px"}}>
