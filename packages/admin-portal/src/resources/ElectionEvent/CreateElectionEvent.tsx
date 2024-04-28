@@ -18,12 +18,14 @@ import {
     useNotify,
     useRefresh,
     Button,
+    RaRecord,
+    Identifier,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {IElectionEventPresentation, isNull} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
@@ -34,6 +36,8 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
+import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataForm"
+import {addDefaultTranslationsToElement} from "@/services/i18n"
 
 const Hidden = styled(Box)`
     display: none;
@@ -115,25 +119,24 @@ export const CreateElectionList: React.FC = () => {
         }
     }, [isLoading, newElectionEvent, isOneLoading, error])
 
-    const handleSubmit = async (values: any) => {
+    const handleSubmit = async (values: any): Promise<void> => {
         let electionSubmit = values as IElectionEventSubmit
+        let i18n = addDefaultTranslationsToElement(electionSubmit)
+        let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
+            enabled_language_codes: settings?.languages ?? ["en"],
+            default_language_code: "en",
+        }
+        tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
+
+        let presentation: IElectionEventPresentation = {
+            ...(values.presentation as IElectionEventPresentation),
+            i18n,
+            language_conf: tenantLangConf,
+        }
 
         electionSubmit = {
             ...electionSubmit,
-            presentation: {
-                ...electionSubmit.presentation,
-                language_conf: {
-                    enabled_language_codes: settings?.languages ?? ["en"],
-                    default_language_code: "en",
-                },
-                i18n: {
-                    en: {
-                        name: electionSubmit.name,
-                        alias: "",
-                        description: electionSubmit.description || "",
-                    },
-                },
-            },
+            presentation,
         }
 
         console.log("electionSubmit :: ", electionSubmit)

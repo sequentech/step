@@ -16,13 +16,17 @@ import {
     useRedirect,
     Toolbar,
     SaveButton,
+    Identifier,
+    RaRecord,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {ICountingAlgorithm, IVotingType} from "./constants"
-import {CandidatesOrder} from "@sequentech/ui-essentials"
+import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-essentials"
+import {Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
+import {addDefaultTranslationsToElement} from "@/services/i18n"
 
 const Hidden = styled(Box)`
     display: none;
@@ -48,6 +52,18 @@ export const CreateContest: React.FC = () => {
         }))
     }
 
+    const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
+        let i18n = addDefaultTranslationsToElement(data)
+        let presentation: IContestPresentation = {
+            ...(data.presentation as IContestPresentation),
+            i18n,
+        }
+        return {
+            ...data,
+            presentation,
+        }
+    }
+
     return (
         <Create
             mutationOptions={{
@@ -57,6 +73,7 @@ export const CreateContest: React.FC = () => {
                     redirect(`/sequent_backend_contest/${data.id}`)
                 },
             }}
+            transform={transform}
         >
             <SimpleForm
                 toolbar={

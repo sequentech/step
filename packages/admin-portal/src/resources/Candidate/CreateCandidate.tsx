@@ -23,9 +23,8 @@ import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
+import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ICandidatePresentation} from "@sequentech/ui-essentials"
-import {isString} from "lodash"
-import { addDefaultTranslationsToElement } from "@/services/i18n"
 
 const Hidden = styled(Box)`
     display: none;
@@ -46,12 +45,13 @@ export const CreateCandidate: React.FC = () => {
 
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
         let i18n = addDefaultTranslationsToElement(data)
+        let presentation: ICandidatePresentation = {
+            ...(data.presentation as ICandidatePresentation),
+            i18n,
+        }
         return {
             ...data,
-            presentation: {
-                ...data.presentation,
-                i18n,
-            },
+            presentation,
         }
     }
 
