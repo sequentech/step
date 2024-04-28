@@ -24,7 +24,7 @@ export const addDefaultTranslationsToElement = (data: {
     let i18n: Record<string, Record<string, string>> = {}
     let langs = getAllLangs()
 
-    for (let lang in langs) {
+    for (let lang of langs) {
         let i18nLang: Record<string, string> = {}
         if (isString(data.name)) {
             i18nLang["name"] = data.name
