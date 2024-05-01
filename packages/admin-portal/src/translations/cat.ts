@@ -624,7 +624,7 @@ const catalanTranslation: TranslationType = {
                 es: "Espanyol",
                 en: "Anglès",
                 fr: "Francès",
-                cat: "Català",
+                cat: "Valencià",
             },
             channel: {
                 online: "En línia",

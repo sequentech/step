@@ -5,7 +5,7 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
-        language: "Català",
+        language: "Valencià",
         welcome: "Comencem: Importa el vot auditable..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",

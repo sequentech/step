@@ -13,6 +13,7 @@ import {
     Identifier,
     useEditController,
     useRecordContext,
+    RadioButtonGroupInput,
 } from "react-admin"
 import {
     Accordion,
@@ -39,6 +40,7 @@ import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {ElectionStyles} from "@/components/styles/ElectionStyles"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -167,6 +169,22 @@ export const EditElectionEventDataForm: React.FC = () => {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         }
         return errors
+    }
+
+    const renderDefaultLangs = (_parsedValue: Sequent_Backend_Election_Event_Extended) => {
+        let langNodes = languageSettings.map((lang) => ({
+            id: lang,
+            name: t(`electionScreen.edit.default`),
+        }))
+
+        return (
+            <RadioButtonGroupInput
+                label={false}
+                source="presentation.language_conf.default_language_code"
+                choices={langNodes}
+                row={true}
+            />
+        )
     }
 
     const renderLangs = (parsedValue: Sequent_Backend_Election_Event_Extended) => {
@@ -403,11 +421,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Grid container spacing={4}>
-                                        <Grid item xs={12} md={6}>
+                                    <ElectionStyles.AccordionContainer>
+                                        <ElectionStyles.AccordionWrapper>
                                             {renderLangs(parsedValue)}
-                                        </Grid>
-                                    </Grid>
+                                            {renderDefaultLangs(parsedValue)}
+                                        </ElectionStyles.AccordionWrapper>
+                                    </ElectionStyles.AccordionContainer>
                                 </AccordionDetails>
                             </Accordion>
 

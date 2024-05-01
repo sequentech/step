@@ -623,7 +623,7 @@ const spanishTranslation: TranslationType = {
                 es: "Español",
                 en: "Inglés",
                 fr: "Francés",
-                cat: "Catalán",
+                cat: "Valenciano",
             },
             channel: {
                 online: "En línea",

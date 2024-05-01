@@ -621,7 +621,7 @@ const englishTranslation = {
                 es: "Spanish",
                 en: "English",
                 fr: "French",
-                cat: "Catalan",
+                cat: "Valencian",
             },
             channel: {
                 online: "Online",

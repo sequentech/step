@@ -626,7 +626,7 @@ const frenchTranslation: TranslationType = {
                 es: "Espagnol",
                 en: "Anglais",
                 fr: "Français",
-                cat: "Catalan",
+                cat: "Valencien",
             },
             channel: {
                 online: "En ligne",
