@@ -23,7 +23,7 @@ import {
     NumberInput,
     useGetList,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} from "@mui/material"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Communication_Template,
@@ -33,24 +33,32 @@ import {
     Sequent_Backend_Tenant,
 } from "../../gql/graphql"
 
-import React, {useCallback, useContext, useState} from "react"
+import React, {useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
-import {DropFile} from "@sequentech/ui-essentials"
+import {
+    DropFile,
+    IElectionEventPresentation,
+    IElectionPresentation,
+} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import styled from "@emotion/styled"
+
+const LangsWrapper = styled(Box)`
+    margin-top: 46px;
+`
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
-    defaultLanguage?: string
-}
+} & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -63,6 +71,7 @@ export const ElectionDataForm: React.FC = () => {
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
+    const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
@@ -93,23 +102,31 @@ export const ElectionDataForm: React.FC = () => {
 
     const [updateImage] = useUpdate()
 
+    useEffect(() => {
+        if (!data || !record) {
+            return
+        }
+        let eventAvailableLangs = (data?.presentation as IElectionEventPresentation | undefined)
+            ?.language_conf?.enabled_language_codes ?? ["en"]
+        let electionAvailableLangs =
+            (record?.presentation as IElectionPresentation | undefined)?.language_conf
+                ?.enabled_language_codes ?? []
+        let newElectionLangs = electionAvailableLangs.filter(
+            (electionLang) => !eventAvailableLangs.includes(electionLang)
+        )
+        let completeList = eventAvailableLangs.concat(newElectionLangs)
+
+        setLanguageSettings(completeList)
+    }, [
+        data?.presentation?.language_conf?.enabled_language_codes,
+        record?.presentation?.language_conf?.enabled_language_codes,
+    ])
+
     const parseValues = useCallback(
-        (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
-            const buildLanguageSettings = () => {
-                const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
-
-                const temp = []
-                if (tempSettings) {
-                    for (const item of tempSettings) {
-                        const enabled_item: any = {}
-                        enabled_item[item] = true
-                        temp.push(enabled_item)
-                    }
-                }
-
-                return temp
-            }
-
+        (
+            incoming: Sequent_Backend_Election_Extended,
+            languageSettings: Array<string>
+        ): Sequent_Backend_Election_Extended => {
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
@@ -118,53 +135,43 @@ export const ElectionDataForm: React.FC = () => {
                 ...incoming,
             }
 
-            let languageSettings
-            // if (!incoming?.presentation) languageSettings = buildLanguageSettings()
-            const votingSettings = data?.voting_channels || tenantData?.voting_channels
+            const incomingLangConf = (incoming?.presentation as IElectionPresentation | undefined)
+                ?.language_conf
 
-            // languages
-            // temp.configuration = {...jsonConfiguration}
-            temp.enabled_languages = {}
-
-            // if (languageSettings) {
             if (
-                incoming?.presentation?.language_conf?.enabled_language_codes &&
-                incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
+                incomingLangConf?.enabled_language_codes &&
+                incomingLangConf?.enabled_language_codes.length > 0
             ) {
-                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
-
                 // if presentation has lang then set from event
-                temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
                 for (const setting of languageSettings) {
-                    const enabled_item: any = {}
+                    const enabled_item: {[key: string]: boolean} = {}
 
                     const isInEnabled =
-                        incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
-                            ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => setting === item
-                              )
-                            : false
+                        incomingLangConf?.enabled_language_codes?.find(
+                            (item: string) => setting === item
+                        ) ?? false
 
-                    if (isInEnabled) {
-                        enabled_item[setting] = true
-                    } else {
-                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
-                    }
+                    enabled_item[setting] = !!isInEnabled
 
                     temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
             } else {
-                // if presentation has no lang then use always de default settings
-                languageSettings = buildLanguageSettings()
-
-                temp.defaultLanguage = ""
-                let enabled_items: any = {}
+                // if presentation has no lang then use always the default settings
+                temp.enabled_languages = {...temp.enabled_languages}
                 for (const item of languageSettings) {
-                    enabled_items = {...enabled_items, ...item}
+                    temp.enabled_languages[item] = false
                 }
-                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
             }
-            // }
+
+            if (!incoming.presentation) {
+                temp.presentation = {}
+            }
+
+            if (temp.presentation && !temp.presentation.language_conf) {
+                temp.presentation.language_conf = {}
+            }
+
+            const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
             // set english first lang always
             if (temp.enabled_languages) {
@@ -228,30 +235,38 @@ export const ElectionDataForm: React.FC = () => {
         return errors
     }
 
-    const renderLangs = (parsedValue: any) => {
-        let langNodes = []
-        for (const lang in parsedValue?.enabled_languages) {
-            langNodes.push(
-                <BooleanInput
-                    key={lang}
-                    source={`enabled_languages.${lang}`}
-                    label={t(`common.language.${lang}`)}
-                    helperText={false}
-                />
-            )
-        }
-        return <div style={{marginTop: "46px"}}>{langNodes}</div>
+    const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
+        return (
+            <LangsWrapper>
+                {languageSettings.map((lang) => (
+                    <BooleanInput
+                        key={lang}
+                        source={`enabled_languages.${lang}`}
+                        label={t(`common.language.${lang}`)}
+                        helperText={false}
+                    />
+                ))}
+            </LangsWrapper>
+        )
     }
 
-    const renderDefaultLangs = (parsedValue: any) => {
-        let langNodes = []
-        for (const lang in parsedValue?.enabled_languages) {
-            langNodes.push({id: lang, name: t(`electionScreen.edit.default`)})
-        }
-        return <RadioButtonGroupInput source="defaultLanguage" choices={langNodes} row={true} />
+    const renderDefaultLangs = (_parsedValue: Sequent_Backend_Election_Extended) => {
+        let langNodes = languageSettings.map((lang) => ({
+            id: lang,
+            name: t(`electionScreen.edit.default`),
+        }))
+
+        return (
+            <RadioButtonGroupInput
+                label={false}
+                source="presentation.language_conf.default_language_code"
+                choices={langNodes}
+                row={true}
+            />
+        )
     }
 
-    const renderVotingChannels = (parsedValue: any) => {
+    const renderVotingChannels = (parsedValue: Sequent_Backend_Election_Extended) => {
         let channelNodes = []
         for (const channel in parsedValue?.voting_channels) {
             channelNodes.push(
@@ -265,10 +280,10 @@ export const ElectionDataForm: React.FC = () => {
         return channelNodes
     }
 
-    const renderTabs = (parsedValue: any) => {
+    const renderTabs = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
-            if (parsedValue?.enabled_languages[lang]) {
+            if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
             }
         }
@@ -283,11 +298,11 @@ export const ElectionDataForm: React.FC = () => {
 
     // TODO: renderReceipts
 
-    const renderTabContent = (parsedValue: any) => {
+    const renderTabContent = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         let index = 0
         for (const lang in parsedValue?.enabled_languages) {
-            if (parsedValue?.enabled_languages[lang]) {
+            if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(
                     <CustomTabPanel key={lang} value={value} index={index}>
                         <div style={{marginTop: "16px"}}>
@@ -364,7 +379,10 @@ export const ElectionDataForm: React.FC = () => {
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
-                const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
+                const parsedValue = parseValues(
+                    incoming as Sequent_Backend_Election_Extended,
+                    languageSettings
+                )
 
                 return (
                     <SimpleForm

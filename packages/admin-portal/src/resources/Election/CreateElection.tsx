@@ -9,7 +9,9 @@ import {Box, Typography, styled} from "@mui/material"
 import {
     BooleanInput,
     Create,
+    Identifier,
     NumberInput,
+    RaRecord,
     ReferenceInput,
     SaveButton,
     SelectInput,
@@ -23,6 +25,9 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
+import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
+import {addDefaultTranslationsToElement} from "@/services/i18n"
+import {IElectionPresentation} from "@sequentech/ui-essentials"
 
 const Hidden = styled(Box)`
     display: none;
@@ -45,9 +50,15 @@ export const CreateElection: React.FC = () => {
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
 
-    const transform = (data: any) => {
+    const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
+        let i18n = addDefaultTranslationsToElement(data)
+        let presentation: IElectionPresentation = {
+            ...(data.presentation as IElectionPresentation),
+            i18n,
+        }
         return {
             ...data,
+            presentation,
         }
     }
 

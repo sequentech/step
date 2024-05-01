@@ -14,6 +14,7 @@ import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -84,8 +85,16 @@ export const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+
+    useEffect(() => {
+        let defaultLangCode =
+            ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code ??
+            "en"
+        i18n.changeLanguage(defaultLangCode)
+    }, [ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code])
 
     useEffect(() => {
         if (!election) {

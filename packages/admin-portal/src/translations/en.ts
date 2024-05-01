@@ -367,6 +367,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
+                defaultLang: "Default language",
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
@@ -576,6 +577,9 @@ const englishTranslation = {
                 "support-material-write": "Edit Support Materials",
             },
         },
+        generalSettingsScreen: {
+            body: "Enable languages in the system. Only languages enabled here will be available for election events.",
+        },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
@@ -617,7 +621,7 @@ const englishTranslation = {
                 es: "Spanish",
                 en: "English",
                 fr: "French",
-                cat: "Catalan",
+                cat: "Valencian",
             },
             channel: {
                 online: "Online",

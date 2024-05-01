@@ -144,6 +144,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
+    useEffect(() => {
+        let defaultLangCode =
+            ballotStyle?.ballot_eml?.election_event_presentation?.language_conf
+                ?.default_language_code ?? "en"
+        i18n.changeLanguage(defaultLangCode)
+    }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
+
     const dates = ballotStyle?.ballot_eml?.election_presentation?.dates
 
     return (

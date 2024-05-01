@@ -75,13 +75,15 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             className="candidates-list"
         >
             <ListHeader className="candidates-list-header">
-                <ListTitle
-                    color={theme.palette.customGrey.contrastText}
-                    fontSize="24px"
-                    className="candidates-list-title"
-                >
-                    {title}
-                </ListTitle>
+                <Box>
+                    <ListTitle
+                        color={theme.palette.customGrey.contrastText}
+                        fontSize="24px"
+                        className="candidates-list-title"
+                    >
+                        {title}
+                    </ListTitle>
+                </Box>
                 {isActive && isCheckable ? (
                     <Checkbox checked={checked} onChange={handleChange} />
                 ) : null}

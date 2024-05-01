@@ -36,6 +36,7 @@ import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
@@ -54,6 +55,7 @@ import {
     IElectionEventPresentation,
     isArray,
     ICandidatePresentation,
+    IElectionPresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -89,10 +91,7 @@ export const ContestDataForm: React.FC = () => {
 
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [languageConf, setLanguageConf] = useState<ILanguageConf>({
-        enabled_language_codes: ["en"],
-        default_language_code: "en",
-    })
+    const [languageConf, setLanguageConf] = useState<Array<string>>(["en"])
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -104,8 +103,13 @@ export const ContestDataForm: React.FC = () => {
         "sequent_backend_election_event",
         {
             id: record.election_event_id,
+            meta: {tenant_id: record.tenant_id},
         }
     )
+
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
+        id: record.election_id,
+    })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
@@ -126,15 +130,23 @@ export const ContestDataForm: React.FC = () => {
     })
 
     useEffect(() => {
-        if (!electionEvent) {
-            return
+        if (election) {
+            let langConf = (election.presentation as IElectionPresentation | undefined)
+                ?.language_conf
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
+                return
+            }
         }
-        let presentation = electionEvent.presentation as IElectionEventPresentation | undefined
-        if (!presentation?.language_conf) {
-            return
+        if (electionEvent) {
+            let langConf = (electionEvent.presentation as IElectionEventPresentation | undefined)
+                ?.language_conf
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
+                return
+            }
         }
-        setLanguageConf(presentation.language_conf)
-    }, [electionEvent?.presentation?.language_conf])
+    }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
     const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
         return Object.values(IVotingType).map((value) => ({
@@ -245,7 +257,7 @@ export const ContestDataForm: React.FC = () => {
     const renderTabs = () => {
         let tabNodes: Array<ReactNode> = []
 
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
         })
 
@@ -260,7 +272,7 @@ export const ContestDataForm: React.FC = () => {
     const renderTabContent = () => {
         let tabNodes: Array<ReactNode> = []
         let index = 0
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <div style={{marginTop: "16px"}}>

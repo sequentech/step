@@ -1,9 +1,12 @@
 import React from "react"
-import {EditBase} from "react-admin"
-import {EditElectionEventDataForm} from "./EditElectionEventDataForm"
+import {EditBase, Identifier, RaRecord} from "react-admin"
+import {
+    EditElectionEventDataForm,
+    Sequent_Backend_Election_Event_Extended,
+} from "./EditElectionEventDataForm"
 
 export const EditElectionEventData: React.FC = () => {
-    const transform = (data: any) => {
+    const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {
         console.log("TRANSFORM :: ", data)
 
         // save presentation object
@@ -44,7 +47,10 @@ export const EditElectionEventData: React.FC = () => {
             ...data,
             presentation: {
                 ...data.presentation,
-                language_conf: {...language_conf},
+                language_conf: {
+                    ...language_conf,
+                    default_language_code: data?.presentation?.language_conf?.default_language_code,
+                },
             },
         }
     }
