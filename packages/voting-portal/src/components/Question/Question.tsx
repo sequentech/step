@@ -51,6 +51,11 @@ const CandidateListsWrapper = styled(Box)`
     flex-direction: row;
     gap: 12px;
     margin: 12px 0 0 0;
+
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        flex-direction: column;
+    }
 `
 
 const CandidatesSingleWrapper = styled(Box)`
