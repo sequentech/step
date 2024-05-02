@@ -27,6 +27,7 @@ Files:
   packages/voting-portal/tests_output/*
   packages/voting-portal/reports/*
   packages/windmill/src/graphql/*
+  packages/immudb-rs/proto/immudb/*
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 

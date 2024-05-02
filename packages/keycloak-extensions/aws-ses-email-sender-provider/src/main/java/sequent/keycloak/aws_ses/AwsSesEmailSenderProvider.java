@@ -1,5 +1,7 @@
-// Copyright (c) 2024 Eduardo Robles
-// Copyright (c) 2020 Niko Köbler (MIT)
+// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2020 Niko Köbler (MIT)
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 // Inspired on https://github.com/dasniko/keycloak-aws-ses-email-provider
 package sequent.keycloak.aws_ses;
 
