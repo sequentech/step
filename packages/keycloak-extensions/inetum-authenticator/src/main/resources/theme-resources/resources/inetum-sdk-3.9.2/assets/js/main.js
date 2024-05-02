@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // DobModels - Steps
 import { InitialStep, InstructionsStep, DocCaptureStep, FaceCaptureStep, VideoIdentificationStep, AttachStep, EndStep } from './dob-models-1.1.19.esm.js';
 // DobModels - Enums

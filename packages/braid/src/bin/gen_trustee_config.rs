@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // This utility generates a trustee configuration printed to stdout with
 //
 //  * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
