@@ -18,6 +18,7 @@ Files:
   devenv.nix
   graphql.schema.json
   yarn.lock
+  packages/packages.json
   packages/admin-portal/graphql.schema.json
   packages/admin-portal/logs/*
   packages/admin-portal/tests_output/*
