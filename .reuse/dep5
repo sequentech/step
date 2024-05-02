@@ -12,6 +12,8 @@ Files:
   devenv.nix
   graphql.schema.json
   yarn.lock
+  packages/admin-portal/logs/*
+  packages/admin-portal/tests_output/*
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 

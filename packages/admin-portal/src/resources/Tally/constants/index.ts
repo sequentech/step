@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {theme} from "@sequentech/ui-essentials"
 

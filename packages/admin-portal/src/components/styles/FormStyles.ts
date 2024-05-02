@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {TextInput, PasswordInput} from "react-admin"
 import {styled as muiStyled} from "@mui/material/styles"
 import {FormControlLabel, Typography, Box, CircularProgress} from "@mui/material"
