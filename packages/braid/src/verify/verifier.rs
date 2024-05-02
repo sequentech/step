@@ -1,4 +1,9 @@
 #![allow(non_camel_case_types)]
+
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::Result;
 use colored::*;
 use serde::Serialize;

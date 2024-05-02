@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # Tasks execution model for 2nd-gen
 
 We define the following different pathsways to execute business logic by the

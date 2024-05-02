@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useRef, useState} from "react"
 import styled from "@emotion/styled"
 import {theme, ICandidate} from "@sequentech/ui-essentials"

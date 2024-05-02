@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {theme} from "@sequentech/ui-essentials"
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # File is based on the example found at
 # https://www.keycloak.org/server/containers#_provide_initial_admin_credentials_when_running_in_a_container
 #

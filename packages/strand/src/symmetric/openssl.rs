@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use openssl::symm::decrypt_aead;
 use openssl::symm::encrypt_aead;

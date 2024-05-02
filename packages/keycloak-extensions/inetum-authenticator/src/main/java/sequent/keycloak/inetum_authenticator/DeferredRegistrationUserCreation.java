@@ -1,7 +1,7 @@
-/*
-* SPDX-FileCopyrightText: 2016 Red Hat, Inc. and/or its affiliates
-* SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
-*/
+// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2016 Red Hat, Inc. and/or its affiliates
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
 
