@@ -6,6 +6,12 @@ Source: https://github.com/sequentech
 Files:
   hasura/*
   .ackrc
+  packages/.ackrc
+  packages/.gitignore
+  packages/yarn.lock
+  packages/devenv.lock
+  packages/Cargo.lock
+  packages/Cargo.lock.copy
   .envrc
   .release-it.json
   devenv.lock
