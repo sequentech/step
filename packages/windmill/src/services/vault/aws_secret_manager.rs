@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use super::Vault;
 use crate::util::aws::get_from_env_aws_config;
 use anyhow::{Context, Result};

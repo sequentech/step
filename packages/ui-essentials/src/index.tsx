@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React from "react"
 export {default as useTemplate} from "./useTemplate"
 export {default as theme, adminTheme} from "./services/theme"
