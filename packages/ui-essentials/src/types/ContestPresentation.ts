@@ -27,6 +27,12 @@ export enum EEnableCheckableLists {
     DISABLED = "disabled",
 }
 
+export interface ITypePresentation {
+    name?: string
+    name_i18n?: Record<string, string>
+    sort_order?: number
+}
+
 export interface IContestPresentation {
     i18n?: Record<string, Record<string, string>>
     allow_writeins?: boolean
@@ -39,4 +45,6 @@ export interface IContestPresentation {
     enable_checkable_lists?: EEnableCheckableLists
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
+    subtypes_presentation?: Record<string, ITypePresentation>
+    types_presentation?: Record<string, ITypePresentation>
 }

@@ -247,6 +247,7 @@ pub struct CandidatePresentation {
     pub is_write_in: Option<bool>,
     pub sort_order: Option<i64>,
     pub urls: Option<Vec<CandidateUrl>>,
+    pub subtype: Option<String>,
 }
 
 impl CandidatePresentation {
@@ -260,6 +261,7 @@ impl CandidatePresentation {
             is_write_in: Some(false),
             sort_order: None,
             urls: None,
+            subtype: None,
         }
     }
 }
@@ -341,6 +343,7 @@ impl Candidate {
                 sort_order: Some(0),
                 urls: None,
                 invalid_vote_position: None,
+                subtype: None,
             });
         presentation.is_write_in = Some(is_write_in);
         self.presentation = Some(presentation);
@@ -523,6 +526,24 @@ pub struct ElectionPresentation {
     Eq,
     Debug,
     Clone,
+    Default,
+)]
+pub struct TypePresentation {
+    pub name: Option<String>,
+    pub name_i18n: Option<I18nContent<Option<String>>>,
+    pub sort_order: Option<i64>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
 )]
 pub struct ContestPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -537,6 +558,9 @@ pub struct ContestPresentation {
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub max_selections_per_type: Option<u64>,
+    pub subtypes_presentation:
+        Option<HashMap<String, Option<TypePresentation>>>,
+    pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
 }
 
 impl ContestPresentation {
@@ -554,6 +578,8 @@ impl ContestPresentation {
             candidates_order: None,
             candidates_selection_policy: None,
             max_selections_per_type: None,
+            subtypes_presentation: None,
+            types_presentation: None,
         }
     }
 }
