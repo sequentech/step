@@ -44,6 +44,18 @@ const StyledTitle = styled(Typography)`
 const CandidatesWrapper = styled(Box)`
     display: flex;
     flex-direction: column;
+`
+
+const CandidateListsWrapper = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    margin: 12px 0 0 0;
+`
+
+const CandidatesSingleWrapper = styled(Box)`
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     margin: 12px 0;
 `
@@ -126,7 +138,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 setDecodedContests={setDecodedContests}
             />
-            <CandidatesWrapper className="candidates-list">
+            <CandidatesWrapper className="candidates-container">
                 {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
@@ -141,41 +153,45 @@ export const Question: React.FC<IQuestionProps> = ({
                         contest={question}
                     />
                 ))}
-                {categoriesMapOrder &&
-                    Object.entries(categoriesMapOrder).map(
-                        ([categoryName, category], categoryIndex) => (
-                            <AnswersList
-                                key={categoryIndex}
-                                title={categoryName}
-                                isActive={true}
-                                checkableLists={checkableLists}
-                                checkableCandidates={checkableCandidates}
-                                category={category}
-                                ballotStyle={ballotStyle}
-                                contestId={question.id}
-                                isReview={isReview}
+                <CandidateListsWrapper className="candidates-lists-container">
+                    {categoriesMapOrder &&
+                        Object.entries(categoriesMapOrder).map(
+                            ([categoryName, category], categoryIndex) => (
+                                <AnswersList
+                                    key={categoryIndex}
+                                    title={categoryName}
+                                    isActive={true}
+                                    checkableLists={checkableLists}
+                                    checkableCandidates={checkableCandidates}
+                                    category={category}
+                                    ballotStyle={ballotStyle}
+                                    contestId={question.id}
+                                    isReview={isReview}
+                                    isInvalidWriteIns={isInvalidWriteIns}
+                                    isRadioSelection={isRadioSelection}
+                                    contest={question}
+                                />
+                            )
+                        )}
+                </CandidateListsWrapper>
+                <CandidatesSingleWrapper className="candidates-singles-container">
+                    {candidatesOrder
+                        ?.map((id) => noCategoryCandidatesMap[id])
+                        .map((answer, answerIndex) => (
+                            <Answer
                                 isInvalidWriteIns={isInvalidWriteIns}
+                                ballotStyle={ballotStyle}
+                                answer={answer}
+                                contestId={question.id}
+                                index={answerIndex}
+                                key={answerIndex}
+                                isActive={!isReview}
+                                isReview={isReview}
                                 isRadioSelection={isRadioSelection}
                                 contest={question}
                             />
-                        )
-                    )}
-                {candidatesOrder
-                    ?.map((id) => noCategoryCandidatesMap[id])
-                    .map((answer, answerIndex) => (
-                        <Answer
-                            isInvalidWriteIns={isInvalidWriteIns}
-                            ballotStyle={ballotStyle}
-                            answer={answer}
-                            contestId={question.id}
-                            index={answerIndex}
-                            key={answerIndex}
-                            isActive={!isReview}
-                            isReview={isReview}
-                            isRadioSelection={isRadioSelection}
-                            contest={question}
-                        />
-                    ))}
+                        ))}
+                </CandidatesSingleWrapper>
                 {invalidBottomCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
