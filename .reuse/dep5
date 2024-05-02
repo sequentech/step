@@ -3,8 +3,21 @@ Upstream-Name: backend-services
 Upstream-Contact: Eduardo Robles <edu@sequentech.io>
 Source: https://github.com/sequentech
 
-# Sample paragraph, commented out:
-#
-# Files: src/*
-# Copyright: $YEAR $NAME <$CONTACT>
-# License: ...
+Files:
+  hasura/*
+  .ackrc
+  .envrc
+  .release-it.json
+  devenv.lock
+  devenv.nix
+  graphql.schema.json
+  yarn.lock
+Copyright: 2024 Sequent Tech <legal@sequentech.io>
+License: AGPL-3.0-only
+
+Files:
+  vendor/immudb-log-audit/*
+Copyright:
+  2023 Codenotary Inc
+  2024 Sequent Tech <legal@sequentech.io>
+License: Apache-2.0
