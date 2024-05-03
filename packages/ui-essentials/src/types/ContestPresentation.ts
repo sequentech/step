@@ -31,6 +31,7 @@ export interface ITypePresentation {
     name?: string
     name_i18n?: Record<string, string>
     sort_order?: number
+    subtypes_presentation?: Record<string, ITypePresentation>
 }
 
 export interface IContestPresentation {
@@ -45,6 +46,5 @@ export interface IContestPresentation {
     enable_checkable_lists?: EEnableCheckableLists
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
-    subtypes_presentation?: Record<string, ITypePresentation>
     types_presentation?: Record<string, ITypePresentation>
 }

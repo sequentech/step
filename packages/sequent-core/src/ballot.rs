@@ -528,10 +528,30 @@ pub struct ElectionPresentation {
     Clone,
     Default,
 )]
+pub struct SubtypePresentation {
+    pub name: Option<String>,
+    pub name_i18n: Option<I18nContent<Option<String>>>,
+    pub sort_order: Option<i64>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
 pub struct TypePresentation {
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent<Option<String>>>,
     pub sort_order: Option<i64>,
+    pub subtypes_presentation:
+        Option<HashMap<String, Option<SubtypePresentation>>>,
 }
 
 #[derive(
@@ -558,8 +578,6 @@ pub struct ContestPresentation {
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub max_selections_per_type: Option<u64>,
-    pub subtypes_presentation:
-        Option<HashMap<String, Option<TypePresentation>>>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
 }
 
@@ -578,7 +596,6 @@ impl ContestPresentation {
             candidates_order: None,
             candidates_selection_policy: None,
             max_selections_per_type: None,
-            subtypes_presentation: None,
             types_presentation: None,
         }
     }
