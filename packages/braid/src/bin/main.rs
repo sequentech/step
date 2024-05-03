@@ -114,8 +114,8 @@ async fn main() -> Result<()> {
                 Trustee::new("Self".to_string(), sk.clone(), ek.clone());
             let board = BoardParams::new(
                 &args.server_url,
-                IMMUDB_USER,
-                IMMUDB_PW,
+                &args.user,
+                &args.password,
                 &board_name,
                 Some(store_root.clone()),
             );
