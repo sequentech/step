@@ -12,6 +12,7 @@ const ListContainer = styled(Box)<{isactive: string}>`
     padding: 0 14px 20px 16px;
     box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
     border-radius: 5px;
+    flex-grow: 2;
     ${({isactive}) =>
         "true" === isactive
             ? `
