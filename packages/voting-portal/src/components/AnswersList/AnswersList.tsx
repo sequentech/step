@@ -139,29 +139,34 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             setChecked={setChecked}
         >
             {sortedSubtypes.map((subtypePresentation) => {
+                let subtypeCandidates =
+                    candidatesOrder
+                        ?.map((id) => categoryCandidatesMap[id])
+                        .filter(
+                            (candidate) =>
+                                subtypePresentation.name === candidate.presentation?.subtype
+                        ) ?? []
+
+                if (0 === subtypeCandidates.length) {
+                    return null
+                }
                 return (
                     <>
                         <b>{translate(subtypePresentation, "name", i18n.language)}</b>
-                        {candidatesOrder
-                            ?.map((id) => categoryCandidatesMap[id])
-                            .filter(
-                                (candidate) =>
-                                    subtypePresentation.name === candidate.presentation?.subtype
-                            )
-                            .map((candidate, candidateIndex) => (
-                                <Answer
-                                    ballotStyle={ballotStyle}
-                                    answer={candidate}
-                                    contestId={contestId}
-                                    key={candidateIndex}
-                                    index={candidateIndex}
-                                    hasCategory={true}
-                                    isActive={!isReview && checkableCandidates}
-                                    isReview={isReview}
-                                    isInvalidWriteIns={isInvalidWriteIns}
-                                    contest={contest}
-                                />
-                            ))}
+                        {subtypeCandidates.map((candidate, candidateIndex) => (
+                            <Answer
+                                ballotStyle={ballotStyle}
+                                answer={candidate}
+                                contestId={contestId}
+                                key={candidateIndex}
+                                index={candidateIndex}
+                                hasCategory={true}
+                                isActive={!isReview && checkableCandidates}
+                                isReview={isReview}
+                                isInvalidWriteIns={isInvalidWriteIns}
+                                contest={contest}
+                            />
+                        ))}
                     </>
                 )
             })}
