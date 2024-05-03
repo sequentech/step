@@ -187,7 +187,7 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <Box style={{marginTop: "16px"}}>
                         <TextInput
-                            source={`presentation.types_presentation[${type}].name_i18[${lang}]`}
+                            source={`presentation.types_presentation[${type}].name_i18n[${lang}]`}
                             label="List Name"
                         />
                     </Box>
@@ -206,7 +206,7 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <Box style={{marginTop: "16px"}}>
                         <TextInput
-                            source={`presentation.types_presentation[${type}].subtypes_presentation[${subtype}].name_i18[${lang}]`}
+                            source={`presentation.types_presentation[${type}].subtypes_presentation[${subtype}].name_i18n[${lang}]`}
                             label="List Name"
                         />
                     </Box>
