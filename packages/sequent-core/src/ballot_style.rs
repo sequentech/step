@@ -8,7 +8,6 @@ use crate::ballot::{
 };
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Result};
-use tracing::{event, instrument, Level};
 
 pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
 
@@ -30,7 +29,6 @@ fn parse_i18n_field(
     Some(content)
 }
 
-#[instrument(skip_all, err)]
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area
@@ -110,7 +108,6 @@ pub fn create_ballot_style(
     })
 }
 
-#[instrument(skip_all, err)]
 fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
