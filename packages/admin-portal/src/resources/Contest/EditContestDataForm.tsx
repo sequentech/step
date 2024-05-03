@@ -83,7 +83,7 @@ const ListWrapper = styled.div`
     flex-direction: column;
     border-radius: 4px;
     border: 1px solid #777;
-    padding: 4px;
+    padding: 8px;
     margin-bottom: 4px;
 `
 
@@ -139,7 +139,7 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
 
     const renderTabs = () => {
         // reset actived tab to first tab if only one
-        if (languageConf.length === 1) {
+        if (languageConf.length === 1 && value !== 0) {
             setValue(0)
         }
 
@@ -193,6 +193,18 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
                         {renderTabs()}
                     </Tabs>
                     {renderTabContent(type)}
+                    <Typography
+                        variant="body1"
+                        component="span"
+                        sx={{
+                            padding: "0.5rem 1rem",
+                            fontWeight: "bold",
+                            margin: 0,
+                            display: {xs: "none", sm: "block"},
+                        }}
+                    >
+                        Edit Subtypes
+                    </Typography>
                 </ListWrapper>
             ))}
         </>
@@ -375,7 +387,7 @@ export const ContestDataForm: React.FC = () => {
         })
 
         // reset actived tab to first tab if only one
-        if (tabNodes.length === 1) {
+        if (tabNodes.length === 1 && value !== 0) {
             setValue(0)
         }
 
