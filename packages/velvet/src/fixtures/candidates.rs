@@ -34,6 +34,7 @@ pub fn get_candidate_0(
             urls: None,
             invalid_vote_position: None,
             is_category_list: Some(false),
+            subtype: None,
         }),
     }
 }
@@ -67,6 +68,7 @@ pub fn get_candidate_1(
             urls: None,
             invalid_vote_position: None,
             is_category_list: Some(false),
+            subtype: None,
         }),
     }
 }
@@ -100,6 +102,7 @@ pub fn get_candidate_2(
             urls: None,
             invalid_vote_position: None,
             is_category_list: Some(false),
+            subtype: None,
         }),
     }
 }
@@ -133,6 +136,7 @@ pub fn get_candidate_3(
             urls: None,
             invalid_vote_position: None,
             is_category_list: Some(false),
+            subtype: None,
         }),
     }
 }
@@ -166,6 +170,7 @@ pub fn get_candidate_4(
             urls: None,
             invalid_vote_position: None,
             is_category_list: Some(false),
+            subtype: None,
         }),
     }
 }
@@ -199,6 +204,7 @@ pub fn get_candidate_5(
             urls: None,
             invalid_vote_position: None,
             is_category_list: Some(false),
+            subtype: None,
         }),
     }
 }

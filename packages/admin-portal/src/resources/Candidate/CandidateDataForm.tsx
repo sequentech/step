@@ -410,7 +410,8 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput source={`type`} label={t("candidateScreen.edit.type")} />
+                                <TextInput source="type" label={t("candidateScreen.edit.type")} />
+                                <TextInput source="presentation.subtype" label="Subtype" />
 
                                 <BooleanInput
                                     source={`presentation.is_explicit_invalid`}
