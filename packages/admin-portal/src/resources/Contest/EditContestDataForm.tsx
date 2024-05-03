@@ -127,10 +127,41 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
     let types = candidates?.map((candidate) => candidate.type!!).filter((type) => type) ?? []
     types = uniqueArray(types)
 
-    let typesMap: {[type: string]: Array<Sequent_Backend_Candidate>} = {}
+    interface ISubtypeData {
+        name: string
+        candidates: Array<Sequent_Backend_Candidate>
+    }
+    interface ITypeData {
+        name: string
+        candidates: Array<Sequent_Backend_Candidate>
+        subtypes: Array<ISubtypeData>
+    }
+
+    let typesMap: {[type: string]: ITypeData} = {}
     for (let type of types) {
         let filteredCandidates = candidates?.filter((candidate) => type === candidate.type) ?? []
-        typesMap[type] = filteredCandidates
+        let subtypes = filteredCandidates
+            ?.map(
+                (candidate) =>
+                    (candidate.presentation as ICandidatePresentation | undefined)?.subtype!!
+            )
+            .filter((subtype) => subtype)
+        subtypes = uniqueArray(subtypes)
+
+        let subtypesData = subtypes.map((subtype) => ({
+            name: subtype,
+            candidates: filteredCandidates.filter(
+                (candidate) =>
+                    subtype ===
+                    (candidate.presentation as ICandidatePresentation | undefined)?.subtype
+            ),
+        }))
+
+        typesMap[type] = {
+            name: type,
+            candidates: filteredCandidates,
+            subtypes: subtypesData,
+        }
     }
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -156,7 +187,26 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <Box style={{marginTop: "16px"}}>
                         <TextInput
-                            source={`presentation.types_presentation[${type}].name_i18[${lang}].name`}
+                            source={`presentation.types_presentation[${type}].name_i18[${lang}]`}
+                            label="List Name"
+                        />
+                    </Box>
+                </CustomTabPanel>
+            )
+            index++
+        })
+        return tabNodes
+    }
+
+    const renderSubtypeTabContent = (type: string, subtype: string) => {
+        let tabNodes: Array<ReactNode> = []
+        let index = 0
+        languageConf.forEach((lang) => {
+            tabNodes.push(
+                <CustomTabPanel key={lang} value={value} index={index}>
+                    <Box style={{marginTop: "16px"}}>
+                        <TextInput
+                            source={`presentation.types_presentation[${type}].subtypes_presentation[${subtype}].name_i18[${lang}]`}
                             label="List Name"
                         />
                     </Box>
@@ -205,6 +255,24 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
                     >
                         Edit Subtypes
                     </Typography>
+                    <Box>
+                        {typesMap[type]?.subtypes.map((subtype) => {
+                            return (
+                                <ListWrapper key={subtype.name}>
+                                    Subtype {subtype.name}
+                                    <NumberInput
+                                        source={`presentation.types_presentation[${type}].subtypes_presentation[${subtype.name}].sort_order`}
+                                        min={0}
+                                        label="Sort order"
+                                    />
+                                    <Tabs value={value} onChange={handleChange}>
+                                        {renderTabs()}
+                                    </Tabs>
+                                    {renderSubtypeTabContent(type, subtype.name)}
+                                </ListWrapper>
+                            )
+                        })}
+                    </Box>
                 </ListWrapper>
             ))}
         </>
