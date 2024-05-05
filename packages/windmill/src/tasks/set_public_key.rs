@@ -25,6 +25,7 @@ use crate::services::public_keys;
 use crate::tasks::set_public_key::get_trustees_by_name::GetTrusteesByNameSequentBackendTrustee;
 use crate::types::error::Result;
 
+#[instrument(skip(trustees_hasura, messages), err)]
 fn get_trustee_status(
     trustee_name: &str,
     trustees_hasura: &Vec<GetTrusteesByNameSequentBackendTrustee>,
@@ -39,7 +40,7 @@ fn get_trustee_status(
     let Some(pk_str) = found_trustee.public_key.clone() else {
         return Ok(TrusteeStatus::WAITING);
     };
-    let pk = StrandSignaturePk::from_der_b64_string(&pk_str).unwrap();
+    let pk = StrandSignaturePk::from_der_b64_string(&pk_str)?;
 
     let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
 
