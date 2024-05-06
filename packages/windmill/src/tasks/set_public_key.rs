@@ -2,15 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
+use board_messages::braid::message::Message;
+use board_messages::braid::statement::StatementType;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 use serde_json::Value;
 use std::collections::HashSet;
+use strand::signature::StrandSignaturePk;
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
-use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::serialize_logs::generate_logs;
@@ -19,8 +22,38 @@ use crate::services::date::get_now_utc_unix_ms;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
+use crate::tasks::set_public_key::get_trustees_by_name::GetTrusteesByNameSequentBackendTrustee;
 use crate::types::error::Result;
-use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
+
+#[instrument(skip(trustees_hasura, messages), err)]
+fn get_trustee_status(
+    trustee_name: &str,
+    trustees_hasura: &Vec<GetTrusteesByNameSequentBackendTrustee>,
+    messages: &Vec<Message>,
+) -> Result<TrusteeStatus> {
+    let Some(found_trustee) = trustees_hasura
+        .iter()
+        .find(|trustee| trustee.name == Some(trustee_name.to_string()))
+    else {
+        return Ok(TrusteeStatus::WAITING);
+    };
+    let Some(pk_str) = found_trustee.public_key.clone() else {
+        return Ok(TrusteeStatus::WAITING);
+    };
+    let pk = StrandSignaturePk::from_der_b64_string(&pk_str)?;
+
+    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
+
+    let found_message = messages.iter().find(|message| {
+        valid_statements.contains(&message.statement.get_kind()) && message.sender.pk == pk
+    });
+
+    if found_message.is_some() {
+        Ok(TrusteeStatus::KEY_GENERATED)
+    } else {
+        Ok(TrusteeStatus::WAITING)
+    }
+}
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -87,13 +120,17 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         );
     }
     let keys_ceremony = &keys_ceremonies[0];
-    if keys_ceremony.execution_status != Some(ExecutionStatus::NOT_STARTED.to_string()) {
-        event!(
-            Level::ERROR,
-            "Strange, keys ceremony in wrong execution_status={:?}",
-            keys_ceremony.execution_status
-        );
-        return Err("keys ceremony in wrong execution_status".into());
+    if let Some(execution_status) = keys_ceremony.execution_status.clone() {
+        if execution_status != ExecutionStatus::NOT_STARTED.to_string()
+            && execution_status != ExecutionStatus::IN_PROCESS.to_string()
+        {
+            event!(
+                Level::ERROR,
+                "Strange, keys ceremony in wrong execution_status={:?}",
+                keys_ceremony.execution_status
+            );
+            return Err("keys ceremony in wrong execution_status".into());
+        }
     }
     let current_status: CeremonyStatus = get_keys_ceremony_status(keys_ceremony.status.clone())?;
 
@@ -112,12 +149,15 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     .await?
     .data
     .with_context(|| "can't find trustees")?
-    .sequent_backend_trustee
-    .into_iter()
-    .filter_map(|trustee| trustee.name)
-    .collect::<HashSet<String>>();
+    .sequent_backend_trustee;
+
+    let trustees_by_name_names = trustees_by_name
+        .clone()
+        .into_iter()
+        .filter_map(|trustee| trustee.name)
+        .collect::<HashSet<String>>();
     // we should have a list with the same trustees
-    if trustee_names != trustees_by_name {
+    if trustee_names != trustees_by_name_names {
         return Err("trustee_names don't correspond to trustees_by_name".into());
     }
 
@@ -135,11 +175,13 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
             .trustees
             .clone()
             .into_iter()
-            .map(|trustee| Trustee {
-                name: trustee.name,
-                status: TrusteeStatus::KEY_GENERATED,
+            .map(|trustee| -> Result<Trustee> {
+                Ok(Trustee {
+                    name: trustee.name.clone(),
+                    status: get_trustee_status(&trustee.name, &trustees_by_name, &messages)?,
+                })
             })
-            .collect::<Vec<Trustee>>(),
+            .collect::<Result<Vec<Trustee>>>()?,
     })?;
 
     // update public key
