@@ -101,7 +101,8 @@ export const Question: React.FC<IQuestionProps> = ({
                 categoriesMap,
                 candidatesOrderType === CandidatesOrder.RANDOM,
                 shuffleCategories,
-                shuffleCategoryList
+                shuffleCategoryList,
+                question.presentation?.types_presentation
             )
         )
     }
