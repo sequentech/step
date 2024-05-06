@@ -76,7 +76,7 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
 
-    let ignored_boards = get_ignored_boards();
+    let mut ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
@@ -146,7 +146,11 @@ async fn main() -> Result<()> {
                         board_name.clone(),
                         error
                     );
-                    step_error = true;
+                    if error.to_string().contains("Self authority not found") {
+                        ignored_boards.push(board_name);
+                    } else {
+                        step_error = true;
+                    }
                 }
             };
         }
