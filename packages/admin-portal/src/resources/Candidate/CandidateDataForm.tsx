@@ -31,7 +31,9 @@ import {
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Candidate,
+    Sequent_Backend_Contest,
     Sequent_Backend_Document,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
@@ -47,6 +49,7 @@ import {
     ILanguageConf,
     ICandidateUrl,
     Icon,
+    IElectionPresentation,
 } from "@sequentech/ui-essentials"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
@@ -75,10 +78,7 @@ export const CandidateDataForm: React.FC<{
 }> = ({record}) => {
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
-    const [languageConf, setLanguageConf] = useState<ILanguageConf>({
-        enabled_language_codes: ["en"],
-        default_language_code: "en",
-    })
+    const [languageConf, setLanguageConf] = useState<Array<string>>(["en"])
     const notify = useNotify()
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
@@ -92,23 +92,43 @@ export const CandidateDataForm: React.FC<{
         "sequent_backend_election_event",
         {
             id: record.election_event_id,
+            meta: {tenant_id: record.tenant_id},
         }
     )
+
+    const {data: contest} = useGetOne<Sequent_Backend_Contest>("sequent_backend_contest", {
+        id: record.contest_id,
+        meta: {tenant_id: record.tenant_id},
+    })
+
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
+        id: contest?.election_id ?? record.tenant_id,
+        meta: {tenant_id: record.tenant_id},
+    })
+
     const {data: imageData} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
         id: record.image_document_id,
         meta: {tenant_id: record.tenant_id},
     })
 
     useEffect(() => {
-        if (!electionEvent) {
-            return
+        if (election) {
+            let langConf = (election.presentation as IElectionPresentation | undefined)
+                ?.language_conf
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
+                return
+            }
         }
-        let presentation = electionEvent.presentation as IElectionEventPresentation | undefined
-        if (!presentation?.language_conf) {
-            return
+        if (electionEvent) {
+            let langConf = (electionEvent.presentation as IElectionEventPresentation | undefined)
+                ?.language_conf
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
+                return
+            }
         }
-        setLanguageConf(presentation.language_conf)
-    }, [electionEvent?.presentation?.language_conf])
+    }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
     const getImageUrl = (
         tenantId?: string,
@@ -174,7 +194,7 @@ export const CandidateDataForm: React.FC<{
     const renderTabs = () => {
         let tabNodes: Array<ReactNode> = []
 
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
         })
 
@@ -297,7 +317,7 @@ export const CandidateDataForm: React.FC<{
     const renderTabContent = () => {
         let tabNodes: Array<ReactNode> = []
         let index = 0
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <div style={{marginTop: "16px"}}>
@@ -390,7 +410,8 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput source={`type`} label={t("candidateScreen.edit.type")} />
+                                <TextInput source="type" label={t("candidateScreen.edit.type")} />
+                                <TextInput source="presentation.subtype" label="Subtype" />
 
                                 <BooleanInput
                                     source={`presentation.is_explicit_invalid`}

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // cargo run --bin demo_election_config
 // cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-init-db -l debug
 // cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
@@ -110,8 +114,8 @@ async fn main() -> Result<()> {
                 Trustee::new("Self".to_string(), sk.clone(), ek.clone());
             let board = BoardParams::new(
                 &args.server_url,
-                IMMUDB_USER,
-                IMMUDB_PW,
+                &args.user,
+                &args.password,
                 &board_name,
                 Some(store_root.clone()),
             );

@@ -5,7 +5,6 @@
 #![allow(dead_code)]
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
-use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -45,7 +44,7 @@ pub struct PublicKeyConfig {
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableBallotContest<C: Ctx> {
-    pub contest_id: Uuid,
+    pub contest_id: String,
     pub choice: ReplicationChoice<C>,
     pub proof: Schnorr<C>,
 }
@@ -100,7 +99,7 @@ impl AuditableBallot {
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct HashableBallotContest<C: Ctx> {
-    pub contest_id: Uuid,
+    pub contest_id: String,
     pub ciphertext: Ciphertext<C>,
     pub proof: Schnorr<C>,
 }
@@ -249,6 +248,7 @@ pub struct CandidatePresentation {
     pub is_write_in: Option<bool>,
     pub sort_order: Option<i64>,
     pub urls: Option<Vec<CandidateUrl>>,
+    pub subtype: Option<String>,
 }
 
 impl CandidatePresentation {
@@ -262,6 +262,7 @@ impl CandidatePresentation {
             is_write_in: Some(false),
             sort_order: None,
             urls: None,
+            subtype: None,
         }
     }
 }
@@ -278,11 +279,11 @@ impl CandidatePresentation {
     Clone,
 )]
 pub struct Candidate {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
-    pub election_id: Uuid,
-    pub contest_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
@@ -337,6 +338,7 @@ impl Candidate {
                 sort_order: Some(0),
                 urls: None,
                 invalid_vote_position: None,
+                subtype: None,
             });
         presentation.is_write_in = Some(is_write_in);
         self.presentation = Some(presentation);
@@ -506,6 +508,45 @@ pub struct ElectionDates {
 pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub dates: Option<ElectionDates>,
+    pub language_conf: Option<ElectionEventLanguageConf>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct SubtypePresentation {
+    pub name: Option<String>,
+    pub name_i18n: Option<I18nContent<Option<String>>>,
+    pub sort_order: Option<i64>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct TypePresentation {
+    pub name: Option<String>,
+    pub name_i18n: Option<I18nContent<Option<String>>>,
+    pub sort_order: Option<i64>,
+    pub subtypes_presentation:
+        Option<HashMap<String, Option<SubtypePresentation>>>,
 }
 
 #[derive(
@@ -531,6 +572,8 @@ pub struct ContestPresentation {
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
+    pub max_selections_per_type: Option<u64>,
+    pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
 }
 
 impl ContestPresentation {
@@ -547,6 +590,8 @@ impl ContestPresentation {
             enable_checkable_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
+            max_selections_per_type: None,
+            types_presentation: None,
         }
     }
 }
@@ -569,10 +614,10 @@ impl Default for ContestPresentation {
     Clone,
 )]
 pub struct Contest {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
-    pub election_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
@@ -646,7 +691,7 @@ impl Contest {
             .unwrap_or(false)
     }
 
-    pub fn get_invalid_candidate_ids(&self) -> Vec<Uuid> {
+    pub fn get_invalid_candidate_ids(&self) -> Vec<String> {
         self.candidates
             .iter()
             .filter(|candidate| candidate.is_explicit_invalid())
@@ -772,14 +817,14 @@ pub struct ElectionStatus {
     Clone,
 )]
 pub struct BallotStyle {
-    pub id: Uuid,
-    pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
-    pub election_id: Uuid,
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
     pub num_allowed_revotes: Option<i64>,
     pub description: Option<String>,
     pub public_key: Option<PublicKeyConfig>,
-    pub area_id: Uuid,
+    pub area_id: String,
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,

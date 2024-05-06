@@ -323,6 +323,10 @@ const englishTranslation = {
                 logs: {
                     noLogs: "No logs available",
                 },
+                notify: {
+                    participateNow:
+                        "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                },
             },
             import: {
                 eetitle: "Import Election Event",
@@ -330,8 +334,9 @@ const englishTranslation = {
                 title: "Import Voters",
                 subtitle: "Import voters data",
                 voters: "Voters",
-                votersSubtitle:
+                votersParagraph:
                     "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
+                electionEventParagraph: "Import Election Events using a JSON file.",
                 elections: "Elections",
                 areas: "Areas",
                 sha: "Integrity Check (SHA-256)",
@@ -362,6 +367,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
+                defaultLang: "Default language",
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
@@ -458,6 +464,10 @@ const englishTranslation = {
                     title: "Voter",
                     subtitle: "Create Voter",
                 },
+                manualVerification: {
+                    verify: "Manually Verify this voter",
+                    body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
                 errors: {
@@ -473,6 +483,9 @@ const englishTranslation = {
                 notifications: {
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
+                    manualVerificationError: "Error manually verifying the voter",
+                    manualVerificationSuccess:
+                        "Sucessfully verified manually the voter, downloading PDF..",
                 },
             },
             roles: {
@@ -564,6 +577,9 @@ const englishTranslation = {
                 "support-material-write": "Edit Support Materials",
             },
         },
+        generalSettingsScreen: {
+            body: "Enable languages in the system. Only languages enabled here will be available for election events.",
+        },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
@@ -604,6 +620,8 @@ const englishTranslation = {
             language: {
                 es: "Spanish",
                 en: "English",
+                fr: "French",
+                cat: "Valencian",
             },
             channel: {
                 online: "Online",

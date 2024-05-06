@@ -1,13 +1,25 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package sequent.keycloak.authenticator;
 
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.email.EmailTemplateProvider;
+import org.keycloak.email.freemarker.beans.ProfileBean;
+import org.keycloak.forms.login.freemarker.model.UrlBean;
 import org.keycloak.email.EmailException;
+import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.theme.FreeMarkerException;
+import org.keycloak.theme.Theme;
+import org.keycloak.theme.beans.MessageFormatterMethod;
+import org.keycloak.theme.freemarker.FreeMarkerProvider;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -19,9 +31,13 @@ import lombok.experimental.UtilityClass;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Map;
+
 
 @UtilityClass
 @JBossLog
@@ -31,9 +47,29 @@ public class Utils {
 	public final String CODE_TTL = "ttl";
 	public final String SENDER_ID = "senderId";
 	public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+	public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
+	public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
 	public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
 	public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
 	public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
+
+	public enum MessageCourier {
+		SMS, 
+		EMAIL, 
+		BOTH;
+
+		// Method to convert a string value to a NotificationType
+		public static MessageCourier fromString(String type) {
+			if (type != null) {
+				for (MessageCourier messageCourier : MessageCourier.values()) {
+					if (type.equalsIgnoreCase(messageCourier.name())) {
+						return messageCourier;
+					}
+				}
+			}
+			throw new IllegalArgumentException("No constant with text " + type + " found");
+		}
+	}	
 
 	/**
 	 * Sends code and also sets the auth notes related to the code
@@ -42,12 +78,27 @@ public class Utils {
 		AuthenticatorConfigModel config,
 		KeycloakSession session,
 		UserModel user,
-		AuthenticationSessionModel authSession
+		AuthenticationSessionModel authSession,
+		MessageCourier messageCourier,
+		boolean deferredUser
 	) throws IOException, EmailException
 	{
-		log.info("sendCode()");
-		String mobileNumber = Utils.getMobile(config, user);
-		String emailAddress = user.getEmail();
+		log.info("sendCode(): start");
+		String mobileNumber = null;
+		String emailAddress = null;
+
+		if (deferredUser) {
+			String mobileNumberAttribute = config
+				.getConfig()
+				.get(Utils.TEL_USER_ATTRIBUTE);
+			mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+			emailAddress = authSession.getAuthNote("email");
+		} else {
+			mobileNumber = Utils.getMobile(config, user);
+			emailAddress = user.getEmail();
+		}
+		log.info("sendCode(): mobileNumber = " + mobileNumber);
+		log.info("sendCode(): emailAddress = " + emailAddress);
 
 		int length = Integer.parseInt(
 			config.getConfig().get(Utils.CODE_LENGTH)
@@ -67,11 +118,16 @@ public class Utils {
 		RealmModel realm = authSession.getRealm();
 		String realmName = getRealmName(realm);
 
-		if (mobileNumber != null)
-		{
+		if (
+			mobileNumber != null &&
+			(
+				messageCourier == MessageCourier.SMS ||
+				messageCourier == MessageCourier.BOTH
+			)
+		) {
 			SmsSenderProvider smsSenderProvider = 
 				session.getProvider(SmsSenderProvider.class);
-			log.infov("Sending sms to={0}", mobileNumber);
+			log.infov("sendCode(): Sending sms to={0}", mobileNumber);
 			List<String> smsAttributes = ImmutableList.of(
 				realmName,
 				code,
@@ -88,9 +144,14 @@ public class Utils {
 			);
 		}
 
-		if (emailAddress != null)
-		{
-			log.infov("Sending email to={0}", emailAddress);
+		if (
+			emailAddress != null &&
+			(
+				messageCourier == MessageCourier.EMAIL ||
+				messageCourier == MessageCourier.BOTH
+			)
+		) {
+			log.infov("sendCode(): Sending email to={0}", emailAddress);
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
 
@@ -100,21 +161,35 @@ public class Utils {
 			messageAttributes.put("ttl", Math.floorDiv(ttl, 60));
 
 			List<Object> subjAttr = ImmutableList.of(realmName);
-			log.infov("Sending email: prepared messageAttributes");
+			log.infov("sendCode(): Sending email: prepared messageAttributes");
 
 			try {
-				emailTemplateProvider
-					.setRealm(realm)
-					.setUser(user)
-					.setAttribute("realmName", realmName)
-					.send(
+				if (deferredUser) {
+					// TODO, doesn't work
+					sendEmail(
+						session,
+						realm,
+						user,
 						Utils.SEND_CODE_EMAIL_SUBJECT,
 						subjAttr,
 						Utils.SEND_CODE_EMAIL_FTL,
-						messageAttributes
+						messageAttributes,
+						emailAddress
 					);
+				} else {
+					emailTemplateProvider
+							.setRealm(realm)
+							.setUser(user)
+							.setAttribute("realmName", realmName)
+							.send(
+									Utils.SEND_CODE_EMAIL_SUBJECT,
+									subjAttr,
+									Utils.SEND_CODE_EMAIL_FTL,
+									messageAttributes
+							);
+				}
 			} catch (EmailException error) {
-				log.debug("Exception sending email", error);
+				log.debug("sendCode(): Exception sending email", error);
 				throw error;
 			}
 		}
@@ -203,4 +278,113 @@ public class Utils {
             : realm.getDisplayName();
     }
 
+
+    protected EmailTemplate processEmailTemplate(
+		KeycloakSession session,
+		RealmModel realm,
+		UserModel user,
+		String subjectKey,
+		List<Object> subjectAttributes,
+		String template,
+		Map<String, Object> attributes
+	) throws EmailException {
+		try {
+			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+			Locale locale = session.getContext().resolveLocale(user);
+			attributes.put("locale", locale);
+
+			Properties messages = theme.getEnhancedMessages(realm, locale);
+			attributes.put("msg", new MessageFormatterMethod(locale, messages));
+
+			attributes.put("properties", theme.getProperties());
+			attributes.put("realmName", realm.getName());
+			if (user != null) {
+				attributes.put("user", new ProfileBean(user));
+			}
+			KeycloakUriInfo uriInfo = session.getContext().getUri();
+			attributes.put("url", new UrlBean(realm, theme, uriInfo.getBaseUri(), null));
+
+			String subject = new MessageFormat(messages.getProperty(subjectKey, subjectKey), locale).format(subjectAttributes.toArray());
+			String textTemplate = String.format("text/%s", template);
+			String textBody;
+			FreeMarkerProvider freeMarker = session.getProvider(FreeMarkerProvider.class);
+			try {
+				textBody = freeMarker.processTemplate(attributes, textTemplate, theme);
+			} catch (final FreeMarkerException e) {
+				throw new EmailException("Failed to template plain text email.", e);
+			}
+			String htmlTemplate = String.format("html/%s", template);
+			String htmlBody;
+			try {
+				htmlBody = freeMarker.processTemplate(attributes, htmlTemplate, theme);
+			} catch (final FreeMarkerException e) {
+				throw new EmailException("Failed to template html email.", e);
+			}
+            return new EmailTemplate(subject, textBody, htmlBody);
+		} catch (Exception e) {
+			throw new EmailException("Failed to template email", e);
+		}
+    }
+
+    protected void sendEmail(
+		KeycloakSession session,
+		RealmModel realm,
+		UserModel user,
+		String subjectFormatKey,
+		List<Object> subjectAttributes,
+		String bodyTemplate,
+		Map<String, Object> bodyAttributes,
+		String address
+	) throws EmailException {
+        try {
+            EmailTemplate emailTemplate = processEmailTemplate(
+				session,
+				realm,
+				user,
+				subjectFormatKey,
+				subjectAttributes,
+				bodyTemplate,
+				bodyAttributes
+			);
+			EmailSenderProvider emailSender =
+				session.getProvider(EmailSenderProvider.class);
+			
+			emailSender.send(
+				realm.getSmtpConfig(),
+				emailTemplate.getSubject(),
+				emailTemplate.getTextBody(),
+				emailTemplate.getHtmlBody(),
+				address
+			);
+        } catch (EmailException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new EmailException("Failed to template email", e);
+        }
+    }
+
+    protected static class EmailTemplate {
+
+        private String subject;
+        private String textBody;
+        private String htmlBody;
+
+        public EmailTemplate(String subject, String textBody, String htmlBody) {
+            this.subject = subject;
+            this.textBody = textBody;
+            this.htmlBody = htmlBody;
+        }
+
+        public String getSubject() {
+            return subject;
+        }
+
+        public String getTextBody() {
+            return textBody;
+        }
+
+        public String getHtmlBody() {
+            return htmlBody;
+        }
+    }
 }

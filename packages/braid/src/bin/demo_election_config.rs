@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // This demo utility generates all the configuration information
 // necessary to create a demo election, as files in the working directory:
 //

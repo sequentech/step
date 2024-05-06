@@ -38,13 +38,15 @@ const BallotHash: React.FC<BallotHashProps> = ({hash, onHelpClick}) => {
     const {t} = useTranslation()
 
     return (
-        <HashContainer>
+        <HashContainer className="hash-container">
             <IconButton
                 icon={faCheck}
                 sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                 fontSize="14px"
             />
-            <BallotHashText>{t("ballotHash", {ballotId: hash})}</BallotHashText>
+            <BallotHashText className="hash-text">
+                {t("ballotHash", {ballotId: hash})}
+            </BallotHashText>
             <IconButton
                 icon={faCircleQuestion}
                 sx={{

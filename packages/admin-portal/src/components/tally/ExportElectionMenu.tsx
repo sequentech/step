@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
 import Button from "@mui/material/Button"
 import React, {useContext, useEffect, useState} from "react"
@@ -50,7 +54,7 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     return <CircularProgress />
 }
 
-const ExportButton = styled.div`
+export const ExportButton = styled.div`
     cursor: pointer;
     margin-left: 10px;
     margin-right: 10px;
@@ -88,7 +92,6 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const {itemName, documents, electionEventId} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    const {globalSettings} = useContext(SettingsContext)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         event.preventDefault()
@@ -103,16 +106,24 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const handleExport = (format: EExportFormat) => {
         let documentId = documents?.[format]
         if (!documentId) {
-            console.log("FFFFF handleExport ERROR missing document id")
+            console.log("handleExport ERROR missing document id")
             return
         }
 
-        console.log("FFFFF handleExport setPerformDownload")
-        setPerformDownload({
-            id: documentId,
-            kind: format,
-            name: `report.${format}`,
-        })
+        console.log("handleExport setPerformDownload")
+        if (format === EExportFormat.RECEIPTS_PDF) {
+            setPerformDownload({
+                id: documentId,
+                kind: EExportFormat.PDF,
+                name: `vote_receipts.pdf`,
+            })
+        } else {
+            setPerformDownload({
+                id: documentId,
+                kind: format,
+                name: `report.${format}`,
+            })
+        }
     }
 
     const exportFormatItem = itemName /*election
@@ -183,33 +194,35 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {EXPORT_FORMATS.map((format) => (
-                    <MenuItem
-                        key={format.value}
-                        onClick={(e: React.MouseEvent<HTMLElement>) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleClose()
-                            handleExport(format.value)
-                        }}
-                        disabled={isExportFormatDisabled(format.value)}
-                    >
-                        <Box
-                            sx={{
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
+                {EXPORT_FORMATS.map((format) =>
+                    isExportFormatDisabled(format.value) ? null : (
+                        <MenuItem
+                            key={format.value}
+                            onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleClose()
+                                handleExport(format.value)
                             }}
+                            disabled={isExportFormatDisabled(format.value)}
                         >
-                            <span title={format.label}>
-                                {t("common.label.exportFormat", {
-                                    item: exportFormatItem,
-                                    format: format.label,
-                                })}
-                            </span>
-                        </Box>
-                    </MenuItem>
-                ))}
+                            <Box
+                                sx={{
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                <span title={format.label}>
+                                    {t("common.label.exportFormat", {
+                                        item: exportFormatItem,
+                                        format: format.label,
+                                    })}
+                                </span>
+                            </Box>
+                        </MenuItem>
+                    )
+                )}
             </Menu>
         </div>
     )

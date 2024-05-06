@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 				 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -11,6 +18,7 @@
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>inetum-authenticator</module>
 		<module>message-otp-authenticator</module>
 		<module>security-question-authenticator</module>
 		<module>conditional-authenticators</module>
@@ -34,7 +42,6 @@
 			<dependency>
 				<groupId>com.github.dasniko</groupId>
 				<artifactId>keycloak-spi-bom</artifactId>
-<!--				<version>main-SNAPSHOT</version>-->
 				<version>${keycloak.version}</version>
 				<type>pom</type>
 				<scope>import</scope>

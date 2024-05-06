@@ -5,9 +5,12 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
 use crate::services::cast_votes::ElectionCastVotes;
+use crate::services::database::get_hasura_pool;
+use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
@@ -17,8 +20,11 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
-use velvet::fixtures::get_config;
+use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+use velvet::pipes::pipe_name::PipeName;
+
+use deadpool_postgres::Client as DbClient;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
@@ -37,16 +43,28 @@ fn decode_plantexts_to_biguints(
     plaintexts
         .iter()
         .filter_map(|plaintext| {
+            let plaintext_format = plaintext
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .join(" ");
             let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
 
             match biguint {
                 Ok(v) => {
                     let biguit_str = v.to_str_radix(10);
+                    event!(
+                        Level::INFO,
+                        "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
+                    );
 
                     Some(biguit_str)
                 }
                 Err(e) => {
-                    event!(Level::WARN, "Decoding plaintext has failed: {e}");
+                    event!(
+                        Level::WARN,
+                        "Decoding plaintext {plaintext_format} has failed: {e}"
+                    );
                     None
                 }
             }
@@ -119,7 +137,7 @@ pub fn prepare_tally_for_area_contest(
 }
 
 #[instrument(skip_all, err)]
-pub fn create_election_configs(
+pub async fn create_election_configs(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
@@ -132,15 +150,40 @@ pub fn create_election_configs(
         "area_contest_plaintexts len {}",
         area_contests.len()
     );
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
     for area_contest in area_contests {
+        let tenant_id = &area_contest.contest.tenant_id;
+        let election_event_id = &area_contest.contest.election_event_id;
         let election_id = area_contest.contest.election_id.clone();
+
+        let election_name_opt = crate::postgres::election::get_election_by_id(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &election_id,
+        )
+        .await?
+        .and_then(|e| Some(e.name));
+
         let election_cast_votes_count = cast_votes_count
             .iter()
             .find(|data| data.election_id == election_id);
+
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
+                name: election_name_opt.unwrap_or("".to_string()),
                 tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
                 census: election_cast_votes_count
@@ -152,9 +195,11 @@ pub fn create_election_configs(
                 ballot_styles: vec![],
             },
         };
+
         velvet_election
             .ballot_styles
             .push(area_contest.ballot_style.clone());
+
         elections_map.insert(election_id.clone(), velvet_election);
     }
 
@@ -209,19 +254,142 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     Ok(state)
 }
 
-pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+async fn get_public_asset_vote_receipts_template() -> Result<String> {
+    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")?;
+
+    let file_velvet_vote_receipts_template =
+        std::env::var("PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE")?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+    let vote_receipt_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, file_velvet_vote_receipts_template
+    );
+
+    let client = reqwest::Client::new();
+    let response = client.get(vote_receipt_template).send().await?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!(
+            "File not found: {}",
+            file_velvet_vote_receipts_template
+        ));
+    }
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Unexpected response status: {:?}",
+            response.status()
+        ));
+    }
+
+    let template_hbs: String = response.text().await?;
+
+    Ok(template_hbs)
+}
+
+#[derive(Debug, Serialize)]
+struct VelvetTemplateData {
+    pub title: String,
+    pub file_logo: String,
+    pub file_qrcode_lib: String,
+}
+
+pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+    let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
+    let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_LOGO_IMG var: {}", err))?;
+    let file_qrcode_lib = std::env::var("PUBLIC_ASSETS_QRCODE_LIB")
+        .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_QRCODE_LIB var: {}", err))?;
+    let vote_receipts_title =
+        std::env::var("VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE").map_err(|err| {
+            anyhow!(
+                "error loading VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE var: {}",
+                err
+            )
+        })?;
+
+    let template = get_public_asset_vote_receipts_template().await?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+
+    let extra_data = VelvetTemplateData {
+        title: vote_receipts_title,
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_logo
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, file_qrcode_lib
+        ),
+    };
+
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
+        template,
+        extra_data: serde_json::to_value(extra_data)?,
+    };
+
+    let stages_def = {
+        let mut map = HashMap::new();
+        map.insert(
+            "main".to_string(),
+            velvet::config::Stage {
+                pipeline: vec![
+                    velvet::config::PipeConfig {
+                        id: "decode-ballots".to_string(),
+                        pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "vote-receipts".to_string(),
+                        pipe: PipeName::VoteReceipts,
+                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "do-tally".to_string(),
+                        pipe: PipeName::DoTally,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "mark-winners".to_string(),
+                        pipe: PipeName::MarkWinners,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "gen-report".to_string(),
+                        pipe: PipeName::GenerateReports,
+                        config: Some(serde_json::Value::Null),
+                    },
+                ],
+            },
+        );
+        map
+    };
+
+    let stages = velvet::config::Stages {
+        order: vec!["main".to_string()],
+        stages_def,
+    };
+
+    let velvet_config = velvet::config::Config {
+        version: "0.0.0".to_string(),
+        stages,
+    };
+
     let config_path = base_tally_path.join("velvet-config.json");
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .open(&config_path)?;
 
-    writeln!(file, "{}", serde_json::to_string(&get_config())?)?;
+    writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
+
     Ok(())
 }
 
 #[instrument(skip(area_contests), err)]
-pub fn run_velvet_tally(
+pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
@@ -229,7 +397,7 @@ pub fn run_velvet_tally(
     for area_contest in area_contests {
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
     }
-    create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count)?;
-    create_config_file(base_tally_path.clone())?;
+    create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
+    create_config_file(base_tally_path.clone()).await?;
     call_velvet(base_tally_path.clone())
 }

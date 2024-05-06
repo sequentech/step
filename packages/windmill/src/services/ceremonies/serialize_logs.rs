@@ -5,7 +5,7 @@ use crate::services::date::ISO8601;
 use anyhow::Result;
 use board_messages::braid::message::Message;
 use sequent_core::types::ceremonies::Log;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 pub fn message_to_log(message: &Message) -> Log {
     let batch_number = message.statement.get_batch_number();
@@ -20,6 +20,22 @@ pub fn message_to_log(message: &Message) -> Log {
             batch_number
         ),
     }
+}
+
+#[instrument(skip(messages), err)]
+pub fn print_messages(messages: &Vec<Message>, board_name: &str) -> Result<()> {
+    let logs = messages
+        .iter()
+        .map(|message| message_to_log(message))
+        .collect();
+    let sorted_logs = sort_logs(&logs);
+
+    event!(Level::INFO, "printing messages for board {}", board_name);
+    for log in sorted_logs.iter() {
+        event!(Level::INFO, "{}: {}", log.created_date, log.log_text);
+    }
+
+    Ok(())
 }
 
 #[instrument(skip(messages, batch_ids), err)]

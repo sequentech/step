@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
@@ -10,11 +14,13 @@ import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
+import org.keycloak.authentication.requiredactions.WebAuthnPasswordlessRegisterFactory;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
+import org.keycloak.models.credential.WebAuthnCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import java.util.Map;
@@ -41,11 +47,17 @@ public class MFAMethodSelector
 	// 		"message-otp": "message-otp-ra"
 	// }
 	private static final Map<String, String> credentialTypes = Map.of(
+		// Normal OTP
 		OTPCredentialModel.TYPE, 
 		UserModel.RequiredAction.CONFIGURE_TOTP.name(),
 
+		// Message OTP
 		MessageOTPCredentialModel.TYPE,
-		ResetMessageOTPRequiredAction.PROVIDER_ID
+		ResetMessageOTPRequiredAction.PROVIDER_ID,
+
+		// Passkeys
+		WebAuthnCredentialModel.TYPE_PASSWORDLESS,
+		WebAuthnPasswordlessRegisterFactory.PROVIDER_ID
 	);
 
 	@Override

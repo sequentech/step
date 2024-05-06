@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
@@ -118,6 +122,15 @@ impl Message {
         sd: &SigningData,
     ) -> Result<Self> {
         let body = StatementBody::TallyClose(election);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn send_communication(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::SendCommunication;
         Self::from_body(event, body, sd)
     }
 

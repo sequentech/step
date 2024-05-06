@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
@@ -141,7 +145,9 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
                 config.get(),
                 session,
                 user,
-                authSession
+                authSession,
+				Utils.MessageCourier.BOTH,
+				false
             );
         } catch (Exception error) {
 			log.infov("there was an error {0}", error);

@@ -1,24 +1,23 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Report</title>
-    <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
       }
       
-      @page {
-        size: A4;
-
-        @top-center {
-          content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
-        }
-
-        @bottom-left {
-          content: counter(page) " of " counter(pages);
-        }
+      .logo {
+        content: url("https://sequentech.io/wp-content/uploads/2022/05/Sequent-logo-positive-1.svg");
+        text-align:center;
+        margin: 16px auto;
       }
 
       .header,

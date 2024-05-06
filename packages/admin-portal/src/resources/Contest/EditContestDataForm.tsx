@@ -36,6 +36,7 @@ import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
@@ -54,6 +55,7 @@ import {
     IElectionEventPresentation,
     isArray,
     ICandidatePresentation,
+    IElectionPresentation,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -65,6 +67,8 @@ import CandidatesInput from "@/components/contest/custom-order-candidates/Candid
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
 
+type FieldValues = Record<string, any>
+
 const CandidateRows = styled.div`
     display: flex;
     flex-direction: column;
@@ -72,6 +76,15 @@ const CandidateRows = styled.div`
     cursor: pointer;
     margin-bottom: 0.1rem;
     padding: 1rem;
+`
+
+const ListWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    border-radius: 4px;
+    border: 1px solid #777;
+    padding: 8px;
+    margin-bottom: 4px;
 `
 
 interface EnumChoice<T> {
@@ -84,15 +97,194 @@ export type Sequent_Backend_Contest_Extended = Sequent_Backend_Contest &
         candidatesOrder?: Array<Sequent_Backend_Candidate>
     }
 
+const uniqueArray = (arr: string[]): string[] => {
+    // Create a Set to store unique elements
+    const uniqueSet = new Set<string>()
+
+    // Iterate through the array and add elements to the Set
+    arr.forEach((item) => {
+        uniqueSet.add(item)
+    })
+
+    // Convert the Set back to an array and return it
+    return Array.from(uniqueSet)
+}
+
+interface IListsPresentationEditorProps {
+    formData: FieldValues
+    candidates?: Array<Sequent_Backend_Candidate>
+    languageConf: Array<string>
+}
+const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
+    formData,
+    candidates,
+    languageConf,
+}) => {
+    const [value, setValue] = useState(0)
+    const {t} = useTranslation()
+
+    let presentation = formData?.presentation as IContestPresentation | undefined
+    let types = candidates?.map((candidate) => candidate.type!!).filter((type) => type) ?? []
+    types = uniqueArray(types)
+
+    interface ISubtypeData {
+        name: string
+        candidates: Array<Sequent_Backend_Candidate>
+    }
+    interface ITypeData {
+        name: string
+        candidates: Array<Sequent_Backend_Candidate>
+        subtypes: Array<ISubtypeData>
+    }
+
+    let typesMap: {[type: string]: ITypeData} = {}
+    for (let type of types) {
+        let filteredCandidates = candidates?.filter((candidate) => type === candidate.type) ?? []
+        let subtypes = filteredCandidates
+            ?.map(
+                (candidate) =>
+                    (candidate.presentation as ICandidatePresentation | undefined)?.subtype!!
+            )
+            .filter((subtype) => subtype)
+        subtypes = uniqueArray(subtypes)
+
+        let subtypesData = subtypes.map((subtype) => ({
+            name: subtype,
+            candidates: filteredCandidates.filter(
+                (candidate) =>
+                    subtype ===
+                    (candidate.presentation as ICandidatePresentation | undefined)?.subtype
+            ),
+        }))
+
+        typesMap[type] = {
+            name: type,
+            candidates: filteredCandidates,
+            subtypes: subtypesData,
+        }
+    }
+
+    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
+        setValue(newValue)
+    }
+
+    const renderTabs = () => {
+        // reset actived tab to first tab if only one
+        if (languageConf.length === 1 && value !== 0) {
+            setValue(0)
+        }
+
+        return languageConf.map((lang) => (
+            <Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>
+        ))
+    }
+
+    const renderTabContent = (type: string) => {
+        let tabNodes: Array<ReactNode> = []
+        let index = 0
+        languageConf.forEach((lang) => {
+            tabNodes.push(
+                <CustomTabPanel key={lang} value={value} index={index}>
+                    <Box style={{marginTop: "16px"}}>
+                        <TextInput
+                            source={`presentation.types_presentation[${type}].name_i18n[${lang}]`}
+                            label="List Name"
+                        />
+                    </Box>
+                </CustomTabPanel>
+            )
+            index++
+        })
+        return tabNodes
+    }
+
+    const renderSubtypeTabContent = (type: string, subtype: string) => {
+        let tabNodes: Array<ReactNode> = []
+        let index = 0
+        languageConf.forEach((lang) => {
+            tabNodes.push(
+                <CustomTabPanel key={lang} value={value} index={index}>
+                    <Box style={{marginTop: "16px"}}>
+                        <TextInput
+                            source={`presentation.types_presentation[${type}].subtypes_presentation[${subtype}].name_i18n[${lang}]`}
+                            label="List Name"
+                        />
+                    </Box>
+                </CustomTabPanel>
+            )
+            index++
+        })
+        return tabNodes
+    }
+
+    return (
+        <>
+            <Typography
+                variant="body1"
+                component="span"
+                sx={{
+                    padding: "0.5rem 1rem",
+                    fontWeight: "bold",
+                    margin: 0,
+                    display: {xs: "none", sm: "block"},
+                }}
+            >
+                Edit Lists
+            </Typography>
+            {types.map((type) => (
+                <ListWrapper key={type}>
+                    <i>List: {type}</i>
+                    <NumberInput
+                        source={`presentation.types_presentation[${type}].sort_order`}
+                        min={0}
+                        label="Sort order"
+                    />
+                    <Tabs value={value} onChange={handleChange}>
+                        {renderTabs()}
+                    </Tabs>
+                    {renderTabContent(type)}
+                    <Typography
+                        variant="body1"
+                        component="span"
+                        sx={{
+                            padding: "0.5rem 1rem",
+                            fontWeight: "bold",
+                            margin: 0,
+                            display: {xs: "none", sm: "block"},
+                        }}
+                    >
+                        Edit Subtypes
+                    </Typography>
+                    <Box>
+                        {typesMap[type]?.subtypes.map((subtype) => {
+                            return (
+                                <ListWrapper key={subtype.name}>
+                                    Subtype {subtype.name}
+                                    <NumberInput
+                                        source={`presentation.types_presentation[${type}].subtypes_presentation[${subtype.name}].sort_order`}
+                                        min={0}
+                                        label="Sort order"
+                                    />
+                                    <Tabs value={value} onChange={handleChange}>
+                                        {renderTabs()}
+                                    </Tabs>
+                                    {renderSubtypeTabContent(type, subtype.name)}
+                                </ListWrapper>
+                            )
+                        })}
+                    </Box>
+                </ListWrapper>
+            ))}
+        </>
+    )
+}
+
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [languageConf, setLanguageConf] = useState<ILanguageConf>({
-        enabled_language_codes: ["en"],
-        default_language_code: "en",
-    })
+    const [languageConf, setLanguageConf] = useState<Array<string>>(["en"])
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -104,8 +296,13 @@ export const ContestDataForm: React.FC = () => {
         "sequent_backend_election_event",
         {
             id: record.election_event_id,
+            meta: {tenant_id: record.tenant_id},
         }
     )
+
+    const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
+        id: record.election_id,
+    })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
@@ -126,15 +323,23 @@ export const ContestDataForm: React.FC = () => {
     })
 
     useEffect(() => {
-        if (!electionEvent) {
-            return
+        if (election) {
+            let langConf = (election.presentation as IElectionPresentation | undefined)
+                ?.language_conf
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
+                return
+            }
         }
-        let presentation = electionEvent.presentation as IElectionEventPresentation | undefined
-        if (!presentation?.language_conf) {
-            return
+        if (electionEvent) {
+            let langConf = (electionEvent.presentation as IElectionEventPresentation | undefined)
+                ?.language_conf
+            if (langConf?.enabled_language_codes) {
+                setLanguageConf(langConf?.enabled_language_codes)
+                return
+            }
         }
-        setLanguageConf(presentation.language_conf)
-    }, [electionEvent?.presentation?.language_conf])
+    }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
     const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
         return Object.values(IVotingType).map((value) => ({
@@ -245,12 +450,12 @@ export const ContestDataForm: React.FC = () => {
     const renderTabs = () => {
         let tabNodes: Array<ReactNode> = []
 
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
         })
 
         // reset actived tab to first tab if only one
-        if (tabNodes.length === 1) {
+        if (tabNodes.length === 1 && value !== 0) {
             setValue(0)
         }
 
@@ -260,7 +465,7 @@ export const ContestDataForm: React.FC = () => {
     const renderTabContent = () => {
         let tabNodes: Array<ReactNode> = []
         let index = 0
-        languageConf.enabled_language_codes?.forEach((lang) => {
+        languageConf.forEach((lang) => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <div style={{marginTop: "16px"}}>
@@ -426,8 +631,11 @@ export const ContestDataForm: React.FC = () => {
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        return formData?.presentation?.candidates_order ===
-                                            CandidatesOrder.CUSTOM ? (
+                                        return (
+                                            formData?.presentation as
+                                                | IContestPresentation
+                                                | undefined
+                                        )?.candidates_order === CandidatesOrder.CUSTOM ? (
                                             <CandidateRows>
                                                 <Typography
                                                     variant="body1"
@@ -447,6 +655,15 @@ export const ContestDataForm: React.FC = () => {
                                         ) : null
                                     }}
                                 </FormDataConsumer>
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => (
+                                        <ListsPresentationEditor
+                                            formData={formData}
+                                            candidates={candidates}
+                                            languageConf={languageConf}
+                                        />
+                                    )}
+                                </FormDataConsumer>
 
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
@@ -458,6 +675,12 @@ export const ContestDataForm: React.FC = () => {
                                     source="presentation.enable_checkable_lists"
                                     choices={checkableListChoices()}
                                     validate={required()}
+                                />
+
+                                <NumberInput
+                                    source="presentation.max_selections_per_type"
+                                    min={0}
+                                    isRequired={false}
                                 />
                             </AccordionDetails>
                         </Accordion>

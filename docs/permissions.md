@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # Permissions system
 
 The system uses [Keycloak](https://www.keycloak.org/) for the permissions system. The frontend interacts with Keycloak using graphql/Hasura, which calls the `harvest` service thorugh Hasura actions and `harvest` is the service that calls Keycloak. 

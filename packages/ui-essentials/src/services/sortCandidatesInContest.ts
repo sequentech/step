@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {ICandidate} from "@root/types/CoreTypes"
 import {CandidatesOrder} from "@root/types/ContestPresentation"
 import {cloneDeep} from "lodash"

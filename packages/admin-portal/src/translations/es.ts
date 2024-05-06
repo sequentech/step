@@ -325,6 +325,10 @@ const spanishTranslation: TranslationType = {
                 logs: {
                     noLogs: "No hay registros disponibles",
                 },
+                notify: {
+                    participateNow:
+                        "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                },
             },
             import: {
                 eetitle: "Importar Evento Electoral",
@@ -332,8 +336,9 @@ const spanishTranslation: TranslationType = {
                 title: "Importar votantes",
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
-                votersSubtitle:
+                votersParagraph:
                     "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
+                electionEventParagraph: "Importa Eventos Electorales usando un fichero JSON.",
                 elections: "Elections",
                 areas: "Areas",
                 sha: "Verificación de Integridad (SHA 256)",
@@ -364,6 +369,7 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canales de Voto Permitidos",
                 default: "Por defecto",
+                defaultLang: "Idioma predeterminado",
                 receipts: "Comprobantes",
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
@@ -462,6 +468,10 @@ const spanishTranslation: TranslationType = {
                     title: "Votante",
                     subtitle: "Crear votante",
                 },
+                manualVerification: {
+                    verify: "Verificar manualmente al votante",
+                    body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                },
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
@@ -475,6 +485,9 @@ const spanishTranslation: TranslationType = {
                 notifications: {
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
+                    manualVerificationError: "Error verificando manualmente al votante",
+                    manualVerificationSuccess:
+                        "Verificado exitosamente manualmente al elector, descargar PDF..",
                 },
             },
             roles: {
@@ -566,6 +579,9 @@ const spanishTranslation: TranslationType = {
                 "support-material-write": "Editar Materiales de Soporte",
             },
         },
+        generalSettingsScreen: {
+            body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
+        },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
             resources: {
@@ -606,6 +622,8 @@ const spanishTranslation: TranslationType = {
             language: {
                 es: "Español",
                 en: "Inglés",
+                fr: "Francés",
+                cat: "Valenciano",
             },
             channel: {
                 online: "En línea",

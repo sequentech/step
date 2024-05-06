@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 /* eslint-disable testing-library/await-async-query */
 import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
 

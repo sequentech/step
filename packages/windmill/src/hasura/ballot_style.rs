@@ -69,13 +69,13 @@ pub async fn insert_ballot_style(
 ) -> Result<Response<insert_ballot_style::ResponseData>> {
     let variables = insert_ballot_style::Variables {
         id: ballot_style_id,
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-        election_id: election_id,
-        area_id: area_id,
-        ballot_eml: ballot_eml,
-        ballot_signature: ballot_signature,
-        status: status,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        ballot_eml,
+        ballot_signature,
+        status,
         ballot_publication_id,
     };
     let hasura_endpoint =

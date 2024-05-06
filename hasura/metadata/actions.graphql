@@ -144,6 +144,12 @@ type Mutation {
   ): GetBallotPublicationChangesOutput
 }
 
+type Mutation {
+  get_manual_verification_pdf (
+    body: GetManualVerificationInput!
+  ): GetManualVerificationOutput
+}
+
 type Query {
   get_permissions (
     body: GetPermissionsInput!
@@ -184,6 +190,14 @@ type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
+}
+
+type Mutation {
+  import_election_event (
+    tenant_id: String!
+    document_id: String!
+    check_only: Boolean
+  ): OptionalImportEvent
 }
 
 type Mutation {
@@ -488,6 +502,12 @@ input CreatePermissionInput {
   permission : KeycloakPermission2!
 }
 
+input GetManualVerificationInput {
+  tenant_id : String!
+  election_event_id : String!
+  voter_id : String!
+}
+
 input KeycloakRole2 {
   id : String
   name : String
@@ -501,6 +521,11 @@ input RestorePrivateKeyInput {
   election_event_id : String!
   private_key_base64 : String!
   tally_session_id : String!
+}
+
+type GetManualVerificationOutput {
+  document_id : String
+  status : String
 }
 
 type CreateKeysCeremonyOutput {
@@ -765,5 +790,11 @@ type CreateVoteReceiptOutput {
   id : uuid!
   ballot_id : String
   status : String
+}
+
+type OptionalImportEvent {
+  id : String
+  message : String
+  error : String
 }
 

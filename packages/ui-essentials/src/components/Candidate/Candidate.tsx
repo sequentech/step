@@ -138,7 +138,7 @@ const Candidate: React.FC<CandidateProps> = ({
             onClick={onClick}
             className="candidate-item"
         >
-            <ImageBox>{children}</ImageBox>
+            <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
                 <Typography
                     className="candidate-title"
@@ -163,6 +163,7 @@ const Candidate: React.FC<CandidateProps> = ({
                 {isWriteIn ? (
                     <Box>
                         <TextField
+                            className="candidate-writein-textfield"
                             placeholder={t("candidate.writeInsPlaceholder")}
                             InputLabelProps={{shrink: true}}
                             value={writeInValue}
@@ -174,9 +175,10 @@ const Candidate: React.FC<CandidateProps> = ({
                 ) : null}
             </Box>
             {url ? (
-                <StyledLink href={url} target="_blank">
-                    <FontAwesomeIcon icon={faInfoCircle} size="sm" />
+                <StyledLink href={url} target="_blank" className="candidate-link">
+                    <FontAwesomeIcon icon={faInfoCircle} size="sm" className="candidate-icon" />
                     <Typography
+                        className="candidate-link-text"
                         variant="body2"
                         sx={{margin: "2px 0 0 6px", display: {xs: "none", sm: "block"}}}
                     >

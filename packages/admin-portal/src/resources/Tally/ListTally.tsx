@@ -251,7 +251,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         <>
             {canTrusteeCeremony && keysCeremonies?.[0]?.execution_status === "STARTED" ? (
                 <Alert severity="info">
-                    <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
+                    <Trans i18nKey="electionEventScreen.tally.notify.participateNow">
                         {t("tally.invited")}
                         <NotificationLink
                             onClick={(e: any) => {
