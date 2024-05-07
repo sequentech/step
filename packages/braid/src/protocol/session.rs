@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::trustee::Trustee;
+use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::trustee::Trustee;
 use anyhow::Result;
 use std::path::PathBuf;
 use strand::context::Ctx;

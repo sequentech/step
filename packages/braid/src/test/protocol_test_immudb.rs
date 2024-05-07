@@ -26,8 +26,8 @@ use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol2::session::{BoardParams, Session};
-use crate::protocol2::trustee::Trustee;
+use crate::protocol::session::{BoardParams, Session};
+use crate::protocol::trustee::Trustee;
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";

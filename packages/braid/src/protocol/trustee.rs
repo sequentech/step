@@ -13,8 +13,8 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
-use crate::protocol2::action::Action;
-use crate::protocol2::board::local::LocalBoard;
+use crate::protocol::action::Action;
+use crate::protocol::board::local::LocalBoard;
 use board_messages::braid::artifact::Channel;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::artifact::DkgPublicKey;
@@ -24,7 +24,7 @@ use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol2::predicate::Predicate;
+use crate::protocol::predicate::Predicate;
 
 use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 
@@ -276,7 +276,7 @@ impl<C: Ctx> Trustee<C> {
             .get_configuration_raw()
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
-        let actions = crate::protocol2::datalog::run(predicates)?;
+        let actions = crate::protocol::datalog::run(predicates)?;
         info!(
             "Datalog derived {} actions, {:?}",
             actions.len(),

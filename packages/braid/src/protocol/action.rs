@@ -10,8 +10,8 @@ pub(self) use strand::context::Ctx;
 pub(self) use strand::context::Element;
 pub(self) use strand::context::Exponent;
 
-pub(self) use crate::protocol2::datalog::NULL_HASH;
-pub(self) use crate::protocol2::trustee::Trustee;
+pub(self) use crate::protocol::datalog::NULL_HASH;
+pub(self) use crate::protocol::trustee::Trustee;
 pub(self) use board_messages::braid::artifact::{
     DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
 };

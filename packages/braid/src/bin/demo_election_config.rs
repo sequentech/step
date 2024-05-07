@@ -26,7 +26,7 @@ use strand::symm;
 
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid::protocol2::trustee::Trustee;
+use braid::protocol::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 
 const CONFIG: &str = "config.bin";

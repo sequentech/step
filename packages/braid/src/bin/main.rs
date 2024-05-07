@@ -16,9 +16,9 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
-use braid::protocol2::session::{BoardParams, Session};
-use braid::protocol2::trustee::Trustee;
+use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
+use braid::protocol::session::{BoardParams, Session};
+use braid::protocol::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::assert_folder;
 use sequent_core::util::init_log::init_log;

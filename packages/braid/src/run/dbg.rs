@@ -22,8 +22,8 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use crate::protocol2::action::Action;
-use crate::protocol2::board::local::LocalBoard;
+use crate::protocol::action::Action;
+use crate::protocol::board::local::LocalBoard;
 use board_messages::braid::artifact::Ballots;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::message::Message;
@@ -31,7 +31,7 @@ use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 
-use crate::protocol2::trustee::Trustee;
+use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use board_messages::braid::newtypes::MAX_TRUSTEES;
 

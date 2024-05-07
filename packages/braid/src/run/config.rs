@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol2::trustee::Trustee;
+use crate::protocol::trustee::Trustee;
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use strand::context::Ctx;
