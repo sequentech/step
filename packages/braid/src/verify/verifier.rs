@@ -184,7 +184,7 @@ impl<C: Ctx> Verifier<C> {
         // Skip the configuration message
         for message in &vmessages[1..] {
             let predicate =
-                Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg);
+                Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
             predicates.push(predicate);
         }
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
@@ -204,7 +204,7 @@ impl<C: Ctx> Verifier<C> {
         info!("{}", "Verifying actions complete".blue());
         for message in messages {
             let predicate =
-                Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg);
+                Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg)?;
             info!("Verifying action yields predicate [{}]", predicate);
             predicates.push(predicate);
         }
