@@ -147,7 +147,12 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 subtypePresentation.name === candidate.presentation?.subtype
                         ) ?? []
 
-                if (0 === subtypeCandidates.length) {
+                let subtypeCandidateIds = subtypeCandidates.map((candidate) => candidate.id)
+                const hasSelectedAnswer = questionState?.choices.some(
+                    (choice) => choice.selected > -1 && subtypeCandidateIds.includes(choice.id)
+                )
+
+                if (0 === subtypeCandidates.length || (isReview && !hasSelectedAnswer)) {
                     return null
                 }
                 return (

@@ -253,7 +253,7 @@ impl<C: Ctx> Trustee<C> {
             debug!("Found statement entry {:?}", entry.value);
             let statement = &entry.value.1;
             let next =
-                Predicate::from_statement(statement, entry.key.signer_position, &configuration);
+                Predicate::from_statement(statement, entry.key.signer_position, &configuration)?;
             predicates.push(next);
         }
 

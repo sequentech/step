@@ -142,6 +142,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 isInvalidWriteIns={isInvalidWriteIns}
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 setDecodedContests={setDecodedContests}
+                isReview={isReview}
             />
             <CandidatesWrapper className="candidates-container">
                 {invalidTopCandidates.map((answer, answerIndex) => (

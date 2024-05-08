@@ -47,7 +47,7 @@ struct Cli {
     #[arg(short, long, default_value_t = IMMUDB_PW.to_string())]
     password: String,
 
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = false)]
     strict: bool,
 }
 
