@@ -9,6 +9,14 @@ import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {styled} from "@mui/material/styles"
+import {Box} from "@mui/material"
+
+const ErrorWrapper = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+`
 
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
@@ -70,7 +78,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [numAvailableChars, isInvalidWriteIns, setIsInvalidWriteIns])
 
     return (
-        <>
+        <ErrorWrapper>
             {numAvailableChars < 0 ? (
                 <WarnBox variant="warning">
                     {t("errors.encoding.writeInCharsExceeded", {
@@ -83,6 +91,6 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
-        </>
+        </ErrorWrapper>
     )
 }
