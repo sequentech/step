@@ -24,6 +24,7 @@ export interface IInvalidErrorsListProps {
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
+    isReview: boolean
 }
 
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
@@ -32,6 +33,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     isInvalidWriteIns,
     setIsInvalidWriteIns,
     setDecodedContests,
+    isReview,
 }) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
@@ -54,7 +56,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const decodedContestSelection =
         contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
 
-    if (!isTouched && decodedContestSelection) {
+    if (!isReview && !isTouched && decodedContestSelection) {
         decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
             (error) => error.message !== "errors.implicit.selectedMin"
         )
