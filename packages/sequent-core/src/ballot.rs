@@ -671,12 +671,8 @@ impl Contest {
             .invalid_vote_policy
             .unwrap_or(InvalidVotePolicy::ALLOWED);
 
-        [
-            InvalidVotePolicy::ALLOWED,
-            InvalidVotePolicy::WARN,
-            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
-        ]
-        .contains(&invalid_vote_policy)
+        [InvalidVotePolicy::ALLOWED, InvalidVotePolicy::WARN]
+            .contains(&invalid_vote_policy)
     }
 
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
