@@ -479,6 +479,7 @@ pub struct ElectionEventPresentation {
     pub css: Option<String>,
     pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
+    pub show_user_profile: Option<bool>, // default is true
 }
 
 #[derive(

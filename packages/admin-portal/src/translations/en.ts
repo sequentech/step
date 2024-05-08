@@ -250,6 +250,7 @@ const englishTranslation = {
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
+                showUserProfile: "Show User Profile",
             },
             error: {
                 endDate: "End date must be after start date",

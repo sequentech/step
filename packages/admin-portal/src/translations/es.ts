@@ -252,6 +252,7 @@ const spanishTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
+                showUserProfile: "Mostrar perfil de usuario",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
