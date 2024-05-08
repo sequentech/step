@@ -8,7 +8,6 @@ use log::{info, warn};
 use reedline_repl_rs::clap::{Arg, ArgMatches, Command};
 use reedline_repl_rs::{Repl, Result};
 use std::collections::HashSet;
-use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use tracing_attributes::instrument;

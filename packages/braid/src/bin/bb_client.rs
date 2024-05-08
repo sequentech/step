@@ -6,7 +6,9 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
+use std::fs::File;
 use std::marker::PhantomData;
+use std::io::Write;
 use tracing::{info, instrument};
 
 use immu_board::{Board, BoardClient, BoardMessage};
@@ -23,17 +25,29 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::symm;
+use braid::protocol::trustee::Trustee;
+use braid::run::config::TrusteeConfig;
+
+
+const PROTOCOL_MANAGER: &str = "pm.toml";
+const CONFIG: &str = "config.bin";
+const IMMUDB_USER: &str = "immudb";
+const IMMUDB_PW: &str = "immudb";
+const IMMUDB_URL: &str = "http://immudb:3322";
+const INDEXDB: &str = "defaultboardindex";
+const DBNAME: &str = "defaultboard";
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(long)]
+    #[arg(long, default_value_t = IMMUDB_URL.to_string())]
     server_url: String,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = DBNAME.to_string())]
     dbname: String,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = INDEXDB.to_string())]
     indexdb: String,
 
     #[arg(value_enum)]
@@ -47,11 +61,6 @@ enum Command {
     Messages,
     Boards,
 }
-
-const PROTOCOL_MANAGER: &str = "pm.toml";
-const CONFIG: &str = "config.bin";
-const IMMUDB_USER: &str = "immudb";
-const IMMUDB_PW: &str = "immudb";
 
 #[tokio::main]
 #[instrument]
@@ -207,4 +216,43 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> ProtocolManager<C> {
     };
 
     pm
+}
+
+fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pm: ProtocolManager<C> = ProtocolManager {
+        signing_key: pmkey,
+        phantom: PhantomData,
+    };
+    let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+        .map(|i| {
+            let sk = StrandSignatureSk::gen().unwrap();
+            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+            let encryption_key: symm::SymmetricKey = symm::gen_key();
+            (Trustee::new(i.to_string(), sk, encryption_key), pk)
+        })
+        .unzip();
+
+    let cfg = Configuration::<C>::new(
+        0,
+        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+        trustee_pks,
+        threshold.len(),
+        PhantomData,
+    );
+    let cfg_bytes = cfg.strand_serialize().unwrap();
+    let mut file = File::create(CONFIG).unwrap();
+    file.write_all(&cfg_bytes).unwrap();
+
+    let pm = ProtocolManagerConfig::from(&pm);
+    let toml = toml::to_string(&pm).unwrap();
+    let mut file = File::create(PROTOCOL_MANAGER).unwrap();
+    file.write_all(toml.as_bytes()).unwrap();
+
+    for (i, t) in trustees.iter().enumerate() {
+        let tc = TrusteeConfig::from(t);
+        let toml = toml::to_string(&tc).unwrap();
+        let mut file = File::create(format!("trustee{}.toml", i + 1)).unwrap();
+        file.write_all(toml.as_bytes()).unwrap();
+    }
 }

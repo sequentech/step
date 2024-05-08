@@ -28,10 +28,11 @@ use strand::symm;
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
+const IMMUDB_URL: &str = "http://immudb:3322";
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = IMMUDB_URL.to_string())]
     server_url: String,
 
     #[arg(short, long)]
