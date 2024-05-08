@@ -192,7 +192,6 @@ impl Predicate {
                         cfg.threshold
                     ));
                 }
-                assert!(unique.len() == cfg.threshold);
 
                 Ok(Self::Ballots(
                     ConfigurationHash(cfg_h.0),
