@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // cargo run --bin demo_election_config
-// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-init-db -l debug
-// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
-// cargo run --bin bb_client -- --indexdb defaultboardindex --dbname defaultboard --server-url http://immudb:3322 init
-// cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
-// cargo run --bin bb_client -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard ballots
+// cargo run --bin bb_client -- create-boards
+// cargo run --bin bb_client -- init-protocol
+// cargo run --bin main -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee1.toml
+// cargo run --bin bb_client -- post-ballots
 use anyhow::Result;
 use clap::Parser;
 use std::fs;
@@ -16,7 +15,7 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
+use braid::protocol::board::immudb::ImmudbBoardIndex;
 use braid::protocol::session::{BoardParams, Session};
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
