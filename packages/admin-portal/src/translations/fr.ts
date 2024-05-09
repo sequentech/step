@@ -252,6 +252,7 @@ const frenchTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
+                showUserProfile: "Afficher le profil utilisateur",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",

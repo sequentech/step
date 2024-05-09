@@ -252,6 +252,7 @@ const catalanTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
+                showUserProfile: "Mostra el perfil de l'usuari",
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",

@@ -55,6 +55,7 @@ import {
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -194,42 +195,6 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
         } catch (error) {
             console.log(`Error loading fake EML: ${error}`, election)
             throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
-        }
-    }
-}
-
-const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: AppDispatch) => {
-    for (let ballotStyle of data.sequent_backend_ballot_style) {
-        const ballotEml = ballotStyle.ballot_eml
-        if (!isString(ballotEml)) {
-            continue
-        }
-        try {
-            const electionData: IElectionDTO = JSON.parse(ballotEml)
-            const formattedBallotStyle: IBallotStyle = {
-                id: ballotStyle.id,
-                election_id: ballotStyle.election_id,
-                election_event_id: ballotStyle.election_event_id,
-                tenant_id: ballotStyle.tenant_id,
-                ballot_eml: electionData,
-                ballot_signature: ballotStyle.ballot_signature,
-                created_at: ballotStyle.created_at,
-                area_id: ballotStyle.area_id,
-                annotations: ballotStyle.annotations,
-                labels: ballotStyle.labels,
-                last_updated_at: ballotStyle.last_updated_at,
-            }
-            dispatch(setBallotStyle(formattedBallotStyle))
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle: formattedBallotStyle,
-                    force: true,
-                })
-            )
-        } catch (error) {
-            console.log(`Error loading EML: ${error}`)
-            console.log(ballotEml)
-            throw error
         }
     }
 }
