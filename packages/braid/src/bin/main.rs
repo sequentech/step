@@ -2,11 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin demo_election_config
-// cargo run --bin bb_client -- create-boards
-// cargo run --bin bb_client -- init-protocol
-// cargo run --bin main -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee1.toml
-// cargo run --bin bb_client -- post-ballots
 use anyhow::Result;
 use clap::Parser;
 use std::fs;
@@ -59,6 +54,13 @@ fn get_ignored_boards() -> Vec<String> {
     boards_str.split(',').map(|s| s.to_string()).collect()
 }
 
+/*
+Entry point for a braid mixnet trustee.
+
+Example run command
+
+cargo run --release --bin main  -- --server-url http://immudb:3322 --board-index defaultboardindex--trustee-config trustee.toml
+*/
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {

@@ -1,15 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-/*
-cargo run --bin demo_tool -- gen-configs
-cargo run --bin demo_tool -- init-protocol
-cd demo/1
-cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee1.toml
-cargo run --bin demo_tool -- post-ballots
-*/
-
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use rayon::prelude::*;
@@ -39,16 +30,14 @@ use strand::symm;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 
-
-const PROTOCOL_MANAGER: &str = "pm.toml";
-const CONFIG: &str = "config.bin";
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
 const IMMUDB_URL: &str = "http://immudb:3322";
 const INDEXDB: &str = "demoboardindex";
 const DBNAME: &str = "demoboard";
 const DEMO_DIR: &str = "./demo";
-
+const PROTOCOL_MANAGER: &str = "pm.toml";
+const CONFIG: &str = "config.bin";
 #[derive(Parser)]
 struct Cli {
     #[arg(long, default_value_t = IMMUDB_URL.to_string())]
@@ -73,6 +62,57 @@ enum Command {
     ListBoards,
 }
 
+/*
+The demo tool can be used to run a demo election with a fixed set of parameters
+
+Backend         Ristretto
+Trustees        3
+Threshold       2
+Cast ballots    100
+
+currently these cannot be changed, but it would be easy to add cli options for them.
+
+The sequence of steps to run a demo election are
+
+    1) Generate the election configuration data
+    
+       cargo run --bin demo_tool -- gen-configs 
+
+    2) Initialize the protocol with said configuration data
+    
+       cargo run --bin demo_tool -- init-protocol
+
+    3) Launch each of the trustees (each in their own directory)
+
+       cd demo/1
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee1.toml
+
+       cd demo/2
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee2.toml
+
+       cd demo/3
+       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --bin main  -- --server-url http://immudb:3322 --board-index demoboardindex --trustee-config trustee3.toml
+
+    4) Wait until the distributed key generation process has finished. You can check that this process is complete
+       by listing the messages in the protocol board and looking for "PublicKey".
+
+       cargo run --bin demo_tool -- list-messages
+
+       example output with statement=PublicKey
+
+       INFO message: Message{ sender="Self" statement=PublicKey(1715226660, ConfigurationHash(5961c86066), PublicKeyHash(7fa5d0654f), SharesHashes(1045b3c1ae 825b49a0da 8dd943adb4 - - - - - - - - -)
+
+    5) Wait until the protocol execution finishes.  You can check that this process is complete
+       by listing the messages in the protocol board and looking for "Plaintexts".
+       
+       cargo run --bin demo_tool -- post-ballots
+
+       example output with statement=Plaintexts
+
+       INFO message: Message{ sender="Self" statement=Plaintexts(1715226699, ConfigurationHash(5961c86066), 2, PlaintextsHash(85b40fc230), DecryptionFactorsHashes(4e99c9bc7b 39bd723ffb - - - - - - - - - -), CiphertextsHash(c11d685b13), PublicKeyHash(7fa5d0654f)) artifact=true}
+
+       Note that the trustee processes will not terminate, they will continue in an idle state.
+*/
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
@@ -113,6 +153,88 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/*  
+Generates all the configuration information necessary to create a demo election
+
+    * Generate .toml config for each trustee, containing:
+        * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1
+        * signing_key_pk: base64 encoding of a der encoded spki
+        * encryption_key: base64 encoding of a sign::SymmetricKey
+    * Generate .toml config for the protocol manager:
+        signing_key: base64 encoding of a der encoded pkcs#8 v1
+    * Generate a .bin config for a session, a serialized Configuration artifact
+        This configuration artifact includes the protocol manager and trustee information
+        of the previous items.
+
+    These files are created in a demo directory with the following layout
+
+    demo
+    |
+    └ config.bin 
+    └ pm.toml
+    |
+    └ 1
+    | |
+    | └ trustee1.toml
+    └ 2
+    | |
+    | └ trustee2.toml
+    └ 3
+    |
+    └ trustee3.toml
+*/
+fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
+    let pm: ProtocolManager<C> = ProtocolManager {
+        signing_key: pmkey,
+        phantom: PhantomData,
+    };
+    let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+        .map(|i| {
+            let sk = StrandSignatureSk::gen().unwrap();
+            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+            let encryption_key: symm::SymmetricKey = symm::gen_key();
+            (Trustee::new(i.to_string(), sk, encryption_key), pk)
+        })
+        .unzip();
+
+    let cfg = Configuration::<C>::new(
+        0,
+        StrandSignaturePk::from_sk(&pm.signing_key)?,
+        trustee_pks,
+        threshold.len(),
+        PhantomData,
+    );
+    fs::create_dir_all(DEMO_DIR)?;
+
+    let cfg_bytes = cfg.strand_serialize()?;
+    let mut file = File::create(Path::new(DEMO_DIR).join(CONFIG))?;
+    file.write_all(&cfg_bytes).unwrap();
+
+    let pm = ProtocolManagerConfig::from(&pm);
+    let toml = toml::to_string(&pm).unwrap();
+    let mut file = File::create(Path::new(DEMO_DIR).join(PROTOCOL_MANAGER))?;
+    file.write_all(toml.as_bytes()).unwrap();
+
+    for (i, t) in trustees.iter().enumerate() {
+        let tc = TrusteeConfig::from(t);
+        let toml = toml::to_string(&tc)?;
+        let path = Path::new(DEMO_DIR).join((i + 1).to_string());
+        fs::create_dir_all(&path)?;
+        let mut file = File::create(path.join(format!("trustee{}.toml", i + 1)))?;
+        file.write_all(toml.as_bytes())?;
+    }
+
+    Ok(())
+}
+
+/*
+Initializes the bulletin board with the necessary information to start a protocol run. This information will
+be taken from the demo directory created in the step above. As part of this process the required bulletin board
+tables will be created (and removed if they already existed). These are
+    * demoboardindex    The index board used to query which protocols to run
+    * demoboard         The specific artifact board for a protocol run
+*/
 #[instrument]
 async fn init<C: Ctx>(
     board: &mut BoardClient,
@@ -125,49 +247,14 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
-#[instrument(skip(board))]
-async fn list_messages(board: &mut BoardClient, board_name: &str) -> Result<()> {
-    let messages: Result<Vec<Message>> = board
-        .get_messages(board_name, 0)
-        .await?
-        .iter()
-        .map(|board_message: &BoardMessage| {
-            Ok(Message::strand_deserialize(&board_message.message)?)
-        })
-        .collect();
+/*
+Posts randomly generated ballots on the bulletin board for the purposes of tallying. If a ballot artifact already exists the
+operation will be aborted.
 
-    for message in messages? {
-        info!("message: {:?}", message);
-    }
-    Ok(())
-}
-
-#[instrument(skip(board))]
-async fn list_boards(board: &mut BoardClient, indexdb: &str) -> Result<()> {
-    let boards: Result<Vec<String>> = board
-        .get_boards(&indexdb)
-        .await?
-        .iter()
-        .map(|board: &Board| Ok(board.database_name.clone()))
-        .collect();
-
-    for board in boards? {
-        info!("board: {}", board);
-    }
-    Ok(())
-}
-
-#[instrument(skip(board))]
-async fn create_boards(board: &mut BoardClient, indexdb: &str, dbname: &str) -> Result<()> {
-    board.delete_database(indexdb).await?;
-    board.delete_database(dbname).await?;
-
-    board.upsert_index_db(indexdb).await?;
-    board.create_board(indexdb, dbname).await?;
-
-    Ok(())
-}
-
+This operation can only be carried out once the distributed key generation phase has been completed such that the election
+public key is present on the board and can be downloaded to allow the encryption of random ballots. The ballot plaintexts
+are randomly generated.
+*/
 #[instrument(skip(board))]
 async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C) -> Result<()> {
     
@@ -238,6 +325,38 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
     Ok(())
 }
 
+#[instrument(skip(board))]
+async fn list_messages(board: &mut BoardClient, board_name: &str) -> Result<()> {
+    let messages: Result<Vec<Message>> = board
+        .get_messages(board_name, 0)
+        .await?
+        .iter()
+        .map(|board_message: &BoardMessage| {
+            Ok(Message::strand_deserialize(&board_message.message)?)
+        })
+        .collect();
+
+    for message in messages? {
+        info!("message: {:?}", message);
+    }
+    Ok(())
+}
+
+#[instrument(skip(board))]
+async fn list_boards(board: &mut BoardClient, indexdb: &str) -> Result<()> {
+    let boards: Result<Vec<String>> = board
+        .get_boards(&indexdb)
+        .await?
+        .iter()
+        .map(|board: &Board| Ok(board.database_name.clone()))
+        .collect();
+
+    for board in boards? {
+        info!("board: {}", board);
+    }
+    Ok(())
+}
+
 fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
     let path = Path::new(DEMO_DIR).join(PROTOCOL_MANAGER);
     let contents = fs::read_to_string(&path)
@@ -254,47 +373,13 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
     Ok(pm)
 }
 
-fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
-    let pm: ProtocolManager<C> = ProtocolManager {
-        signing_key: pmkey,
-        phantom: PhantomData,
-    };
-    let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
-        .map(|i| {
-            let sk = StrandSignatureSk::gen().unwrap();
-            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-            let encryption_key: symm::SymmetricKey = symm::gen_key();
-            (Trustee::new(i.to_string(), sk, encryption_key), pk)
-        })
-        .unzip();
+#[instrument(skip(board))]
+async fn create_boards(board: &mut BoardClient, indexdb: &str, dbname: &str) -> Result<()> {
+    board.delete_database(indexdb).await?;
+    board.delete_database(dbname).await?;
 
-    let cfg = Configuration::<C>::new(
-        0,
-        StrandSignaturePk::from_sk(&pm.signing_key)?,
-        trustee_pks,
-        threshold.len(),
-        PhantomData,
-    );
-    fs::create_dir_all(DEMO_DIR)?;
-
-    let cfg_bytes = cfg.strand_serialize()?;
-    let mut file = File::create(Path::new(DEMO_DIR).join(CONFIG))?;
-    file.write_all(&cfg_bytes).unwrap();
-
-    let pm = ProtocolManagerConfig::from(&pm);
-    let toml = toml::to_string(&pm).unwrap();
-    let mut file = File::create(Path::new(DEMO_DIR).join(PROTOCOL_MANAGER))?;
-    file.write_all(toml.as_bytes()).unwrap();
-
-    for (i, t) in trustees.iter().enumerate() {
-        let tc = TrusteeConfig::from(t);
-        let toml = toml::to_string(&tc)?;
-        let path = Path::new(DEMO_DIR).join((i + 1).to_string());
-        fs::create_dir_all(&path)?;
-        let mut file = File::create(path.join(format!("trustee{}.toml", i + 1)))?;
-        file.write_all(toml.as_bytes())?;
-    }
+    board.upsert_index_db(indexdb).await?;
+    board.create_board(indexdb, dbname).await?;
 
     Ok(())
 }

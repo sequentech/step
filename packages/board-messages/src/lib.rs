@@ -15,3 +15,7 @@ pub(crate) fn timestamp() -> u64 {
 
     since_the_epoch.as_secs()
 }
+
+pub fn getSchemaVersion() -> String {
+    "1".to_string()
+}
