@@ -583,6 +583,12 @@ async fn map_plaintext_data(
         );
         return Ok(None);
     }
+    event!(
+        Level::INFO,
+        "Election Event {}. Selected trustees {:#?}",
+        election_event_id.clone(),
+        trustee_names
+    );
 
     if execution_status != TallyExecutionStatus::IN_PROGRESS {
         event!(
