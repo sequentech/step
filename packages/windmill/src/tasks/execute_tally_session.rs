@@ -4,6 +4,7 @@
 use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
+use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
@@ -53,6 +54,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use std::str::FromStr;
 use std::string::ToString;
 use strand::elgamal::Ciphertext;
@@ -532,10 +534,33 @@ async fn map_plaintext_data(
     else {
         return Ok(None);
     };
+
+    let keys_ceremonies = get_keys_ceremonies(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")?
+    .sequent_backend_keys_ceremony;
+
+    if 0 == keys_ceremonies.len() {
+        event!(
+            Level::INFO,
+            "Election Event {} has no keys ceremony",
+            election_event_id.clone()
+        );
+        return Ok(None);
+    }
+
+    let threshold = keys_ceremonies[0].threshold as usize;
     let trustee_names: Vec<String> = ceremony_status
         .trustees
         .iter()
+        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .map(|trustee| trustee.name.clone())
+        .take(threshold)
         .collect();
 
     if execution_status != TallyExecutionStatus::IN_PROGRESS {

@@ -9,7 +9,6 @@ pub mod execute_tally_session;
 pub mod export_users;
 pub mod import_election_event;
 pub mod import_users;
-pub mod insert_ballots;
 pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod manual_verification_pdf;
