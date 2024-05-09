@@ -272,7 +272,7 @@ impl Statement {
 
     pub fn get_data(&self) -> (StatementType, Hash, BatchNumber, MixNumber, Timestamp) {
         let kind: StatementType;
-        let ts: u128;
+        let ts: u64;
         let cfg: [u8; 64];
         let mut batch = 0;
         let mut mix_number = 0;

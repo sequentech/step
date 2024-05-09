@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::i64::MIN;
+
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
@@ -411,6 +413,8 @@ fn verify_artifact<C: Ctx>(
 }
 
 use immu_board::BoardMessage;
+// Immudb uses timestamps with microsecond precision
+const MICROSECOND_FACTOR: u64  = 1000000;
 
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
@@ -418,8 +422,8 @@ impl TryFrom<Message> for BoardMessage {
     fn try_from(message: Message) -> Result<BoardMessage> {
         Ok(BoardMessage {
             id: 0,
-            created: crate::timestamp() as i64,
-            statement_timestamp: message.statement.get_timestamp() as i64,
+            created: (crate::timestamp() * MICROSECOND_FACTOR) as i64,
+            statement_timestamp: (message.statement.get_timestamp() * MICROSECOND_FACTOR) as i64,
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,

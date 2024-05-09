@@ -60,4 +60,4 @@ impl CastVoteHash {
     }
 }
 
-pub type Timestamp = u128;
+pub type Timestamp = u64;
