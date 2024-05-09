@@ -151,6 +151,8 @@ impl ImmudbBoard {
             .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
             .await?;
 
+        // FIXME verify message signatures before inserting in local store
+
         for message in messages {
             connection.execute(
                 "INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)",
