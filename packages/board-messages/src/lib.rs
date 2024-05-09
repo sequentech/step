@@ -7,7 +7,6 @@ pub mod electoral_log;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-// We use millisecond precision because this plays well with immudb
 pub(crate) fn timestamp() -> u64 {
     let start = SystemTime::now();
     let since_the_epoch = start
