@@ -33,8 +33,6 @@ use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySes
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
-use crate::tasks::insert_ballots::insert_ballots;
-use crate::tasks::insert_ballots::InsertBallotsPayload;
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::newtypes::BatchNumber;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -399,9 +397,8 @@ pub async fn update_tally_ceremony(
     new_execution_status: TallyExecutionStatus,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
 
-    let (tally_session, tally_session_contests) = get_tally_session(
+    let (tally_session, _tally_session_contests) = get_tally_session(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -547,7 +544,9 @@ pub async fn set_private_key(
         })
         .unwrap_or(TallyExecutionStatus::STARTED);
 
-    if TallyExecutionStatus::STARTED != current_status {
+    if TallyExecutionStatus::STARTED != current_status
+        && TallyExecutionStatus::CONNECTED != current_status
+    {
         return Err(anyhow!("Unexpected status {}", current_status.to_string()));
     }
 

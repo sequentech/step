@@ -14,7 +14,6 @@ use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_users::export_users;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
-use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
@@ -67,7 +66,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             create_keys,
-            insert_ballots,
             review_boards,
             process_board,
             render_report,
@@ -87,7 +85,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         task_routes = [
             "create_keys" => "short_queue",
             "get_manual_verification_pdf" => "short_queue",
-            "insert_ballots" => "tally_queue",
             "review_boards" => "beat",
             "process_board" => "beat",
             "render_report" => "reports_queue",

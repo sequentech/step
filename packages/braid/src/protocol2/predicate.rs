@@ -185,9 +185,9 @@ impl Predicate {
 
                 // Verify that all selected trustees are unique
                 let unique: HashSet<usize> = selected.into_iter().collect();
-                if unique.len() < cfg.threshold {
+                if unique.len() != cfg.threshold {
                     return Err(anyhow!(
-                        "Not enough trustees selected. Selected {} but required {}",
+                        "Selected trustees should be equal to the threshold. Selected {} but required {}",
                         unique.len(),
                         cfg.threshold
                     ));

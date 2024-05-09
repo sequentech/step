@@ -4,6 +4,7 @@
 use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
+use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
@@ -44,6 +45,9 @@ use celery::prelude::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
+use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -53,8 +57,8 @@ use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use std::str::FromStr;
-use std::string::ToString;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
@@ -530,13 +534,61 @@ async fn map_plaintext_data(
 
     let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
     else {
+        event!(
+            Level::INFO,
+            "Election Event {} Tally execution status not found",
+            election_event_id.clone()
+        );
         return Ok(None);
     };
-    let trustee_names: Vec<String> = ceremony_status
+
+    let keys_ceremonies = get_keys_ceremonies(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")?
+    .sequent_backend_keys_ceremony;
+
+    if 0 == keys_ceremonies.len() {
+        event!(
+            Level::INFO,
+            "Election Event {} has no keys ceremony",
+            election_event_id.clone()
+        );
+        return Ok(None);
+    }
+
+    let threshold = keys_ceremonies[0].threshold as usize;
+    let mut available_trustees: Vec<String> = ceremony_status
         .trustees
-        .iter()
+        .into_iter()
+        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .map(|trustee| trustee.name.clone())
         .collect();
+    let mut rng = StdRng::from_entropy();
+    available_trustees.shuffle(&mut rng);
+
+    let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
+
+    if trustee_names.len() < threshold {
+        event!(
+            Level::INFO,
+            "Election Event {} has {} connected trustees but threshold is {}",
+            election_event_id.clone(),
+            trustee_names.len(),
+            threshold
+        );
+        return Ok(None);
+    }
+    event!(
+        Level::INFO,
+        "Election Event {}. Selected trustees {:#?}",
+        election_event_id.clone(),
+        trustee_names
+    );
 
     if execution_status != TallyExecutionStatus::IN_PROGRESS {
         event!(
