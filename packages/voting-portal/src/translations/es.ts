@@ -183,8 +183,8 @@ const spanishTranslation: TranslationType = {
         },
         ballotLocator: {
             title: "Localiza tu Papeleta",
-            titleResult: "Resultado de la búsqueda de tu Boleta",
-            description: "Verify that your Papeleta has been correctly emitted",
+            titleResult: "Resultado de la búsqueda de tu Papeleta",
+            description: "Verifique que su Papeleta ha sido emitida correctamente",
             locate: "Localiza tu Papeleta",
             locateAgain: "Localiza otra Papeleta",
             found: "Tu ID de Papeleta {{ballotId}} ha sido localizada",
@@ -193,7 +193,7 @@ const spanishTranslation: TranslationType = {
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             steps: {
                 lookup: "Localiza tu Papeleta",
-                result: "Result",
+                result: "Resultado",
             },
             titleHelpDialog: {
                 title: "Información: pantalla de Localización de tu Papeleta",
