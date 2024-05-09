@@ -19,7 +19,7 @@ use tracing::{error, info};
 use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
 use braid::protocol::session::{BoardParams, Session};
 use braid::protocol::trustee::Trustee;
-use braid::run::config::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 use braid::util::assert_folder;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;

@@ -28,7 +28,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 use braid::protocol::trustee::Trustee;
-use braid::run::config::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 
 
 const PROTOCOL_MANAGER: &str = "pm.toml";

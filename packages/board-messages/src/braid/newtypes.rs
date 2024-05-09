@@ -137,7 +137,7 @@ pub type TrusteeSet = [usize; MAX_TRUSTEES];
 pub type MixNumber = usize;
 
 pub type BatchNumber = usize;
-pub type Timestamp = u64;
+pub type Timestamp = u128;
 
 pub type THashes = [Hash; MAX_TRUSTEES];
 

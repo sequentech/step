@@ -7,3 +7,4 @@ pub mod protocol_test_immudb;
 pub mod protocol_test_memory;
 pub mod vector_board;
 pub mod vector_session;
+pub mod dbg;

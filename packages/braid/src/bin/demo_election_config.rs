@@ -27,7 +27,7 @@ use strand::symm;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid::protocol::trustee::Trustee;
-use braid::run::config::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 
 const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";

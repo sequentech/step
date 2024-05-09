@@ -53,7 +53,6 @@ The verifier performs checks that map to these steps, as well as additional cons
 // Check symbolic constants
 ///////////////////////////////////////////////////////////////////////////
 
-// TODO use this instead of strings
 #[derive(PartialEq, Eq, Hash, Display, Serialize)]
 enum Check {
     /*

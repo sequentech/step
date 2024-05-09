@@ -12,7 +12,7 @@
 use base64::engine::general_purpose;
 use base64::Engine;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid::run::config::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;
 
