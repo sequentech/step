@@ -45,6 +45,9 @@ use celery::prelude::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
+use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -56,7 +59,6 @@ use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use std::str::FromStr;
-use std::string::ToString;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
@@ -532,6 +534,11 @@ async fn map_plaintext_data(
 
     let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
     else {
+        event!(
+            Level::INFO,
+            "Election Event {} Tally execution status not found",
+            election_event_id.clone()
+        );
         return Ok(None);
     };
 
@@ -555,13 +562,27 @@ async fn map_plaintext_data(
     }
 
     let threshold = keys_ceremonies[0].threshold as usize;
-    let trustee_names: Vec<String> = ceremony_status
+    let mut available_trustees: Vec<String> = ceremony_status
         .trustees
-        .iter()
+        .into_iter()
         .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .map(|trustee| trustee.name.clone())
-        .take(threshold)
         .collect();
+    let mut rng = StdRng::from_entropy();
+    available_trustees.shuffle(&mut rng);
+
+    let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
+
+    if trustee_names.len() < threshold {
+        event!(
+            Level::INFO,
+            "Election Event {} has {} connected trustees but threshold is {}",
+            election_event_id.clone(),
+            trustee_names.len(),
+            threshold
+        );
+        return Ok(None);
+    }
 
     if execution_status != TallyExecutionStatus::IN_PROGRESS {
         event!(
