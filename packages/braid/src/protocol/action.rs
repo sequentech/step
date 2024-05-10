@@ -17,6 +17,8 @@ pub(self) use board_messages::braid::artifact::{
 };
 pub(self) use board_messages::braid::message::Message;
 pub(self) use board_messages::braid::newtypes::*;
+pub(self) use crate::util::{ProtocolError, ProtocolContext};
+// pub(self) use strand::util::StrandError;
 
 use crate::util::dbg_hash;
 
@@ -121,7 +123,7 @@ impl Action {
     ///////////////////////////////////////////////////////////////////////////
     // Action dispatch to target functions
     ///////////////////////////////////////////////////////////////////////////
-    pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
+    pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>, ProtocolError> {
         info!("Running action {}..", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
@@ -238,7 +240,7 @@ impl Action {
     }
 
     // Only three actions are relevant for a verifier
-    pub(crate) fn run_for_verifier<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
+    pub(crate) fn run_for_verifier<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>, ProtocolError> {
         match self {
             Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th) => {
                 dkg::sign_pk(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)

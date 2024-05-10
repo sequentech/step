@@ -155,6 +155,7 @@ async fn main() -> Result<()> {
                         board_name.clone(),
                         error
                     );
+                    // FIXME identify this condition properly
                     if error.to_string().contains("Self authority not found") {
                         ignored_boards.push(board_name);
                     } else {

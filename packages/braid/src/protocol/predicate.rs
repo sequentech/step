@@ -18,6 +18,8 @@ use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 use board_messages::braid::newtypes::VERIFIER_INDEX;
 
+use crate::util::ProtocolError;
+
 ///////////////////////////////////////////////////////////////////////////
 // Predicate
 //
@@ -126,7 +128,7 @@ impl Predicate {
         statement: &Statement,
         signer_position: TrusteePosition,
         cfg: &Configuration<C>,
-    ) -> Result<Predicate> {
+    ) -> Result<Predicate, ProtocolError> {
         let ret = match statement {
             // Only called for configuration signatures, configuration
             // bootstrap is done through Predicate::get_bootstrap_predicate
@@ -186,11 +188,11 @@ impl Predicate {
                 // Verify that all selected trustees are unique
                 let unique: HashSet<usize> = selected.into_iter().collect();
                 if unique.len() != cfg.threshold {
-                    return Err(anyhow!(
+                    return Err(ProtocolError::InvalidTrusteeSelection(format!(
                         "Invalid number of trustees selected. Selected {} but required {}",
                         unique.len(),
                         cfg.threshold
-                    ));
+                    )));
                 }
 
                 Ok(Self::Ballots(

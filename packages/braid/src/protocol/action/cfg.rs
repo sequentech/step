@@ -9,7 +9,7 @@ use super::*;
 pub(super) fn sign_config<C: Ctx>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(configuration_h)?;
     // FIXME assert
     assert!(trustee.is_config_approved(cfg));

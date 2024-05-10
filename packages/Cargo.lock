@@ -1281,6 +1281,7 @@ dependencies = [
  "serde_json",
  "strand",
  "strum 0.24.1",
+ "thiserror",
  "tokio",
  "toml 0.6.0",
  "tonic",
