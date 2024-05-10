@@ -139,7 +139,7 @@ const spanishTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Información: Lista de Votaciones",
                 content:
-                    'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto.',
+                    "Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto.",
                 ok: "OK",
             },
             noResults: "No hay elecciones por ahora.",

@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ICandidate} from "@root/types/CoreTypes"
-import {CandidatesOrder} from "@root/types/ContestPresentation"
+import {ICandidate} from "../types/CoreTypes"
+import {CandidatesOrder} from "../types/ContestPresentation"
 import {cloneDeep} from "lodash"
 import {shuffle} from "moderndash"
 

@@ -24,6 +24,7 @@ const frenchTranslation: TranslationType = {
         candidate: {
             moreInformationLink: "Plus d'informations",
             writeInsPlaceholder: "Tapez ici le candidat par écrit",
+            blankVote: "Vote blanc",
         },
         homeScreen: {
             title: "Vérificateur de vote Sequent",

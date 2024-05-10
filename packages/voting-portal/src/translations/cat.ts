@@ -139,7 +139,7 @@ const catalanTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Informació: Llista de Votacions",
                 content:
-                    'Benvingut a la cabina de votació, aquesta pantalla mostra la llista d\'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert.',
+                    "Benvingut a la cabina de votació, aquesta pantalla mostra la llista d'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert.",
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",

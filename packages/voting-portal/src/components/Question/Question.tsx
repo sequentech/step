@@ -12,6 +12,7 @@ import {
     IContest,
     sortCandidatesInContest,
     CandidatesOrder,
+    BlankAnswer,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -33,6 +34,8 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {useAppSelector} from "../../store/hooks"
+import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -72,6 +75,10 @@ export interface IQuestionProps {
     setDecodedContests: (input: IDecodedVoteContest) => void
 }
 
+const checkIsBlank = (state: IDecodedVoteContest): boolean => {
+    return !state.choices.some((choice) => choice.selected > -1) && !state.is_explicit_invalid
+}
+
 export const Question: React.FC<IQuestionProps> = ({
     ballotStyle,
     question,
@@ -85,6 +92,9 @@ export const Question: React.FC<IQuestionProps> = ({
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let {invalidCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
+    const contestState = useAppSelector(
+        selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
+    )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
         invalidCandidates,
@@ -125,6 +135,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
+    const isBlank = isReview && contestState && checkIsBlank(contestState)
 
     return (
         <Box>
@@ -144,6 +155,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 setDecodedContests={setDecodedContests}
                 isReview={isReview}
             />
+            {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
                 {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
