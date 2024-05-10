@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use log::trace;
 use std::collections::HashSet;
 use strum::Display;
@@ -13,10 +13,6 @@ use strand::signature::StrandSignaturePk;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::Statement;
-
-use board_messages::braid::newtypes::NULL_TRUSTEE;
-use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
-use board_messages::braid::newtypes::VERIFIER_INDEX;
 
 use crate::util::ProtocolError;
 

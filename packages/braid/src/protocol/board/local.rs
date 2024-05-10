@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::anyhow;
 use anyhow::Result;
 use log::{debug, error, warn};
 use std::collections::HashMap;

@@ -5,7 +5,7 @@
 use anyhow::Result;
 use strum::Display;
 
-pub(self) use log::{debug, error, info, trace};
+pub(self) use log::{debug, info, trace};
 pub(self) use strand::context::Ctx;
 pub(self) use strand::context::Element;
 pub(self) use strand::context::Exponent;
@@ -18,7 +18,6 @@ pub(self) use board_messages::braid::artifact::{
 pub(self) use board_messages::braid::message::Message;
 pub(self) use board_messages::braid::newtypes::*;
 pub(self) use crate::util::{ProtocolError, ProtocolContext};
-// pub(self) use strand::util::StrandError;
 
 use crate::util::dbg_hash;
 

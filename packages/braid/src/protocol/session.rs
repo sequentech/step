@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use std::path::PathBuf;
-use tracing::{info, warn};
+use tracing::info;
 
 use strand::context::Ctx;
 

@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-
 use super::*;
 
 pub(super) fn sign_config<C: Ctx>(

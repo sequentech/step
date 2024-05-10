@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 
 use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
@@ -26,8 +26,6 @@ use board_messages::braid::artifact::{Ballots, DecryptionFactors, Mix, Plaintext
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
-
-use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use strand::symm::{self, EncryptionData};
 
