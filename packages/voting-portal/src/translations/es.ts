@@ -17,7 +17,7 @@ const spanishTranslation: TranslationType = {
         },
         votingScreen: {
             backButton: "Atrás",
-            reviewButton: "Siguente",
+            reviewButton: "Siguiente",
             clearButton: "Limpiar selección",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
@@ -28,7 +28,7 @@ const spanishTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Voto inválido o en blanco",
                 content:
-                    "Algunas de sus respuestas podrían hacer que la papeleta en una o más preguntas sea inválida o en blanco.",
+                    "Algunas de sus respuestas harán que la papeleta en una o más preguntas sea inválida o en blanco.",
                 ok: "Volver y revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",

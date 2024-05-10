@@ -26,7 +26,7 @@ const englishTranslation = {
             nonVotedDialog: {
                 title: "Invalid or blank vote",
                 content:
-                    "Some of your answers might render the ballot in one or more questions invalid or blank.",
+                    "Some of your answers will render the ballot in one or more questions invalid or blank.",
                 ok: "Back and review",
                 continue: "Continue",
                 cancel: "Cancel",
