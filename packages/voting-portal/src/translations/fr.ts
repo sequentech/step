@@ -138,7 +138,7 @@ const frenchTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Information : Liste des Élections",
                 content:
-                    "Bienvenue dans le bureau de vote, cet écran montre la liste des élections dans lesquelles vous pouvez voter. Les élections affichées sur cette liste peuvent être ouvertes au vote, programmées ou fermées. Vous ne pourrez accéder au vote que si la période de vote est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton 'Résultat électoral' qui vous mènera à la page publique des résultats.",
+                    "Bienvenue dans le bureau de vote, cet écran montre la liste des élections dans lesquelles vous pouvez voter. Les élections affichées sur cette liste peuvent être ouvertes au vote, programmées ou fermées. Vous ne pourrez accéder au vote que si la période de vote est ouverte.",
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",

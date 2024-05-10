@@ -137,7 +137,7 @@ const englishTranslation = {
             chooserHelpDialog: {
                 title: "Information: Ballot List",
                 content:
-                    'Welcome to the Voting Booth, this screen shows the list of Ballots you can cast a ballot. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case a Ballot is closed and your ballot administrator has published the result you will see an "Ballot Result" button that will take you to the public result page.',
+                    'Welcome to the Voting Booth, this screen shows the list of Ballots you can cast a ballot. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.',
                 ok: "OK",
             },
             noResults: "No ballots for now.",
