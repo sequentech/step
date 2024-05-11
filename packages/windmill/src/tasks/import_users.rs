@@ -89,7 +89,7 @@ impl ImportUsersBody {
     async fn get_s3_document_as_temp_file(
         &self,
         hasura_transaction: &Transaction<'_>,
-    ) -> anyhow::Result<NamedTempFile> {
+    ) -> anyhow::Result<(NamedTempFile, u8)> {
         let document = get_document(
             hasura_transaction,
             self.tenant_id.as_str(),
@@ -101,19 +101,32 @@ impl ImportUsersBody {
         .ok_or(anyhow!("document not found"))?;
 
         let s3_bucket = s3::get_private_bucket()?;
-        let document_s3_key = s3::get_document_key(
-            &self.tenant_id,
-            "",
-            &self.document_id,
-            &document.name.clone().unwrap_or_default(),
-        );
-        s3::get_object_into_temp_file(
+        let document_name = document.name.clone().unwrap_or_default();
+
+        // Determine file type and set the appropriate separator
+        let (postfix, separator) = if document_name.ends_with(".tsv") {
+            (".tsv", b'\t')
+        } else {
+            (".csv", b',')
+        };
+        info!("postfix={postfix:?} separator={separator:?}");
+
+        // Obtain the key for the document in S3
+        let document_s3_key =
+            s3::get_document_key(&self.tenant_id, "", &self.document_id, &document_name);
+
+        // Retrieve the S3 object and save it to a temporary file
+        let temp_file = s3::get_object_into_temp_file(
             s3_bucket.as_str(),
             document_s3_key.as_str(),
             "import-users-",
-            ".tsv",
+            postfix,
         )
         .await
+        .with_context(|| "Failed to get S3 object into temporary file")?;
+
+        // Return the temporary file and the separator as a tuple
+        Ok((temp_file, separator))
     }
 
     /*
@@ -492,14 +505,14 @@ pub async fn import_users(body: ImportUsersBody) -> Result<()> {
         None => None,
     };
 
-    let mut voters_file = body
+    let (mut voters_file, separator) = body
         .get_s3_document_as_temp_file(&hasura_transaction)
         .await
         .with_context(|| "Error obtaining voters file from S3 as temp file")?;
     voters_file.rewind()?;
     // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
+        .delimiter(separator)
         .from_reader(voters_file);
     let headers = rdr
         .headers()
