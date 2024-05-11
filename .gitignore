@@ -42,3 +42,6 @@ node_modules/
 # setup for workspace config plus plugin, that uses multiple .vscode/ settings
 .vscode/*
 !.vscode/*.shared.json
+
+# coredumps
+packages/rustc-ice*

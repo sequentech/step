@@ -336,7 +336,7 @@ const englishTranslation = {
                 subtitle: "Import voters data",
                 voters: "Voters",
                 votersParagraph:
-                    "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
+                    "Import voters using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
                 electionEventParagraph: "Import Election Events using a JSON file.",
                 elections: "Elections",
                 areas: "Areas",

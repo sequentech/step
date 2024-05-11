@@ -338,7 +338,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Importar votants a l'Esdeveniment Electoral",
                 voters: "Votants",
                 votersParagraph:
-                    "Importa votants utilitzant una fulla de càlcul en format Tab Separated Values (TSV). Descarregueu un exemple de fitxer d'importació TSV aquí.",
+                    "Importa votants utilitzant una fulla de càlcul en format Comma Separated Values (CSV). Descarregueu un exemple de fitxer d'importació CSV aquí.",
                 electionEventParagraph:
                     "Importa Esdeveniments Electorals utilitzant un fitxer JSON.",
                 elections: "Eleccions",

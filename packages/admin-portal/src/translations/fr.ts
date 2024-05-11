@@ -338,7 +338,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Importer des électeurs à l'Événement Électoral",
                 voters: "Électeurs",
                 votersParagraph:
-                    "Importez des électeurs en utilisant une feuille de calcul au format Valeurs Séparées par Tabulations (TSV). Téléchargez un exemple de fichier d'importation TSV ici.",
+                    "Importez des électeurs en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
                 electionEventParagraph:
                     "Importez des Événements Électoraux en utilisant un fichier JSON.",
                 elections: "Élections",
