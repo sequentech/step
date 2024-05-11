@@ -88,11 +88,14 @@
 				"swellaby.workspace-config-plus",
 
 				// Git blame support on hover of a line
-				"eamodio.gitlens"
+				"eamodio.gitlens",
+
+				// Live preview of HTML pages, for example rustdoc
+				"ms-vscode.live-server"
     		]
 		},
 		"devpod": {
 			"prebuildRepository": "ghcr.io/sequentech/backend-services"
-			}
+		}
 	}
 }
