@@ -37,7 +37,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
 import {hashBallot, provideBallotService} from "../services/BallotService"
-import {addCastVotes} from "../store/castVotes/castVotesSlice"
+import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
@@ -101,6 +101,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
+    const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
 
     const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
         variables: {
@@ -118,8 +119,29 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
+    const fakeCastVote = (): ICastVote => ({
+        id: eventId ?? "",
+        tenant_id: tenantId ?? "",
+        election_id: eventId,
+        area_id: eventId,
+        created_at: null,
+        last_updated_at: null,
+        annotations: null,
+        labels: null,
+        content: "",
+        cast_ballot_signature: "",
+        voter_id_string: null,
+        election_event_id: eventId ?? "",
+    })
+
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+        if (isDemo) {
+            console.log("faking casting demo vote")
+            const newCastVote = fakeCastVote()
+            dispatch(addCastVotes([newCastVote]))
+            return
+        }
         setIsCastingBallot(true)
 
         try {
