@@ -10,7 +10,7 @@ import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
-import {IBallotService, IConfirmationBallot} from "../services/BallotService"
+import {IBallotService, IConfirmationBallot, checkIsBlank} from "../services/BallotService"
 import {IDecodedVoteContest} from "sequent-core"
 import Button from "@mui/material/Button"
 import {
@@ -32,6 +32,7 @@ import {
     ICandidate,
     IContest,
     EInvalidVotePolicy,
+    BlankAnswer,
 } from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 import Image from "mui-image"
@@ -165,12 +166,14 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const answersById = keyBy(question.candidates, (a) => a.id)
     const properties = ballotService.getLayoutProperties(question)
     const showPoints = !!question.presentation?.show_points
+    const isBlank = checkIsBlank(questionPlaintext)
 
     return (
         <>
             <Typography variant="body2" fontWeight={"bold"}>
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
+            {isBlank ? <BlankAnswer /> : null}
             {questionPlaintext.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
                     {t(

@@ -36,6 +36,7 @@ import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {checkIsBlank} from "../../services/BallotService"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -73,10 +74,6 @@ export interface IQuestionProps {
     isReview: boolean
     setDisableNext?: (value: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
-}
-
-const checkIsBlank = (state: IDecodedVoteContest): boolean => {
-    return !state.choices.some((choice) => choice.selected > -1) && !state.is_explicit_invalid
 }
 
 export const Question: React.FC<IQuestionProps> = ({

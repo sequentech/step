@@ -8,6 +8,7 @@ import {
     encrypt_decoded_contest_js,
     test_contest_reencoding_js,
     get_write_in_available_characters_js,
+    check_is_blank_js,
     IDecodedVoteContest,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -29,6 +30,7 @@ export interface IBallotService {
         election: IBallotStyle
     ) => number
     decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
+    checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
 }
 
 export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBallot => {
@@ -103,6 +105,16 @@ export const decodeAuditableBallot = (
     }
 }
 
+export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
+    try {
+        let is_blank: boolean = check_is_blank_js(contest)
+        return is_blank
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
 export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
     hashBallot,
@@ -110,4 +122,5 @@ export const provideBallotService = (): IBallotService => ({
     interpretContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
+    checkIsBlank,
 })
