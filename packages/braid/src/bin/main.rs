@@ -65,7 +65,7 @@ A mixnet trustee will periodically:
         b) Update the local store with new messages
         c) Execute the protocol with the existing messages in the local store
 
-The process will loop indefinitely unless an error is encountered and the strict 
+The process will loop indefinitely unless an error is encountered and the 'strict'
 command line option is set to true.
 */
 #[tokio::main]

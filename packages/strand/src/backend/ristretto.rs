@@ -9,7 +9,7 @@
 //! use strand::backend::ristretto::RistrettoCtx;
 //! let ctx = RistrettoCtx;
 //! let mut rng = ctx.get_rng();
-//! // do some stuff..
+//! // g^ab = g^ba
 //! let g = ctx.generator();
 //! let a = ctx.rnd_exp(&mut rng);
 //! let b = ctx.rnd_exp(&mut rng);
