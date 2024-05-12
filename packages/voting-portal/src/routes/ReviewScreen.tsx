@@ -140,7 +140,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             console.log("faking casting demo vote")
             const newCastVote = fakeCastVote()
             dispatch(addCastVotes([newCastVote]))
-            return
+            return submit(null, {method: "post"})
         }
         setIsCastingBallot(true)
 

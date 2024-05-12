@@ -291,7 +291,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="tenant_id" />
-                    <DateField source="created_at" />
+                    <DateField source="created_at" showTime={true} />
 
                     <FunctionField
                         label={t("electionEventScreen.tally.trustees")}
