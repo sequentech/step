@@ -117,21 +117,24 @@ impl CountingAlgorithm for PluralityAtLarge {
             .collect();
         let result = result?;
 
+        let total_votes = count_valid + count_invalid;
+        let total_votes_base = cmp::max(1, total_votes) as f64;
+
         let census_base = cmp::max(1, self.tally.census) as f64;
-        let percentage_total_votes = ((count_valid + count_invalid) as f64) * 100.0 / census_base;
-        let percentage_total_valid_votes = (count_valid as f64 * 100.0) / census_base;
-        let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / census_base;
-        let percentage_total_blank_votes = (count_blank as f64 * 100.0) / census_base;
+        let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
+        let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
+        let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
+        let percentage_total_blank_votes = (count_blank as f64 * 100.0) / total_votes_base;
         let percentage_invalid_votes_explicit =
-            (count_invalid_votes.explicit as f64 * 100.0) / census_base;
+            (count_invalid_votes.explicit as f64 * 100.0) / total_votes_base;
         let percentage_invalid_votes_implicit =
-            (count_invalid_votes.implicit as f64 * 100.0) / census_base;
+            (count_invalid_votes.implicit as f64 * 100.0) / total_votes_base;
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
             census: self.tally.census,
             percentage_census: 100.0,
-            total_votes: count_valid + count_invalid,
+            total_votes: total_votes,
             percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,
             percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),

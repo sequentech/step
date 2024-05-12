@@ -51,9 +51,9 @@ const catalanTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa el teu vot",
             description:
-                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Canviar selecció</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Enviar papereta</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar la papereta</b>” a sota. Tingui en compte que una vegada enviï la seva papereta, haurà votat i no se li emetrà una altra papereta per aquesta elecció.",
+                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar papereta</b>” a sota. Tingui en compte que una vegada enviï la seva papereta, haurà votat i no se li emetrà una altra papereta per aquesta elecció.",
             descriptionNoAudit:
-                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Canviar selecció</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Enviar papereta</b>” a sota. Tingui en compte que una vegada enviï la seva papereta, haurà votat i no se li emetrà una altra papereta per aquesta elecció.",
+                "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota. Tingui en compte que una vegada enviï la seva papereta, haurà votat i no se li emetrà una altra papereta per aquesta elecció.",
             backButton: "Edita el teu vot",
             castBallotButton: "Envia el teu vot",
             auditButton: "Auditar papereta",
@@ -139,7 +139,7 @@ const catalanTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Informació: Llista de Votacions",
                 content:
-                    'Benvingut a la cabina de votació, aquesta pantalla mostra la llista d\'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert. En el cas que una elecció estigui tancada i el seu administrador electoral hagi publicat el resultat, veurà un botó "Resultat electoral" que el portarà a la pàgina pública de resultats.',
+                    "Benvingut a la cabina de votació, aquesta pantalla mostra la llista d'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert.",
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
