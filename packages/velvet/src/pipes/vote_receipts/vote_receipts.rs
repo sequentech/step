@@ -174,7 +174,7 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
         .ballots
         .iter()
         .map(|decoded_vote_contest| {
-            let mut candidates = decoded_vote_contest
+            let candidates = decoded_vote_contest
                 .choices
                 .iter()
                 .filter(|choice| choice.selected >= 0)
@@ -187,7 +187,7 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 })
                 .collect::<Vec<Candidate>>();
 
-            let mut is_invalid = !decoded_vote_contest.invalid_errors.is_empty();
+            let is_invalid = decoded_vote_contest.is_invalid();
             let is_blank = candidates.len() == 0;
 
             let encoded_vote_contest = data

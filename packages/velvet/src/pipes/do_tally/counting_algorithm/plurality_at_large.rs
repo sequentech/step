@@ -37,7 +37,7 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut count_blank: u64 = 0;
 
         for vote in votes {
-            if !vote.invalid_errors.is_empty() {
+            if vote.is_invalid() {
                 if vote.is_explicit_invalid {
                     count_invalid_votes.explicit += 1;
                 } else {
