@@ -338,7 +338,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
                 votersParagraph:
-                    "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
+                    "Importa votantes usando una hoja de cálculo en formato Comma Separated Values (CSV) format. Descarga un ejemplo de fichero de importación CSV aquí.",
                 electionEventParagraph: "Importa Eventos Electorales usando un fichero JSON.",
                 elections: "Elections",
                 areas: "Areas",
