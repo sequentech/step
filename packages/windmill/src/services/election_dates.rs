@@ -22,7 +22,7 @@ pub fn generate_manage_date_election_task_name(
         tenant_id,
         election_event_id,
         election_id,
-        if is_start  { "start" } else { "end" } ,
+        if is_start { "start" } else { "end" },
     )
 }
 
@@ -63,14 +63,11 @@ pub async fn manage_dates(
         tenant_id,
         election_event_id,
         election_id,
-        is_start
+        is_start,
     );
-    let scheduled_manage_date_opt = find_scheduled_event_by_task_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &task_id
-    ).await?;
+    let scheduled_manage_date_opt =
+        find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
+            .await?;
 
     if is_start {
         if is_unset {
