@@ -11,6 +11,7 @@ pub mod import_election_event;
 pub mod import_users;
 pub mod insert_election_event;
 pub mod insert_tenant;
+pub mod manage_election_date;
 pub mod manual_verification_pdf;
 pub mod process_board;
 pub mod render_report;
