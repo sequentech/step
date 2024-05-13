@@ -85,10 +85,7 @@ pub async fn find_scheduled_event_by_task_id(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[&tenant_uuid, &election_event_uuid, &task_id],
-        )
+        .query(&statement, &[&tenant_uuid, &election_event_uuid, &task_id])
         .await
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
@@ -172,7 +169,6 @@ pub async fn update_scheduled_event(
     Ok(())
 }
 
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_scheduled_event(
     hasura_transaction: &Transaction<'_>,
@@ -184,8 +180,8 @@ pub async fn insert_scheduled_event(
 ) -> Result<PostgresScheduledEvent> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid =
-        Uuid::parse_str(election_event_id).with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
     let event_processor_s = event_processor.to_string();
     let statement = hasura_transaction
@@ -227,7 +223,7 @@ pub async fn insert_scheduled_event(
                 &election_event_uuid,
                 &event_processor_s,
                 &cron_config_js,
-                &task_id
+                &task_id,
             ],
         )
         .await

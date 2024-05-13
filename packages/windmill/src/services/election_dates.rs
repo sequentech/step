@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::*;
+use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::get_election_by_id, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -105,9 +106,16 @@ pub async fn manage_dates(
             )
             .await?;
         } else {
+            let event_processor = if is_start {
+                EventProcessors::START_ELECTION
+            } else {
+                EventProcessors::END_ELECTION
+            };
             insert_scheduled_event(
                 hasura_transaction,
                 tenant_id,
+                election_event_id,
+                event_processor,
                 &task_id,
                 cron_config,
             )
