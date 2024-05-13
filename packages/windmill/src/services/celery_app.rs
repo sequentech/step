@@ -20,6 +20,7 @@ use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
+use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::start_stop_election::start_stop_election;
@@ -82,6 +83,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_users,
             import_election_event,
             get_manual_verification_pdf,
+            scheduled_events,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -102,6 +104,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "export_users" => "import_export_queue",
             "import_election_event" => "import_export_queue",
             "start_stop_election" => "beat",
+            "scheduled_events" => "beat",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

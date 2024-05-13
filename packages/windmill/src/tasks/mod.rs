@@ -15,6 +15,7 @@ pub mod manual_verification_pdf;
 pub mod process_board;
 pub mod render_report;
 pub mod review_boards;
+pub mod scheduled_events;
 pub mod send_communication;
 pub mod set_public_key;
 pub mod start_stop_election;

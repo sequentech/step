@@ -40,8 +40,8 @@ async fn main() -> Result<()> {
                 args = (),
             },
             "scheduled_events" => {
-                review_boards,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
+                scheduled_events,
+                schedule = DeltaSchedule::new(Duration::from_secs(60)),
                 args = (),
             }
         ],

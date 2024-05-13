@@ -58,6 +58,36 @@ impl TryFrom<Row> for PostgresScheduledEvent {
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn find_all_active_events(
+    hasura_transaction: &Transaction<'_>,
+) -> Result<Vec<PostgresScheduledEvent>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM "sequent_backend".scheduled_event
+            WHERE
+                stopped_at IS NULL
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[])
+        .await
+        .map_err(|err| anyhow!("Error running the find_all_active_events query: {err}"))?;
+
+    let scheduled_events = rows
+        .into_iter()
+        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
+        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+
+    Ok(scheduled_events)
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn find_scheduled_event_by_task_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
