@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_task_id;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
@@ -9,14 +10,20 @@ use tracing::{event, instrument, Level};
 
 use super::date::ISO8601;
 
-#[instrument(skip(hasura_transaction), err)]
-pub async fn find_scheduled_start_date_election(
-    hasura_transaction: &Transaction<'_>,
+#[instrument]
+pub fn generate_manage_date_election_task_name(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<Option<()>> {
-    Ok(None)
+    is_start: bool,
+) -> String {
+    format!(
+        "tenant_{}_event_{}_election_{}_{}",
+        tenant_id,
+        election_event_id,
+        election_id,
+        if is_start  { "start" } else { "end" } ,
+    )
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -52,17 +59,23 @@ pub async fn manage_dates(
         .unwrap_or(Default::default());
     let mut new_dates = current_dates.clone();
 
+    let task_id = generate_manage_date_election_task_name(
+        tenant_id,
+        election_event_id,
+        election_id,
+        is_start
+    );
+    let scheduled_manage_date_opt = find_scheduled_event_by_task_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &task_id
+    ).await?;
+
     if is_start {
-        let scheduled_start_date_opt = find_scheduled_start_date_election(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            election_id,
-        )
-        .await?;
         if is_unset {
             new_dates.scheduled_opening = Some(false);
-            if let Some(scheduled_start_date) = scheduled_start_date_opt {
+            if let Some(scheduled_start_date) = scheduled_manage_date_opt {
                 /*delete_scheduled_event(
                     hasura_transaction,
                     tenant_id,

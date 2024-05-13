@@ -14,7 +14,7 @@ pub enum EventProcessors {
     SEND_COMMUNICATION,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct CronConfig {
     pub cron: Option<String>,
     pub scheduled_date: Option<String>,
