@@ -88,6 +88,57 @@ pub async fn find_all_active_events(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn find_scheduled_event_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Option<String>,
+    election_event_id: Option<String>,
+    id: &str,
+) -> Result<Option<PostgresScheduledEvent>> {
+    let tenant_uuid: Option<uuid::Uuid> = match tenant_id {
+        Some(ref tenant_id) => {
+            Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
+        }
+        None => None,
+    };
+    let election_event_uuid: Option<uuid::Uuid> = match election_event_id {
+        Some(ref election_event_id) => Some(
+            Uuid::parse_str(election_event_id)
+                .with_context(|| "Error parsing election_event_id as UUID")?,
+        ),
+        None => None,
+    };
+    let id_uuid: uuid::Uuid = Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM "sequent_backend".scheduled_event
+            WHERE
+                (tenant_id = $1 OR $1 IS NULL)
+                AND (election_event_id = $2 OR $2 IS NULL)
+                AND id = $3
+                AND stopped_at IS NULL
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid, &id_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_id query: {err}"))?;
+
+    let scheduled_events = rows
+        .into_iter()
+        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
+        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
+
+    Ok(scheduled_events.get(0).cloned())
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn find_scheduled_event_by_task_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

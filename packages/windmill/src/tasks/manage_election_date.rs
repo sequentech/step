@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
 use crate::postgres::scheduled_event::find_all_active_events;
+use crate::postgres::scheduled_event::*;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
@@ -24,5 +25,21 @@ pub async fn manage_election_date(
     election_event_id: Option<String>,
     scheduled_event_id: String,
 ) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await.unwrap();
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    let scheduled_manage_date_opt = find_scheduled_event_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &scheduled_event_id,
+    )
+    .await?;
+    let Some(scheduled_manage_date) = scheduled_manage_date_opt else {
+        event!(
+            Level::WARN,
+            "Can't find scheduled event with id: {scheduled_event_id}"
+        );
+        return Ok(());
+    };
     Ok(())
 }
