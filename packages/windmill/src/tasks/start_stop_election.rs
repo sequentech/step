@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::types::error::Result;
 use celery::error::TaskError;
 use tracing::{event, instrument, Level};
-use crate::types::error::Result;
-
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]

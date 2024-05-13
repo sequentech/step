@@ -492,6 +492,8 @@ pub struct ElectionEventPresentation {
 pub struct ElectionDates {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
+    pub scheduled_closing: Option<bool>,
+    pub scheduled_opening: Option<bool>,
 }
 
 #[derive(

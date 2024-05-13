@@ -15,6 +15,12 @@ pub enum EventProcessors {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CronConfig {
+    pub cron: Option<String>,
+    pub scheduled_date: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ScheduledEvent {
     pub id: String,
     pub tenant_id: Option<String>,
@@ -24,6 +30,6 @@ pub struct ScheduledEvent {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub event_processor: Option<EventProcessors>,
-    pub cron_config: Option<String>,
+    pub cron_config: Option<CronConfig>,
     pub event_payload: Option<Value>,
 }

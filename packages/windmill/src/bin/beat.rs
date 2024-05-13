@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
 
     beat.schedule_task(
         start_stop_election::new(),
-        CronSchedule::from_string("0 0 1 5 *").unwrap()
+        CronSchedule::from_string("0 0 1 5 *").unwrap(),
     );
 
     beat.start().await?;

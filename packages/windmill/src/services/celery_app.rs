@@ -22,8 +22,8 @@ use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::set_public_key::set_public_key;
-use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::start_stop_election::start_stop_election;
+use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
