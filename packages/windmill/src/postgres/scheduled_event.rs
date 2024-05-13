@@ -84,21 +84,163 @@ pub async fn find_scheduled_event_by_task_id(
         )
         .await?;
 
-    let task_id_s = task_id.to_string();
-
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[&tenant_uuid, &election_event_uuid, &task_id_s],
+            &[&tenant_uuid, &election_event_uuid, &task_id],
         )
         .await
-        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
     let scheduled_events = rows
         .into_iter()
         .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
         .collect::<Result<Vec<PostgresScheduledEvent>>>()
-        .with_context(|| "Error converting rows into documents")?;
+        .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
 
     Ok(scheduled_events.get(0).cloned())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn stop_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: uuid::Uuid =
+        Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".scheduled_event
+            SET
+                stopped_at = NOW
+            WHERE
+                tenant_id = $1
+                AND id = $2
+                AND stopped_at IS NULL
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &id_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the stop_scheduled_event query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+    cron_config: CronConfig,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: uuid::Uuid =
+        Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let cron_config_js: Value = serde_json::to_value(cron_config)?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".scheduled_event
+            SET
+                cron_config = $3
+            WHERE
+                tenant_id = $1
+                AND id = $2
+                AND stopped_at IS NULL
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &id_uuid, &cron_config_js])
+        .await
+        .map_err(|err| anyhow!("Error running the update_scheduled_event query: {err}"))?;
+
+    Ok(())
+}
+
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    event_processor: EventProcessors,
+    task_id: &str,
+    cron_config: CronConfig,
+) -> Result<PostgresScheduledEvent> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid =
+        Uuid::parse_str(election_event_id).with_context(|| "Error parsing election_event_id as UUID")?;
+    let cron_config_js: Value = serde_json::to_value(cron_config)?;
+    let event_processor_s = event_processor.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    "sequent_backend".scheduled_event
+                (tenant_id, election_event_id, created_at, event_processor, cron_config, task_id)
+                VALUES(
+                    $1,
+                    $2,
+                    NOW,
+                    $3,
+                    $4,
+                    $5
+                )
+                RETURNING
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_event_id,
+                    created_at,
+                    stopped_at,
+                    labels,
+                    annotations,
+                    event_processor,
+                    cron_config,
+                    event_payload,
+                    created_by,
+                    task_id;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &event_processor_s,
+                &cron_config_js,
+                &task_id
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
+
+    let cast_votes: Vec<PostgresScheduledEvent> = rows
+        .into_iter()
+        .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
+        .collect::<Result<Vec<PostgresScheduledEvent>>>()?;
+
+    if 1 == cast_votes.len() {
+        Ok(cast_votes[0].clone())
+    } else {
+        Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
+    }
 }

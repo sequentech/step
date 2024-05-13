@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::get_election_by_id;
-use crate::postgres::scheduled_event::find_scheduled_event_by_task_id;
+use crate::postgres::scheduled_event::*;
+use crate::{postgres::election::get_election_by_id, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
@@ -69,45 +69,52 @@ pub async fn manage_dates(
         find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
             .await?;
 
-    if is_start {
-        if is_unset {
+    if is_unset {
+        if is_start {
             new_dates.scheduled_opening = Some(false);
-            if let Some(scheduled_start_date) = scheduled_manage_date_opt {
-                /*delete_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    &scheduled_start_date.id,
-                ).await?;*/
-            }
         } else {
-            let Some(start_date_str) = current_dates.start_date else {
-                return Err(anyhow!("Empty start date"));
-            };
-            let start_date = ISO8601::to_date(&start_date_str)?;
-            let now = ISO8601::now();
-            if start_date > now {
-                return Err(anyhow!("start date can't be before now"));
-            }
-
-            /*if let Some(scheduled_start_date) = scheduled_start_date_opt {
-                update_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    &scheduled_start_date.id,
-                ).await?;
-            } else {
-                insert_scheduled_event(
-                    hasura_transaction,
-                    tenant_id,
-                    &scheduled_start_date.id,
-                ).await?;
-            }*/
+            new_dates.scheduled_closing = Some(false);
+        }
+        if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+            stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
         }
     } else {
-        let Some(end_date_str) = current_dates.end_date else {
-            return Err(anyhow!("Empty end date"));
+        let Some(manage_date_str) = (if is_start {
+            current_dates.start_date
+        } else {
+            current_dates.end_date
+        }) else {
+            return Err(anyhow!("Empty date"));
         };
+        let manage_date_date = ISO8601::to_date(&manage_date_str)?;
+        let now = ISO8601::now();
+        if manage_date_date > now {
+            return Err(anyhow!("date can't be before now"));
+        }
+
+        let cron_config = CronConfig {
+            cron: None,
+            scheduled_date: Some(manage_date_str),
+        };
+        if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+            update_scheduled_event(
+                hasura_transaction,
+                tenant_id,
+                &scheduled_manage_date.id,
+                cron_config,
+            )
+            .await?;
+        } else {
+            insert_scheduled_event(
+                hasura_transaction,
+                tenant_id,
+                &task_id,
+                cron_config,
+            )
+            .await?;
+        }
     }
+
     let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
     new_election_presentation.dates = Some(new_dates);
     /*update_election_presentation(
