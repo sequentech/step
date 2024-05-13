@@ -380,6 +380,8 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                scheduledOpening: "Scheduled Opening",
+                scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
             },

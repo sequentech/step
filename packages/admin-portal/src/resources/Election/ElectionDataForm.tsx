@@ -433,6 +433,11 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
+                                        <BooleanInput
+                                            source={`dates.scheduledOpening`}
+                                            label={t(`electionScreen.field.scheduledOpening`)}
+                                            helperText={false}
+                                        />
                                         <DateTimeInput
                                             source={`dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
@@ -440,6 +445,11 @@ export const ElectionDataForm: React.FC = () => {
                                         />
                                     </Grid>
                                     <Grid item xs={12} md={6}>
+                                        <BooleanInput
+                                            source={`dates.scheduledClosing`}
+                                            label={t(`electionScreen.field.scheduledClosing`)}
+                                            helperText={false}
+                                        />
                                         <DateTimeInput
                                             source="dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}

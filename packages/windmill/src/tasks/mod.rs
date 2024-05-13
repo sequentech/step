@@ -17,4 +17,5 @@ pub mod render_report;
 pub mod review_boards;
 pub mod send_communication;
 pub mod set_public_key;
+pub mod start_stop_election;
 pub mod update_election_event_ballot_styles;

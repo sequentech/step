@@ -382,6 +382,8 @@ const spanishTranslation: TranslationType = {
                 votingChannels: "Canales de Voto",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
+                scheduledOpening: "Apertura Programada",
+                scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
             },
