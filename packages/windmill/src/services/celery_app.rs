@@ -24,7 +24,6 @@ use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::set_public_key::set_public_key;
-use crate::tasks::start_stop_election::start_stop_election;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
@@ -79,7 +78,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             insert_election_event_t,
             insert_tenant,
             send_communication,
-            start_stop_election,
             import_users,
             export_users,
             import_election_event,
@@ -105,7 +103,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "import_users" => "import_export_queue",
             "export_users" => "import_export_queue",
             "import_election_event" => "import_export_queue",
-            "start_stop_election" => "beat",
             "scheduled_events" => "beat",
             "manage_election_date" => "beat"
         ],
