@@ -534,6 +534,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: manage_election_dates
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/manage-election-dates
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-write
+  - role: admin-user
 - name: publish_ballot
   definition:
     kind: synchronous
@@ -737,4 +751,5 @@ custom_types:
   - name: InsertCastVoteOutput
   - name: CreateVoteReceiptOutput
   - name: OptionalImportEvent
+  - name: ManageElectionDatesOutput
   scalars: []
