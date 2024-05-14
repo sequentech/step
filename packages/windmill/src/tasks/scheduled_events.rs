@@ -17,6 +17,7 @@ use deadpool_postgres::Client as DbClient;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
+#[instrument]
 pub fn get_datetime(event: &PostgresScheduledEvent) -> Option<DateTime<Local>> {
     let Some(cron_config) = event.cron_config.clone() else {
         return None;
@@ -53,7 +54,7 @@ pub async fn scheduled_events() -> Result<()> {
             let Some(formatted_date) = get_datetime(&event) else {
                 return false;
             };
-            formatted_date >= now && formatted_date < one_minute_later
+            formatted_date < one_minute_later
         })
         .collect::<Vec<_>>();
 
