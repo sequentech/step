@@ -390,28 +390,28 @@ export const ElectionDataForm: React.FC = () => {
 
                 const onScheduledOpening: React.MouseEventHandler<HTMLButtonElement> &
                     React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    let newScheduledOpening = !incoming.scheduledOpening
+                    let isUnset = incoming.presentation.dates.scheduled_opening
 
                     const {data} = await manageElectionDates({
                         variables: {
                             electionEventId: parsedValue.election_event_id,
                             electionId: parsedValue.id,
                             isStart: true,
-                            isUnset: newScheduledOpening,
+                            isUnset: isUnset,
                         },
                     })
                 }
 
                 const onScheduledClosing: React.MouseEventHandler<HTMLButtonElement> &
                     React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    let newScheduledClosing = !incoming.scheduledClosing
+                    let isUnset = incoming.presentation.dates.scheduled_closing
 
                     const {data} = await manageElectionDates({
                         variables: {
                             electionEventId: parsedValue.election_event_id,
                             electionId: parsedValue.id,
                             isStart: false,
-                            isUnset: newScheduledClosing,
+                            isUnset: isUnset,
                         },
                     })
                 }
@@ -466,26 +466,26 @@ export const ElectionDataForm: React.FC = () => {
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
                                         <BooleanInput
-                                            source={`scheduledOpening`}
+                                            source={`presentation.dates.scheduled_opening`}
                                             label={t(`electionScreen.field.scheduledOpening`)}
                                             helperText={false}
                                             onClick={onScheduledOpening}
                                         />
                                         <DateTimeInput
-                                            source={`dates.start_date`}
+                                            source={`presentation.dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
                                             parse={(value) => new Date(value).toISOString()}
                                         />
                                     </Grid>
                                     <Grid item xs={12} md={6}>
                                         <BooleanInput
-                                            source={`scheduledClosing`}
+                                            source={`presentation.dates.scheduled_closing`}
                                             label={t(`electionScreen.field.scheduledClosing`)}
                                             helperText={false}
                                             onClick={onScheduledClosing}
                                         />
                                         <DateTimeInput
-                                            source="dates.end_date"
+                                            source="presentation.dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
                                             parse={(value) => new Date(value).toISOString()}
                                         />

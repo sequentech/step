@@ -271,8 +271,16 @@ pub async fn insert_scheduled_event(
             r#"
                 INSERT INTO
                     "sequent_backend".scheduled_event
-                (tenant_id, election_event_id, created_at, event_processor, cron_config, task_id, event_payload)
-                VALUES(
+                (
+                    tenant_id,
+                    election_event_id,
+                    created_at,
+                    event_processor,
+                    cron_config,
+                    task_id,
+                    event_payload
+                )
+                VALUES (
                     $1,
                     $2,
                     NOW,

@@ -8,8 +8,8 @@ use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::ElectionPresentation;
-use tracing::{event, instrument, Level};
+use sequent_core::ballot::{ElectionPresentation, ElectionDates};
+use tracing::{event, info, instrument, Level};
 
 #[instrument]
 pub fn generate_manage_date_election_task_name(
@@ -70,7 +70,9 @@ pub async fn manage_dates(
         find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
             .await?;
 
+    info!("current_dates={current_dates:?}");
     if is_unset {
+        info!("is_unset is true");
         if is_start {
             new_dates.scheduled_opening = Some(false);
         } else {
@@ -80,6 +82,7 @@ pub async fn manage_dates(
             stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
         }
     } else {
+        info!("is_unset is false");
         if is_start {
             new_dates.scheduled_opening = Some(true);
         } else {
@@ -90,11 +93,15 @@ pub async fn manage_dates(
         } else {
             current_dates.end_date
         }) else {
+            info!("Empty date");
             return Err(anyhow!("Empty date"));
         };
+        info!("manage_date_str = {manage_date_str}");
         let manage_date_date = ISO8601::to_date(&manage_date_str)?;
         let now = ISO8601::now();
-        if manage_date_date > now {
+        let now_str = now.to_string();
+        if manage_date_date < now {
+            info!("date {manage_date_str} can't be before now {now_str}");
             return Err(anyhow!("date can't be before now"));
         }
 
@@ -103,6 +110,7 @@ pub async fn manage_dates(
             scheduled_date: Some(manage_date_str),
         };
         if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+            info!("update_scheduled_event");
             update_scheduled_event(
                 hasura_transaction,
                 tenant_id,
@@ -111,6 +119,7 @@ pub async fn manage_dates(
             )
             .await?;
         } else {
+            info!("insert_scheduled_event");
             let event_processor = if is_start {
                 EventProcessors::START_ELECTION
             } else {
@@ -133,6 +142,7 @@ pub async fn manage_dates(
     }
 
     let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
+    info!("update_election_presentation with new_dates={new_dates:?}");
     new_election_presentation.dates = Some(new_dates);
     update_election_presentation(
         hasura_transaction,
