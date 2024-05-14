@@ -175,9 +175,13 @@ export const ElectionDataForm: React.FC = () => {
                 temp.presentation.language_conf = {}
             }
 
+            if (temp.presentation && !temp.presentation.dates) {
+                temp.presentation.dates = {}
+            }
+
             if (temp.presentation) {
-                temp.scheduledOpening = temp.presentation?.dates.scheduled_opening
-                temp.scheduledClosing = temp.presentation?.dates.scheduled_closing
+                temp.scheduledOpening = temp.presentation?.dates?.scheduled_opening
+                temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels

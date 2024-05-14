@@ -223,8 +223,12 @@ pub async fn check_private_key(
     )
     .await?;
     // check keys_ceremony has correct execution status
-    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string()) {
-        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS"));
+    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())
+        && keys_ceremony.execution_status != Some(ExecutionStatus::SUCCESS.to_string())
+    {
+        return Err(anyhow!(
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS"
+        ));
     }
 
     // get ceremony status
