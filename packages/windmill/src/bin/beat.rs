@@ -6,13 +6,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use celery::beat::DeltaSchedule;
+use celery::beat::{CronSchedule, DeltaSchedule};
 use dotenv::dotenv;
 use sequent_core::services::probe::ProbeHandler;
-use std;
 use structopt::StructOpt;
 use tokio::time::Duration;
-use windmill::tasks::review_boards::review_boards;
+use windmill::tasks::scheduled_events::scheduled_events;
+use windmill::tasks::{review_boards::review_boards, start_stop_election::start_stop_election};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -40,9 +40,15 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
                 args = (),
             },
+            "scheduled_events" => {
+                scheduled_events,
+                schedule = DeltaSchedule::new(Duration::from_secs(60)),
+                args = (),
+            }
         ],
         task_routes = [
             "review_boards" => "beat",
+            "scheduled_events" => "beat",
         ],
     ).await?;
 

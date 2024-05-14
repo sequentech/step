@@ -22,6 +22,8 @@ export const EditElectionData: React.FC = () => {
         data.receipts = {...receipts}
         delete data.allowed
         delete data.template
+        delete data.scheduledOpening
+        delete data.scheduledClosing
 
         // save presentation object
         // language_conf
