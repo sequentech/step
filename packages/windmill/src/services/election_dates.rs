@@ -5,7 +5,7 @@ use super::date::ISO8601;
 use crate::postgres::scheduled_event::*;
 use crate::tasks::manage_election_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
-use crate::{postgres::election::get_election_by_id, types::scheduled_event::CronConfig};
+use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
@@ -80,6 +80,11 @@ pub async fn manage_dates(
             stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
         }
     } else {
+        if is_start {
+            new_dates.scheduled_opening = Some(true);
+        } else {
+            new_dates.scheduled_closing = Some(true);
+        }
         let Some(manage_date_str) = (if is_start {
             current_dates.start_date
         } else {
@@ -129,12 +134,13 @@ pub async fn manage_dates(
 
     let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
     new_election_presentation.dates = Some(new_dates);
-    /*update_election_presentation(
+    update_election_presentation(
         hasura_transaction,
         tenant_id,
         election_event_id,
         election_id,
-        new_election_presentation
-    ).await?;*/
+        serde_json::to_value(new_election_presentation)?,
+    )
+    .await?;
     Ok(())
 }
