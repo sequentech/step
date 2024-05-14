@@ -291,7 +291,7 @@ async fn check_status(
 
     if let Some(close_date) = close_date_opt {
         if ISO8601::now() > close_date {
-            return Err(anyhow!("Election event voting status is not open"));
+            return Err(anyhow!("Election is closed"));
         }
     };
     /*let status = election
