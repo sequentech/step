@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
             },
             "scheduled_events" => {
                 scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(60)),
+                schedule = DeltaSchedule::new(Duration::from_secs(10)),
                 args = (),
             }
         ],
