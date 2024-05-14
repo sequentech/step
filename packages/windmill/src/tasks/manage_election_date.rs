@@ -6,11 +6,11 @@ use crate::hasura::election_event::update_election_event_status;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
+use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::*;
-use crate::types::error::{Result, Error};
+use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::EventProcessors;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -114,10 +114,8 @@ pub async fn manage_election_date(
     .await?;
 
     // update the board
-    let board_name = get_election_event_board(
-        election_event.bulletin_board_reference.clone(),
-    )
-    .with_context(|| "missing bulletin board")?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
 
     let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
 
@@ -127,20 +125,19 @@ pub async fn manage_election_date(
                 .post_election_open(election_event_id.clone(), None)
                 .await
                 .with_context(|| "error posting to the electoral log")?;
-        },
+        }
         VotingStatus::CLOSED => {
             electoral_log
                 .post_election_close(election_event_id.clone(), None)
                 .await
                 .with_context(|| "error posting to the electoral log")?;
-        },
+        }
         voting_status @ _ => {
-            return Err(Error::Anyhow(
-                anyhow!("Invalid scheduled event type: {voting_status:?}")
-            ));
+            return Err(Error::Anyhow(anyhow!(
+                "Invalid scheduled event type: {voting_status:?}"
+            )));
         }
     };
-
 
     let commit = hasura_transaction
         .commit()
