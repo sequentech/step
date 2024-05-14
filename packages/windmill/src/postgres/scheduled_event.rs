@@ -305,7 +305,11 @@ pub async fn insert_scheduled_event(
                     task_id;
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!(
+            "Error preparing scheduled event statement: {}",
+            err
+        ))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -319,16 +323,16 @@ pub async fn insert_scheduled_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
 
-    let cast_votes: Vec<PostgresScheduledEvent> = rows
+    let rows: Vec<PostgresScheduledEvent> = rows
         .into_iter()
         .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
         .collect::<Result<Vec<PostgresScheduledEvent>>>()?;
 
-    if 1 == cast_votes.len() {
-        Ok(cast_votes[0].clone())
+    if 1 == rows.len() {
+        Ok(rows[0].clone())
     } else {
-        Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
+        Err(anyhow!("Unexpected rows affected {}", rows.len()))
     }
 }
