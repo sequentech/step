@@ -35,14 +35,14 @@ async fn main() -> Result<()> {
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            "review_boards" => {
+            /*"review_boards" => {
                 review_boards,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
                 args = (),
-            },
+            },*/
             "scheduled_events" => {
                 scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(60)),
+                schedule = DeltaSchedule::new(Duration::from_secs(30)),
                 args = (),
             }
         ],

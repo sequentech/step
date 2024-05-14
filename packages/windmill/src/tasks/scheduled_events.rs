@@ -10,18 +10,23 @@ use crate::types::error::Result;
 use crate::types::scheduled_event::EventProcessors;
 use anyhow::anyhow;
 use celery::error::TaskError;
+use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use tracing::instrument;
-use tracing::{event, Level};
+use tracing::{event, info, Level};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn scheduled_events() -> Result<()> {
     let celery_app = get_celery_app().await;
-    let now = ISO8601::now();
+    let mut now = ISO8601::now();
+    let secs = now.second();
+    let nanos = now.timestamp_subsec_nanos();
+    now = now - Duration::seconds(secs.into()) - Duration::nanoseconds(nanos.into());
     let one_minute_later = now + Duration::seconds(60);
+    info!("Running between {now} and {one_minute_later}");
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -43,7 +48,7 @@ pub async fn scheduled_events() -> Result<()> {
             let Ok(formatted_date) = ISO8601::to_date(&scheduled_date) else {
                 return false;
             };
-            formatted_date > now && formatted_date < one_minute_later
+            formatted_date >= now && formatted_date < one_minute_later
         })
         .collect::<Vec<_>>();
 
