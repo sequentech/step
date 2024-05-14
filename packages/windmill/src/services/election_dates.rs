@@ -8,7 +8,7 @@ use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, ElectionDates};
+use sequent_core::ballot::{ElectionDates, ElectionPresentation};
 use tracing::{event, info, instrument, Level};
 
 #[instrument]

@@ -466,7 +466,7 @@ export const ElectionDataForm: React.FC = () => {
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
                                         <BooleanInput
-                                            source={`presentation.dates.scheduled_opening`}
+                                            source={`scheduledOpening`}
                                             label={t(`electionScreen.field.scheduledOpening`)}
                                             helperText={false}
                                             onClick={onScheduledOpening}
@@ -479,7 +479,7 @@ export const ElectionDataForm: React.FC = () => {
                                     </Grid>
                                     <Grid item xs={12} md={6}>
                                         <BooleanInput
-                                            source={`presentation.dates.scheduled_closing`}
+                                            source={`scheduledClosing`}
                                             label={t(`electionScreen.field.scheduledClosing`)}
                                             helperText={false}
                                             onClick={onScheduledClosing}
