@@ -402,7 +402,7 @@ export const ElectionDataForm: React.FC = () => {
                             electionEventId: parsedValue.election_event_id,
                             electionId: parsedValue.id,
                             isStart: true,
-                            isUnset: isUnset,
+                            isUnset: !!isUnset,
                         },
                     })
                 }
@@ -416,7 +416,7 @@ export const ElectionDataForm: React.FC = () => {
                             electionEventId: parsedValue.election_event_id,
                             electionId: parsedValue.id,
                             isStart: false,
-                            isUnset: isUnset,
+                            isUnset: !!isUnset,
                         },
                     })
                 }
