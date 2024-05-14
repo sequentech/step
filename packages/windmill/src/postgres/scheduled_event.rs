@@ -199,7 +199,7 @@ pub async fn stop_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                stopped_at = NOW
+                stopped_at = NOW()
             WHERE
                 tenant_id = $1
                 AND id = $2
