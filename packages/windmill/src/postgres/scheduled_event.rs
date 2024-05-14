@@ -277,6 +277,7 @@ pub async fn insert_scheduled_event(
                 (
                     tenant_id,
                     election_event_id,
+                    created_at,
                     event_processor,
                     cron_config,
                     task_id,
@@ -285,6 +286,7 @@ pub async fn insert_scheduled_event(
                 VALUES (
                     $1,
                     $2,
+                    NOW(),
                     $3,
                     $4,
                     $5,
