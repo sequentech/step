@@ -8,7 +8,7 @@ use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -28,22 +28,38 @@ pub struct PostgresScheduledEvent {
 
 impl TryFrom<Row> for PostgresScheduledEvent {
     type Error = anyhow::Error;
-    fn try_from(item: Row) -> Result<Self> {
-        let event_processors_js: Option<Value> = item.try_get("event_processor")?;
-        let event_processors: Option<EventProcessors> =
-            event_processors_js.map(|val| serde_json::from_value(val).unwrap());
 
-        let cron_config_js: Option<Value> = item.try_get("cron_config")?;
+    #[instrument(skip_all, err)]
+    fn try_from(item: Row) -> Result<Self> {
+        let event_processors: Option<String> = item
+            .try_get("event_processor")
+            .map_err(|err| anyhow!("Error deserializing event_processor: {err}"))?;
+        let event_processors: Option<EventProcessors> = match event_processors {
+            Some(str) => Some(
+                str.parse::<EventProcessors>()
+                    .map_err(|err| anyhow!("Error parsing event_processor: {err}"))?,
+            ),
+            None => None,
+        };
+
+        let cron_config_js: Option<Value> = item
+            .try_get("cron_config")
+            .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
         let cron_config: Option<CronConfig> =
             cron_config_js.map(|val| serde_json::from_value(val).unwrap());
 
         Ok(PostgresScheduledEvent {
-            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            id: item
+                .try_get::<_, Uuid>("id")
+                .map_err(|err| anyhow!("Error deserializing id: {err}"))?
+                .to_string(),
             tenant_id: item
-                .try_get::<_, Option<Uuid>>("tenant_id")?
+                .try_get::<_, Option<Uuid>>("tenant_id")
+                .map_err(|err| anyhow!("Error deserializing tenant_id: {err}"))?
                 .map(|val| val.to_string()),
             election_event_id: item
-                .try_get::<_, Option<Uuid>>("election_event_id")?
+                .try_get::<_, Option<Uuid>>("election_event_id")
+                .map_err(|err| anyhow!("Error deserializing election_event_id: {err}"))?
                 .map(|val| val.to_string()),
             created_at: item.get("created_at"),
             stopped_at: item.get("created_at"),
@@ -196,7 +212,7 @@ pub async fn stop_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                stopped_at = NOW
+                stopped_at = NOW()
             WHERE
                 tenant_id = $1
                 AND id = $2
@@ -283,7 +299,7 @@ pub async fn insert_scheduled_event(
                 VALUES (
                     $1,
                     $2,
-                    NOW,
+                    NOW(),
                     $3,
                     $4,
                     $5,
@@ -293,7 +309,6 @@ pub async fn insert_scheduled_event(
                     id,
                     tenant_id,
                     election_event_id,
-                    election_event_id,
                     created_at,
                     stopped_at,
                     labels,
@@ -301,15 +316,11 @@ pub async fn insert_scheduled_event(
                     event_processor,
                     cron_config,
                     event_payload,
-                    created_by,
                     task_id;
             "#,
         )
         .await
-        .map_err(|err| anyhow!(
-            "Error preparing scheduled event statement: {}",
-            err
-        ))?;
+        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -328,7 +339,8 @@ pub async fn insert_scheduled_event(
     let rows: Vec<PostgresScheduledEvent> = rows
         .into_iter()
         .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
-        .collect::<Result<Vec<PostgresScheduledEvent>>>()?;
+        .collect::<Result<Vec<PostgresScheduledEvent>>>()
+        .map_err(|err| anyhow!("Error deserializing scheduled event: {}", err))?;
 
     if 1 == rows.len() {
         Ok(rows[0].clone())
