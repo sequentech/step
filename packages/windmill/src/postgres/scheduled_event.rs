@@ -258,6 +258,7 @@ pub async fn insert_scheduled_event(
     event_processor: EventProcessors,
     task_id: &str,
     cron_config: CronConfig,
+    event_payload: Value,
 ) -> Result<PostgresScheduledEvent> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
@@ -270,14 +271,15 @@ pub async fn insert_scheduled_event(
             r#"
                 INSERT INTO
                     "sequent_backend".scheduled_event
-                (tenant_id, election_event_id, created_at, event_processor, cron_config, task_id)
+                (tenant_id, election_event_id, created_at, event_processor, cron_config, task_id, event_payload)
                 VALUES(
                     $1,
                     $2,
                     NOW,
                     $3,
                     $4,
-                    $5
+                    $5,
+                    $6
                 )
                 RETURNING
                     id,
@@ -305,6 +307,7 @@ pub async fn insert_scheduled_event(
                 &event_processor_s,
                 &cron_config_js,
                 &task_id,
+                &event_payload,
             ],
         )
         .await

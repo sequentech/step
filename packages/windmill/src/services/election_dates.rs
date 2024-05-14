@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::date::ISO8601;
 use crate::postgres::scheduled_event::*;
+use crate::tasks::manage_election_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::get_election_by_id, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
 use tracing::{event, instrument, Level};
-
-use super::date::ISO8601;
 
 #[instrument]
 pub fn generate_manage_date_election_task_name(
@@ -111,6 +111,9 @@ pub async fn manage_dates(
             } else {
                 EventProcessors::END_ELECTION
             };
+            let payload = ManageElectionDatePayload {
+                election_id: election_id.to_string(),
+            };
             insert_scheduled_event(
                 hasura_transaction,
                 tenant_id,
@@ -118,6 +121,7 @@ pub async fn manage_dates(
                 event_processor,
                 &task_id,
                 cron_config,
+                serde_json::to_value(payload)?,
             )
             .await?;
         }
