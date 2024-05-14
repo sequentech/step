@@ -10,6 +10,7 @@ use crate::services::date::ISO8601;
 use crate::tasks::process_board::process_board;
 use crate::types::error::Result;
 use crate::types::scheduled_event::EventProcessors;
+use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
@@ -25,7 +26,11 @@ pub async fn manage_election_date(
     election_event_id: Option<String>,
     scheduled_event_id: String,
 ) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await.unwrap();
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
     let hasura_transaction = hasura_db_client.transaction().await?;
     let scheduled_manage_date_opt = find_scheduled_event_by_id(
         &hasura_transaction,
@@ -41,5 +46,28 @@ pub async fn manage_election_date(
         );
         return Ok(());
     };
+
+    let Some(tenant_id) = scheduled_manage_date.tenant_id.clone() else {
+        event!(Level::WARN, "Missing tenant_id");
+        return Ok(());
+    };
+
+    let Some(election_event_id) = scheduled_manage_date.election_event_id.clone() else {
+        event!(Level::WARN, "Missing election_event_id");
+        return Ok(());
+    };
+
+    /*let election = get_election_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    ).await?;*/
+
+    let commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| anyhow!("Commit failed: {}", e));
+
     Ok(())
 }

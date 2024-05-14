@@ -8,6 +8,7 @@ use crate::services::date::ISO8601;
 use crate::tasks::manage_election_date::manage_election_date;
 use crate::types::error::Result;
 use crate::types::scheduled_event::EventProcessors;
+use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
@@ -21,7 +22,11 @@ pub async fn scheduled_events() -> Result<()> {
     let celery_app = get_celery_app().await;
     let now = ISO8601::now();
     let one_minute_later = now + Duration::seconds(60);
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await.unwrap();
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
     let hasura_transaction = hasura_db_client.transaction().await?;
 
     let scheduled_events = find_all_active_events(&hasura_transaction).await?;
