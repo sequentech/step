@@ -11,6 +11,7 @@ use dotenv::dotenv;
 use sequent_core::services::probe::ProbeHandler;
 use structopt::StructOpt;
 use tokio::time::Duration;
+use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::{review_boards::review_boards, start_stop_election::start_stop_election};
 
 #[derive(Debug, StructOpt)]
@@ -47,13 +48,9 @@ async fn main() -> Result<()> {
         ],
         task_routes = [
             "review_boards" => "beat",
+            "scheduled_events" => "beat",
         ],
     ).await?;
-
-    beat.schedule_task(
-        start_stop_election::new(),
-        CronSchedule::from_string("0 0 1 5 *").unwrap(),
-    );
 
     beat.start().await?;
 
