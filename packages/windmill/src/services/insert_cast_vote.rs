@@ -21,6 +21,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
@@ -40,6 +41,8 @@ use strand::util::StrandError;
 use strand::zkp::Zkp;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+use super::date::ISO8601;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InsertCastVoteInput {
@@ -266,12 +269,32 @@ async fn check_status(
     .context("Cannot retrieve election data")?;
 
     // TODO expect
-    /*let election = &hasura_response
+    let election = &hasura_response
         .data
         .expect("expected data".into())
         .sequent_backend_election[0];
 
-    let status = election
+    let election_presentation: ElectionPresentation = election
+        .presentation
+        .clone()
+        .map(|value| serde_json::from_value(value).ok())
+        .flatten()
+        .unwrap_or(Default::default());
+
+    let close_date_opt = election_presentation
+        .dates
+        .clone()
+        .map(|dates| dates.end_date)
+        .flatten()
+        .map(|end_date| ISO8601::to_date(&end_date).ok())
+        .flatten();
+
+    if let Some(close_date) = close_date_opt {
+        if ISO8601::now() > close_date {
+            return Err(anyhow!("Election event voting status is not open"));
+        }
+    };
+    /*let status = election
         .status
         .clone()
         .ok_or(anyhow!("Could not retrieve election status"))?;
