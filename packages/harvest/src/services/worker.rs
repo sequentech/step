@@ -54,6 +54,8 @@ pub async fn process_scheduled_event(
                 task.task_id
             );
         }
+        EventProcessors::START_ELECTION => {}
+        EventProcessors::END_ELECTION => {}
     }
     Ok(element_id)
 }

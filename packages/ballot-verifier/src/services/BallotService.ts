@@ -7,6 +7,7 @@ import {
     get_layout_properties_from_contest_js,
     get_candidate_points_js,
     generate_sample_auditable_ballot_js,
+    check_is_blank_js,
     IDecodedVoteContest,
     IContestLayoutProperties,
     IDecodedVoteChoice,
@@ -32,6 +33,7 @@ export interface IBallotService {
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
     generateSampleAuditableBallot: () => IAuditableBallot | null
+    checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
 }
 
 export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
@@ -85,10 +87,21 @@ export const generateSampleAuditableBallot = (): IAuditableBallot | null => {
     }
 }
 
+export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
+    try {
+        let is_blank: boolean = check_is_blank_js(contest)
+        return is_blank
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
 export const provideBallotService = (): IBallotService => ({
     hashBallot512,
     decodeAuditableBallot,
     getLayoutProperties,
     getPoints,
     generateSampleAuditableBallot,
+    checkIsBlank,
 })

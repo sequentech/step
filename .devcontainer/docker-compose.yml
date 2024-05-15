@@ -469,6 +469,31 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+  
+  trustee3:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/braid
+    container_name: trustee3
+    volumes:
+      - trustee3_data:/opt/braid
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
+    environment:
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_NAME: trustee3
+        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -762,5 +787,6 @@ volumes:
   minio_storage:
   trustee1_data:
   trustee2_data:
+  trustee3_data:
   protocol_manager_data:
   vault-volume:

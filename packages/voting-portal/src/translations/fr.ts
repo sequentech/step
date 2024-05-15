@@ -51,9 +51,9 @@ const frenchTranslation: TranslationType = {
         reviewScreen: {
             title: "Révisez votre vote",
             description:
-                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Changer sélection</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer le bulletin</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
+                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
             descriptionNoAudit:
-                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Changer sélection</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer le bulletin</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
+                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous. Notez qu'une fois que vous aurez envoyé votre bulletin, vous aurez voté et il ne vous sera plus possible de recevoir un autre bulletin pour cette élection.",
             backButton: "Modifier votre vote",
             castBallotButton: "Envoyer votre vote",
             auditButton: "Auditer le bulletin",
@@ -138,7 +138,7 @@ const frenchTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Information : Liste des Élections",
                 content:
-                    "Bienvenue dans le bureau de vote, cet écran montre la liste des élections dans lesquelles vous pouvez voter. Les élections affichées sur cette liste peuvent être ouvertes au vote, programmées ou fermées. Vous ne pourrez accéder au vote que si la période de vote est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton 'Résultat électoral' qui vous mènera à la page publique des résultats.",
+                    "Bienvenue dans le bureau de vote, cet écran montre la liste des élections dans lesquelles vous pouvez voter. Les élections affichées sur cette liste peuvent être ouvertes au vote, programmées ou fermées. Vous ne pourrez accéder au vote que si la période de vote est ouverte.",
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",

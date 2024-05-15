@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {cloneDeep} from "lodash"
-import {IContest} from "@root/types/CoreTypes"
+import {IContest} from "../types/CoreTypes"
 
 export const sortContestByCreationDate = (contests: Array<IContest>): Array<IContest> => {
     contests = cloneDeep(contests)

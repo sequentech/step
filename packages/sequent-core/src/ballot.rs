@@ -237,6 +237,7 @@ pub struct CandidateUrl {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct CandidatePresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -263,12 +264,6 @@ impl CandidatePresentation {
             urls: None,
             subtype: None,
         }
-    }
-}
-
-impl Default for CandidatePresentation {
-    fn default() -> Self {
-        CandidatePresentation::new()
     }
 }
 
@@ -479,6 +474,7 @@ pub struct ElectionEventPresentation {
     pub css: Option<String>,
     pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
+    pub show_user_profile: Option<bool>, // default is true
 }
 
 #[derive(
@@ -496,6 +492,8 @@ pub struct ElectionEventPresentation {
 pub struct ElectionDates {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
+    pub scheduled_closing: Option<bool>,
+    pub scheduled_opening: Option<bool>,
 }
 
 #[derive(

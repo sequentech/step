@@ -185,7 +185,7 @@ impl Predicate {
                 let unique: HashSet<usize> = selected.into_iter().collect();
                 if unique.len() != cfg.threshold {
                     return Err(ProtocolError::InvalidTrusteeSelection(format!(
-                        "Invalid number of trustees selected. Selected {} but required {}",
+                        "Selected trustees should be equal to the threshold. Selected {} but required {}",
                         unique.len(),
                         cfg.threshold
                     )));

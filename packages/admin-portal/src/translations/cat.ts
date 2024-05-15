@@ -252,6 +252,7 @@ const catalanTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
+                showUserProfile: "Mostra el perfil de l'usuari",
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -337,7 +338,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Importar votants a l'Esdeveniment Electoral",
                 voters: "Votants",
                 votersParagraph:
-                    "Importa votants utilitzant una fulla de càlcul en format Tab Separated Values (TSV). Descarregueu un exemple de fitxer d'importació TSV aquí.",
+                    "Importa votants utilitzant una fulla de càlcul en format Comma Separated Values (CSV). Descarregueu un exemple de fitxer d'importació CSV aquí.",
                 electionEventParagraph:
                     "Importa Esdeveniments Electorals utilitzant un fitxer JSON.",
                 elections: "Eleccions",
@@ -382,6 +383,8 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "Canals de Vot",
                 startDateTime: "Data i hora d'inici",
                 endDateTime: "Data i hora de finalització",
+                scheduledOpening: "Obertura Programada",
+                scheduledClosing: "Tancament Programat",
                 alias: "Àlies",
                 description: "Descripció",
             },

@@ -457,6 +457,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source={"presentation.skip_election_list"}
                                         label={t(`electionEventScreen.field.skipElectionList`)}
                                     />
+                                    <BooleanInput
+                                        disabled={!canEdit}
+                                        source={"presentation.show_user_profile"}
+                                        label={t(`electionEventScreen.field.showUserProfile`)}
+                                    />
                                     <TextInput
                                         resettable={true}
                                         source={"presentation.logo_url"}

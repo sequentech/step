@@ -27,10 +27,7 @@ export const ContestTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader
-                title={record?.name || ""}
-                subtitle="electionEventScreen.common.subtitle"
-            />
+            <ElectionHeader title={record?.name || ""} subtitle="contestScreen.common.subtitle" />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />

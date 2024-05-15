@@ -252,6 +252,7 @@ const spanishTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
+                showUserProfile: "Mostrar perfil de usuario",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -337,7 +338,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
                 votersParagraph:
-                    "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
+                    "Importa votantes usando una hoja de cálculo en formato Comma Separated Values (CSV) format. Descarga un ejemplo de fichero de importación CSV aquí.",
                 electionEventParagraph: "Importa Eventos Electorales usando un fichero JSON.",
                 elections: "Elections",
                 areas: "Areas",
@@ -381,6 +382,8 @@ const spanishTranslation: TranslationType = {
                 votingChannels: "Canales de Voto",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
+                scheduledOpening: "Apertura Programada",
+                scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
             },

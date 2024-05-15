@@ -9,10 +9,10 @@ insert_permissions:
         _eq: X-Hasura-Tenant-Id
     columns:
     - created_by
-    - cron_config
     - event_processor
     - task_id
     - annotations
+    - cron_config
     - event_payload
     - labels
     - created_at
@@ -26,10 +26,10 @@ insert_permissions:
     check: {}
     columns:
     - created_by
-    - cron_config
     - event_processor
     - task_id
     - annotations
+    - cron_config
     - event_payload
     - labels
     - created_at
@@ -44,10 +44,10 @@ select_permissions:
     allow_aggregations: true
     columns:
     - created_by
-    - cron_config
     - event_processor
     - task_id
     - annotations
+    - cron_config
     - event_payload
     - labels
     - created_at
@@ -64,10 +64,10 @@ select_permissions:
     allow_aggregations: true
     columns:
     - created_by
-    - cron_config
     - event_processor
     - task_id
     - annotations
+    - cron_config
     - event_payload
     - labels
     - created_at
@@ -85,10 +85,10 @@ update_permissions:
         _eq: X-Hasura-Tenant-Id
     columns:
     - created_by
-    - cron_config
     - event_processor
     - task_id
     - annotations
+    - cron_config
     - event_payload
     - labels
     - created_at
@@ -105,10 +105,10 @@ update_permissions:
     check: {}
     columns:
     - created_by
-    - cron_config
     - event_processor
     - task_id
     - annotations
+    - cron_config
     - event_payload
     - labels
     - created_at

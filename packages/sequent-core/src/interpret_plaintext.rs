@@ -146,3 +146,11 @@ pub fn get_points(
         _ => None,
     }
 }
+
+pub fn check_is_blank(decoded_contest: DecodedVoteContest) -> bool {
+    !decoded_contest.is_explicit_invalid
+        && decoded_contest
+            .choices
+            .iter()
+            .all(|choice| choice.selected < 0)
+}

@@ -17,7 +17,7 @@ const spanishTranslation: TranslationType = {
         },
         votingScreen: {
             backButton: "Atrás",
-            reviewButton: "Siguente",
+            reviewButton: "Siguiente",
             clearButton: "Limpiar selección",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
@@ -28,7 +28,7 @@ const spanishTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Voto inválido o en blanco",
                 content:
-                    "Algunas de sus respuestas podrían hacer que la papeleta en una o más preguntas sea inválida o en blanco.",
+                    "Algunas de sus respuestas harán que la papeleta en una o más preguntas sea inválida o en blanco.",
                 ok: "Volver y revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -51,9 +51,9 @@ const spanishTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa tu voto",
             description:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar la papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
             descriptionNoAudit:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
             backButton: "Editar tu voto",
             castBallotButton: "Enviar tu voto",
             auditButton: "Auditar papeleta",
@@ -139,7 +139,7 @@ const spanishTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Información: Lista de Votaciones",
                 content:
-                    'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto. En el caso de que una elección esté cerrada y su administrador electoral haya publicado el resultado, verá un botón "Resultado electoral" que le llevará a la página pública de resultados.',
+                    "Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto.",
                 ok: "OK",
             },
             noResults: "No hay elecciones por ahora.",
@@ -183,8 +183,8 @@ const spanishTranslation: TranslationType = {
         },
         ballotLocator: {
             title: "Localiza tu Papeleta",
-            titleResult: "Resultado de la búsqueda de tu Boleta",
-            description: "Verify that your Papeleta has been correctly emitted",
+            titleResult: "Resultado de la búsqueda de tu Papeleta",
+            description: "Verifique que su Papeleta ha sido emitida correctamente",
             locate: "Localiza tu Papeleta",
             locateAgain: "Localiza otra Papeleta",
             found: "Tu ID de Papeleta {{ballotId}} ha sido localizada",
@@ -193,7 +193,7 @@ const spanishTranslation: TranslationType = {
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             steps: {
                 lookup: "Localiza tu Papeleta",
-                result: "Result",
+                result: "Resultado",
             },
             titleHelpDialog: {
                 title: "Información: pantalla de Localización de tu Papeleta",

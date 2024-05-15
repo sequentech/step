@@ -7,7 +7,9 @@ use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
-use crate::interpret_plaintext::{get_layout_properties, get_points};
+use crate::interpret_plaintext::{
+    check_is_blank, get_layout_properties, get_points,
+};
 use crate::plaintext::*;
 //use crate::serialization::base64::Base64Deserialize;
 use crate::util::normalize_vote::normalize_vote_contest;
@@ -327,6 +329,23 @@ pub fn generate_sample_auditable_ballot_js() -> Result<JsValue, JsValue> {
         .serialize(&serializer)
         .map_err(|err| {
             format!("Error converting auditable ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn check_is_blank_js(
+    decoded_contest_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+    let is_blank = check_is_blank(decoded_contest);
+
+    serde_wasm_bindgen::to_value(&is_blank)
+        .map_err(|err| {
+            format!("Error converting boolean is_blank to json {:?}", err)
         })
         .into_json()
 }

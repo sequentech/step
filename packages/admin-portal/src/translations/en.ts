@@ -250,6 +250,7 @@ const englishTranslation = {
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
+                showUserProfile: "Show User Profile",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -335,7 +336,7 @@ const englishTranslation = {
                 subtitle: "Import voters data",
                 voters: "Voters",
                 votersParagraph:
-                    "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
+                    "Import voters using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
                 electionEventParagraph: "Import Election Events using a JSON file.",
                 elections: "Elections",
                 areas: "Areas",
@@ -379,6 +380,8 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                scheduledOpening: "Scheduled Opening",
+                scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
             },

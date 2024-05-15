@@ -711,7 +711,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <DownloadDocument
                             documentId={exportDocumentId}
                             electionEventId={electionEventId ?? ""}
-                            fileName={`users-export.tsv`}
+                            fileName={`users-export.csv`}
                             onDownload={() => {
                                 console.log("onDownload called")
                                 setExportDocumentId(undefined)

@@ -13,10 +13,7 @@ export const CandidateTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader
-                title={record?.name || ""}
-                subtitle="electionEventScreen.common.subtitle"
-            />
+            <ElectionHeader title={record?.name || ""} subtitle="candidateScreen.common.subtitle" />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditCandidateData record={record} />

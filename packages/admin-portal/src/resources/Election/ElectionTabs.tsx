@@ -41,7 +41,7 @@ export const ElectionTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
+            <ElectionHeader title={record?.name} subtitle="electionScreen.common.subtitle" />
             <TabbedShowLayout>
                 {showDashboard && (
                     <TabbedShowLayout.Tab label={t("electionScreen.tabs.dashboard")}>

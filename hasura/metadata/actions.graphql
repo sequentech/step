@@ -257,6 +257,15 @@ type Query {
 }
 
 type Mutation {
+  manage_election_dates (
+    election_event_id: String!
+    election_id: String!
+    is_start: Boolean
+    is_unset: Boolean
+  ): ManageElectionDatesOutput
+}
+
+type Mutation {
   publish_ballot (
     election_event_id: uuid!
     ballot_publication_id: uuid!
@@ -796,5 +805,9 @@ type OptionalImportEvent {
   id : String
   message : String
   error : String
+}
+
+type ManageElectionDatesOutput {
+  something : String
 }
 

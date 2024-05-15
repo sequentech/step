@@ -252,6 +252,7 @@ const frenchTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirection à la fin",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
+                showUserProfile: "Afficher le profil utilisateur",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -337,7 +338,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Importer des électeurs à l'Événement Électoral",
                 voters: "Électeurs",
                 votersParagraph:
-                    "Importez des électeurs en utilisant une feuille de calcul au format Valeurs Séparées par Tabulations (TSV). Téléchargez un exemple de fichier d'importation TSV ici.",
+                    "Importez des électeurs en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
                 electionEventParagraph:
                     "Importez des Événements Électoraux en utilisant un fichier JSON.",
                 elections: "Élections",
@@ -383,6 +384,8 @@ const frenchTranslation: TranslationType = {
                 votingChannels: "Canaux de Vote",
                 startDateTime: "Date et heure de début",
                 endDateTime: "Date et heure de fin",
+                scheduledOpening: "Ouverture Prévue",
+                scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
             },

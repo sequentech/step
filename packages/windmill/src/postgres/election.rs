@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Election;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -161,4 +162,49 @@ pub async fn get_election_by_id(
         .collect::<Result<Vec<Election>>>()?;
 
     Ok(elections.get(0).map(|election| election.clone()))
+}
+
+pub async fn update_election_presentation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    presentation: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid: uuid::Uuid =
+        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election
+            SET
+                presentation = $4
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND id = $3
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &presentation,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_presentation query: {err}"))?;
+
+    Ok(())
 }

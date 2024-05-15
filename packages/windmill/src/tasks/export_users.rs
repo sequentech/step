@@ -164,12 +164,12 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     let mut offset: i32 = 0;
     let mut total_count: Option<i32> = None;
     let file =
-        generate_temp_file("export-users-", ".tsv").with_context(|| "Error creating temp file")?;
+        generate_temp_file("export-users-", ".csv").with_context(|| "Error creating temp file")?;
     let file2 = file
         .reopen()
         .with_context(|| "Couldn't reopen file for writing")?;
     let mut writer = csv::WriterBuilder::new()
-        .delimiter(b'\t')
+        .delimiter(b',')
         .from_writer(&file2);
     writer.write_record(&headers)?;
     loop {
@@ -223,14 +223,14 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
     let timestamp = util::date::timestamp().with_context(|| "Error obtaining timestamp")?;
-    let name = format!("users-export-{timestamp}.tsv");
+    let name = format!("users-export-{timestamp}.csv");
     let key = s3::get_document_key(
         &body.tenant_id,
         &body.election_event_id.clone().unwrap_or("".to_string()),
         &document_id,
         &name,
     );
-    let media_type = "text/tsv".to_string();
+    let media_type = "text/csv".to_string();
     s3::upload_file_to_s3(
         /* key */ key,
         /* is_public */ false,
