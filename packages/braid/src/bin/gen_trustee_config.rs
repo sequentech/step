@@ -26,7 +26,7 @@ struct Cli {
     command: Command,
 }
 
-/* 
+/*
 This utility generates a trustee or protocol manager configuration printed to stdout
 
 Trustee configuration contains

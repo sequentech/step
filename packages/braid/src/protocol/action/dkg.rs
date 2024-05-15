@@ -79,15 +79,13 @@ pub(super) fn compute_shares<C: Ctx>(
         let share = strand::threshold::eval_poly(i + 1, *threshold, &coeffs, &ctx);
 
         // Obtain the public key for the recipient of the share
-        let target_channel_h = channels_hs
-            .0
-            .get(i)
-            .ok_or(ProtocolError::InternalError("Could not retrieve channel hash".to_string()))?;
+        let target_channel_h = channels_hs.0.get(i).ok_or(ProtocolError::InternalError(
+            "Could not retrieve channel hash".to_string(),
+        ))?;
 
         let target_hash = *target_channel_h;
 
-        let target_channel = trustee
-            .get_channel(&ChannelHash(target_hash), i)?;
+        let target_channel = trustee.get_channel(&ChannelHash(target_hash), i)?;
 
         // Encrypt share for target trustee
         let encryption_pk = PublicKey::<C>::from_element(&target_channel.channel_pk, &ctx);
@@ -123,7 +121,8 @@ pub(super) fn compute_pk<C: Ctx>(
         num_t,
         threshold,
         trustee,
-    ).add_context("Computing pk")?;
+    )
+    .add_context("Computing pk")?;
 
     let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
 
@@ -180,9 +179,9 @@ pub(super) fn sign_pk<C: Ctx>(
         let m = Message::public_key_msg(cfg, &actual, shares_hs, channels_hs, false, trustee)?;
         Ok(vec![m])
     } else {
-        Err(ProtocolError::VerificationError(
-            format!("Mismatch when comparing computed public key with retrieved one"),
-        ))
+        Err(ProtocolError::VerificationError(format!(
+            "Mismatch when comparing computed public key with retrieved one"
+        )))
     }
 }
 
@@ -219,10 +218,13 @@ fn compute_pk_<C: Ctx>(
             // Our share is sent from trustee i to j, when j = us
             if j == *self_p {
                 // Construct our private key to decrypt our share
-                let my_channel_h = channels_hs
-                    .0
-                    .get(*self_p)
-                    .ok_or(ProtocolError::InternalError("Could not retrieve channel hash for self".to_string()))?;
+                let my_channel_h =
+                    channels_hs
+                        .0
+                        .get(*self_p)
+                        .ok_or(ProtocolError::InternalError(
+                            "Could not retrieve channel hash for self".to_string(),
+                        ))?;
 
                 let my_channel = trustee
                     .get_channel(&ChannelHash(*my_channel_h), *self_p)
@@ -235,7 +237,10 @@ fn compute_pk_<C: Ctx>(
                 // Verify the share
                 let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
                 if !ok {
-                    return Err(ProtocolError::VerificationError(format!("Trustee {} failed to verify share from {}..", j, i)));
+                    return Err(ProtocolError::VerificationError(format!(
+                        "Trustee {} failed to verify share from {}..",
+                        j, i
+                    )));
                 }
                 info!("Trustee {} verified share received from {}", j, i);
             }

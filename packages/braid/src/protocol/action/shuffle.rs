@@ -64,9 +64,7 @@ pub(crate) fn mix<C: Ctx>(
         return Ok(vec![m]);
     }
 
-    let dkg_pk = trustee
-        .get_dkg_public_key(pk_h, 0)
-        .add_context("Mixing")?;
+    let dkg_pk = trustee.get_dkg_public_key(pk_h, 0).add_context("Mixing")?;
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));

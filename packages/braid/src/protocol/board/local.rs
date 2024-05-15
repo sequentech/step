@@ -16,7 +16,7 @@ use board_messages::braid::statement::{Statement, StatementType};
 use board_messages::braid::newtypes::*;
 use strand::hash::Hash;
 
-use crate::util::{ProtocolError,ProtocolContext};
+use crate::util::{ProtocolContext, ProtocolError};
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard
@@ -88,11 +88,12 @@ impl<C: Ctx> LocalBoard<C> {
         let cfg_hash = message.statement.get_cfg_h();
 
         if self.configuration.is_none() {
-            let artifact_bytes = &message
-                .artifact
-                .ok_or(ProtocolError::BootstrapError(
-                    format!("Missing artifact in configuration message")
-                ))?;
+            let artifact_bytes =
+                &message
+                    .artifact
+                    .ok_or(ProtocolError::BootstrapError(format!(
+                        "Missing artifact in configuration message"
+                    )))?;
 
             let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
 
@@ -106,7 +107,10 @@ impl<C: Ctx> LocalBoard<C> {
                     "Failed deserializing configuration {:?}, ignored",
                     configuration
                 );
-                return Err(configuration.add_context("Bootstrapping, deserializing configuration").err().expect("impossible"))
+                return Err(configuration
+                    .add_context("Bootstrapping, deserializing configuration")
+                    .err()
+                    .expect("impossible"));
             }
         }
 
@@ -118,7 +122,9 @@ impl<C: Ctx> LocalBoard<C> {
             warn!("Configuration received when identical present, ignored");
             Ok(())
         } else {
-            Err(ProtocolError::BoardOverwriteAttempt(format!("Configuration")))
+            Err(ProtocolError::BoardOverwriteAttempt(format!(
+                "Configuration"
+            )))
         }
     }
 
@@ -144,11 +150,10 @@ impl<C: Ctx> LocalBoard<C> {
                 );
                 Ok(())
             } else {
-                Err(ProtocolError::BoardOverwriteAttempt(
-                    format!("Statement identifier already exists (overwrite): {:?}, message was {:?}",
-                    statement_identifier,
-                    message)
-                ))
+                Err(ProtocolError::BoardOverwriteAttempt(format!(
+                    "Statement identifier already exists (overwrite): {:?}, message was {:?}",
+                    statement_identifier, message
+                )))
             }
         } else {
             debug!(
@@ -168,9 +173,10 @@ impl<C: Ctx> LocalBoard<C> {
                         warn!("Artifact identical, ignored");
                         Ok(())
                     } else {
-                        Err(ProtocolError::BoardOverwriteAttempt(
-                            format!("Artifact {}", statement_identifier.kind)
-                        ))
+                        Err(ProtocolError::BoardOverwriteAttempt(format!(
+                            "Artifact {}",
+                            statement_identifier.kind
+                        )))
                     }
                 } else {
                     debug!(
@@ -265,9 +271,11 @@ impl<C: Ctx> LocalBoard<C> {
             .artifacts
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Channel))?;
-        
+
         if channel_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(StatementType::Channel))
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::Channel,
+            ))
         } else {
             Ok(Channel::<C>::strand_deserialize(&entry.1)?)
         }
@@ -303,7 +311,9 @@ impl<C: Ctx> LocalBoard<C> {
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::PublicKey))?;
         if pk_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(StatementType::PublicKey))
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::PublicKey,
+            ))
         } else {
             Ok(DkgPublicKey::<C>::strand_deserialize(&entry.1)?)
         }
@@ -326,7 +336,9 @@ impl<C: Ctx> LocalBoard<C> {
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Ballots))?;
         if b_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(StatementType::Ballots))
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::Ballots,
+            ))
         } else {
             Ok(Ballots::<C>::strand_deserialize(&entry.1)?)
         }
@@ -340,7 +352,9 @@ impl<C: Ctx> LocalBoard<C> {
     ) -> Result<Mix<C>, ProtocolError> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Mix, signer_position, batch, 0);
-        let entry = self.artifacts.get(&aei)
+        let entry = self
+            .artifacts
+            .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Mix))?;
         if m_h.0 != entry.0 {
             Err(ProtocolError::MismatchedArtifactHash(StatementType::Mix))
@@ -364,9 +378,13 @@ impl<C: Ctx> LocalBoard<C> {
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(ProtocolError::MissingArtifact(StatementType::DecryptionFactors))?;
+            .ok_or(ProtocolError::MissingArtifact(
+                StatementType::DecryptionFactors,
+            ))?;
         if m_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(StatementType::DecryptionFactors))
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::DecryptionFactors,
+            ))
         } else {
             Ok(DecryptionFactors::<C>::strand_deserialize(&entry.1)?)
         }
@@ -389,7 +407,9 @@ impl<C: Ctx> LocalBoard<C> {
             .get(&aei)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Plaintexts))?;
         if m_h.0 != entry.0 {
-            Err(ProtocolError::MismatchedArtifactHash(StatementType::Plaintexts))
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::Plaintexts,
+            ))
         } else {
             Ok(Plaintexts::<C>::strand_deserialize(&entry.1)?)
         }

@@ -10,7 +10,7 @@
 //! use strand::symm::encrypt;
 //! use strand::symm::decrypt;
 //! use strand::symm::gen_key;
-//! 
+//!
 //! // generate random key
 //! let key = gen_key();
 //! // generate random data
@@ -21,7 +21,7 @@
 //! let encrypted = encrypt(key, &data).unwrap();
 //! // decrypt
 //! let decrypted = decrypt((&key).into(), &encrypted).unwrap();
-//! 
+//!
 //! assert_eq!(data.to_vec(), decrypted);
 //! ```
 

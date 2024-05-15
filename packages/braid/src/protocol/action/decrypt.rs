@@ -177,7 +177,9 @@ pub(super) fn sign_plaintexts<C: Ctx>(
 
         Ok(vec![m])
     } else {
-        Err(ProtocolError::VerificationError(format!("Mismatch when comparing plaintexts with retrieved ones")))
+        Err(ProtocolError::VerificationError(format!(
+            "Mismatch when comparing plaintexts with retrieved ones"
+        )))
     }
 }
 
@@ -249,7 +251,9 @@ fn compute_plaintexts_<C: Ctx>(
                     if ok {
                         Ok(ctx.emod_pow(&df, &lagrange))
                     } else {
-                        Err(ProtocolError::VerificationError(format!("Failed to verify decryption proof")))
+                        Err(ProtocolError::VerificationError(format!(
+                            "Failed to verify decryption proof"
+                        )))
                     }
                 })
                 .collect();

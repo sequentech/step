@@ -2,19 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! # Examples
-//! 
+//!
 //! ```
 //! use strand::context::{Ctx, Element, Exponent};
 //! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::threshold;
-//! 
+//!
 //! let ctx = RistrettoCtx;
 //! let num_trustees = 3;
 //! let threshold = 2;
-//! 
+//!
 //! let (coefficients, commitments) =
 //!     threshold::gen_coefficients(threshold, &ctx);
-//! 
+//!
 //! let mut shares = vec![];
 //! for i in 0..num_trustees {
 //!     let share = threshold::compute_peer_share(i, threshold, &coefficients, &ctx);
@@ -34,7 +34,6 @@
 //!     let ok = threshold::verify_share(&shares[i], &vkf, &ctx);
 //!     assert!(ok);
 //! }
-//!
 //! ```
 
 use crate::context::{Ctx, Element, Exponent};

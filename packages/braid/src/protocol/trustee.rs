@@ -15,9 +15,8 @@ use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
 use crate::protocol::board::local::LocalBoard;
-use crate::util::{ProtocolError, ProtocolContext};
 use crate::protocol::predicate::Predicate;
-use strand::util::StrandError;
+use crate::util::{ProtocolContext, ProtocolError};
 use board_messages::braid::artifact::Channel;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::artifact::DkgPublicKey;
@@ -26,6 +25,7 @@ use board_messages::braid::artifact::{Ballots, DecryptionFactors, Mix, Plaintext
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
+use strand::util::StrandError;
 
 use strand::symm::{self, EncryptionData};
 
@@ -129,27 +129,35 @@ impl<C: Ctx> Trustee<C> {
     //
     // Each message is verified and added to the local board.
     ///////////////////////////////////////////////////////////////////////////
-    fn update(&mut self, messages: Vec<Message>, configuration: Configuration<C>) -> Result<i32, ProtocolError> {
+    fn update(
+        &mut self,
+        messages: Vec<Message>,
+        configuration: Configuration<C>,
+    ) -> Result<i32, ProtocolError> {
         let mut added = 0;
 
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
         if cfg_hash.is_none() {
-            return Err(ProtocolError::InternalError(format!("Local field cfg_hash not set")));
+            return Err(ProtocolError::InternalError(format!(
+                "Local field cfg_hash not set"
+            )));
         }
 
         let cfg_hash = cfg_hash.expect("impossible");
 
         for message in messages {
-            let verified = message.verify(&configuration)
-            .map_err(|e| ProtocolError::VerificationError(
-                format!("Message failed verification: {:?}, cfg: {:?}", message, &configuration)
-            ))?;
+            let verified = message.verify(&configuration).map_err(|e| {
+                ProtocolError::VerificationError(format!(
+                    "Message failed verification: {:?}, cfg: {:?}",
+                    message, &configuration
+                ))
+            })?;
 
             if verified.statement.get_cfg_h() != cfg_hash {
-                return Err(ProtocolError::MessageConfigurationMismatch(
-                    format!("Message has mismatched configuration hash")
-                ));
+                return Err(ProtocolError::MessageConfigurationMismatch(format!(
+                    "Message has mismatched configuration hash"
+                )));
             }
 
             let stmt = verified.statement.clone();
@@ -172,35 +180,41 @@ impl<C: Ctx> Trustee<C> {
 
         trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
-            return Err(ProtocolError::BootstrapError(
-                format!("Zero messages received, cannot retrieve configuration")
-            ));
+            return Err(ProtocolError::BootstrapError(format!(
+                "Zero messages received, cannot retrieve configuration"
+            )));
         }
         let zero = messages.remove(0);
 
         if zero.statement.get_kind() != StatementType::Configuration {
-            return Err(ProtocolError::BootstrapError(
-                format!("Invalid statement type for zeroth message {:?}", zero.statement.get_kind())
-            ));
+            return Err(ProtocolError::BootstrapError(format!(
+                "Invalid statement type for zeroth message {:?}",
+                zero.statement.get_kind()
+            )));
         }
 
         if zero.artifact.is_none() {
-            return Err(ProtocolError::BootstrapError(format!("No artifact for configuration message")));
+            return Err(ProtocolError::BootstrapError(format!(
+                "No artifact for configuration message"
+            )));
         }
 
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
 
         if !configuration.is_valid() {
-            return Err(ProtocolError::InvalidConfiguration(
-                format!("Configuration::is_valid failed, {:?}",configuration)
-            ));
+            return Err(ProtocolError::InvalidConfiguration(format!(
+                "Configuration::is_valid failed, {:?}",
+                configuration
+            )));
         }
 
-        let verified = zero.verify(&configuration)
-            .map_err(|e| ProtocolError::VerificationError(
-                format!("Configuration signature did not verify: {:?}", e)
-            ))?;
+        let verified = zero.verify(&configuration).map_err(|e| {
+            ProtocolError::VerificationError(format!(
+                "Configuration signature did not verify: {:?}",
+                e
+            ))
+        })?;
 
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
         trace!("Verified signature, Configuration signed by Protocol Manager");
@@ -236,8 +250,9 @@ impl<C: Ctx> Trustee<C> {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
 
-        let configuration_p =
-            configuration_p.ok_or(ProtocolError::InvalidConfiguration(format!("Self authority not found in configuration")))?;
+        let configuration_p = configuration_p.ok_or(ProtocolError::InvalidConfiguration(
+            format!("Self authority not found in configuration"),
+        ))?;
         predicates.push(configuration_p);
         trace!("Adding bootstrap predicate {:?}", configuration_p);
 
@@ -336,11 +351,14 @@ impl<C: Ctx> Trustee<C> {
     // Artifact accessors for Actions
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn get_configuration(&self, hash: &ConfigurationHash) -> Result<&Configuration<C>, ProtocolError> {
+    pub(crate) fn get_configuration(
+        &self,
+        hash: &ConfigurationHash,
+    ) -> Result<&Configuration<C>, ProtocolError> {
         self.local_board
             .get_configuration(hash)
             .ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))
-            // .ok_or(anyhow!("Could not retrieve configuration",))
+        // .ok_or(anyhow!("Could not retrieve configuration",))
     }
 
     // FIXME Used by dbg::status, remove
@@ -486,8 +504,8 @@ impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     }
 }
 
-use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose, Engine as _};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct TrusteeConfig {

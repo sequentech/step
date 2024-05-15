@@ -12,7 +12,7 @@
 //! use strand::signature::StrandSignaturePk;
 //! use strand::signature::StrandSignature;
 //! use strand::serialization::{StrandDeserialize, StrandSerialize};
-//! 
+//!
 //! let msg = b"message";
 //! let mut rng = StrandRng;
 //! // generate signing (private) and verification (public) keys
@@ -20,9 +20,9 @@
 //! let vk = StrandSignaturePk::from_sk(&sk).unwrap();
 //! // sign data
 //! let sig = sk.sign(msg);
-//! 
+//!
 //! // serialize + deserialize
-//! let sig_bytes = sig.unwrap().strand_serialize().unwrap(); 
+//! let sig_bytes = sig.unwrap().strand_serialize().unwrap();
 //! let sig = StrandSignature::strand_deserialize(&sig_bytes).unwrap();
 //! // verify
 //! let ok = vk.verify(&sig, msg);

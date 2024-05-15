@@ -6,8 +6,8 @@ use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
 use std::fs::File;
-use std::marker::PhantomData;
 use std::io::Write;
+use std::marker::PhantomData;
 use std::path::Path;
 use tracing::{info, instrument};
 
@@ -20,6 +20,8 @@ use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use board_messages::braid::statement::StatementType;
+use braid::protocol::trustee::Trustee;
+use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -27,8 +29,6 @@ use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
-use braid::protocol::trustee::Trustee;
-use braid::protocol::trustee::TrusteeConfig;
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
@@ -75,11 +75,11 @@ currently these cannot be changed, but it would be easy to add cli options for t
 The sequence of steps to run a demo election are
 
     1) Generate the election configuration data
-    
-       cargo run --bin demo_tool -- gen-configs 
+
+       cargo run --bin demo_tool -- gen-configs
 
     2) Initialize the protocol with said configuration data
-    
+
        cargo run --bin demo_tool -- init-protocol
 
     3) Launch each of the trustees (each in their own directory)
@@ -104,7 +104,7 @@ The sequence of steps to run a demo election are
 
     5) Wait until the protocol execution finishes.  You can check that this process is complete
        by listing the messages in the protocol board and looking for "Plaintexts".
-       
+
        cargo run --bin demo_tool -- post-ballots
 
        example output with statement=Plaintexts
@@ -153,7 +153,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/*  
+/*
 Generates all the configuration information necessary to create a demo election
 
     * Generate .toml config for each trustee, containing:
@@ -170,7 +170,7 @@ Generates all the configuration information necessary to create a demo election
 
     demo
     |
-    └ config.bin 
+    └ config.bin
     └ pm.toml
     |
     └ 1
@@ -257,26 +257,41 @@ are randomly generated.
 */
 #[instrument(skip(board))]
 async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C) -> Result<()> {
-    
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk = sender_pk.to_der_b64_string()?;
-    let ballots = board.get_messages_filtered(&board_name, &StatementType::Ballots.to_string(), &sender_pk, None, None).await?;
+    let ballots = board
+        .get_messages_filtered(
+            &board_name,
+            &StatementType::Ballots.to_string(),
+            &sender_pk,
+            None,
+            None,
+        )
+        .await?;
     if ballots.len() > 0 {
         return Err(anyhow!("Ballots already present"));
     }
 
     let path = Path::new(DEMO_DIR).join(CONFIG);
-    let contents =
-        fs::read(&path).expect("Should have been able to read session configuration file at '{path}'");
+    let contents = fs::read(&path)
+        .expect("Should have been able to read session configuration file at '{path}'");
 
     let configuration = Configuration::<C>::strand_deserialize(&contents)
         .map_err(|e| anyhow!("Could not read configuration {}", e))?;
-    
+
     let sender_pk = configuration.trustees.get(0).unwrap();
     let sender_pk = sender_pk.to_der_b64_string()?;
-    let pk = board.get_messages_filtered(&board_name, &StatementType::PublicKey.to_string(), &sender_pk, None, None).await?;
-    
+    let pk = board
+        .get_messages_filtered(
+            &board_name,
+            &StatementType::PublicKey.to_string(),
+            &sender_pk,
+            None,
+            None,
+        )
+        .await?;
+
     let mut rng = ctx.get_rng();
     if let Some(pk) = pk.get(0) {
         let message = Message::strand_deserialize(&pk.message)?;
@@ -317,9 +332,10 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
         info!("Adding ballots to the board..");
         let bm: BoardMessage = message.try_into()?;
         board.insert_messages(board_name, &vec![bm]).await?;
-    }
-    else {
-        return Err(anyhow!("Could not find public key or configuration artifact(s)"));
+    } else {
+        return Err(anyhow!(
+            "Could not find public key or configuration artifact(s)"
+        ));
     }
 
     Ok(())

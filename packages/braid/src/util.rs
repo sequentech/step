@@ -3,15 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use board_messages::braid::statement::StatementType;
-use thiserror::Error;
 use base64::{engine::general_purpose, Engine as _};
+use board_messages::braid::statement::StatementType;
 use std::fs;
 use std::path::PathBuf;
 use strand::hash::Hash;
+use thiserror::Error;
 
 use strand::util::StrandError;
-
 
 #[derive(Error, Debug)]
 pub enum ProtocolError {
@@ -50,9 +49,11 @@ pub trait ProtocolContext<T> {
 impl<T> ProtocolContext<T> for Result<T, ProtocolError> {
     fn add_context(self, context: &str) -> Result<T, ProtocolError> {
         if let Err(e) = self {
-            Err(ProtocolError::WrappedError(context.to_string(), Box::new(e)))
-        }
-        else {
+            Err(ProtocolError::WrappedError(
+                context.to_string(),
+                Box::new(e),
+            ))
+        } else {
             self
         }
     }
@@ -60,9 +61,11 @@ impl<T> ProtocolContext<T> for Result<T, ProtocolError> {
 impl<T> ProtocolContext<T> for Result<T, StrandError> {
     fn add_context(self, context: &str) -> Result<T, ProtocolError> {
         if let Err(e) = self {
-            Err(ProtocolError::WrappedError(context.to_string(), Box::new(e.into())))
-        }
-        else {
+            Err(ProtocolError::WrappedError(
+                context.to_string(),
+                Box::new(e.into()),
+            ))
+        } else {
             Ok(self?)
         }
     }

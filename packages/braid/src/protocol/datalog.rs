@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-
 pub use log::{debug, error, info, trace};
 use std::collections::HashSet;
 
@@ -12,9 +11,9 @@ pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
 
 pub(self) use crate::protocol::predicate::*;
 
+pub(self) use crate::util::ProtocolError;
 pub(self) use board_messages::braid::newtypes::*;
 pub(self) use strand::hash::Hash;
-pub(self) use crate::util::ProtocolError;
 
 pub(crate) fn hashes_init(value: Hash) -> THashes {
     let mut ret = [NULL_HASH; MAX_TRUSTEES];

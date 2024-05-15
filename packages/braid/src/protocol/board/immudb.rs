@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+use board_messages::braid::message::Message;
 use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 use tracing::warn;
-use board_messages::braid::message::Message;
 
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,
