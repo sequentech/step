@@ -76,11 +76,11 @@ impl TryFrom<&Row> for BoardMessage {
                 }
                 "statement_kind" => assign_value!(Value::S, value, statement_kind),
                 "message" => assign_value!(Value::Bs, value, message),
-                "version" =>assign_value!(Value::S, value, version),
+                "version" => assign_value!(Value::S, value, version),
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
-        
+
         Ok(BoardMessage {
             id,
             created,
@@ -733,7 +733,7 @@ pub(crate) mod tests {
             statement_timestamp: 0,
             statement_kind: "".to_string(),
             message: vec![],
-            version: "".to_string()
+            version: "".to_string(),
         };
         let messages = vec![board_message];
         b.insert_messages(BOARD_DB, &messages).await.unwrap();

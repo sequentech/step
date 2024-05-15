@@ -415,7 +415,7 @@ fn verify_artifact<C: Ctx>(
 
 use immu_board::BoardMessage;
 // Immudb uses timestamps with microsecond precision
-const MICROSECOND_FACTOR: u64  = 1000000;
+const MICROSECOND_FACTOR: u64 = 1000000;
 
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
@@ -463,7 +463,11 @@ impl VerifiedMessage {
 pub trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
     fn get_name(&self) -> String;
-    fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message, StrandError> {
+    fn sign(
+        &self,
+        statement: Statement,
+        artifact: Option<Vec<u8>>,
+    ) -> Result<Message, StrandError> {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
         let signature: StrandSignature = sk.sign(&bytes)?;
