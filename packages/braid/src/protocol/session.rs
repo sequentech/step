@@ -2,12 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::trustee::Trustee;
 use anyhow::Result;
 use std::path::PathBuf;
+use tracing::info;
+
 use strand::context::Ctx;
-use tracing::{info, warn};
+
+use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::trustee::Trustee;
+use crate::util::ProtocolError;
 
 pub struct Session<C: Ctx + 'static> {
     trustee: Trustee<C>,
@@ -37,14 +40,21 @@ impl<C: Ctx> Session<C> {
     // Takes ownership of self to allow spawning threads in parallel
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
     // See also protocol_test_immudb::run_protocol_test_immudb
-    pub async fn step(mut self) -> (Self, Result<()>) {
-        let board = self.board.get_board().await;
+    pub async fn step(mut self) -> (Self, Result<(), ProtocolError>) {
+        let board = self
+            .board
+            .get_board()
+            .await
+            .map_err(|e| ProtocolError::BoardError(e.to_string()));
         if let Err(err) = board {
             return (self, Err(err));
         }
         let mut board = board.expect("impossible");
 
-        let messages = board.get_messages(self.last_message_id).await;
+        let messages = board
+            .get_messages(self.last_message_id)
+            .await
+            .map_err(|e| ProtocolError::BoardError(e.to_string()));
 
         if let Err(err) = messages {
             return (self, Err(err));
@@ -64,7 +74,10 @@ impl<C: Ctx> Session<C> {
         let (send_messages, _actions) = step_result.expect("impossible");
 
         if !self.dry_run {
-            let result = board.insert_messages(send_messages).await;
+            let result = board
+                .insert_messages(send_messages)
+                .await
+                .map_err(|e| ProtocolError::BoardError(e.to_string()));
             return (self, result);
             /* match result {
                 Ok(_) => (),

@@ -2,15 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
+use board_messages::braid::message::Message;
 use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
-use tracing::{info, warn};
-// use strand::serialization::StrandSerialize;
-use board_messages::braid::message::Message;
+use tracing::warn;
 
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,
@@ -145,11 +144,13 @@ impl ImmudbBoard {
         // let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
 
         // One by one implementation
-        // When retrieving messages one at a time from we use 0 as default value since
+        // When retrieving messages one at a time from immudb we use 0 as default value since
         // immudb ids start at 1 (this requests uses the = comparator in sql)
         let messages = self
             .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
             .await?;
+
+        // FIXME verify message signatures before inserting in local store
 
         for message in messages {
             connection.execute(

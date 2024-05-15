@@ -38,6 +38,7 @@ pub struct BoardMessage {
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub message: Vec<u8>,
+    pub version: String,
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +58,8 @@ impl TryFrom<&Row> for BoardMessage {
         let mut statement_timestamp = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
+        let mut version = String::from("");
+
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
             let dot = column
@@ -73,9 +76,11 @@ impl TryFrom<&Row> for BoardMessage {
                 }
                 "statement_kind" => assign_value!(Value::S, value, statement_kind),
                 "message" => assign_value!(Value::Bs, value, message),
+                "version" => assign_value!(Value::S, value, version),
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
+
         Ok(BoardMessage {
             id,
             created,
@@ -83,6 +88,7 @@ impl TryFrom<&Row> for BoardMessage {
             statement_timestamp,
             statement_kind,
             message,
+            version,
         })
     }
 }
@@ -162,7 +168,8 @@ impl BoardClient {
             sender_pk,
             statement_timestamp,
             statement_kind,
-            message
+            message,
+            version
         FROM {}
         WHERE id > @last_id
         ORDER BY id;
@@ -204,7 +211,8 @@ impl BoardClient {
             sender_pk,
             statement_timestamp,
             statement_kind,
-            message
+            message,
+            version
         FROM {}
         WHERE id = @id
         "#,
@@ -296,7 +304,8 @@ impl BoardClient {
             sender_pk,
             statement_timestamp,
             statement_kind,
-            message
+            message,
+            version
         FROM {}
         WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind
         {}
@@ -391,13 +400,15 @@ impl BoardClient {
                     sender_pk,
                     statement_kind,
                     statement_timestamp,
-                    message
+                    message,
+                    version
                 ) VALUES (
                     @created,
                     @sender_pk,
                     @statement_kind,
                     @statement_timestamp,
-                    @message
+                    @message,
+                    @version
                 );
             "#,
                 table.as_str()
@@ -431,6 +442,12 @@ impl BoardClient {
                     name: String::from("message"),
                     value: Some(SqlValue {
                         value: Some(Value::Bs(message.message.clone())),
+                    }),
+                },
+                NamedParam {
+                    name: String::from("version"),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.version.clone())),
                     }),
                 },
             ];
@@ -515,6 +532,7 @@ impl BoardClient {
         self.client.has_database(database_name).await
     }
 
+    /// Creates the requested board immudb database and adds it to the requested index.
     #[instrument(skip(self))]
     pub async fn create_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
         self.upsert_board_db(board_db).await?;
@@ -548,6 +566,7 @@ impl BoardClient {
         self.get_board(index_db, board_db).await
     }
 
+    /// Deletes the requested board immudb database removes it from the requested index.
     #[instrument(skip(self))]
     pub async fn delete_board(&mut self, index_db: &str, board_db: &str) -> Result<()> {
         self.delete_database(board_db).await?;
@@ -578,6 +597,7 @@ impl BoardClient {
         Ok(())
     }
 
+    /// Creates the index immudb database if it doesn't exist.
     pub async fn upsert_index_db(&mut self, index_dbname: &str) -> Result<()> {
         self.upsert_database(
             index_dbname,
@@ -594,6 +614,8 @@ impl BoardClient {
         .await
     }
 
+    /// Creates the requested board immudb database if it doesnt exist.
+    /// Also creates the and the electoral log and braid tables.
     pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
@@ -604,6 +626,7 @@ impl BoardClient {
             statement_timestamp TIMESTAMP,
             statement_kind VARCHAR,
             message BLOB,
+            version VARCHAR,
             PRIMARY KEY id
         );
         CREATE TABLE IF NOT EXISTS {} (
@@ -613,6 +636,7 @@ impl BoardClient {
             statement_timestamp TIMESTAMP,
             statement_kind VARCHAR,
             message BLOB,
+            version VARCHAR,
             PRIMARY KEY id
         );
         "#,
@@ -622,6 +646,7 @@ impl BoardClient {
         self.upsert_database(board_dbname, &sql).await
     }
 
+    /// Deletes the immudb database.
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
         if self.client.has_database(database_name).await? {
             self.client.delete_database(database_name).await?;
@@ -629,8 +654,8 @@ impl BoardClient {
         Ok(())
     }
 
-    /// Creates the database, only if it doesn't exist. It also creates
-    /// the appropriate tables if they don't exist.
+    /// Creates the requested immudb database, only if it doesn't exist. It also creates
+    /// the requested tables if they don't exist.
     async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
         // create database if it doesn't exist
         if !self.client.has_database(database_name).await? {
@@ -708,6 +733,7 @@ pub(crate) mod tests {
             statement_timestamp: 0,
             statement_kind: "".to_string(),
             message: vec![],
+            version: "".to_string(),
         };
         let messages = vec![board_message];
         b.insert_messages(BOARD_DB, &messages).await.unwrap();

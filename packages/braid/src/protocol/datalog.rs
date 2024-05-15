@@ -2,17 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
 pub use log::{debug, error, info, trace};
 use std::collections::HashSet;
 
-use crate::protocol2::action::Action;
-use board_messages::braid::newtypes::THashes;
+use crate::protocol::action::Action;
 
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
 
-pub(self) use crate::protocol2::predicate::*;
+pub(self) use crate::protocol::predicate::*;
 
+pub(self) use crate::util::ProtocolError;
 pub(self) use board_messages::braid::newtypes::*;
 pub(self) use strand::hash::Hash;
 
@@ -80,7 +79,7 @@ pub(crate) fn get_phases() -> Vec<Phase> {
     ]
 }
 
-pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>> {
+pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>, ProtocolError> {
     let phases = get_phases();
     let mut all_predicates = vec![];
     for p in predicates {
@@ -108,10 +107,12 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>> {
         });
 
         if next.2.len() > 0 {
-            next.2.into_iter().for_each(|d| {
+            let mut errs = vec![];
+            next.2.iter().for_each(|d| {
                 error!("Datalog returned error {:?}", d);
+                errs.push(format!("{d:?}"));
             });
-            return Err(anyhow!("Datalog returned errors"));
+            return Err(ProtocolError::DatalogError(errs.join(",")));
         }
     }
 

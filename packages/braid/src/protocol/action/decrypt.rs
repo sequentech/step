@@ -22,29 +22,29 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     self_p: &TrusteePosition,
     num_t: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
 
     let pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .with_context(|| "Could not retrieve dkg public key")?;
+        .add_context("Computing decryption factors")?;
     let vk = pk.verification_keys[*self_p].clone();
 
     let ciphertexts = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .with_context(|| "Could not retrieve mix ciphertexts for decryption")?;
+        .add_context("Computing decryption factors")?;
 
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
-        .with_context(|| "Could not retrieve channel")?;
+        .add_context("Computing decryption factors")?;
 
     let mut secret = C::X::add_identity();
     for sender in 0..*num_t {
         let share_h = shares_hs.0[sender];
         let share_ = trustee
             .get_shares(&SharesHash(share_h), sender)
-            .with_context(|| "Could not retrieve shares")?;
+            .add_context("Computing decryption factors")?;
 
         let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
@@ -65,7 +65,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let zkp = strand::zkp::Zkp::new(&ctx);
 
-    let result: Result<Vec<(C::E, ChaumPedersen<C>)>> = ciphertexts
+    let result: Result<Vec<(C::E, ChaumPedersen<C>)>, ProtocolError> = ciphertexts
         .ciphertexts
         .0
         .into_par_iter()
@@ -98,7 +98,7 @@ pub(super) fn compute_plaintexts<C: Ctx>(
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let plaintexts = compute_plaintexts_(
         cfg_h,
@@ -135,7 +135,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     trustees: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     info!(
         "SignPlaintexts verifying decryption [{}] => [{}]",
@@ -156,7 +156,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     )?;
     let actual = trustee
         .get_plaintexts(plaintexts_h, *batch, trustees[0] - 1)
-        .with_context(|| "Could not retrieve plaintexts")?;
+        .add_context("Signing plaintexts")?;
 
     if expected.0 .0 == actual.0 .0 {
         info!(
@@ -172,12 +172,14 @@ pub(super) fn sign_plaintexts<C: Ctx>(
             *ciphertexts_h,
             *pk_h,
             trustee,
-        )?;
+        )
+        .add_context("Signing plaintexts")?;
+
         Ok(vec![m])
     } else {
-        Err(anyhow!(
-            "Mismatch when comparing plaintexts with retrieved ones",
-        ))
+        Err(ProtocolError::VerificationError(format!(
+            "Mismatch when comparing plaintexts with retrieved ones"
+        )))
     }
 }
 
@@ -191,17 +193,18 @@ fn compute_plaintexts_<C: Ctx>(
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Plaintexts<C>> {
+) -> Result<Plaintexts<C>, ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
     let zkp = strand::zkp::Zkp::new(&ctx);
     let pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .with_context(|| "Could not retrieve dkg public key")?;
+        .add_context("Computing plaintexts")?;
 
     let mix = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .with_context(|| "Could not retrieve mix ciphertexts for decryption")?;
+        .add_context("Computing plaintexts")?;
+
     let num_ciphertexts = mix.ciphertexts.0.len();
     let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
 
@@ -217,7 +220,7 @@ fn compute_plaintexts_<C: Ctx>(
         if t < *threshold {
             let dfactors = trustee
                 .get_decryption_factors(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
-                .with_context(|| "Could not retrieve decryption factors")?;
+                .add_context("Computing plaintexts")?;
 
             assert_eq!(num_ciphertexts, dfactors.factors.0.len());
             let vk = pk.verification_keys[ts[t] - 1].clone();
@@ -239,7 +242,7 @@ fn compute_plaintexts_<C: Ctx>(
             let suffix = format!("decryption_factor{}", ts[t] - 1);
             let label = cfg.label(*batch, suffix);
 
-            let values: Result<Vec<C::E>> = it2
+            let values: Result<Vec<C::E>, ProtocolError> = it2
                 .into_par_iter()
                 .map(|((df, proof), c)| {
                     let ok = strand::threshold::verify_decryption_factor(
@@ -248,7 +251,9 @@ fn compute_plaintexts_<C: Ctx>(
                     if ok {
                         Ok(ctx.emod_pow(&df, &lagrange))
                     } else {
-                        Err(anyhow!("Failed to verify decryption proof",))
+                        Err(ProtocolError::VerificationError(format!(
+                            "Failed to verify decryption proof"
+                        )))
                     }
                 })
                 .collect();

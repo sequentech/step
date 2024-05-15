@@ -2,12 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin demo_election_config
-// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-init-db -l debug
-// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
-// cargo run --bin bb_client -- --indexdb defaultboardindex --dbname defaultboard --server-url http://immudb:3322 init
-// cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
-// cargo run --bin bb_client -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard ballots
 use anyhow::Result;
 use clap::Parser;
 use std::fs;
@@ -16,10 +10,10 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
-use braid::protocol2::session::{BoardParams, Session};
-use braid::protocol2::trustee::Trustee;
-use braid::run::config::TrusteeConfig;
+use braid::protocol::board::immudb::ImmudbBoardIndex;
+use braid::protocol::session::{BoardParams, Session};
+use braid::protocol::trustee::Trustee;
+use braid::protocol::trustee::TrusteeConfig;
 use braid::util::assert_folder;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
@@ -28,10 +22,11 @@ use strand::symm;
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
+const IMMUDB_URL: &str = "http://immudb:3322";
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = IMMUDB_URL.to_string())]
     server_url: String,
 
     #[arg(short, long)]
@@ -50,15 +45,29 @@ struct Cli {
     strict: bool,
 }
 
-// PROJECT_VERSION=$(git rev-parse HEAD) cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
-// let version = option_env!("PROJECT_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
-// info!("Running braid version = {}", version);
-
 fn get_ignored_boards() -> Vec<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
 }
 
+/*
+Entry point for a braid mixnet trustee.
+
+Example run command
+
+cargo run --release --bin main  -- --server-url http://immudb:3322 --board-index defaultboardindex--trustee-config trustee.toml
+
+A mixnet trustee will periodically:
+
+    1) Poll the board index for active protocol boards
+    2) For each protocol board
+        a) Poll the protocol board for new messages
+        b) Update the local store with new messages
+        c) Execute the protocol with the existing messages in the local store
+
+The process will loop indefinitely unless an error is encountered and the 'strict'
+command line option is set to true.
+*/
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
@@ -146,6 +155,7 @@ async fn main() -> Result<()> {
                         board_name.clone(),
                         error
                     );
+                    // FIXME identify this condition properly
                     if error.to_string().contains("Self authority not found") {
                         ignored_boards.push(board_name);
                     } else {

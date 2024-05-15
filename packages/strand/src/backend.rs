@@ -9,7 +9,7 @@ pub mod malachite;
 pub mod num_bigint;
 /// Elliptic curve backend on top of [ristretto](https://ristretto.group/ristretto.html) using [curve25519_dalek](https://doc.dalek.rs/curve25519_dalek/ristretto/index.html).
 pub mod ristretto;
-#[cfg(all(unix, not(feature = "wasm")))]
+#[cfg(feature = "rug")]
 /// Multiplicative group backend using [rug](https://docs.rs/rug/1.16.0/rug/).
 pub mod rug;
 

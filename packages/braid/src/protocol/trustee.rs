@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 
 use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
@@ -13,8 +13,10 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
-use crate::protocol2::action::Action;
-use crate::protocol2::board::local::LocalBoard;
+use crate::protocol::action::Action;
+use crate::protocol::board::local::LocalBoard;
+use crate::protocol::predicate::Predicate;
+use crate::util::{ProtocolContext, ProtocolError};
 use board_messages::braid::artifact::Channel;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::artifact::DkgPublicKey;
@@ -23,10 +25,7 @@ use board_messages::braid::artifact::{Ballots, DecryptionFactors, Mix, Plaintext
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
-
-use crate::protocol2::predicate::Predicate;
-
-use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
+use strand::util::StrandError;
 
 use strand::symm::{self, EncryptionData};
 
@@ -87,7 +86,7 @@ impl<C: Ctx> Trustee<C> {
     pub(crate) fn step(
         &mut self,
         messages: Vec<Message>,
-    ) -> Result<(Vec<Message>, HashSet<Action>)> {
+    ) -> Result<(Vec<Message>, HashSet<Action>), ProtocolError> {
         let added_messages = self.update_local_board(messages)?;
 
         info!("Update added {} messages", added_messages);
@@ -114,7 +113,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
-    fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32> {
+    fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32, ProtocolError> {
         trace!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
@@ -130,25 +129,35 @@ impl<C: Ctx> Trustee<C> {
     //
     // Each message is verified and added to the local board.
     ///////////////////////////////////////////////////////////////////////////
-    fn update(&mut self, messages: Vec<Message>, configuration: Configuration<C>) -> Result<i32> {
+    fn update(
+        &mut self,
+        messages: Vec<Message>,
+        configuration: Configuration<C>,
+    ) -> Result<i32, ProtocolError> {
         let mut added = 0;
 
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
         if cfg_hash.is_none() {
-            return Err(anyhow!("Local field cfg_hash not set"));
+            return Err(ProtocolError::InternalError(format!(
+                "Local field cfg_hash not set"
+            )));
         }
 
         let cfg_hash = cfg_hash.expect("impossible");
 
         for message in messages {
-            let verified = message.verify(&configuration).context(format!(
-                "Message failed verification: {:?}, cfg: {:?}",
-                message, &configuration
-            ))?;
+            let verified = message.verify(&configuration).map_err(|e| {
+                ProtocolError::VerificationError(format!(
+                    "Message failed verification: {:?}, cfg: {:?}",
+                    message, &configuration
+                ))
+            })?;
 
             if verified.statement.get_cfg_h() != cfg_hash {
-                return Err(anyhow!("Message has mismatched configuration hash"));
+                return Err(ProtocolError::MessageConfigurationMismatch(format!(
+                    "Message has mismatched configuration hash"
+                )));
             }
 
             let stmt = verified.statement.clone();
@@ -166,39 +175,46 @@ impl<C: Ctx> Trustee<C> {
     // There is no configuration. We retrieve message zero, check that it's the
     // configuration and add it to the local board.
     ///////////////////////////////////////////////////////////////////////////
-    fn update_bootstrap(&mut self, mut messages: Vec<Message>) -> Result<i32> {
+    fn update_bootstrap(&mut self, mut messages: Vec<Message>) -> Result<i32, ProtocolError> {
         let mut added = 0;
 
         trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
-            return Err(anyhow!(
+            return Err(ProtocolError::BootstrapError(format!(
                 "Zero messages received, cannot retrieve configuration"
-            ));
+            )));
         }
         let zero = messages.remove(0);
 
         if zero.statement.get_kind() != StatementType::Configuration {
-            return Err(anyhow!(
+            return Err(ProtocolError::BootstrapError(format!(
                 "Invalid statement type for zeroth message {:?}",
                 zero.statement.get_kind()
-            ));
+            )));
         }
 
         if zero.artifact.is_none() {
-            return Err(anyhow!("No artifact for configuration message"));
+            return Err(ProtocolError::BootstrapError(format!(
+                "No artifact for configuration message"
+            )));
         }
 
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
 
         if !configuration.is_valid() {
-            return Err(anyhow!(
+            return Err(ProtocolError::InvalidConfiguration(format!(
                 "Configuration::is_valid failed, {:?}",
                 configuration
-            ));
+            )));
         }
 
-        let verified = zero.verify(&configuration)?;
+        let verified = zero.verify(&configuration).map_err(|e| {
+            ProtocolError::VerificationError(format!(
+                "Configuration signature did not verify: {:?}",
+                e
+            ))
+        })?;
 
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
         trace!("Verified signature, Configuration signed by Protocol Manager");
@@ -207,7 +223,7 @@ impl<C: Ctx> Trustee<C> {
         if added_.is_ok() {
             added += 1;
         } else {
-            return Err(anyhow!("Configuration should have been added"));
+            return added_.map(|()| 0);
         }
         // Process the rest of the messages
         if !messages.is_empty() {
@@ -221,12 +237,12 @@ impl<C: Ctx> Trustee<C> {
     // derive
     ///////////////////////////////////////////////////////////////////////////
     #[instrument(name = "Trustee::derive_predicates", skip(self), level = "trace")]
-    fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>> {
+    fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>, ProtocolError> {
         let mut predicates = vec![];
 
         let configuration = self.local_board.get_configuration_raw();
         let configuration =
-            configuration.ok_or(anyhow!("Cannot derive predicates without a configuration"))?;
+            configuration.ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))?;
 
         let configuration_p = if !verifying_mode {
             Predicate::get_bootstrap_predicate(&configuration, &self.get_pk()?)
@@ -234,8 +250,9 @@ impl<C: Ctx> Trustee<C> {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
 
-        let configuration_p =
-            configuration_p.ok_or(anyhow!("Self authority not found in configuration"))?;
+        let configuration_p = configuration_p.ok_or(ProtocolError::InvalidConfiguration(
+            format!("Self authority not found in configuration"),
+        ))?;
         predicates.push(configuration_p);
         trace!("Adding bootstrap predicate {:?}", configuration_p);
 
@@ -270,13 +287,13 @@ impl<C: Ctx> Trustee<C> {
         &self,
         predicates: &Vec<Predicate>,
         verifying_mode: bool,
-    ) -> Result<(Vec<Message>, HashSet<Action>)> {
+    ) -> Result<(Vec<Message>, HashSet<Action>), ProtocolError> {
         let _ = self
             .local_board
             .get_configuration_raw()
-            .ok_or(anyhow!("Cannot run actions without a configuration"))?;
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))?;
 
-        let actions = crate::protocol2::datalog::run(predicates)?;
+        let actions = crate::protocol::datalog::run(predicates)?;
         info!(
             "Datalog derived {} actions, {:?}",
             actions.len(),
@@ -293,7 +310,7 @@ impl<C: Ctx> Trustee<C> {
         }
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
-        let results: Result<Vec<Vec<Message>>> = actions
+        let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
             .into_par_iter()
             .map(|a| {
                 let m = if !verifying_mode {
@@ -304,7 +321,7 @@ impl<C: Ctx> Trustee<C> {
 
                 if m.is_err() {
                     error!("Action {:?} returned error {:?} (propagating)", a, m);
-                    m.context(format!("When executing Action {:?}", a))
+                    m.add_context(&format!("When executing Action {:?}", a))
                 } else {
                     m
                 }
@@ -334,10 +351,14 @@ impl<C: Ctx> Trustee<C> {
     // Artifact accessors for Actions
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn get_configuration(&self, hash: &ConfigurationHash) -> Result<&Configuration<C>> {
+    pub(crate) fn get_configuration(
+        &self,
+        hash: &ConfigurationHash,
+    ) -> Result<&Configuration<C>, ProtocolError> {
         self.local_board
             .get_configuration(hash)
-            .ok_or(anyhow!("Could not retrieve configuration",))
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Configuration))
+        // .ok_or(anyhow!("Could not retrieve configuration",))
     }
 
     // FIXME Used by dbg::status, remove
@@ -349,7 +370,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Result<Channel<C>> {
+    ) -> Result<Channel<C>, ProtocolError> {
         self.local_board.get_channel(hash, signer_position)
     }
 
@@ -357,7 +378,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Result<Shares<C>> {
+    ) -> Result<Shares<C>, ProtocolError> {
         self.local_board.get_shares(hash, signer_position)
     }
 
@@ -365,7 +386,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &PublicKeyHash,
         signer_position: TrusteePosition,
-    ) -> Result<DkgPublicKey<C>> {
+    ) -> Result<DkgPublicKey<C>, ProtocolError> {
         self.local_board.get_dkg_public_key(hash, signer_position)
     }
 
@@ -374,7 +395,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>> {
+    ) -> Result<Ballots<C>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -383,7 +404,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>> {
+    ) -> Result<Mix<C>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -392,7 +413,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>> {
+    ) -> Result<DecryptionFactors<C>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -402,7 +423,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>> {
+    ) -> Result<Plaintexts<C>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -429,13 +450,13 @@ impl<C: Ctx> Trustee<C> {
         true
     }
 
-    pub fn get_pk(&self) -> Result<StrandSignaturePk> {
+    pub fn get_pk(&self) -> Result<StrandSignaturePk, StrandError> {
         Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
 
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips", feature = "fips_core"))] {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData> {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
                 let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
@@ -445,7 +466,7 @@ impl<C: Ctx> Trustee<C> {
                 Ok(ed)
             }
 
-            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
+            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
                 let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
@@ -456,14 +477,14 @@ impl<C: Ctx> Trustee<C> {
             }
         }
         else {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData> {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
                 let bytes: &[u8] = &sk.strand_serialize()?;
                 let ed = symm::encrypt(self.encryption_key, bytes)?;
 
                 Ok(ed)
             }
 
-            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
+            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
                 let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
                 let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
@@ -480,5 +501,39 @@ impl<C: Ctx> Trustee<C> {
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Trustee({})", self.name)
+    }
+}
+
+use base64::{engine::general_purpose, Engine as _};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct TrusteeConfig {
+    // base64 encoding of a der encoded pkcs#8 v1
+    pub signing_key_sk: String,
+    // base64 encoding of a der encoded spki
+    pub signing_key_pk: String,
+    // base64 encoding of a sign::SymmetricKey
+    pub encryption_key: String,
+}
+impl TrusteeConfig {
+    pub fn from<C: Ctx>(trustee: &Trustee<C>) -> TrusteeConfig {
+        let sk_string = trustee.signing_key.to_der_b64_string().unwrap();
+        let pk_string = StrandSignaturePk::from_sk(&trustee.signing_key)
+            .unwrap()
+            .to_der_b64_string()
+            .unwrap();
+
+        // Compatible with both aes and chacha20poly backends
+        let ek_bytes = trustee.encryption_key.as_slice();
+
+        // let pk_string: String = general_purpose::STANDARD_NO_PAD.encode(pk_bytes);
+        let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
+
+        TrusteeConfig {
+            signing_key_sk: sk_string,
+            signing_key_pk: pk_string,
+            encryption_key: ek_string,
+        }
     }
 }

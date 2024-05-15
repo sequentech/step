@@ -15,7 +15,7 @@ use strand::zkp::Zkp;
 pub(super) fn gen_channel<C: Ctx>(
     configuration_hash: &ConfigurationHash,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let ctx: C = Default::default();
 
     let cfg = trustee.get_configuration(configuration_hash)?;
@@ -37,7 +37,7 @@ pub(super) fn sign_channels<C: Ctx>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let ctx: C = Default::default();
     let cfg = trustee.get_configuration(configuration_h)?;
     let zkp = Zkp::new(&ctx);
@@ -67,7 +67,7 @@ pub(super) fn compute_shares<C: Ctx>(
     num_trustees: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(configuration_h)?;
 
@@ -79,16 +79,13 @@ pub(super) fn compute_shares<C: Ctx>(
         let share = strand::threshold::eval_poly(i + 1, *threshold, &coeffs, &ctx);
 
         // Obtain the public key for the recipient of the share
-        let target_channel_h = channels_hs
-            .0
-            .get(i)
-            .ok_or(anyhow!("Could not retrieve channel hash",))?;
+        let target_channel_h = channels_hs.0.get(i).ok_or(ProtocolError::InternalError(
+            "Could not retrieve channel hash".to_string(),
+        ))?;
 
         let target_hash = *target_channel_h;
 
-        let target_channel = trustee
-            .get_channel(&ChannelHash(target_hash), i)
-            .with_context(|| "Could not retrieve channel")?;
+        let target_channel = trustee.get_channel(&ChannelHash(target_hash), i)?;
 
         // Encrypt share for target trustee
         let encryption_pk = PublicKey::<C>::from_element(&target_channel.channel_pk, &ctx);
@@ -114,7 +111,7 @@ pub(super) fn compute_pk<C: Ctx>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let pk = compute_pk_(
         cfg_h,
@@ -124,15 +121,22 @@ pub(super) fn compute_pk<C: Ctx>(
         num_t,
         threshold,
         trustee,
-    );
-    if let Ok(pk) = pk {
+    )
+    .add_context("Computing pk")?;
+
+    let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
+
+    let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
+    Ok(vec![m])
+
+    /* if let Ok(pk) = pk {
         let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
 
         let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
         Ok(vec![m])
     } else {
         Err(anyhow!("Could not compute pk {:?}", pk))
-    }
+    }*/
 }
 
 pub(super) fn sign_pk<C: Ctx>(
@@ -144,7 +148,7 @@ pub(super) fn sign_pk<C: Ctx>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     info!(
         "SignPk verifying public key [{}] ({})..",
@@ -164,7 +168,7 @@ pub(super) fn sign_pk<C: Ctx>(
 
     let actual = trustee
         .get_dkg_public_key(pk_h, 0)
-        .with_context(|| "Could not retrieve dkg public key")?;
+        .add_context("Signing pk")?;
 
     if (expected.0 == actual.pk) && (expected.1 == actual.verification_keys) {
         info!(
@@ -175,9 +179,9 @@ pub(super) fn sign_pk<C: Ctx>(
         let m = Message::public_key_msg(cfg, &actual, shares_hs, channels_hs, false, trustee)?;
         Ok(vec![m])
     } else {
-        Err(anyhow!(
-            "Mismatch when comparing computed public key with retrieved one",
-        ))
+        Err(ProtocolError::VerificationError(format!(
+            "Mismatch when comparing computed public key with retrieved one"
+        )))
     }
 }
 
@@ -189,7 +193,7 @@ fn compute_pk_<C: Ctx>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
-) -> Result<(C::E, Vec<C::E>)> {
+) -> Result<(C::E, Vec<C::E>), ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
     let mut pk = C::E::mul_identity();
@@ -198,9 +202,9 @@ fn compute_pk_<C: Ctx>(
     // Iterate over sender shares
     for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
         let share_h = shares_hs.0[i];
-        let share = trustee.get_shares(&SharesHash(share_h), i);
+        let share = trustee.get_shares(&SharesHash(share_h), i)?;
 
-        let share = share.with_context(|| "Failed to retrieve shares")?;
+        // let share = share.with_context(|| "Failed to retrieve shares")?;
 
         pk = pk.mul(&share.commitments[0]).modp(&ctx);
 
@@ -214,14 +218,17 @@ fn compute_pk_<C: Ctx>(
             // Our share is sent from trustee i to j, when j = us
             if j == *self_p {
                 // Construct our private key to decrypt our share
-                let my_channel_h = channels_hs
-                    .0
-                    .get(*self_p)
-                    .ok_or(anyhow!("Could not retrieve channel hash for self"))?;
+                let my_channel_h =
+                    channels_hs
+                        .0
+                        .get(*self_p)
+                        .ok_or(ProtocolError::InternalError(
+                            "Could not retrieve channel hash for self".to_string(),
+                        ))?;
 
                 let my_channel = trustee
                     .get_channel(&ChannelHash(*my_channel_h), *self_p)
-                    .with_context(|| "Could not retrieve channel for self")?;
+                    .add_context("Retrieving channel for self")?;
 
                 let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
@@ -230,7 +237,10 @@ fn compute_pk_<C: Ctx>(
                 // Verify the share
                 let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
                 if !ok {
-                    return Err(anyhow!("Trustee {} failed to verify share from {}..", j, i));
+                    return Err(ProtocolError::VerificationError(format!(
+                        "Trustee {} failed to verify share from {}..",
+                        j, i
+                    )));
                 }
                 info!("Trustee {} verified share received from {}", j, i);
             }

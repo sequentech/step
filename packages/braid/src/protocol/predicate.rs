@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use log::trace;
 use std::collections::HashSet;
 use strum::Display;
@@ -14,9 +14,7 @@ use board_messages::braid::artifact::Configuration;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::Statement;
 
-use board_messages::braid::newtypes::NULL_TRUSTEE;
-use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
-use board_messages::braid::newtypes::VERIFIER_INDEX;
+use crate::util::ProtocolError;
 
 ///////////////////////////////////////////////////////////////////////////
 // Predicate
@@ -126,7 +124,7 @@ impl Predicate {
         statement: &Statement,
         signer_position: TrusteePosition,
         cfg: &Configuration<C>,
-    ) -> Result<Predicate> {
+    ) -> Result<Predicate, ProtocolError> {
         let ret = match statement {
             // Only called for configuration signatures, configuration
             // bootstrap is done through Predicate::get_bootstrap_predicate
@@ -186,11 +184,11 @@ impl Predicate {
                 // Verify that all selected trustees are unique
                 let unique: HashSet<usize> = selected.into_iter().collect();
                 if unique.len() != cfg.threshold {
-                    return Err(anyhow!(
+                    return Err(ProtocolError::InvalidTrusteeSelection(format!(
                         "Selected trustees should be equal to the threshold. Selected {} but required {}",
                         unique.len(),
                         cfg.threshold
-                    ));
+                    )));
                 }
 
                 Ok(Self::Ballots(

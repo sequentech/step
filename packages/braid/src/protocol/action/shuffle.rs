@@ -19,7 +19,7 @@ pub(crate) fn mix<C: Ctx>(
     mix_no: &MixNumber,
     trustees: &TrusteeSet,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let ctx = C::default();
 
@@ -28,7 +28,7 @@ pub(crate) fn mix<C: Ctx>(
         // Ballot ciphertexts
         let ballots = trustee
             .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
-            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+            .add_context("Mixing")?;
 
         info!(
             "Mix computing shuffle [{} (ballots)] ({})..",
@@ -46,7 +46,7 @@ pub(crate) fn mix<C: Ctx>(
         let signer_t = trustees[mix_no - 2] - 1;
         let mix = trustee
             .get_mix(source_h, *batch, signer_t)
-            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+            .add_context("Mixing")?;
 
         info!(
             "Mix computing shuffle [{} (mix)] ({})..",
@@ -64,9 +64,7 @@ pub(crate) fn mix<C: Ctx>(
         return Ok(vec![m]);
     }
 
-    let dkg_pk = trustee
-        .get_dkg_public_key(pk_h, 0)
-        .with_context(|| "Could not retrieve public key for mixing")?;
+    let dkg_pk = trustee.get_dkg_public_key(pk_h, 0).add_context("Mixing")?;
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
@@ -102,14 +100,14 @@ pub(crate) fn sign_mix<C: Ctx>(
     pk_h: &PublicKeyHash,
     mix_no: &MixNumber,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let ctx = C::default();
 
     let cfg = trustee.get_configuration(cfg_h)?;
     let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
         let ballots = trustee
             .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
-            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+            .add_context("Signing mix")?;
 
         info!(
             "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
@@ -121,7 +119,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     } else {
         let mix = trustee
             .get_mix(source_h, *batch, signers_t)
-            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+            .add_context("Signing mix")?;
 
         info!(
             "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
@@ -133,7 +131,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     };
 
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
-    let mix = target.with_context(|| "Failed to retrieve target of mix to sign")?;
+    let mix = target.add_context("Signing mix")?;
     let mix_number = mix.mix_number;
 
     // Null mix
@@ -150,7 +148,7 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .with_context(|| "Could not retrieve public key for mixing")?;
+        .add_context("Signing mix")?;
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));

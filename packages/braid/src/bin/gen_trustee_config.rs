@@ -2,17 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// This utility generates a trustee configuration printed to stdout with
-//
-//  * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
-//  * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
-//  * encryption_key: base64 encoding of a sign::SymmetricKey
-//
-
 use base64::engine::general_purpose;
 use base64::Engine;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid::run::config::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;
 
@@ -33,6 +26,20 @@ struct Cli {
     command: Command,
 }
 
+/*
+This utility generates a trustee or protocol manager configuration printed to stdout
+
+Trustee configuration contains
+
+    * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
+    * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
+    * encryption_key: base64 encoding of a sign::SymmetricKey
+
+Protocol manager configuration contains
+
+    * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
+
+*/
 fn main() {
     let args = Cli::parse();
 

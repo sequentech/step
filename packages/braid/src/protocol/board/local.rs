@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::anyhow;
 use anyhow::Result;
 use log::{debug, error, warn};
 use std::collections::HashMap;
@@ -16,6 +15,8 @@ use board_messages::braid::statement::{Statement, StatementType};
 
 use board_messages::braid::newtypes::*;
 use strand::hash::Hash;
+
+use crate::util::{ProtocolContext, ProtocolError};
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard
@@ -38,7 +39,7 @@ pub(crate) struct LocalBoard<C: Ctx> {
     // the statement hash is checked on retrieval (it's not in the key)
     pub(crate) statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
 
-    // Artifacts entries include their source statement plus adding the ArtifactType
+    // Artifacts entries point to their source statement.
     // We put the hash in the value so that we can distinguish
     // between an artifact already present found and an overwrite attempt. It also
     // ensures checking that Action access to artifacts is for the matching hash
@@ -68,7 +69,7 @@ impl<C: Ctx> LocalBoard<C> {
     // Add messages to LocalBoard
     ///////////////////////////////////////////////////////////////////////////
 
-    pub fn add(&mut self, message: VerifiedMessage) -> Result<()> {
+    pub fn add(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         if message.statement.get_kind() == StatementType::Configuration {
             self.add_bootstrap(message)
         } else {
@@ -83,13 +84,17 @@ impl<C: Ctx> LocalBoard<C> {
     // in the board struct fields.
     ///////////////////////////////////////////////////////////////////////////
 
-    fn add_bootstrap(&mut self, message: VerifiedMessage) -> Result<()> {
+    fn add_bootstrap(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         let cfg_hash = message.statement.get_cfg_h();
 
         if self.configuration.is_none() {
-            let artifact_bytes = &message
-                .artifact
-                .ok_or(anyhow!("Missing artifact in configuration message"))?;
+            let artifact_bytes =
+                &message
+                    .artifact
+                    .ok_or(ProtocolError::BootstrapError(format!(
+                        "Missing artifact in configuration message"
+                    )))?;
+
             let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
 
             if let Ok(configuration) = configuration {
@@ -102,7 +107,10 @@ impl<C: Ctx> LocalBoard<C> {
                     "Failed deserializing configuration {:?}, ignored",
                     configuration
                 );
-                return Err(anyhow!("Failed deserializing configuration"));
+                return Err(configuration
+                    .add_context("Bootstrapping, deserializing configuration")
+                    .err()
+                    .expect("impossible"));
             }
         }
 
@@ -114,7 +122,9 @@ impl<C: Ctx> LocalBoard<C> {
             warn!("Configuration received when identical present, ignored");
             Ok(())
         } else {
-            Err(anyhow!("Configuration overwrite attempt"))
+            Err(ProtocolError::BoardOverwriteAttempt(format!(
+                "Configuration"
+            )))
         }
     }
 
@@ -124,7 +134,7 @@ impl<C: Ctx> LocalBoard<C> {
     // Other statements, including _signed_ configuration
     ///////////////////////////////////////////////////////////////////////////
 
-    fn add_message(&mut self, message: VerifiedMessage) -> Result<()> {
+    fn add_message(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         let bytes = message.statement.strand_serialize()?;
         let statement_hash = strand::hash::hash(&bytes)?;
 
@@ -140,11 +150,10 @@ impl<C: Ctx> LocalBoard<C> {
                 );
                 Ok(())
             } else {
-                Err(anyhow!(
+                Err(ProtocolError::BoardOverwriteAttempt(format!(
                     "Statement identifier already exists (overwrite): {:?}, message was {:?}",
-                    statement_identifier,
-                    message
-                ))
+                    statement_identifier, message
+                )))
             }
         } else {
             debug!(
@@ -164,7 +173,10 @@ impl<C: Ctx> LocalBoard<C> {
                         warn!("Artifact identical, ignored");
                         Ok(())
                     } else {
-                        Err(anyhow!("Artifact already present (overwrite)"))
+                        Err(ProtocolError::BoardOverwriteAttempt(format!(
+                            "Artifact {}",
+                            statement_identifier.kind
+                        )))
                     }
                 } else {
                     debug!(
@@ -250,18 +262,19 @@ impl<C: Ctx> LocalBoard<C> {
 
     pub(crate) fn get_channel(
         &self,
-        commitments_h: &ChannelHash,
+        channel_h: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Result<Channel<C>> {
+    ) -> Result<Channel<C>, ProtocolError> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Channel, signer_position, 0, 0);
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(anyhow!("Channel not found"))?;
-        if commitments_h.0 != entry.0 {
-            Err(anyhow!(
-                "Hash mismatch when attempting to retrieve commitments"
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Channel))?;
+
+        if channel_h.0 != entry.0 {
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::Channel,
             ))
         } else {
             Ok(Channel::<C>::strand_deserialize(&entry.1)?)
@@ -272,15 +285,15 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         shares_h: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Result<Shares<C>> {
+    ) -> Result<Shares<C>, ProtocolError> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Shares, signer_position, 0, 0);
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(anyhow!("Shares not found"))?;
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Shares))?;
         if shares_h.0 != entry.0 {
-            Err(anyhow!("Hash mismatch when attempting to retrieve shares"))
+            Err(ProtocolError::MismatchedArtifactHash(StatementType::Shares))
         } else {
             Ok(Shares::strand_deserialize(&entry.1)?)
         }
@@ -290,16 +303,16 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         pk_h: &PublicKeyHash,
         signer_position: TrusteePosition,
-    ) -> Result<DkgPublicKey<C>> {
+    ) -> Result<DkgPublicKey<C>, ProtocolError> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::PublicKey, signer_position, 0, 0);
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(anyhow!("DkgPublicKey not found"))?;
+            .ok_or(ProtocolError::MissingArtifact(StatementType::PublicKey))?;
         if pk_h.0 != entry.0 {
-            Err(anyhow!(
-                "Hash mismatch when attempting to retrieve public key"
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::PublicKey,
             ))
         } else {
             Ok(DkgPublicKey::<C>::strand_deserialize(&entry.1)?)
@@ -311,7 +324,7 @@ impl<C: Ctx> LocalBoard<C> {
         b_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>> {
+    ) -> Result<Ballots<C>, ProtocolError> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Ballots,
             signer_position,
@@ -321,9 +334,11 @@ impl<C: Ctx> LocalBoard<C> {
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(anyhow!("Ballots not found"))?;
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Ballots))?;
         if b_h.0 != entry.0 {
-            Err(anyhow!("Hash mismatch when attempting to retrieve ballots"))
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::Ballots,
+            ))
         } else {
             Ok(Ballots::<C>::strand_deserialize(&entry.1)?)
         }
@@ -334,12 +349,15 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>> {
+    ) -> Result<Mix<C>, ProtocolError> {
         let aei =
             self.get_artifact_entry_identifier_ext(StatementType::Mix, signer_position, batch, 0);
-        let entry = self.artifacts.get(&aei).ok_or(anyhow!("Mix not found"))?;
+        let entry = self
+            .artifacts
+            .get(&aei)
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Mix))?;
         if m_h.0 != entry.0 {
-            Err(anyhow!("Hash mismatch when attempting to retrieve mix"))
+            Err(ProtocolError::MismatchedArtifactHash(StatementType::Mix))
         } else {
             Ok(Mix::<C>::strand_deserialize(&entry.1)?)
         }
@@ -350,7 +368,7 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>> {
+    ) -> Result<DecryptionFactors<C>, ProtocolError> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::DecryptionFactors,
             signer_position,
@@ -360,10 +378,12 @@ impl<C: Ctx> LocalBoard<C> {
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(anyhow!("DecryptionFactors not found"))?;
+            .ok_or(ProtocolError::MissingArtifact(
+                StatementType::DecryptionFactors,
+            ))?;
         if m_h.0 != entry.0 {
-            Err(anyhow!(
-                "Hash mismatch when attempting to retrieve decryption factors"
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::DecryptionFactors,
             ))
         } else {
             Ok(DecryptionFactors::<C>::strand_deserialize(&entry.1)?)
@@ -375,7 +395,7 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>> {
+    ) -> Result<Plaintexts<C>, ProtocolError> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
@@ -385,10 +405,10 @@ impl<C: Ctx> LocalBoard<C> {
         let entry = self
             .artifacts
             .get(&aei)
-            .ok_or(anyhow!("Plaintexts not found"))?;
+            .ok_or(ProtocolError::MissingArtifact(StatementType::Plaintexts))?;
         if m_h.0 != entry.0 {
-            Err(anyhow!(
-                "Hash mismatch when attempting to retrieve plaintexts"
+            Err(ProtocolError::MismatchedArtifactHash(
+                StatementType::Plaintexts,
             ))
         } else {
             Ok(Plaintexts::<C>::strand_deserialize(&entry.1)?)
@@ -502,5 +522,4 @@ pub struct StatementEntryIdentifier {
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct ArtifactEntryIdentifier {
     pub statement_entry: StatementEntryIdentifier,
-    // pub artifact_type: ArtifactType,
 }

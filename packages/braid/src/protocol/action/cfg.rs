@@ -2,14 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-
 use super::*;
 
 pub(super) fn sign_config<C: Ctx>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
+) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(configuration_h)?;
     // FIXME assert
     assert!(trustee.is_config_approved(cfg));

@@ -3,11 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 extern crate cfg_if;
 
-pub mod protocol2;
+pub mod protocol;
 pub mod run;
 pub mod test;
 pub mod util;
 pub mod verify;
-
-#[cfg(feature = "wasm")]
-pub mod wasm;

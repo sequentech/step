@@ -5,13 +5,14 @@
 use anyhow::Result;
 use strum::Display;
 
-pub(self) use log::{debug, error, info, trace};
+pub(self) use log::{debug, info, trace};
 pub(self) use strand::context::Ctx;
 pub(self) use strand::context::Element;
 pub(self) use strand::context::Exponent;
 
-pub(self) use crate::protocol2::datalog::NULL_HASH;
-pub(self) use crate::protocol2::trustee::Trustee;
+pub(self) use crate::protocol::datalog::NULL_HASH;
+pub(self) use crate::protocol::trustee::Trustee;
+pub(self) use crate::util::{ProtocolContext, ProtocolError};
 pub(self) use board_messages::braid::artifact::{
     DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
 };
@@ -121,7 +122,7 @@ impl Action {
     ///////////////////////////////////////////////////////////////////////////
     // Action dispatch to target functions
     ///////////////////////////////////////////////////////////////////////////
-    pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
+    pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>, ProtocolError> {
         info!("Running action {}..", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
@@ -238,7 +239,10 @@ impl Action {
     }
 
     // Only three actions are relevant for a verifier
-    pub(crate) fn run_for_verifier<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
+    pub(crate) fn run_for_verifier<C: Ctx>(
+        &self,
+        trustee: &Trustee<C>,
+    ) -> Result<Vec<Message>, ProtocolError> {
         match self {
             Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th) => {
                 dkg::sign_pk(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)
