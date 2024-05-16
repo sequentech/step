@@ -127,12 +127,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div class="content">
       <div class="logo"></div>
       <h1 class="text-center">Vote Receipts</h1>
+      <div id="dateDiv"></div>
       <div class="next-page"></div>
       
       {{#each data.receipts}}
         <div class="ballot next-page">
           <h3 style="margin-top: 0; margin-bottom: 12px;" class="text-center">Contest: {{sanitize_html ../data.contest.name}}</h3>
-          <h4>Ballot: {{@index}}-{{this.encoded_vote}}</h4>
+          <h4>Ballot No #{{@index}}</h4>
+  
+          <div class="qrcode" id="qrcode-{{@index}}-{{this.encoded_vote}}"></div>
 
           {{#unless this.is_blank_or_invalid}}
             <table>
@@ -182,25 +185,41 @@ SPDX-License-Identifier: AGPL-3.0-only
             </tbody>
           </table>
           
-          <div class="qrcode" id="qrcode-{{@index}}-{{this.encoded_vote}}"></div>
-          
         </div>
       {{/each}}
     </div>
+
+    <!-- QR Codes -->
+    <script>
+      {{#each data.receipts}}
+        new QRCode(document.getElementById("qrcode-{{@index}}-{{this.encoded_vote}}"), {
+            text: '{{@index}};{{this.encoded_vote}}',
+            width: 100,
+            height: 100,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H,
+        })
+      {{/each}}
+    </script>
+
+    <!-- Report date -->
+    <script>
+      // Get the current date
+      var currentDate = new Date();
+
+      // Format the date as a string (e.g., "April 11, 2024")
+      var dateString = currentDate.toLocaleDateString('en-US', {
+          year: 'numeric', // Four digit year
+          month: 'long', // Full name of the month
+          day: 'numeric', // Day of the month
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short'
+      });
+
+      // Set the text of the div to the formatted date string
+      document.getElementById('dateDiv').textContent = dateString;
+    </script>
   </body>
-  
-  <script>
-    {{#each data.receipts}}
-      new QRCode(document.getElementById("qrcode-{{@index}}-{{this.encoded_vote}}"), {
-          text: "{{@index}}-{{this.encoded_vote}}",
-          width: 100,
-          height: 100,
-          colorDark: "#000000",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.H,
-      })
-    {{/each}}
-  </script>
 </html>
-
-
