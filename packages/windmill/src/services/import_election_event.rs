@@ -118,7 +118,7 @@ pub async fn upsert_keycloak_realm(
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
 ) -> Result<()> {
-    let realm = if let Some(realm) = keycloak_event_realm {
+    let realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
         let realm = read_default_election_event_realm()?;
@@ -128,7 +128,12 @@ pub async fn upsert_keycloak_realm(
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
     client
-        .upsert_realm(realm_name.as_str(), &realm_config, tenant_id)
+        .upsert_realm(
+            realm_name.as_str(),
+            &realm_config,
+            tenant_id,
+            keycloak_event_realm.is_none(),
+        )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
     Ok(())

@@ -17,6 +17,7 @@ use crate::{
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
+use sequent_core::services::replace_uuids::replace_uuids;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -35,9 +36,16 @@ pub struct ImportElectionEventBody {
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
-    replace_event_id: bool,
+    //replace_event_id: bool,
     id_opt: Option<String>,
 ) -> Result<ImportElectionEventSchema> {
+    let keep: Vec<String> = if id_opt.is_some() {
+        vec![original_data.election_event_data.id.clone()]
+    } else {
+        vec![]
+    };
+    let new_data = replace_uuids(data_str, keep);
+    /*
     let mut ids_to_replace: Vec<String> = vec![];
     if replace_event_id && id_opt.is_none() {
         ids_to_replace.push(original_data.election_event_data.id.clone());
@@ -76,16 +84,12 @@ pub fn replace_ids(
         .iter()
         .map(|element| element.id.to_string())
         .collect();
-    ids_to_replace.append(&mut area_contest_ids);
+    ids_to_replace.append(&mut area_contest_ids);*/
 
     let mut new_data = String::from(data_str);
 
     if let Some(id) = id_opt {
         new_data = new_data.replace(&original_data.election_event_data.id, &id);
-    }
-    for id in ids_to_replace {
-        let uuid = Uuid::new_v4().to_string();
-        new_data = new_data.replace(&id, &uuid);
     }
 
     let data: ImportElectionEventSchema = serde_json::from_str(&new_data)?;
@@ -128,9 +132,17 @@ pub async fn get_document(
         ))?
         .sequent_backend_election_event;
 
-    let replace_event_id = events.len() > 0;
+    let replace_id = if let Some(id_val) = id {
+        if events.len() > 0 {
+            Some(id_val)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
-    let data = replace_ids(&data_str, &original_data, replace_event_id, id)?;
+    let data = replace_ids(&data_str, &original_data, replace_id)?;
 
     Ok(data)
 }
