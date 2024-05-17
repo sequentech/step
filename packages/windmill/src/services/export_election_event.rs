@@ -13,30 +13,24 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::executor::block_on;
 use futures::try_join;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
-pub async fn process_export(
+use super::temp_path::write_into_named_temp_file;
+
+pub async fn read_export_data(
+    transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<ImportElectionEventSchema> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-
     let (election_event, elections, contests, candidates, areas, area_contests) = try_join!(
-        export_election_event(&hasura_transaction, tenant_id, election_event_id),
-        export_elections(&hasura_transaction, tenant_id, election_event_id),
-        export_contests(&hasura_transaction, tenant_id, election_event_id),
-        export_candidates(&hasura_transaction, tenant_id, election_event_id),
-        export_areas(&hasura_transaction, tenant_id, election_event_id),
-        export_area_contests(&hasura_transaction, tenant_id, election_event_id),
+        export_election_event(&transaction, tenant_id, election_event_id),
+        export_elections(&transaction, tenant_id, election_event_id),
+        export_contests(&transaction, tenant_id, election_event_id),
+        export_candidates(&transaction, tenant_id, election_event_id),
+        export_areas(&transaction, tenant_id, election_event_id),
+        export_area_contests(&transaction, tenant_id, election_event_id),
     )?;
 
     Ok(ImportElectionEventSchema {
@@ -49,4 +43,47 @@ pub async fn process_export(
         areas: areas,
         area_contests: area_contests,
     })
+}
+
+pub async fn write_export_document(
+    transaction: &Transaction<'_>,
+    data: ImportElectionEventSchema,
+    document_id: &str,
+) -> Result<()> {
+    let data_str = serde_json::to_string(&data)?;
+    let data_bytes = data_str.into_bytes();
+
+    let name = format!("export-election-event-{}", &data.election_event.id);
+
+    let (temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&data_bytes, &name, ".json")?;
+    Ok(())
+}
+
+pub async fn process_export(
+    tenant_id: &str,
+    election_event_id: &str,
+    document_id: &str,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+
+    let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
+
+    write_export_document(&hasura_transaction, export_data, document_id).await?;
+
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| anyhow!("Commit failed: {}", e));
+
+    Ok(())
 }

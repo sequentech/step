@@ -34,14 +34,14 @@ use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AreaContest {
     pub id: Uuid,
     pub area_id: Uuid,
     pub contest_id: Uuid,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
     pub keycloak_event_realm: Option<RealmRepresentation>,
