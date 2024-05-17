@@ -9,6 +9,7 @@ pub mod election_event_stats;
 pub mod election_stats;
 pub mod electoral_log;
 pub mod error_catchers;
+pub mod export_election_event;
 pub mod fetch_document;
 pub mod immudb_log_audit;
 pub mod insert_cast_vote;

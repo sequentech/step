@@ -104,6 +104,12 @@ type Mutation {
 }
 
 type Mutation {
+  export_election_event (
+    election_event_id: String
+  ): ExportUsersOutput
+}
+
+type Mutation {
   export_users (
     tenant_id: String!
     election_event_id: String

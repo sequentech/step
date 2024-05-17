@@ -36,8 +36,8 @@ pub struct ImportElectionEventBody {
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
-    //replace_event_id: bool,
     id_opt: Option<String>,
+    tenant_id: String,
 ) -> Result<ImportElectionEventSchema> {
     let keep: Vec<String> = if id_opt.is_some() {
         vec![
@@ -56,6 +56,9 @@ pub fn replace_ids(
     if let Some(id) = id_opt {
         new_data = new_data.replace(&original_data.election_event_data.id, &id);
     }
+    if original_data.tenant_id.to_string() != tenant_id {
+        new_data = new_data.replace(&original_data.tenant_id.to_string(), &tenant_id);
+    }
 
     let data: ImportElectionEventSchema = serde_json::from_str(&new_data)?;
     Ok(data.clone())
@@ -65,6 +68,7 @@ pub fn replace_ids(
 pub async fn get_document(
     object: ImportElectionEventBody,
     id: Option<String>,
+    tenant_id: String,
 ) -> Result<ImportElectionEventSchema> {
     let document = documents::get_document(&object.tenant_id, None, &object.document_id)
         .await?
@@ -85,10 +89,9 @@ pub async fn get_document(
     let original_data: ImportElectionEventSchema = serde_json::from_str(&data_str)?;
 
     let auth_headers = keycloak::get_client_credentials().await?;
-    let tenant_id = original_data.tenant_id.to_string();
     let election_event_id = original_data.election_event_data.id.to_string();
 
-    let events = get_election_event(auth_headers, tenant_id, election_event_id.clone())
+    let events = get_election_event(auth_headers, tenant_id.clone(), election_event_id.clone())
         .await?
         .data
         .ok_or(anyhow!(
@@ -107,7 +110,7 @@ pub async fn get_document(
         None
     };
 
-    let data = replace_ids(&data_str, &original_data, replace_id)?;
+    let data = replace_ids(&data_str, &original_data, replace_id, tenant_id)?;
 
     Ok(data)
 }
@@ -115,8 +118,12 @@ pub async fn get_document(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn import_election_event(object: ImportElectionEventBody, id: String) -> Result<()> {
-    let data: ImportElectionEventSchema = get_document(object, Some(id)).await?;
+pub async fn import_election_event(
+    object: ImportElectionEventBody,
+    id: String,
+    tenant_id: String,
+) -> Result<()> {
+    let data: ImportElectionEventSchema = get_document(object, Some(id), tenant_id).await?;
 
     import_election_event_service::process(&data).await?;
 
