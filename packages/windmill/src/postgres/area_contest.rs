@@ -25,7 +25,7 @@ pub async fn insert_area_contest(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
-    for area_contest in &data.area_contest_list {
+    for area_contest in &data.area_contests {
         let statement = hasura_transaction
             .prepare(
                 r#"

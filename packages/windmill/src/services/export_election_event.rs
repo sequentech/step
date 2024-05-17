@@ -13,6 +13,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::executor::block_on;
 use futures::try_join;
+use uuid::Uuid;
 
 pub async fn process_export(
     tenant_id: &str,
@@ -38,5 +39,14 @@ pub async fn process_export(
         export_area_contests(&hasura_transaction, tenant_id, election_event_id),
     )?;
 
-    Err(anyhow!("not implemented"))
+    Ok(ImportElectionEventSchema {
+        tenant_id: Uuid::parse_str(&tenant_id)?,
+        keycloak_event_realm: None,
+        election_event: election_event,
+        elections: elections,
+        contests: contests,
+        candidates: candidates,
+        areas: areas,
+        area_contests: area_contests,
+    })
 }

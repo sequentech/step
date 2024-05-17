@@ -50,7 +50,7 @@ pub struct ImportElectionEventSchema {
     pub contests: Vec<Contest>,
     pub candidates: Vec<Candidate>,
     pub areas: Vec<Area>,
-    pub area_contest_list: Vec<AreaContest>,
+    pub area_contests: Vec<AreaContest>,
 }
 
 #[instrument(err)]

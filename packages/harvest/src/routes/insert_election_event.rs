@@ -87,7 +87,7 @@ pub async fn import_election_event_f(
     }
 
     let document = document_result.unwrap();
-    let id = document.election_event_data.id.clone();
+    let id = document.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);
 
