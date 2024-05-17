@@ -19,6 +19,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+use super::database::get_hasura_pool;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -31,36 +32,7 @@ use crate::postgres::election_event::insert_election_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
-
-use sequent_core::types::hasura::core::{
-    Area as AreaData, Candidate as CandidateData, Contest as ContestData, Election as ElectionData,
-    ElectionEvent as ElectionEventData,
-};
-
-use super::database::get_hasura_pool;
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Election {
-    pub id: Uuid,
-    pub election_event_id: Uuid,
-    pub data: ElectionData,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Contest {
-    pub id: Uuid,
-    pub election_id: Uuid,
-    pub data: ContestData,
-    pub created_at: Option<DateTime<Local>>,
-    pub area_id: Uuid,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Candidate {
-    pub id: Uuid,
-    pub contest_id: Uuid,
-    pub data: CandidateData,
-}
+use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AreaContest {
@@ -73,11 +45,11 @@ pub struct AreaContest {
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
     pub keycloak_event_realm: Option<RealmRepresentation>,
-    pub election_event_data: ElectionEventData,
+    pub election_event: ElectionEvent,
     pub elections: Vec<Election>,
     pub contests: Vec<Contest>,
     pub candidates: Vec<Candidate>,
-    pub areas: Vec<AreaData>,
+    pub areas: Vec<Area>,
     pub area_contest_list: Vec<AreaContest>,
 }
 
@@ -191,10 +163,10 @@ pub async fn insert_election_event_db(
 pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
     let mut data = data_init.clone();
     let tenant_id = &data.tenant_id.to_string();
-    let election_event_id = &data.election_event_data.id;
+    let election_event_id = &data.election_event.id;
 
     let board = upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
-    data.election_event_data.bulletin_board_reference = Some(board);
+    data.election_event.bulletin_board_reference = Some(board);
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,

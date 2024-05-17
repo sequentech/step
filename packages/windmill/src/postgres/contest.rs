@@ -53,7 +53,7 @@ pub async fn insert_contest(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for contest in &data.contests {
-        contest.data.validate()?;
+        contest.validate()?;
 
         let statement = hasura_transaction
         .prepare(
@@ -70,30 +70,29 @@ pub async fn insert_contest(
             .query(
                 &statement,
                 &[
-                    &contest.id,
-                    &Uuid::parse_str(&contest.data.tenant_id)?,
-                    &Uuid::parse_str(&contest.data.election_event_id)?,
-                    &Uuid::parse_str(&contest.data.election_id)?,
-                    &contest.data.labels,
-                    &contest.data.annotations,
-                    &contest.data.is_acclaimed,
-                    &contest.data.is_active,
-                    &contest.data.name,
-                    &contest.data.description,
-                    &contest.data.presentation,
-                    &contest.data.min_votes.and_then(|val| Some(val as i32)),
-                    &contest.data.max_votes.and_then(|val| Some(val as i32)),
-                    &contest.data.voting_type,
-                    &contest.data.counting_algorithm,
-                    &contest.data.is_encrypted,
-                    &contest.data.tally_configuration,
-                    &contest.data.conditions,
+                    &Uuid::parse_str(&contest.id)?,
+                    &Uuid::parse_str(&contest.tenant_id)?,
+                    &Uuid::parse_str(&contest.election_event_id)?,
+                    &Uuid::parse_str(&contest.election_id)?,
+                    &contest.labels,
+                    &contest.annotations,
+                    &contest.is_acclaimed,
+                    &contest.is_active,
+                    &contest.name,
+                    &contest.description,
+                    &contest.presentation,
+                    &contest.min_votes.and_then(|val| Some(val as i32)),
+                    &contest.max_votes.and_then(|val| Some(val as i32)),
+                    &contest.voting_type,
+                    &contest.counting_algorithm,
+                    &contest.is_encrypted,
+                    &contest.tally_configuration,
+                    &contest.conditions,
                     &contest
-                        .data
                         .winning_candidates_num
                         .and_then(|val| Some(val as i32)),
-                    &contest.data.alias,
-                    &contest.data.image_document_id,
+                    &contest.alias,
+                    &contest.image_document_id,
                 ],
             )
             .await

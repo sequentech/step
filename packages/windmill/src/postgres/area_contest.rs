@@ -43,7 +43,7 @@ pub async fn insert_area_contest(
                 &[
                     &area_contest.id,
                     &data.tenant_id,
-                    &Uuid::parse_str(&data.election_event_data.id)?,
+                    &Uuid::parse_str(&data.election_event.id)?,
                     &area_contest.contest_id,
                     &area_contest.area_id,
                 ],

@@ -45,7 +45,7 @@ pub async fn insert_election_event(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
-    data.election_event_data.validate()?;
+    data.election_event.validate()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -62,29 +62,29 @@ pub async fn insert_election_event(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&data.election_event_data.id)?,
-                &data.election_event_data.labels,
-                &data.election_event_data.annotations,
-                &Uuid::parse_str(&data.election_event_data.tenant_id)?,
-                &data.election_event_data.name,
-                &data.election_event_data.description,
-                &data.election_event_data.presentation,
-                &data.election_event_data.bulletin_board_reference,
-                &data.election_event_data.is_archived,
-                &data.election_event_data.voting_channels,
-                &data.election_event_data.dates,
-                &data.election_event_data.status,
-                &data.election_event_data.user_boards,
-                &data.election_event_data.encryption_protocol,
-                &data.election_event_data.is_audit,
+                &Uuid::parse_str(&data.election_event.id)?,
+                &data.election_event.labels,
+                &data.election_event.annotations,
+                &Uuid::parse_str(&data.election_event.tenant_id)?,
+                &data.election_event.name,
+                &data.election_event.description,
+                &data.election_event.presentation,
+                &data.election_event.bulletin_board_reference,
+                &data.election_event.is_archived,
+                &data.election_event.voting_channels,
+                &data.election_event.dates,
+                &data.election_event.status,
+                &data.election_event.user_boards,
+                &data.election_event.encryption_protocol,
+                &data.election_event.is_audit,
                 &data
-                    .election_event_data
+                    .election_event
                     .audit_election_event_id
                     .as_ref()
                     .and_then(|s| Uuid::parse_str(&s).ok()),
-                &data.election_event_data.public_key,
-                &data.election_event_data.alias,
-                &data.election_event_data.statistics,
+                &data.election_event.public_key,
+                &data.election_event.alias,
+                &data.election_event.statistics,
             ],
         )
         .await

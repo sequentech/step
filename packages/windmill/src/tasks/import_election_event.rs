@@ -41,7 +41,7 @@ pub fn replace_ids(
 ) -> Result<ImportElectionEventSchema> {
     let keep: Vec<String> = if id_opt.is_some() {
         vec![
-            original_data.election_event_data.id.clone(),
+            original_data.election_event.id.clone(),
             original_data.tenant_id.clone().to_string(),
         ]
     } else {
@@ -54,7 +54,7 @@ pub fn replace_ids(
     event!(Level::INFO, "after: {:?}", after);
 
     if let Some(id) = id_opt {
-        new_data = new_data.replace(&original_data.election_event_data.id, &id);
+        new_data = new_data.replace(&original_data.election_event.id, &id);
     }
     if original_data.tenant_id.to_string() != tenant_id {
         new_data = new_data.replace(&original_data.tenant_id.to_string(), &tenant_id);
@@ -89,7 +89,7 @@ pub async fn get_document(
     let original_data: ImportElectionEventSchema = serde_json::from_str(&data_str)?;
 
     let auth_headers = keycloak::get_client_credentials().await?;
-    let election_event_id = original_data.election_event_data.id.to_string();
+    let election_event_id = original_data.election_event.id.to_string();
 
     let events = get_election_event(auth_headers, tenant_id.clone(), election_event_id.clone())
         .await?

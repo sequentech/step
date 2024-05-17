@@ -41,7 +41,7 @@ pub async fn insert_candidate(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for candidate in &data.candidates {
-        candidate.data.validate()?;
+        candidate.validate()?;
 
         let statement = hasura_transaction
         .prepare(
@@ -58,23 +58,22 @@ pub async fn insert_candidate(
             .query(
                 &statement,
                 &[
-                    &candidate.id,
-                    &Uuid::parse_str(&candidate.data.tenant_id)?,
-                    &Uuid::parse_str(&candidate.data.election_event_id)?,
+                    &Uuid::parse_str(&candidate.id)?,
+                    &Uuid::parse_str(&candidate.tenant_id)?,
+                    &Uuid::parse_str(&candidate.election_event_id)?,
                     &candidate
-                        .data
                         .contest_id
                         .as_ref()
                         .and_then(|id| Uuid::parse_str(&id).ok()),
-                    &candidate.data.labels,
-                    &candidate.data.annotations,
-                    &candidate.data.name,
-                    &candidate.data.description,
-                    &candidate.data.r#type,
-                    &candidate.data.presentation,
-                    &candidate.data.is_public,
-                    &candidate.data.alias,
-                    &candidate.data.image_document_id,
+                    &candidate.labels,
+                    &candidate.annotations,
+                    &candidate.name,
+                    &candidate.description,
+                    &candidate.r#type,
+                    &candidate.presentation,
+                    &candidate.is_public,
+                    &candidate.alias,
+                    &candidate.image_document_id,
                 ],
             )
             .await

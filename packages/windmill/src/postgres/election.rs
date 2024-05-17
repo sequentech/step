@@ -217,7 +217,7 @@ pub async fn insert_election(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for election in &data.elections {
-        election.data.validate()?;
+        election.validate()?;
 
         let statement = hasura_transaction
         .prepare(
@@ -234,29 +234,28 @@ pub async fn insert_election(
             .query(
                 &statement,
                 &[
-                    &election.id,
-                    &Uuid::parse_str(&election.data.tenant_id)?,
-                    &Uuid::parse_str(&election.data.election_event_id)?,
-                    &election.data.labels,
-                    &election.data.annotations,
-                    &election.data.name,
-                    &election.data.description,
-                    &election.data.presentation,
-                    &election.data.dates,
-                    &election.data.status,
-                    &election.data.eml,
+                    &Uuid::parse_str(&election.id)?,
+                    &Uuid::parse_str(&election.tenant_id)?,
+                    &Uuid::parse_str(&election.election_event_id)?,
+                    &election.labels,
+                    &election.annotations,
+                    &election.name,
+                    &election.description,
+                    &election.presentation,
+                    &election.dates,
+                    &election.status,
+                    &election.eml,
                     &election
-                        .data
                         .num_allowed_revotes
                         .and_then(|val| Some(val as i32)),
-                    &election.data.is_consolidated_ballot_encoding,
-                    &election.data.spoil_ballot_option,
-                    &election.data.alias,
-                    &election.data.voting_channels,
-                    &election.data.is_kiosk,
-                    &election.data.image_document_id,
-                    &election.data.statistics,
-                    &election.data.receipts,
+                    &election.is_consolidated_ballot_encoding,
+                    &election.spoil_ballot_option,
+                    &election.alias,
+                    &election.voting_channels,
+                    &election.is_kiosk,
+                    &election.image_document_id,
+                    &election.statistics,
+                    &election.receipts,
                 ],
             )
             .await
