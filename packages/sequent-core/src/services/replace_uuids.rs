@@ -10,7 +10,7 @@ use uuid::Uuid;
 #[instrument(skip(input))]
 pub fn replace_uuids(input: &str, keep: Vec<String>) -> String {
     let uuid_regex =
-        Regex::new(r"\b[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
+        Regex::new(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
             .unwrap();
 
     let mut seen_uuids = HashMap::new();

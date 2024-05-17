@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -32,7 +32,7 @@ pub struct ImportElectionEventBody {
     pub check_only: Option<bool>,
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(data_str, original_data))]
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
@@ -40,53 +40,18 @@ pub fn replace_ids(
     id_opt: Option<String>,
 ) -> Result<ImportElectionEventSchema> {
     let keep: Vec<String> = if id_opt.is_some() {
-        vec![original_data.election_event_data.id.clone()]
+        vec![
+            original_data.election_event_data.id.clone(),
+            original_data.tenant_id.clone().to_string(),
+        ]
     } else {
-        vec![]
+        vec![original_data.tenant_id.clone().to_string()]
     };
-    let new_data = replace_uuids(data_str, keep);
-    /*
-    let mut ids_to_replace: Vec<String> = vec![];
-    if replace_event_id && id_opt.is_none() {
-        ids_to_replace.push(original_data.election_event_data.id.clone());
-    }
-
-    let mut election_ids = original_data
-        .elections
-        .iter()
-        .map(|element| element.id.to_string())
-        .collect();
-    ids_to_replace.append(&mut election_ids);
-
-    let mut contest_ids = original_data
-        .contests
-        .iter()
-        .map(|element| element.id.to_string())
-        .collect();
-    ids_to_replace.append(&mut contest_ids);
-
-    let mut candidate_ids = original_data
-        .candidates
-        .iter()
-        .map(|element| element.id.to_string())
-        .collect();
-    ids_to_replace.append(&mut candidate_ids);
-
-    let mut area_ids = original_data
-        .areas
-        .iter()
-        .map(|element| element.id.to_string())
-        .collect();
-    ids_to_replace.append(&mut area_ids);
-
-    let mut area_contest_ids = original_data
-        .area_contest_list
-        .iter()
-        .map(|element| element.id.to_string())
-        .collect();
-    ids_to_replace.append(&mut area_contest_ids);*/
-
-    let mut new_data = String::from(data_str);
+    let mut new_data = replace_uuids(data_str, keep);
+    let before: String = data_str.chars().take(7000).collect();
+    let after: String = new_data.as_str().chars().take(7000).collect();
+    event!(Level::INFO, "before: {:?}", before);
+    event!(Level::INFO, "after: {:?}", after);
 
     if let Some(id) = id_opt {
         new_data = new_data.replace(&original_data.election_event_data.id, &id);
@@ -133,7 +98,7 @@ pub async fn get_document(
         .sequent_backend_election_event;
 
     let replace_id = if let Some(id_val) = id {
-        if events.len() > 0 {
+        if events.len() > 0 && election_event_id != id_val {
             Some(id_val)
         } else {
             None

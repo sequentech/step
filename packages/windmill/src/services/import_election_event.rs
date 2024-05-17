@@ -112,7 +112,7 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
-#[instrument(err)]
+#[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
@@ -181,7 +181,7 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
     let mut data = data_init.clone();
     let tenant_id = &data.tenant_id.to_string();
@@ -222,6 +222,7 @@ pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 async fn insert_election_event(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
@@ -274,6 +275,7 @@ async fn insert_election_event(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 async fn insert_election(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
@@ -328,6 +330,7 @@ async fn insert_election(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 async fn insert_contest(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
@@ -383,6 +386,7 @@ async fn insert_contest(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 async fn insert_candidate(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
@@ -431,6 +435,7 @@ async fn insert_candidate(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 async fn insert_area(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
@@ -468,6 +473,7 @@ async fn insert_area(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 async fn insert_area_contest(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
