@@ -9,6 +9,8 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+use crate::services::import_election_event::ImportElectionEventSchema;
+
 pub struct ElectionWrapper(pub Election);
 
 impl TryFrom<Row> for ElectionWrapper {
@@ -205,6 +207,61 @@ pub async fn update_election_presentation(
         )
         .await
         .map_err(|err| anyhow!("Error running the update_election_presentation query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn insert_election(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<()> {
+    for election in &data.elections {
+        election.data.validate()?;
+
+        let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.election
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);    
+            "#,
+        )
+        .await?;
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &election.id,
+                    &Uuid::parse_str(&election.data.tenant_id)?,
+                    &Uuid::parse_str(&election.data.election_event_id)?,
+                    &election.data.labels,
+                    &election.data.annotations,
+                    &election.data.name,
+                    &election.data.description,
+                    &election.data.presentation,
+                    &election.data.dates,
+                    &election.data.status,
+                    &election.data.eml,
+                    &election
+                        .data
+                        .num_allowed_revotes
+                        .and_then(|val| Some(val as i32)),
+                    &election.data.is_consolidated_ballot_encoding,
+                    &election.data.spoil_ballot_option,
+                    &election.data.alias,
+                    &election.data.voting_channels,
+                    &election.data.is_kiosk,
+                    &election.data.image_document_id,
+                    &election.data.statistics,
+                    &election.data.receipts,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    }
 
     Ok(())
 }
