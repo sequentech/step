@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::anyhow;
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use immu_board::util::get_event_board;
@@ -14,19 +15,18 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
-use anyhow::anyhow;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::hasura::election_event::{get_election_event, insert_election_event};
-use crate::services::import_election_event::insert_election_event_db;
-use crate::services::import_election_event::upsert_keycloak_realm;
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::import_election_event::insert_election_event_db;
+use crate::services::import_election_event::upsert_immu_board;
+use crate::services::import_election_event::upsert_keycloak_realm;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::types::error::Result;
-use crate::services::import_election_event::upsert_immu_board;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]

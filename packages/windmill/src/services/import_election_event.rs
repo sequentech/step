@@ -6,27 +6,25 @@ use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use immu_board::util::get_event_board;
 use sequent_core::services::connection;
+use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
-use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value, json};
-use tokio_postgres::row::Row;
-use tracing::{event, Level, instrument};
-use immu_board::util::get_event_board;
-use uuid::Uuid;
+use serde_json::{json, Map, Value};
 use std::env;
 use std::fs;
+use tokio_postgres::row::Row;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
-use crate::services::protocol_manager::{get_board_client, create_protocol_manager_keys};
+use crate::hasura::election_event::get_election_event;
+use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
+use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::hasura::election_event::insert_election_event::{
-    sequent_backend_election_event_insert_input as InsertElectionEventInput
-};
-use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
-use crate::hasura::election_event::get_election_event;
+use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 
 use sequent_core::types::hasura::core::{
     Area as AreaData, Candidate as CandidateData, Contest as ContestData, Election as ElectionData,
@@ -77,7 +75,6 @@ pub struct ImportElectionEventSchema {
     pub area_contest_list: Vec<AreaContest>,
 }
 
-
 #[instrument(err)]
 pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
@@ -116,7 +113,11 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
 }
 
 #[instrument(err)]
-pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str, keycloak_event_realm: Option<RealmRepresentation>) -> Result<()> {
+pub async fn upsert_keycloak_realm(
+    tenant_id: &str,
+    election_event_id: &str,
+    keycloak_event_realm: Option<RealmRepresentation>,
+) -> Result<()> {
     let realm = if let Some(realm) = keycloak_event_realm {
         realm
     } else {
@@ -169,7 +170,8 @@ pub async fn insert_election_event_db(
         ..object.clone()
     };
 
-    let _hasura_response = insert_election_event_hasura(auth_headers.clone(), new_election_input).await?;
+    let _hasura_response =
+        insert_election_event_hasura(auth_headers.clone(), new_election_input).await?;
 
     Ok(())
 }
@@ -182,7 +184,12 @@ pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
 
     let board = upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
     data.election_event_data.bulletin_board_reference = Some(board);
-    upsert_keycloak_realm(tenant_id.as_str(), &election_event_id, data.keycloak_event_realm.clone()).await?;
+    upsert_keycloak_realm(
+        tenant_id.as_str(),
+        &election_event_id,
+        data.keycloak_event_realm.clone(),
+    )
+    .await?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
