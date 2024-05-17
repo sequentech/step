@@ -564,22 +564,22 @@ dobSdk.addEventListener("status", status => {
   // Esto simplemente es un ejemplo para cambiar strings en caso de querer crearlos si usamos el diseño responsive.
   switch (parsedStatus.step) {
     case 'attach_front':
-      setStringHtmlValues('Anverso del documento', 'Adjunta una foto de tu Documento de Identidad boca arriba. Asegúrate de que la imagen tenga calidad suficiente y se vea bien la información y la foto que contiene.');
+      setStringHtmlValues('Front of the document', 'Attach a photo of your Identity Document face up. Make sure the image is of sufficient quality and the information and photo it contains are clearly visible.');
       break;
     case 'attach_back':
-      setStringHtmlValues('Reverso del documento', 'Ahora adjunta una foto de tu Documento de Identidad boca abajo. Asegúrate de que la imagen tenga calidad suficiente y se vea bien la información.');
+      setStringHtmlValues('Back of the document', 'Now attach a photo of your Identity Document face down. Make sure the image is of sufficient quality and the information is clearly visible.');
       break;
     case 'attach_passport':
-      setStringHtmlValues('Pasaporte', 'Por favor, adjunta una imagen de tu pasaporte. Asegúrate de que la imagen se vea correctamente y tenga calidad suficiente.');
+      setStringHtmlValues('Passport', 'Please attach an image of your passport. Make sure the image is correctly visible and of sufficient quality.');
       break;
     case 'attach_ue':
-      setStringHtmlValues('Certificado de Residentes de la Unión Europea', 'Ahora necesitamos que adjuntes tu certificado de residente en la unión europea.');
+      setStringHtmlValues('European Union Resident Certificate', 'Now we need you to attach your European Union resident certificate.');
       break;
     case 'attach_video':
-      setStringHtmlValues('Video de tu rostro', 'Ahora, tome un video de su cara y adjunte el video para que podamos verificar que el documento le pertenece. ');
+      setStringHtmlValues('Video of your face', 'Now, take a video of your face and attach the video so we can verify that the document belongs to you.');
       break;
     case 'attach_selfie':
-      setStringHtmlValues('Foto de tu rostro', 'Ahora, hazte un selfie de tu rostro y adjunta la foto para que podamos verificar que el documento te pertenece. Asegúrate de que la imagen tenga calidad suficiente.');
+      setStringHtmlValues('Photo of your face', 'Now, take a selfie of your face and attach the photo so we can verify that the document belongs to you. Make sure the image is of sufficient quality.');
       break;
   }
   // Esto simplemente es un ejemplo para detectar que el último paso a terminado [En caso de no informar el EndStep ni urls de callbacks]
