@@ -265,3 +265,44 @@ pub async fn insert_election(
 
     Ok(())
 }
+
+#[instrument(err, skip_all)]
+pub async fn export_elections(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Election>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts
+                FROM
+                    sequent_backend.election
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(election_events)
+}
