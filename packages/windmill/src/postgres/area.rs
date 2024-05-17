@@ -339,3 +339,45 @@ pub async fn insert_area(
 
     Ok(())
 }
+
+
+#[instrument(err, skip_all)]
+pub async fn export_areas(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Area>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type
+                FROM
+                    sequent_backend.area
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<Area> = rows
+        .into_iter()
+        .map(|row| -> Result<Area> {
+            row.try_into()
+                .map(|res: AreaWrapper| -> Area { res.0 })
+        })
+        .collect::<Result<Vec<Area>>>()?;
+
+    Ok(election_events)
+}
