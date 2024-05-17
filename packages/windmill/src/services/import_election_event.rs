@@ -22,7 +22,10 @@ use std::fs;
 use crate::services::protocol_manager::{get_board_client, create_protocol_manager_keys};
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
+use crate::hasura::election_event::insert_election_event::{
+    sequent_backend_election_event_insert_input as InsertElectionEventInput
+};
+use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::get_election_event;
 
 use sequent_core::types::hasura::core::{
@@ -166,7 +169,7 @@ pub async fn insert_election_event_db(
         ..object.clone()
     };
 
-    let _hasura_response = insert_election_event(auth_headers.clone(), new_election_input).await?;
+    let _hasura_response = insert_election_event_hasura(auth_headers.clone(), new_election_input).await?;
 
     Ok(())
 }
