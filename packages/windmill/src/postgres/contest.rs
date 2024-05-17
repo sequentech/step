@@ -4,10 +4,10 @@
 use crate::services::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::hasura::core::Contest;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use sequent_core::types::hasura::core::Contest;
 
 pub struct ContestWrapper(pub Contest);
 
@@ -102,7 +102,6 @@ pub async fn insert_contest(
 
     Ok(())
 }
-
 
 #[instrument(err, skip_all)]
 pub async fn export_contests(

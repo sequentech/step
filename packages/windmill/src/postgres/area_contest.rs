@@ -8,7 +8,6 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-
 impl TryFrom<Row> for AreaContest {
     type Error = anyhow::Error;
 
@@ -56,8 +55,6 @@ pub async fn insert_area_contest(
     Ok(())
 }
 
-
-
 #[instrument(err, skip_all)]
 pub async fn export_area_contests(
     hasura_transaction: &Transaction<'_>,
@@ -90,9 +87,7 @@ pub async fn export_area_contests(
 
     let area_contests: Vec<AreaContest> = rows
         .into_iter()
-        .map(|row| -> Result<AreaContest> {
-            row.try_into()
-        })
+        .map(|row| -> Result<AreaContest> { row.try_into() })
         .collect::<Result<Vec<AreaContest>>>()?;
 
     Ok(area_contests)

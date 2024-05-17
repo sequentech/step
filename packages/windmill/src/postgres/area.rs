@@ -340,7 +340,6 @@ pub async fn insert_area(
     Ok(())
 }
 
-
 #[instrument(err, skip_all)]
 pub async fn export_areas(
     hasura_transaction: &Transaction<'_>,
@@ -373,10 +372,7 @@ pub async fn export_areas(
 
     let election_events: Vec<Area> = rows
         .into_iter()
-        .map(|row| -> Result<Area> {
-            row.try_into()
-                .map(|res: AreaWrapper| -> Area { res.0 })
-        })
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
         .collect::<Result<Vec<Area>>>()?;
 
     Ok(election_events)

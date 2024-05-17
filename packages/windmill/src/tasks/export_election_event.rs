@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::error::Result;
+use crate::{services::export_election_event::process_export, types::error::Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use tracing::{event, instrument, Level};
@@ -15,5 +15,6 @@ pub async fn export_election_event(
     election_event_id: String,
     document_id: String,
 ) -> Result<()> {
+    let data = process_export(&tenant_id, &election_event_id).await?;
     Ok(())
 }
