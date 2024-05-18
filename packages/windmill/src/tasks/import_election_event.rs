@@ -32,7 +32,7 @@ pub struct ImportElectionEventBody {
     pub check_only: Option<bool>,
 }
 
-#[instrument(err, skip(data_str, original_data))]
+#[instrument(err, skip(original_data))]
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
@@ -48,10 +48,6 @@ pub fn replace_ids(
         vec![original_data.tenant_id.clone().to_string()]
     };
     let mut new_data = replace_uuids(data_str, keep);
-    let before: String = data_str.chars().take(7000).collect();
-    let after: String = new_data.as_str().chars().take(7000).collect();
-    event!(Level::INFO, "before: {:?}", before);
-    event!(Level::INFO, "after: {:?}", after);
 
     if let Some(id) = id_opt {
         new_data = new_data.replace(&original_data.election_event.id, &id);
