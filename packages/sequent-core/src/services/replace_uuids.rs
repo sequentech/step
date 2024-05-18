@@ -4,6 +4,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::env;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -12,9 +13,16 @@ pub fn replace_uuids(input: &str, keep: Vec<String>) -> String {
     let uuid_regex =
         Regex::new(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
             .unwrap();
+    let fixed_uuids_from_config = env::var("ELECTION_EVENT_FIXED_UUIDS")
+        .unwrap_or("".to_string())
+        .split(",")
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
+    let mut keep_all = keep.clone();
+    keep_all.extend(fixed_uuids_from_config);
 
     let mut seen_uuids = HashMap::new();
-    let keep_set: HashSet<String> = keep.into_iter().collect();
+    let keep_set: HashSet<String> = keep_all.into_iter().collect();
 
     uuid_regex
         .replace_all(input, |caps: &regex::Captures| {
