@@ -21,6 +21,13 @@ pub fn get_tenant_realm(tenant_id: &str) -> String {
 }
 
 impl KeycloakAdminClient {
+    pub async fn get_realm(
+        self,
+        board_name: &str,
+    ) -> Result<RealmRepresentation, KeycloakError> {
+        self.client.realm_get(board_name).await
+    }
+
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,

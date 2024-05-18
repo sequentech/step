@@ -13,7 +13,8 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::executor::block_on;
 use futures::try_join;
-use sequent_core::types::hasura::core::Document;
+use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
@@ -27,6 +28,9 @@ pub async fn read_export_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<ImportElectionEventSchema> {
+    let client = KeycloakAdminClient::new().await?;
+    let board_name = get_event_realm(tenant_id, election_event_id);
+    let realm = client.get_realm(&board_name).await?;
     let (election_event, elections, contests, candidates, areas, area_contests) = try_join!(
         export_election_event(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -38,7 +42,7 @@ pub async fn read_export_data(
 
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
-        keycloak_event_realm: None,
+        keycloak_event_realm: Some(realm),
         election_event: election_event,
         elections: elections,
         contests: contests,
