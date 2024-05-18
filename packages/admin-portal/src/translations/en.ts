@@ -355,6 +355,7 @@ const englishTranslation = {
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
             },
+            exportError: "Error exporting Election Event",
         },
         electionScreen: {
             common: {
@@ -456,6 +457,7 @@ const englishTranslation = {
                     bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
+                    exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
                 },
@@ -484,6 +486,7 @@ const englishTranslation = {
                     bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
+                    exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
                     manualVerificationError: "Error manually verifying the voter",

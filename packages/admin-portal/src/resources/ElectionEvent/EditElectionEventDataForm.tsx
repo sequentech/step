@@ -14,6 +14,7 @@ import {
     useEditController,
     useRecordContext,
     RadioButtonGroupInput,
+    useNotify,
 } from "react-admin"
 import {
     Accordion,
@@ -39,8 +40,12 @@ import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDa
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {ExportElectionEventMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
+import {useMutation} from "@apollo/client"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -64,7 +69,10 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const [openExport, setOpenExport] = React.useState(false)
+    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
+    const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT)
+    const notify = useNotify()
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -311,6 +319,20 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
+
+        const {data: exportElectionEventData, errors} = await exportElectionEvent({
+            variables: {
+                electionEventId: record.id,
+            },
+        })
+        let documentId = exportElectionEventData?.export_election_event?.document_id
+        if (errors || !documentId) {
+            setOpenExport(false)
+            notify(t(`electionEventScreen.exportError`), {type: "error"})
+            console.log(`Error exporting users: ${errors}`)
+            return
+        }
+        setExportDocumentId(documentId)
     }
 
     return (
@@ -559,11 +581,27 @@ export const EditElectionEventDataForm: React.FC = () => {
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
+                    } else {
+                        setOpenExport(false)
                     }
-                    setOpenExport(false)
                 }}
             >
                 {t("common.export")}
+                {exportDocumentId ? (
+                    <>
+                        <FormStyles.ShowProgress />
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            electionEventId={record.id ?? ""}
+                            fileName={`election-event-${record.id}-export.csv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setOpenExport(false)
+                            }}
+                        />
+                    </>
+                ) : null}
             </Dialog>
         </>
     )
