@@ -125,6 +125,12 @@ pub struct KeycloakAdminClient {
     pub client: KeycloakAdmin,
 }
 
+pub struct PubKeycloakAdmin {
+    pub url: String,
+    pub client: reqwest::Client,
+    pub token_supplier: KeycloakAdminToken,
+}
+
 impl KeycloakAdminClient {
     #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
@@ -140,5 +146,23 @@ impl KeycloakAdminClient {
         event!(Level::INFO, "Successfully acquired credentials");
         let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
         Ok(KeycloakAdminClient { client })
+    }
+
+    pub async fn pub_new() -> Result<PubKeycloakAdmin> {
+        let login_config = get_keycloak_login_admin_config();
+        let client = reqwest::Client::new();
+        let admin_token = KeycloakAdminToken::acquire(
+            &login_config.url,
+            &login_config.client_id,
+            &login_config.client_secret,
+            &client,
+        )
+        .await?;
+        event!(Level::INFO, "Successfully acquired credentials");
+        Ok(PubKeycloakAdmin {
+            url: login_config.url,
+            client: client,
+            token_supplier: admin_token,
+        })
     }
 }

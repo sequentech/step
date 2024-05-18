@@ -16,4 +16,6 @@ pub mod probe;
 pub mod reports;
 
 pub mod error_checker;
+
+#[cfg(feature = "keycloak")]
 pub mod replace_uuids;
