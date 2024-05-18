@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::document::Document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::types::hasura::core::Document as HasuraDocument;
+use sequent_core::types::hasura::core::Document;
 use tempfile::NamedTempFile;
 use tracing::instrument;
 
@@ -31,7 +30,7 @@ pub async fn upload_and_return_document(
     name: String,
     document_id: Option<String>,
     is_public: bool,
-) -> Result<HasuraDocument> {
+) -> Result<Document> {
     let new_document = hasura::document::insert_document(
         auth_headers,
         tenant_id.clone(),
@@ -77,7 +76,7 @@ pub async fn upload_and_return_document(
     .await
     .with_context(|| "Error uploading file to s3")?;
 
-    Ok(HasuraDocument {
+    Ok(Document {
         id: document.id.clone(),
         tenant_id: document.tenant_id.clone(),
         election_event_id: document.election_event_id.clone(),
@@ -107,7 +106,7 @@ pub async fn get_upload_url(
     tenant_id: &str,
     is_public: bool,
     election_event_id: Option<String>,
-) -> Result<(HasuraDocument, String)> {
+) -> Result<(Document, String)> {
     let document = &hasura::document::insert_document(
         auth_headers,
         tenant_id.to_string(),
@@ -131,7 +130,7 @@ pub async fn get_upload_url(
     };
     let url = s3::get_upload_url(path.to_string(), is_public).await?;
 
-    let ret_document = HasuraDocument {
+    let ret_document = Document {
         id: document.id.clone(),
         tenant_id: document.tenant_id.clone(),
         election_event_id: document.election_event_id.clone(),

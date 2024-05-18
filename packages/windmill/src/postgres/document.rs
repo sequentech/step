@@ -80,9 +80,12 @@ pub async fn get_document(
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
 
-    let documents = rows
+    let documents: Vec<Document> = rows
         .into_iter()
-        .map(|row| -> Result<Document> { row.try_into() })
+        .map(|row| -> Result<Document> {
+            row.try_into()
+                .map(|res: DocumentWrapper| -> Document { res.0 })
+        })
         .collect::<Result<Vec<Document>>>()
         .with_context(|| "Error converting rows into documents")?;
 
@@ -101,11 +104,11 @@ pub async fn insert_document(
     document_id: Option<String>,
 ) -> Result<Document> {
     let document_uuid: uuid::Uuid = document_id
-        .map(|id| Uuid::parse_str(document_id))
+        .map(|id| Uuid::parse_str(&id))
         .unwrap_or(Ok(Uuid::new_v4()))?;
     let election_event_uuid: Option<uuid::Uuid> = election_event_id
-        .map(|id| Uuid::parse_str(document_id))
-        .traspose()?;
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -146,8 +149,15 @@ pub async fn insert_document(
 
     let documents: Vec<Document> = rows
         .into_iter()
-        .map(|row| -> Result<Document> { row.try_into() })
-        .collect::<Result<Vec<Document>>>()?;
+        .map(|row| -> Result<Document> {
+            row.try_into()
+                .map(|res: DocumentWrapper| -> Document { res.0 })
+        })
+        .collect::<Result<Vec<Document>>>()
+        .with_context(|| "Error converting rows into documents")?;
 
-    documents.get(0).ok_or(Err(anyhow!("Row not inserted")))
+    documents
+        .get(0)
+        .map(|val| val.clone())
+        .ok_or(anyhow!("Row not inserted"))
 }
