@@ -46,6 +46,7 @@ async fn rocket() -> _ {
                 routes::scheduled_event::create_scheduled_event,
                 routes::immudb_log_audit::list_pgaudit,
                 routes::electoral_log::list_electoral_log,
+                routes::export_election_event::export_election_event_route,
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_election_event::import_election_event_f,
                 routes::insert_tenant::insert_tenant,
