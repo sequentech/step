@@ -16,3 +16,4 @@ pub mod probe;
 pub mod reports;
 
 pub mod error_checker;
+pub mod replace_uuids;

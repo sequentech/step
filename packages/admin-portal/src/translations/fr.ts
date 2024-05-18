@@ -359,6 +359,7 @@ const frenchTranslation: TranslationType = {
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
             },
+            exportError: "Erreur lors de l'exportation de l'événement électoral",
         },
         electionScreen: {
             common: {
@@ -460,6 +461,7 @@ const frenchTranslation: TranslationType = {
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
                 },
                 notifications: {
+                    exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
                 },
@@ -488,6 +490,7 @@ const frenchTranslation: TranslationType = {
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
                 },
                 notifications: {
+                    exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
                     manualVerificationError:

@@ -358,6 +358,7 @@ const catalanTranslation: TranslationType = {
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
             },
+            exportError: "Error exportant l'esdeveniment electoral",
         },
         electionScreen: {
             common: {
@@ -459,6 +460,7 @@ const catalanTranslation: TranslationType = {
                     bulkBody: "Estàs segur que vols esborrar els usuaris seleccionats?",
                 },
                 notifications: {
+                    exportError: "Error exportant usuaris",
                     deleteError: "Error esborrant usuari",
                     deleteSuccess: "Usuari esborrat",
                 },
@@ -487,6 +489,7 @@ const catalanTranslation: TranslationType = {
                     bulkBody: "Estàs segur que vols esborrar els votants seleccionats?",
                 },
                 notifications: {
+                    exportError: "Error exportant votants",
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
                     manualVerificationError: "Error verificant manualment al votant",

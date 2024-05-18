@@ -357,6 +357,7 @@ const spanishTranslation: TranslationType = {
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
             },
+            exportError: "Error al exportar el Evento Electoral",
         },
         electionScreen: {
             common: {
@@ -458,6 +459,7 @@ const spanishTranslation: TranslationType = {
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
+                    exportError: "Error al exportar usuarios",
                     deleteError: "Error borrando usuario",
                     deleteSuccess: "Usuario borrado",
                 },
@@ -486,6 +488,7 @@ const spanishTranslation: TranslationType = {
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
+                    exportError: "Error al exportar votantes",
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
                     manualVerificationError: "Error verificando manualmente al votante",

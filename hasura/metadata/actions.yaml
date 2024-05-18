@@ -197,6 +197,19 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: export_election_event
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-election-event
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-read
 - name: export_users
   definition:
     kind: synchronous
