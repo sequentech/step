@@ -32,7 +32,9 @@ impl TryFrom<Row> for ElectionEventWrapper {
             user_boards: item.get("user_boards"),
             encryption_protocol: item.get("encryption_protocol"),
             is_audit: item.get("is_audit"),
-            audit_election_event_id: item.get("audit_election_event_id"),
+            audit_election_event_id: item
+                .try_get::<_, Option<Uuid>>("audit_election_event_id")?
+                .map(|val| val.to_string()),
             public_key: item.get("public_key"),
             alias: item.get("alias"),
             statistics: item.try_get("statistics")?,

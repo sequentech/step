@@ -19,7 +19,9 @@ impl TryFrom<Row> for CandidateWrapper {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
-            contest_id: item.try_get("contest_id")?,
+            contest_id: item
+                .try_get::<_, Option<Uuid>>("contest_id")?
+                .map(|val| val.to_string()),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,

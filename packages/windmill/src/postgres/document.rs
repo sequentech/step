@@ -25,8 +25,12 @@ impl TryFrom<Row> for DocumentWrapper {
 
         Ok(DocumentWrapper(Document {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
-            tenant_id: item.try_get("tenant_id")?,
-            election_event_id: item.try_get("election_event_id")?,
+            tenant_id: item
+                .try_get::<_, Option<Uuid>>("tenant_id")?
+                .map(|val| val.to_string()),
+            election_event_id: item
+                .try_get::<_, Option<Uuid>>("election_event_id")?
+                .map(|val| val.to_string()),
             name: item.try_get("name")?,
             media_type: item.try_get("media_type")?,
             size: size.map(|val| val as i64),
@@ -99,7 +103,7 @@ pub async fn insert_document(
     election_event_id: Option<String>,
     name: &str,
     media_type: &str,
-    size: i64,
+    size: i32,
     is_public: bool,
     document_id: Option<String>,
 ) -> Result<Document> {
