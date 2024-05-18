@@ -5,7 +5,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
+use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
@@ -95,6 +96,59 @@ pub async fn upload_and_return_document(
             .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
         is_public: document.is_public.clone(),
     })
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn upload_and_return_document_postgres(
+    hasura_transaction: &Transaction<'_>,
+    file_path: &str,
+    file_size: u64,
+    media_type: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    name: &str,
+    document_id: Option<String>,
+    is_public: bool,
+) -> AnyhowResult<Document> {
+    let document = postgres::document::insert_document(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id.to_string()),
+        name,
+        media_type,
+        file_size.try_into()?,
+        is_public,
+        document_id,
+    )
+    .await?;
+
+    let (document_s3_key, bucket) = match is_public {
+        true => {
+            let document_s3_key = s3::get_public_document_key(tenant_id, &document.id, name);
+            let bucket = s3::get_public_bucket()?;
+
+            (document_s3_key, bucket)
+        }
+        false => {
+            let document_s3_key =
+                s3::get_document_key(tenant_id, election_event_id, &document.id, name);
+            let bucket = s3::get_private_bucket()?;
+
+            (document_s3_key, bucket)
+        }
+    };
+
+    s3::upload_file_to_s3(
+        /* key */ document_s3_key,
+        /* is_public: always false because it's windmill that uploads the file */ false,
+        /* s3_bucket */ bucket,
+        /* media_type */ media_type.to_string(),
+        /* file_path */ file_path.to_string(),
+    )
+    .await
+    .with_context(|| "Error uploading file to s3")?;
+
+    Ok(document)
 }
 
 #[instrument(skip(auth_headers), err)]

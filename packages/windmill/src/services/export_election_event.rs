@@ -13,11 +13,14 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::executor::block_on;
 use futures::try_join;
+use sequent_core::types::hasura::core::Document;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
-use super::temp_path::write_into_named_temp_file;
+use super::{
+    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
+};
 
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -49,7 +52,7 @@ pub async fn write_export_document(
     transaction: &Transaction<'_>,
     data: ImportElectionEventSchema,
     document_id: &str,
-) -> Result<()> {
+) -> Result<Document> {
     let data_str = serde_json::to_string(&data)?;
     let data_bytes = data_str.into_bytes();
 
@@ -57,7 +60,19 @@ pub async fn write_export_document(
 
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".json")?;
-    Ok(())
+
+    upload_and_return_document_postgres(
+        transaction,
+        &temp_path_string,
+        file_size,
+        "application/json",
+        &data.tenant_id.to_string(),
+        &data.election_event.id,
+        &name,
+        Some(document_id.to_string()),
+        false, // is_public: bool,
+    )
+    .await
 }
 
 pub async fn process_export(
