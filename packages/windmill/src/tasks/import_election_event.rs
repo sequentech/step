@@ -32,7 +32,7 @@ pub struct ImportElectionEventBody {
     pub check_only: Option<bool>,
 }
 
-#[instrument(err, skip(original_data))]
+#[instrument(err, skip(data_str, original_data))]
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,

@@ -29,8 +29,9 @@ pub async fn read_export_data(
     election_event_id: &str,
 ) -> Result<ImportElectionEventSchema> {
     let client = KeycloakAdminClient::new().await?;
+    let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);
-    let realm = client.get_realm(&board_name).await?;
+    let realm = client.get_realm(&other_client, &board_name).await?;
     let (election_event, elections, contests, candidates, areas, area_contests) = try_join!(
         export_election_event(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
