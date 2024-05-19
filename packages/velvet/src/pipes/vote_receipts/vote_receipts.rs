@@ -6,12 +6,12 @@ use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::do_tally::tally::Tally;
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::PipeInputs;
+use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest};
 use sequent_core::ballot_codec::BigUIntCodec;
-use sequent_core::plaintext::DecodedVoteContest;
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use serde::Serialize;
 use serde_json::Map;
@@ -40,7 +40,12 @@ impl VoteReceipts {
 }
 
 impl VoteReceipts {
-    fn print_vote_receipts(&self, path: &Path, contest: &Contest) -> Result<Vec<u8>> {
+    fn print_vote_receipts(
+        &self,
+        path: &Path,
+        contest: &Contest,
+        election_input: &InputElectionConfig
+    ) -> Result<Vec<u8>> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0)
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
@@ -59,6 +64,7 @@ impl VoteReceipts {
         let data = TemplateData {
             contest: tally.contest.clone(),
             ballots: tally.ballots.clone(),
+            election_name: election_input.name.clone(),
         };
         let data = compute_data(data);
 
@@ -109,6 +115,7 @@ impl Pipe for VoteReceipts {
                         let bytes_pdf = self.print_vote_receipts(
                             decoded_ballots_file.as_path(),
                             &contest_input.contest,
+                            &election_input,
                         )?;
 
                         let path = PipeInputs::build_path(
@@ -151,6 +158,7 @@ impl Pipe for VoteReceipts {
 struct TemplateData {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
+    pub election_name: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -160,13 +168,20 @@ struct ComputedTemplateData {
 }
 
 #[derive(Serialize, Debug)]
+struct DecodedChoice {
+    pub choice: DecodedVoteChoice,
+    pub candidate: Option<Candidate>,
+}
+
+
+#[derive(Serialize, Debug)]
 struct ReceiptData {
     pub id: Uuid,
     pub encoded_vote: String,
     pub is_invalid: bool,
     pub is_blank: bool,
     pub is_blank_or_invalid: bool,
-    pub selected_candidates: Vec<Candidate>,
+    pub decoded_choices: Vec<DecodedChoice>,
 }
 
 pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
@@ -174,7 +189,8 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
         .ballots
         .iter()
         .map(|decoded_vote_contest| {
-            let candidates = decoded_vote_contest
+            let is_invalid = decoded_vote_contest.is_invalid();
+            let selected_candidates = decoded_vote_contest
                 .choices
                 .iter()
                 .filter(|choice| choice.selected >= 0)
@@ -186,9 +202,7 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                         .cloned()
                 })
                 .collect::<Vec<Candidate>>();
-
-            let is_invalid = decoded_vote_contest.is_invalid();
-            let is_blank = candidates.len() == 0;
+            let is_blank = selected_candidates.len() == 0;
 
             let encoded_vote_contest = data
                 .contest
@@ -196,13 +210,28 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 .unwrap()
                 .to_string();
 
+            let decoded_choices = decoded_vote_contest
+                .choices
+                .iter()
+                .map(|choice| {
+                    DecodedChoice {
+                        choice: choice.clone(),
+                        candidate: data.contest
+                        .candidates
+                        .iter()
+                        .find(|c| c.id == choice.id)
+                        .cloned()
+                    }
+                })
+                .collect::<Vec<DecodedChoice>>();
+
             ReceiptData {
                 id: Uuid::new_v4(),
+                encoded_vote: encoded_vote_contest,
                 is_invalid,
                 is_blank,
                 is_blank_or_invalid: is_invalid || is_blank,
-                selected_candidates: candidates,
-                encoded_vote: encoded_vote_contest,
+                decoded_choices: decoded_choices,
             }
         })
         .collect::<Vec<ReceiptData>>();
