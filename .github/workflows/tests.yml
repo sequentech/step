@@ -18,14 +18,23 @@ jobs:
         include:
           #- service: braid # these take too long!
           - service: harvest
+            extra:
           - service: strand
+            extra:
           - service: immu-board
+            extra:
           - service: immudb-rs
+            extra:
           - service: sequent-core
+            extra: --features keycloak
           - service: board-messages
+            extra:
           - service: velvet
+            extra:
           - service: windmill
+            extra:
           - service: wrap-map-err
+            extra:
   
       fail-fast: false
     steps:
@@ -64,4 +73,4 @@ jobs:
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
 
-        run: cd packages/${{ matrix.service }} && cargo test
+        run: cd packages/${{ matrix.service }} && cargo test {{ matrix.extra }}
