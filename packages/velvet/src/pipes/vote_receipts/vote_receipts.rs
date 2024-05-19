@@ -16,14 +16,12 @@ use sequent_core::services::{pdf, reports};
 use serde::Serialize;
 use serde_json::Map;
 use uuid::Uuid;
-
+use tracing::info;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
-
 use std::str::FromStr;
 use tracing::instrument;
-
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
 pub const OUTPUT_FILE: &str = "vote_receipts.pdf";
@@ -67,6 +65,7 @@ impl VoteReceipts {
             ballots: tally.ballots.clone(),
             election_name: election_input.name.clone(),
         };
+        info!("election_input: {}", election_input.name);
         let data = compute_data(data);
 
         let mut map = Map::new();
@@ -174,6 +173,7 @@ struct TemplateData {
 struct ComputedTemplateData {
     pub contest: Contest,
     pub receipts: Vec<ReceiptData>,
+    pub election_name: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -248,5 +248,6 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
     ComputedTemplateData {
         contest: data.contest,
         receipts,
+        election_name: data.election_name,
     }
 }
