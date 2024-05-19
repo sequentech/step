@@ -20,9 +20,10 @@ SPDX-License-Identifier: AGPL-3.0-only
         }
 
         @media print {
-      .next-page {
-        page-break-after: always;
-      }
+            .next-page {
+                page-break-after: always;
+            }
+
             .ballot {
                 margin: 0;
             }
@@ -48,8 +49,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             border-right: 16px dashed black;
             box-sizing: border-box;
         }
-
-
         .header {
             display: flex;
             justify-content: space-between;
@@ -75,8 +74,10 @@ SPDX-License-Identifier: AGPL-3.0-only
         .header .right {
             text-align: right;
             flex: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
-
         .header h2 {
             font-size: 16px;
             margin: 20px 0 0 0;
@@ -157,6 +158,21 @@ SPDX-License-Identifier: AGPL-3.0-only
             align-items: center;
         }
 
+        .is-blank, .is-invalid {
+            padding: 5px 0 5px 5px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+
+        .is-blank .candidate-name, .is-invalid  .candidate-name {
+            margin-right: 10px;
+        }
+
+        .is-blank input[type="checkbox"], .is-invalid input[type="checkbox"] {
+            margin-right: 0;
+        }
+
         input[type="checkbox"] {
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -219,20 +235,20 @@ SPDX-License-Identifier: AGPL-3.0-only
                       alt="Electoral Commission Logo"
                     />
                     <div class="is-blank">
+                        <span class="candidate-name">Blank vote</span>
                         {{#if this.is_blank }}
                             <input type="checkbox" class="check-mark" checked />
                         {{else}}
                             <input type="checkbox" class="check-mark" />
                         {{/if}}
-                        <span class="candidate-name">Blank vote</span>
                     </div>
                     <div class="is-invalid">
+                        <span class="candidate-name">Null Vote</span>
                         {{#if this.is_invalid }}
                             <input type="checkbox" class="check-mark" checked />
                         {{else}}
                             <input type="checkbox" class="check-mark" />
                         {{/if}}
-                        <span class="candidate-name">Null Vote</span>
                     </div>
                     <div class="signature">Signature of Chairman</div>
                 </div>

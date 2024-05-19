@@ -27,6 +27,7 @@ use tracing::instrument;
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
 pub const OUTPUT_FILE: &str = "vote_receipts.pdf";
+pub const OUTPUT_FILE_HTML: &str = "vote_receipts.html";
 
 pub struct VoteReceipts {
     pub pipe_inputs: PipeInputs,
@@ -45,7 +46,7 @@ impl VoteReceipts {
         path: &Path,
         contest: &Contest,
         election_input: &InputElectionConfig
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0)
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
@@ -82,11 +83,11 @@ impl VoteReceipts {
             ))
         })?;
 
-        let bytes_pdf = pdf::html_to_pdf(bytes_html).map_err(|e| {
+        let bytes_pdf = pdf::html_to_pdf(bytes_html.clone()).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
-        Ok(bytes_pdf)
+        Ok((bytes_pdf, bytes_html.into_bytes()))
     }
 }
 
@@ -112,7 +113,7 @@ impl Pipe for VoteReceipts {
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
                     if decoded_ballots_file.exists() {
-                        let bytes_pdf = self.print_vote_receipts(
+                        let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                             decoded_ballots_file.as_path(),
                             &contest_input.contest,
                             &election_input,
@@ -139,6 +140,14 @@ impl Pipe for VoteReceipts {
                             .create(true)
                             .open(file)?;
                         file.write_all(&bytes_pdf)?;
+
+                        let file = path.join(OUTPUT_FILE_HTML);
+                        let mut file = OpenOptions::new()
+                            .write(true)
+                            .truncate(true)
+                            .create(true)
+                            .open(file)?;
+                        file.write_all(&bytes_html)?;
                     } else {
                         println!(
                             "[{}] File not found: {} -- Not processed",
