@@ -102,11 +102,10 @@ mod tests {
             &token,
             &DecodingKey::from_rsa_components(n, e).unwrap(),
             &Validation::new(Algorithm::RS256),
-        )
-        .unwrap();
+        );
         println!("{:?}", header);
         println!("{:?}", token);
-        assert!(true);
+        assert!(format!("{:?}", token).contains("ExpiredSignature"));
     }
     #[test]
     fn test_jwt2() {
