@@ -329,6 +329,14 @@ const englishTranslation = {
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
+            importAreas: {
+                title: "Import Areas",
+                subtitle: "Import areas data",
+                areaParagraph:
+                    "Import areas using a spreadsheet file in Comma Separated Values (CSV) format.",
+                importVotersSuccess: "Areas Imported Successfully",
+                importVotersError: "Error importing Areas",
+            },
             import: {
                 eetitle: "Import Election Event",
                 eesubtitle: "Import election event data",

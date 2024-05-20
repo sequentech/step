@@ -331,6 +331,14 @@ const catalanTranslation: TranslationType = {
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
             },
+            importAreas: {
+                title: "Importar Àrees",
+                subtitle: "Importar dades d'àrees",
+                areaParagraph:
+                    "Importar àrees utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                importVotersSuccess: "Àrees Importades amb Èxit",
+                importVotersError: "Error en importar Àrees",
+            },
             import: {
                 eetitle: "Importar Esdeveniment Electoral",
                 eesubtitle: "Importar dades de l'Esdeveniment Electoral",

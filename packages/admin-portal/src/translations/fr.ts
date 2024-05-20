@@ -331,6 +331,14 @@ const frenchTranslation: TranslationType = {
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },
             },
+            importAreas: {
+                title: "Importer des Zones",
+                subtitle: "Importer des données de zones",
+                areaParagraph:
+                    "Importer des zones en utilisant un fichier tableur au format Valeurs Séparées par des Virgules (CSV).",
+                importVotersSuccess: "Zones Importées avec Succès",
+                importVotersError: "Erreur lors de l'importation des Zones",
+            },
             import: {
                 eetitle: "Importer un Événement Électoral",
                 eesubtitle: "Importer des données de l'Événement Électoral",

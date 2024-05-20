@@ -20,7 +20,7 @@ import {ListActions} from "../../components/ListActions"
 import {Button, Drawer, Typography} from "@mui/material"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
-import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {ImportAreasMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -33,6 +33,9 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {useMutation} from "@apollo/client"
+import {IMPORT_AREAS} from "@/queries/ImportAreas"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -65,6 +68,14 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [openImportDrawer, setOpenImportDrawer] = React.useState(false)
+    const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.AREA_WRITE,
+            },
+        },
+    })
 
     const authContext = useContext(AuthContext)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
@@ -149,6 +160,23 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         setDeleteId(undefined)
     }
 
+    const handleImportAreas = async (documentId: string, sha256: string): Promise<void> => {
+        let {errors} = await importAreas({
+            variables: {
+                documentId,
+                electionEventId: record.id,
+            },
+        })
+
+        refresh()
+
+        if (!errors) {
+            notify(t("electionEventScreen.importAreas.importSuccess"), {type: "success"})
+        } else {
+            notify(t("electionEventScreen.importAreas.importError"), {type: "error"})
+        }
+    }
+
     const actions: Action[] = [
         {icon: <EditIcon />, action: editAction},
         {icon: <DeleteIcon />, action: deleteAction},
@@ -160,7 +188,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 resource="sequent_backend_area"
                 actions={
                     <ListActions
-                        withImport={false}
+                        withImport
+                        doImport={() => setOpenImportDrawer(true)}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
@@ -224,6 +253,15 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             >
                 {t("common.message.delete")}
             </Dialog>
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="electionEventScreen.importAreas.title"
+                subtitle="electionEventScreen.importAreas.subtitle"
+                paragraph="electionEventScreen.importAreas.areaParagraph"
+                doImport={handleImportAreas}
+                errors={null}
+            />
         </>
     )
 }

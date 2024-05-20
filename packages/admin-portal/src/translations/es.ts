@@ -331,6 +331,14 @@ const spanishTranslation: TranslationType = {
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
+            importAreas: {
+                title: "Importar Áreas",
+                subtitle: "Importar datos de áreas",
+                areaParagraph:
+                    "Importar áreas utilizando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
+                importVotersSuccess: "Áreas Importadas Exitosamente",
+                importVotersError: "Error al importar Áreas",
+            },
             import: {
                 eetitle: "Importar Evento Electoral",
                 eesubtitle: "Importar datos del Evento Electoral",
