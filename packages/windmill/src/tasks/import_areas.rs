@@ -7,10 +7,10 @@ use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
-use sequent_core::types::hasura::core::Area;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::hasura::core::Area;
 use std::io::Seek;
 use uuid::Uuid;
 
