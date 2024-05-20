@@ -12,6 +12,7 @@ pub mod error_catchers;
 pub mod export_election_event;
 pub mod fetch_document;
 pub mod immudb_log_audit;
+pub mod import_areas;
 pub mod insert_cast_vote;
 pub mod insert_election_event;
 pub mod insert_tenant;

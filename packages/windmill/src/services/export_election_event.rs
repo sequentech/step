@@ -11,7 +11,6 @@ use crate::services::database::get_hasura_pool;
 use crate::services::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::executor::block_on;
 use futures::try_join;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
