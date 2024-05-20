@@ -23,7 +23,7 @@ use super::database::get_hasura_pool;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
-use crate::postgres::area::insert_area;
+use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contest;
 use crate::postgres::candidate::insert_candidate;
 use crate::postgres::contest::insert_contest;
@@ -189,7 +189,7 @@ pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
     insert_election(&hasura_transaction, &data).await?;
     insert_contest(&hasura_transaction, &data).await?;
     insert_candidate(&hasura_transaction, &data).await?;
-    insert_area(&hasura_transaction, &data).await?;
+    insert_areas(&hasura_transaction, &data.areas).await?;
     insert_area_contest(&hasura_transaction, &data).await?;
 
     let _commit = hasura_transaction

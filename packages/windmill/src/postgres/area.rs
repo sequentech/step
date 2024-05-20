@@ -303,11 +303,8 @@ pub async fn get_area_by_id(
 }
 
 #[instrument(err, skip_all)]
-pub async fn insert_area(
-    hasura_transaction: &Transaction<'_>,
-    data: &ImportElectionEventSchema,
-) -> Result<()> {
-    for area in &data.areas {
+pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
+    for area in areas {
         let statement = hasura_transaction
         .prepare(
             r#"
