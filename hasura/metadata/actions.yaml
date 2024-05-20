@@ -405,6 +405,19 @@ actions:
   - role: voter-read
   - role: user-read
   - role: admin-user
+- name: import_areas
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-areas
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: area-write
 - name: import_election_event
   definition:
     kind: synchronous

@@ -20,7 +20,7 @@ import {ListActions} from "../../components/ListActions"
 import {Button, Drawer, Typography} from "@mui/material"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
-import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {ImportAreasMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -33,7 +33,9 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import { ImportDataDrawer } from "@/components/election-event/import-data/ImportDataDrawer"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {useMutation} from "@apollo/client"
+import {IMPORT_AREAS} from "@/queries/ImportAreas"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -67,7 +69,13 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const [openImportDrawer, setOpenImportDrawer] = React.useState(false)
-    const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS)
+    const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.AREA_WRITE,
+            },
+        },
+    })
 
     const authContext = useContext(AuthContext)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
@@ -153,7 +161,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const handleImportAreas = async (documentId: string, sha256: string): Promise<void> => {
-        let {data, errors} = await importAreas({
+        let {errors} = await importAreas({
             variables: {
                 documentId,
                 electionEventId: record.id,
