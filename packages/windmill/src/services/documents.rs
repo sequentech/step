@@ -273,21 +273,21 @@ pub async fn get_document_as_temp_file(
     document: &Document,
 ) -> anyhow::Result<NamedTempFile> {
     let s3_bucket = s3::get_private_bucket()?;
+    let document_name = document.name.clone().unwrap_or_default();
 
-    let document_s3_key = s3::get_document_key(
-        tenant_id,
-        "",
-        &document.id,
-        &document.name.clone().unwrap_or_default(),
-    );
+    // Obtain the key for the document in S3
+    let document_s3_key = s3::get_document_key(tenant_id, "", &document.id, &document_name);
 
+    // Retrieve the S3 object and save it to a temporary file
     let file = s3::get_object_into_temp_file(
         s3_bucket.as_str(),
         document_s3_key.as_str(),
         "import-election-event",
         ".json",
     )
-    .await?;
+    .await
+    .with_context(|| "Failed to get S3 object into temporary file")?;
 
+    // Return the temporary file and the separator as a tuple
     Ok(file)
 }

@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::get_hasura_pool;
-use anyhow::{anyhow, Result};
+use crate::{
+    postgres::document::get_document,
+    services::{database::get_hasura_pool, documents::get_document_as_temp_file},
+};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 pub async fn import_areas_task(
@@ -21,6 +24,14 @@ pub async fn import_areas_task(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+
+    let document = get_document(&hasura_transaction, &tenant_id, None, &document_id)
+        .await
+        .with_context(|| "Error obtaining the document")?
+        .ok_or(anyhow!("document not found"))?;
+
+    let temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
+
     let _commit = hasura_transaction
         .commit()
         .await
