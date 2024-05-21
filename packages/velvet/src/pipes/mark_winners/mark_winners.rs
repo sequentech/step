@@ -6,7 +6,7 @@ use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
 use serde::Serialize;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
@@ -31,25 +31,15 @@ impl MarkWinners {
 
     #[instrument(skip_all)]
     fn get_winners(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
-        let mut max_votes = 0;
-        let mut winners = Vec::new();
+        let mut winners = contest_result.candidate_result.clone();
 
-        for candidate_result in &contest_result.candidate_result {
-            match candidate_result.total_count.cmp(&max_votes) {
-                Ordering::Greater => {
-                    max_votes = candidate_result.total_count;
-                    winners.clear();
-                    winners.push(candidate_result);
-                }
-                Ordering::Equal => winners.push(candidate_result),
-                _ => (),
+        winners.sort_by(|a, b| {
+            match b.total_count.cmp(&a.total_count) {
+                // ties resolution
+                Ordering::Equal => a.candidate.name.cmp(&b.candidate.name),
+                other => other,
             }
-        }
-
-        if winners.len() > 1 {
-            // ties resolution
-            winners.sort_by(|a, b| a.candidate.name.cmp(&b.candidate.name));
-        }
+        });
 
         winners
             .into_iter()
