@@ -9,12 +9,17 @@ use crate::{
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
+use csv::ReaderBuilder;
 use deadpool_postgres::Client as DbClient;
+use encoding_rs::WINDOWS_1252;
+use encoding_rs_io::DecodeReaderBytesBuilder;
 use sequent_core::ballot::ContestPresentation;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
+use std::fs::File;
+use std::io::BufReader;
 use std::io::Seek;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(ret)]
@@ -307,14 +312,22 @@ pub async fn import_candidates_task(
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_file.rewind()?;
+    let reader = BufReader::new(temp_file.as_file());
+
+    // Decode the file using the specified encoding
+    let transcoded_reader = DecodeReaderBytesBuilder::new()
+        .encoding(Some(WINDOWS_1252)) // Use WINDOWS_1252 for encoding conversion
+        .build(reader);
+
     // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
         .has_headers(false)
-        .from_reader(temp_file);
+        .from_reader(transcoded_reader);
 
     let mut candidates: Vec<Candidate> = vec![];
     for result in rdr.records() {
+        event!(Level::INFO, "result {:?}", result);
         let record = result.with_context(|| "Error reading CSV record")?;
         let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
         let political_party = record.get(7).unwrap_or("\\N").to_string();
