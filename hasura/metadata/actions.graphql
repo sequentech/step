@@ -206,6 +206,13 @@ type Mutation {
 }
 
 type Mutation {
+  import_candidates (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
   import_election_event (
     tenant_id: String!
     document_id: String!

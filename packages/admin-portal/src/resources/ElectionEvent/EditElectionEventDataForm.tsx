@@ -15,6 +15,7 @@ import {
     useRecordContext,
     RadioButtonGroupInput,
     useNotify,
+    Button,
 } from "react-admin"
 import {
     Accordion,
@@ -26,6 +27,7 @@ import {
     Drawer,
     Box,
 } from "@mui/material"
+import DownloadIcon from "@mui/icons-material/Download"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -40,13 +42,18 @@ import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDa
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
-import {ExportElectionEventMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    ExportElectionEventMutation,
+    ImportCandidatesMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
+import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -150,7 +157,9 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-
+    const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
+    const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
+    const notify = useNotify()
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
@@ -393,6 +402,22 @@ export const EditElectionEventDataForm: React.FC = () => {
         console.log("EXPORT")
         setOpenExport(true)
     }
+    const handleImportCandidates = async (documentId: string, sha256: string) => {
+        let {data, errors} = await importCandidates({
+            variables: {
+                documentId,
+                electionEventId: record.id,
+            },
+        })
+
+        if (errors) {
+            console.log(errors)
+            notify("Error importing candidates", {type: "error"})
+            return
+        }
+
+        notify("Candidates successfully imported", {type: "success"})
+    }
 
     return (
         <>
@@ -411,6 +436,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                     doExport={handleExport}
                     withColumns={false}
                     withFilter={false}
+                    extraActions={[
+                        <Button
+                            onClick={() => setOpenImportCandidates(true)}
+                            label="Import Candidates"
+                            key="1"
+                        >
+                            <DownloadIcon />
+                        </Button>,
+                    ]}
                 />
             </Box>
             <RecordContext.Consumer>
@@ -628,6 +662,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                 subtitle="electionEventScreen.import.eesubtitle"
                 paragraph="electionEventScreen.import.electionEventParagraph"
                 doImport={async () => {}}
+                errors={null}
+            />
+
+            <ImportDataDrawer
+                open={openImportCandidates}
+                closeDrawer={() => setOpenImportCandidates(false)}
+                title="electionEventScreen.import.importCandidatesTitle"
+                subtitle="electionEventScreen.import.importCandidatesSubtitle"
+                paragraph="electionEventScreen.import.importCandidatesParagraph"
+                doImport={handleImportCandidates}
                 errors={null}
             />
 
