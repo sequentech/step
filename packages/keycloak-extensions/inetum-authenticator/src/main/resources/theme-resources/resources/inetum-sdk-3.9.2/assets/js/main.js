@@ -499,7 +499,7 @@ let myStrings = {
   'custom_instructions_doc_button': 'Continue',
   // CUSTOM STRINGS INITIAL/END STEP - EXAMPLE: PASSPORT
   'custom_intro_row_obverse': 'Passport',
-  'custom_intro_row_reverse': 'Residence Certificate',
+  'custom_intro_row_reverse': 'Face with Passport',
   // CUSTOM STRINGS INSTRUCTIONS STEP - EXAMPLE: PASSPORT
   'custom_instructions_step_title': 'Passport Instructions',
   'custom_instructions_step_description': 'First we will start with capturing the passport.'
