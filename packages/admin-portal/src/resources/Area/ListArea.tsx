@@ -17,7 +17,7 @@ import {
     useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Button, Drawer, Typography} from "@mui/material"
+import {Box, Button, Drawer, Typography} from "@mui/material"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
 import {ImportAreasMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
@@ -36,6 +36,13 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
+import styled from "@emotion/styled"
+
+const ActionsBox = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+`
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -104,10 +111,16 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             </Typography>
             {canCreate && (
                 <>
-                    <Button onClick={createAction}>
-                        <IconButton icon={faPlus} fontSize="24px" />
-                        {t("areas.empty.action")}
-                    </Button>
+                    <ActionsBox>
+                        <Button onClick={createAction}>
+                            <IconButton icon={faPlus} fontSize="24px" />
+                            {t("areas.empty.action")}
+                        </Button>
+                        <Button onClick={() => setOpenImportDrawer(true)}>
+                            <IconButton icon={faPlus} fontSize="24px" />
+                            {t("common.label.import")}
+                        </Button>
+                    </ActionsBox>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
                     </Typography>
