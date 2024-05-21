@@ -13,6 +13,7 @@ use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::tasks::import_areas::import_areas_task;
+use windmill::tasks::import_candidates::import_candidates_task;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportCandidatesInput {
@@ -36,7 +37,7 @@ pub async fn import_candidates_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ADMIN_USER],
     )?;
-    /*import_candidates_task(
+    import_candidates_task(
         claims.hasura_claims.tenant_id.clone(),
         body.election_event_id.clone(),
         body.document_id.clone(),
@@ -47,7 +48,7 @@ pub async fn import_candidates_route(
             Status::InternalServerError,
             format!("Error importing areas: {error:?}"),
         )
-    })?;*/
+    })?;
 
     Ok(Json(ImportCandidatesOutput {}))
 }
