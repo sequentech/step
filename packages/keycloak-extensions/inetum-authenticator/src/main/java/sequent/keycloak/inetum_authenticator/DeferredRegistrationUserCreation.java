@@ -97,6 +97,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             // exception, so show invalid email error here
             if (email != null && !email.isBlank()) {
                 context.error(Errors.INVALID_EMAIL);
+                List<FormMessage> errors = new ArrayList<>();
+                errors.add(new FormMessage(
+                    RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL
+                ));
+                context.validationError(formData, errors);
                 return;
             }
         } catch (ValidationException pve) {
@@ -127,7 +132,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             // if error is empty but we are here, then the exception was related
             // to error to be ignored (username/email exists), so we ignore them
             // and continue
-            if (!errors.isEmpty()) {
+            if (errors.isEmpty()) {
+
+            // if errors is not empty, show them
+            } else {
                 if (!pve.hasError(Messages.EMAIL_EXISTS)) {
                     context.error(Errors.INVALID_EMAIL);
                 } else {
