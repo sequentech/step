@@ -14,8 +14,10 @@ use sequent_core::ballot::ContestPresentation;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
 use std::io::Seek;
+use tracing::instrument;
 use uuid::Uuid;
 
+#[instrument(ret)]
 fn get_political_party_extension(political_party: &str) -> String {
     // Mapping of numbers to political parties
     let party_map = vec![
@@ -221,6 +223,7 @@ fn get_political_party_extension(political_party: &str) -> String {
     }
 }
 
+#[instrument(ret, err, skip(contests))]
 fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<Option<String>> {
     // Mapping of postcodes to contest names
     let contest_map = vec![
@@ -278,6 +281,7 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
     Ok(None)
 }
 
+#[instrument(err)]
 pub async fn import_candidates_task(
     tenant_id: String,
     election_event_id: String,

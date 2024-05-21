@@ -438,6 +438,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withFilter={false}
                     extraActions={[
                         <Button
+                            className="felix-test"
                             onClick={() => setOpenImportCandidates(true)}
                             label="Import Candidates"
                             key="1"

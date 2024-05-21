@@ -15,8 +15,10 @@ use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::Area;
 use std::io::Seek;
+use tracing::instrument;
 use uuid::Uuid;
 
+#[instrument(err)]
 pub async fn import_areas_task(
     tenant_id: String,
     election_event_id: String,
