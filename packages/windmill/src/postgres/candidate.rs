@@ -38,11 +38,13 @@ impl TryFrom<Row> for CandidateWrapper {
 }
 
 #[instrument(err, skip_all)]
-pub async fn insert_candidate(
+pub async fn insert_candidates(
     hasura_transaction: &Transaction<'_>,
-    data: &ImportElectionEventSchema,
+    tenant_id: &str,
+    election_event_id: &str,
+    candidates: &Vec<Candidate>,
 ) -> Result<()> {
-    for candidate in &data.candidates {
+    for candidate in candidates {
         candidate.validate()?;
 
         let statement = hasura_transaction
@@ -61,8 +63,8 @@ pub async fn insert_candidate(
                 &statement,
                 &[
                     &Uuid::parse_str(&candidate.id)?,
-                    &Uuid::parse_str(&candidate.tenant_id)?,
-                    &Uuid::parse_str(&candidate.election_event_id)?,
+                    &Uuid::parse_str(tenant_id)?,
+                    &Uuid::parse_str(election_event_id)?,
                     &candidate
                         .contest_id
                         .as_ref()

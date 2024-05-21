@@ -21,11 +21,13 @@ impl TryFrom<Row> for AreaContest {
 }
 
 #[instrument(err, skip_all)]
-pub async fn insert_area_contest(
+pub async fn insert_area_contests(
     hasura_transaction: &Transaction<'_>,
-    data: &ImportElectionEventSchema,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_contests: &Vec<AreaContest>,
 ) -> Result<()> {
-    for area_contest in &data.area_contests {
+    for area_contest in area_contests {
         let statement = hasura_transaction
             .prepare(
                 r#"
@@ -37,13 +39,13 @@ pub async fn insert_area_contest(
             )
             .await?;
 
-        let rows: Vec<Row> = hasura_transaction
+        let _rows: Vec<Row> = hasura_transaction
             .query(
                 &statement,
                 &[
                     &area_contest.id,
-                    &data.tenant_id,
-                    &Uuid::parse_str(&data.election_event.id)?,
+                    &Uuid::parse_str(tenant_id)?,
+                    &Uuid::parse_str(election_event_id)?,
                     &area_contest.contest_id,
                     &area_contest.area_id,
                 ],

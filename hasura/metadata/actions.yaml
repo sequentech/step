@@ -418,6 +418,19 @@ actions:
       version: 2
   permissions:
   - role: area-write
+- name: import_candidates
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-candidates
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
 - name: import_election_event
   definition:
     kind: synchronous

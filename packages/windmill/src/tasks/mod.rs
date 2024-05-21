@@ -9,6 +9,7 @@ pub mod execute_tally_session;
 pub mod export_election_event;
 pub mod export_users;
 pub mod import_areas;
+pub mod import_candidates;
 pub mod import_election_event;
 pub mod import_users;
 pub mod insert_election_event;

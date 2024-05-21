@@ -10,31 +10,31 @@ use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::tasks::import_areas::import_areas_task;
+use windmill::tasks::import_candidates::import_candidates_task;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ImportAreasInput {
+pub struct ImportCandidatesInput {
     election_event_id: String,
     document_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ImportAreasOutput {}
+pub struct ImportCandidatesOutput {}
 
 #[instrument(skip(claims))]
-#[post("/import-areas", format = "json", data = "<input>")]
-pub async fn import_areas_route(
+#[post("/import-candidates", format = "json", data = "<input>")]
+pub async fn import_candidates_route(
     claims: jwt::JwtClaims,
-    input: Json<ImportAreasInput>,
-) -> Result<Json<ImportAreasOutput>, (Status, String)> {
+    input: Json<ImportCandidatesInput>,
+) -> Result<Json<ImportCandidatesOutput>, (Status, String)> {
     let body = input.into_inner();
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::AREA_WRITE],
+        vec![Permissions::ADMIN_USER],
     )?;
-    import_areas_task(
+    import_candidates_task(
         claims.hasura_claims.tenant_id.clone(),
         body.election_event_id.clone(),
         body.document_id.clone(),
@@ -47,5 +47,5 @@ pub async fn import_areas_route(
         )
     })?;
 
-    Ok(Json(ImportAreasOutput {}))
+    Ok(Json(ImportCandidatesOutput {}))
 }

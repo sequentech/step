@@ -46,6 +46,8 @@ uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 toml = "0.6.0"
 quick-error = "2.0.1"
 keycloak = "21.0.102"
+encoding_rs = "0.8.34"
+encoding_rs_io = "0.1.7"
 
 # logging
 tracing = "0.1"
