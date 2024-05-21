@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, useContext} from "react"
+import React, {useState, useEffect, useContext, useMemo} from "react"
 import Typography from "@mui/material/Typography"
 import Button from "@mui/material/Button"
 import {Link as RouterLink} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import Alert from "@mui/material/Alert"
 import AlertTitle from "@mui/material/AlertTitle"
+import {useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -27,6 +28,10 @@ import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
 import {TenantEventContext} from ".."
+import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {GetBallotStylesQuery} from "../gql/graphql"
+import {useAppDispatch} from "../store/hooks"
+import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -137,6 +142,8 @@ export const HomeScreen: React.FC<IProps> = ({
     const [isNextActive, setNextActive] = useState(false)
     const navigate = useNavigate()
     const {tenantId, eventId} = useContext(TenantEventContext)
+    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const dispatch = useAppDispatch()
 
     useEffect(() => {
         const newIsNextActive = !!confirmationBallot && !!ballotId
@@ -144,6 +151,12 @@ export const HomeScreen: React.FC<IProps> = ({
             setNextActive(newIsNextActive)
         }
     }, [confirmationBallot, ballotId, isNextActive])
+
+    useMemo(() => {
+        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
+            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+        }
+    }, [dataBallotStyles])
 
     const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
         const decodedBallot =
