@@ -331,6 +331,14 @@ const spanishTranslation: TranslationType = {
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
+            importAreas: {
+                title: "Importar Áreas",
+                subtitle: "Importar datos de áreas",
+                areaParagraph:
+                    "Importar áreas utilizando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
+                importVotersSuccess: "Áreas Importadas Exitosamente",
+                importVotersError: "Error al importar Áreas",
+            },
             import: {
                 eetitle: "Importar Evento Electoral",
                 eesubtitle: "Importar datos del Evento Electoral",
@@ -357,6 +365,7 @@ const spanishTranslation: TranslationType = {
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
             },
+            exportError: "Error al exportar el Evento Electoral",
         },
         electionScreen: {
             common: {
@@ -458,6 +467,7 @@ const spanishTranslation: TranslationType = {
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
+                    exportError: "Error al exportar usuarios",
                     deleteError: "Error borrando usuario",
                     deleteSuccess: "Usuario borrado",
                 },
@@ -486,6 +496,7 @@ const spanishTranslation: TranslationType = {
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
+                    exportError: "Error al exportar votantes",
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
                     manualVerificationError: "Error verificando manualmente al votante",

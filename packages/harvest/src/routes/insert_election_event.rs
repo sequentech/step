@@ -71,8 +71,12 @@ pub async fn import_election_event_f(
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
-    let document_result =
-        import_election_event::get_document(input.clone(), None).await;
+    let document_result = import_election_event::get_document(
+        input.clone(),
+        None,
+        input.tenant_id.clone(),
+    )
+    .await;
 
     if let Err(err) = document_result {
         return Ok(Json(ImportElectionEventOutput {
@@ -83,7 +87,7 @@ pub async fn import_election_event_f(
     }
 
     let document = document_result.unwrap();
-    let id = document.election_event_data.id.clone();
+    let id = document.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);
 
@@ -98,8 +102,9 @@ pub async fn import_election_event_f(
     let celery_app = get_celery_app().await;
     let task = celery_app
         .send_task(import_election_event::import_election_event::new(
-            input,
+            input.clone(),
             id.clone(),
+            input.tenant_id.clone(),
         ))
         .await
         .map_err(|err| {

@@ -107,7 +107,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
 
     s3::upload_file_to_s3(
         /* key */ get_jwks_secret_path(),
-        /* is_public */ true,
+        /* is_public */ false,
         /* s3_bucket */ s3::get_public_bucket()?,
         /* media_type */ "application/json".to_string(),
         /* file_path */ temp_path.to_string_lossy().to_string(),

@@ -10,12 +10,9 @@ macro_rules! assign_value {
                 $target = inner.clone();
             }
             _ => {
-                return Err(
-                    anyhow!(
-                        r#"invalid column value for `$enum_variant`, `$value`, 
-                        `$target`"#
-                    )
-                );
+                return Err(anyhow!(
+                    r#"invalid column value for `$enum_variant`, `$value`, `$target`"#
+                ));
             }
         }
     };

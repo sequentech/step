@@ -8,6 +8,7 @@ import {
     Sequent_Backend_Trustee,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    Sequent_Backend_Keys_Ceremony,
 } from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -34,6 +35,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
+    const [eventTrustees, setEventTrustees] = useState<Array<string>>([])
 
     const [trusteesData, setTrusteesData] = useState<
         Array<Sequent_Backend_Trustee & {rowId: number; id: string; active: boolean}>
@@ -58,10 +60,34 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         }
     )
 
+    const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
+        "sequent_backend_keys_ceremony",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {election_event_id: tally?.election_event_id, tenant_id: tenantId},
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
     const {data: trustees} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 1000},
-        filter: {tenant_id: tenantId},
+        filter: {
+            tenant_id: tenantId,
+            id: eventTrustees,
+        },
     })
+
+    useEffect(() => {
+        let newTrustees = keyCeremony?.[0]?.trustee_ids ?? []
+        if (eventTrustees !== newTrustees) {
+            setEventTrustees(newTrustees)
+        }
+    }, [keyCeremony, eventTrustees, setEventTrustees])
 
     useEffect(() => {
         if (!tallySessionExecutions?.[0].status || !trustees) {

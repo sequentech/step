@@ -56,9 +56,9 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
 
             return {
                 headers: {
-                    ...headers,
                     "authorization": token ? `Bearer ${token}` : "",
                     "x-hasura-role": operationRole,
+                    ...headers,
                 },
             }
         })

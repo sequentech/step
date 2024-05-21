@@ -191,7 +191,7 @@ export const CommunicationTemplateList: React.FC = () => {
                 {recordId ? (
                     <CommunicationTemplateEdit id={recordId} close={handleCloseDrawer} />
                 ) : (
-                    <CustomApolloContextProvider role="communication-template-write">
+                    <CustomApolloContextProvider role={IPermissions.COMMUNICATION_TEMPLATE_WRITE}>
                         <CommunicationTemplateCreate close={handleCloseDrawer} />
                     </CustomApolloContextProvider>
                 )}

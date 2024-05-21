@@ -331,6 +331,14 @@ const frenchTranslation: TranslationType = {
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },
             },
+            importAreas: {
+                title: "Importer des Zones",
+                subtitle: "Importer des données de zones",
+                areaParagraph:
+                    "Importer des zones en utilisant un fichier tableur au format Valeurs Séparées par des Virgules (CSV).",
+                importVotersSuccess: "Zones Importées avec Succès",
+                importVotersError: "Erreur lors de l'importation des Zones",
+            },
             import: {
                 eetitle: "Importer un Événement Électoral",
                 eesubtitle: "Importer des données de l'Événement Électoral",
@@ -359,6 +367,7 @@ const frenchTranslation: TranslationType = {
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
             },
+            exportError: "Erreur lors de l'exportation de l'événement électoral",
         },
         electionScreen: {
             common: {
@@ -460,6 +469,7 @@ const frenchTranslation: TranslationType = {
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
                 },
                 notifications: {
+                    exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
                 },
@@ -488,6 +498,7 @@ const frenchTranslation: TranslationType = {
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
                 },
                 notifications: {
+                    exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
                     manualVerificationError:
