@@ -85,28 +85,21 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.getEvent().detail(Details.USERNAME, username);
         context.getEvent().detail(Details.FIRST_NAME, firstName);
         context.getEvent().detail(Details.LAST_NAME, lastName);
-        log.info("step 1");
 
         if (context.getRealm().isRegistrationEmailAsUsername()) {
-            log.info("isRegistrationEmailAsUsername: true");
             context.getEvent().detail(Details.USERNAME, email);
         }
 
         try {
-            log.info("step 2");
             profile.validate();
-            log.info("step 3");
             // If email validation exception was not raised and an email was
             // provided, validation should have thrown an Messages.EMAIL_EXISTS
             // exception, so show invalid email error here
             if (email != null && !email.isBlank()) {
-                log.info("step 3.1");
                 context.error(Errors.INVALID_EMAIL);
                 return;
             }
-            log.info("step 4");
         } catch (ValidationException pve) {
-            log.info("step 2.e.1");
             log.info("validate: ValidationException pve = " + pve.toString());
 
             // Filter email exists and username exists - this is to be expected
@@ -126,7 +119,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                 .getFormErrorsFromValidation(filteredErrors);
 
             if (pve.hasError(Messages.INVALID_EMAIL)) {
-                log.info("step 2.e.2");
                 context
                     .getEvent()
                     .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
@@ -135,17 +127,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             // if error is empty but we are here, then the exception was related
             // to error to be ignored (username/email exists), so we ignore them
             // and continue
-            if (errors.isEmpty()) {
-                log.info("step 2.e.4");
-
-            // if errors is not empty, show them
-            } else {
-                log.info("step 2.e.3");
+            if (!errors.isEmpty()) {
                 if (!pve.hasError(Messages.EMAIL_EXISTS)) {
-                    log.info("step 2.e.4");
                     context.error(Errors.INVALID_EMAIL);
                 } else {
-                    log.info("step 2.e.5");
                     context.error(Errors.INVALID_REGISTRATION);
                 }
                 log.info(errors);
@@ -153,7 +138,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                 return;
             }
         }
-        log.info("step 5");
 
         List<FormMessage> errors = new ArrayList<>();
         context.getEvent().detail(Details.REGISTER_METHOD, "form");
@@ -197,7 +181,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             context.validationError(formData, errors);
             return;
         }
-        log.info("step 6");
         log.info("validate: success");
         context.success();
     }

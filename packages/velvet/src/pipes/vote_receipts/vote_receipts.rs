@@ -7,6 +7,7 @@ use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::do_tally::tally::Tally;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
+use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest};
@@ -15,14 +16,13 @@ use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use serde::Serialize;
 use serde_json::Map;
-use uuid::Uuid;
-use tracing::info;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use tracing::info;
 use tracing::instrument;
-use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
+use uuid::Uuid;
 
 pub const OUTPUT_FILE: &str = "vote_receipts.pdf";
 pub const OUTPUT_FILE_HTML: &str = "vote_receipts.html";
@@ -43,7 +43,7 @@ impl VoteReceipts {
         &self,
         path: &Path,
         contest: &Contest,
-        election_input: &InputElectionConfig
+        election_input: &InputElectionConfig,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0)
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -182,7 +182,6 @@ struct DecodedChoice {
     pub candidate: Option<Candidate>,
 }
 
-
 #[derive(Serialize, Debug)]
 struct ReceiptData {
     pub id: Uuid,
@@ -222,15 +221,14 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
             let decoded_choices = decoded_vote_contest
                 .choices
                 .iter()
-                .map(|choice| {
-                    DecodedChoice {
-                        choice: choice.clone(),
-                        candidate: data.contest
+                .map(|choice| DecodedChoice {
+                    choice: choice.clone(),
+                    candidate: data
+                        .contest
                         .candidates
                         .iter()
                         .find(|c| c.id == choice.id)
-                        .cloned()
-                    }
+                        .cloned(),
                 })
                 .collect::<Vec<DecodedChoice>>();
 
