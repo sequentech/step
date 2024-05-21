@@ -13,6 +13,8 @@ import {theme} from "@sequentech/ui-essentials"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
+import {Provider} from "react-redux"
+import {store} from "./store/store"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -86,11 +88,13 @@ root.render(
     <React.StrictMode>
         <SettingsWrapper>
             <KeycloakProviderContainer>
-                <BrowserRouter>
-                    <ThemeProvider theme={theme}>
-                        <App />
-                    </ThemeProvider>
-                </BrowserRouter>
+                <Provider store={store}>
+                    <BrowserRouter>
+                        <ThemeProvider theme={theme}>
+                            <App />
+                        </ThemeProvider>
+                    </BrowserRouter>
+                </Provider>
             </KeycloakProviderContainer>
         </SettingsWrapper>
     </React.StrictMode>

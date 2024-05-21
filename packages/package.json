@@ -32,6 +32,7 @@
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix && yarn --cwd ./admin-portal prettify:fix && yarn --cwd ./ballot-verifier prettify:fix && yarn --cwd ./ui-essentials prettify:fix",
     "prettify": "yarn --cwd ./voting-portal prettify && yarn --cwd ./admin-portal prettify && yarn --cwd ./ballot-verifier prettify && yarn --cwd ./ui-essentials prettify",
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
-    "generate:admin-portal": "yarn --cwd ./admin-portal generate"
+    "generate:admin-portal": "yarn --cwd ./admin-portal generate",
+    "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate"
   }
 }
