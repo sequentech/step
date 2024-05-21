@@ -10,17 +10,272 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
+use sequent_core::ballot::ContestPresentation;
 use sequent_core::types::hasura::core::Candidate;
 use sequent_core::types::hasura::core::Contest;
 use std::io::Seek;
 use uuid::Uuid;
 
 fn get_political_party_extension(political_party: &str) -> String {
-    political_party.to_string()
+    // Mapping of numbers to political parties
+    let party_map = vec![
+        ("1", "\\N"),
+        ("2", "AKBAYAN"),
+        ("3", "AKSYON"),
+        ("4", "ABC"),
+        ("5", "ANAD"),
+        ("6", "ANG KAPATIRAN"),
+        ("7", "ANAKPAWIS"),
+        ("8", "APP"),
+        ("9", "BAGUMBAYAN"),
+        ("10", "BP"),
+        ("11", "BAYAN MUNA"),
+        ("12", "BIGKIS"),
+        ("13", "BUHAY"),
+        ("14", "BUKLOD"),
+        ("15", "CDP"),
+        ("16", "DPP"),
+        ("17", "FFP"),
+        ("18", "\\N"),
+        ("19", "KAMPI"),
+        ("20", "KASOSYO"),
+        ("21", "KDP"),
+        ("22", "KATIPUNAN"),
+        ("23", "BAGO"),
+        ("24", "KBL"),
+        ("25", "LDP"),
+        ("26", "KKK"),
+        ("27", "LAKAS CMD"),
+        ("28", "LP"),
+        ("29", "NP"),
+        ("30", "NAD"),
+        ("31", "NUP"),
+        ("32", "NPC"),
+        ("33", "OSME—A"),
+        ("34", "PDP LABAN"),
+        ("35", "PDSP"),
+        ("36", "PLM"),
+        ("37", "PNP"),
+        ("38", "PDR"),
+        ("39", "PRP"),
+        ("40", "PGRP"),
+        ("41", "PMP"),
+        ("42", "\\N"),
+        ("43", "SJS"),
+        ("44", "\\N"),
+        ("45", "UNA"),
+        ("46", "WPP"),
+        ("47", "KM NGAYON NA"),
+        ("48", "SBP"),
+        ("49", "ALL FISH"),
+        ("50", "ACP"),
+        ("51", "1AAA PARTY"),
+        ("52", "GP"),
+        ("53", "HNP"),
+        ("54", "1STP"),
+        ("55", "BISDAK"),
+        ("56", "AI"),
+        ("57", "APP"),
+        ("58", "AAB"),
+        ("59", "AKB"),
+        ("60", "AKMA-PTM"),
+        ("61", "ALAYON"),
+        ("62", "ABP"),
+        ("63", "BHW"),
+        ("64", "\\N"),
+        ("65", "BIAG"),
+        ("66", "DA"),
+        ("67", "DAMGO"),
+        ("68", "EDSA"),
+        ("69", "IPP"),
+        ("70", "KABAKA"),
+        ("71", "KUSGANO"),
+        ("72", "METRO"),
+        ("73", "\\N"),
+        ("74", "\\N"),
+        ("75", "PBB"),
+        ("76", "MUSHAWARA"),
+        ("77", "PARTIDO"),
+        ("78", "BISAYA"),
+        ("79", "\\N"),
+        ("80", "\\N"),
+        ("81", "\\N"),
+        ("82", "1- ANG EDUKASYON"),
+        ("83", "UNIDO"),
+        ("84", "UBJP"),
+        ("85", "UGP"),
+        ("86", "\\N"),
+        ("87", "AIM PARTY"),
+        ("88", "AZaP"),
+        ("89", "\\N"),
+        ("90", "\\N"),
+        ("91", "AMM"),
+        ("92", "ATUN"),
+        ("93", "BAKUD"),
+        ("94", "BILEG"),
+        ("95", "\\N"),
+        ("96", "\\N"),
+        ("97", "BPP"),
+        ("98", "\\N"),
+        ("99", "CATAPAT"),
+        ("100", "CARD"),
+        ("101", "CMIP"),
+        ("102", "CCA PARTY"),
+        ("103", "CORAL"),
+        ("104", "LIHOK COTABATO"),
+        ("105", "ALYANSA"),
+        ("106", "DILC"),
+        ("107", "\\N"),
+        ("108", "\\N"),
+        ("109", "HUGPONG"),
+        ("110", "\\N"),
+        ("111", "INA"),
+        ("112", "LAPIANG K"),
+        ("113", "KAMBILAN"),
+        ("114", "KABATAK"),
+        ("115", "KATIG-UBAN"),
+        ("116", "KABACA"),
+        ("117", "KSN"),
+        ("118", "KDT"),
+        ("119", "KUSUG"),
+        ("120", "KUSGAN"),
+        ("121", "KB"),
+        ("122", "KDO"),
+        ("123", "\\N"),
+        ("124", "\\N"),
+        ("125", "LAPIAN"),
+        ("126", "BALANE"),
+        ("127", "\\N"),
+        ("128", "LINGKOD -TAGUIG PARTY"),
+        ("129", "\\N"),
+        ("130", "MRP"),
+        ("131", "\\N"),
+        ("132", "MMM"),
+        ("133", "PARTIDO SANDUGO"),
+        ("134", "\\N"),
+        ("135", "MRP"),
+        ("136", "NKP"),
+        ("137", "\\N"),
+        ("138", "\\N"),
+        ("139", "\\N"),
+        ("140", "\\N"),
+        ("141", "\\N"),
+        ("142", "PANDAYAN PARTY"),
+        ("143", "\\N"),
+        ("144", "PAK"),
+        ("145", "BALIKATAN"),
+        ("146", "\\N"),
+        ("147", "\\N"),
+        ("148", "\\N"),
+        ("149", "\\N"),
+        ("150", "\\N"),
+        ("151", "PM"),
+        ("152", "\\N"),
+        ("153", "\\N"),
+        ("154", "PAMBATANGUE—O"),
+        ("155", "\\N"),
+        ("156", "TAGUIG-PATEROS ACTION TEAM"),
+        ("157", "PPP"),
+        ("158", "PADER"),
+        ("159", "PCM"),
+        ("160", "PEOPLE'S ELA"),
+        ("161", "PCNP"),
+        ("162", "PINATUBO PARTY"),
+        ("163", "\\N"),
+        ("164", "\\N"),
+        ("165", "\\N"),
+        ("166", "\\N"),
+        ("167", "SAMAHNA"),
+        ("168", "SARRO"),
+        ("169", "SPP"),
+        ("170", "SZP"),
+        ("171", "\\N"),
+        ("172", "\\N"),
+        ("173", "UGYON CAPIZ"),
+        ("174", "\\N"),
+        ("175", "UAM"),
+        ("176", "PARTIDO NG PAGBABAGO"),
+        ("177", "\\N"),
+        ("178", "UNA"),
+        ("179", "LGBT"),
+        ("180", "IND"),
+        ("181", "PDDS"),
+        ("182", "PFP"),
+        ("183", "WPP"),
+        ("184", "UMP"),
+        ("185", "MKBYN"),
+        ("186", "MKMAZA"),
+        ("187", "PAZ"),
+        ("188", "KB"),
+    ];
+
+    // Convert the vector to a HashMap for efficient lookup
+    let party_map: std::collections::HashMap<&str, &str> = party_map.into_iter().collect();
+
+    // Check if the input or the mapped value is "\N"
+    match party_map.get(political_party) {
+        Some(&party_name) if party_name != "\\N" && political_party != "\\N" => {
+            party_name.to_string()
+        }
+        _ => "IND".to_string(),
+    }
 }
 
-fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> String {
-    postcode.to_string()
+fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<Option<String>> {
+    // Mapping of postcodes to contest names
+    let contest_map = vec![
+        ("1", "PRESIDENT"),
+        ("2", "VICE-PRESIDENT"),
+        ("3", "SENATOR"),
+        ("4", "PROVINCIAL GOVERNOR"),
+        ("5", "PROVINCIAL VICE-GOVERNOR"),
+        ("6", "MEMBER"),
+        ("7", "MEMBER"),
+        ("8", "MAYOR"),
+        ("9", "VICE-MAYOR"),
+        ("10", "COUNCILOR"),
+        ("11", "PARTY LIST"),
+        ("12", "REGIONAL GOVERNOR"),
+        ("13", "REGIONAL VICE-GOVERNOR"),
+        ("14", "MEMBER"),
+        ("15", "PUNONG BARANGAY"),
+        ("16", "MEMBER"),
+        ("17", "CHAIRPERSON"),
+        ("18", "MEMBER"),
+    ];
+
+    // Convert the vector to a HashMap for efficient lookup
+    let contest_map: std::collections::HashMap<&str, &str> = contest_map.into_iter().collect();
+
+    // Get the contest name from the map
+    if let Some(&contest_name) = contest_map.get(postcode) {
+        // Find the contest with the matching alias
+        for contest in contests {
+            if let Some(alias) = contest.alias.clone() {
+                if alias == contest_name.to_string() {
+                    return Ok(Some(contest.id.clone()));
+                }
+            }
+            if let Some(presentation) = contest.presentation.clone() {
+                let contest_presentation: ContestPresentation =
+                    serde_json::from_value(presentation)?;
+                if let Some(i18n) = contest_presentation.i18n.clone() {
+                    if let Some(en) = i18n.get("en") {
+                        if let Some(en_alias_opt) = en.get("alias").clone() {
+                            if en_alias_opt.clone().unwrap_or("".to_string())
+                                == contest_name.to_string()
+                            {
+                                return Ok(Some(contest.id.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // If no match found, return the first contest by default
+    Ok(None)
 }
 
 pub async fn import_candidates_task(
@@ -62,8 +317,10 @@ pub async fn import_candidates_task(
         let postcode = record.get(2).unwrap_or("1").to_string();
 
         let ext = get_political_party_extension(&political_party);
-        let contest_id = get_contest_from_postcode(&contests, &postcode);
-
+        let contest_id_opt = get_contest_from_postcode(&contests, &postcode)?;
+        let Some(contest_id) = contest_id_opt else {
+            continue;
+        };
         let candidate = Candidate {
             id: Uuid::new_v4().to_string(),
             tenant_id: tenant_id.clone(),
