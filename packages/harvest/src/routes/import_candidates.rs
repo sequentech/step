@@ -7,12 +7,9 @@ use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::tasks::import_areas::import_areas_task;
 use windmill::tasks::import_candidates::import_candidates_task;
 
 #[derive(Serialize, Deserialize, Debug)]
