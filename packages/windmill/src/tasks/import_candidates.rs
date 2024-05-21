@@ -2,21 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area::insert_areas;
-use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
-use crate::services::import_election_event::AreaContest;
 use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
-use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::types::hasura::core::{Area, Candidate};
+use sequent_core::types::hasura::core::Candidate;
+use sequent_core::types::hasura::core::Contest;
 use std::io::Seek;
 use uuid::Uuid;
+
+fn get_political_party_extension(political_party: &str) -> String {
+    political_party.to_string()
+}
+
+fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> String {
+    postcode.to_string()
+}
 
 pub async fn import_candidates_task(
     tenant_id: String,
@@ -52,6 +57,31 @@ pub async fn import_candidates_task(
     let mut candidates: Vec<Candidate> = vec![];
     for result in rdr.records() {
         let record = result.with_context(|| "Error reading CSV record")?;
+        let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
+        let political_party = record.get(7).unwrap_or("\\N").to_string();
+        let postcode = record.get(2).unwrap_or("1").to_string();
+
+        let ext = get_political_party_extension(&political_party);
+        let contest_id = get_contest_from_postcode(&contests, &postcode);
+
+        let candidate = Candidate {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            contest_id: Some(contest_id),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            name: Some(format!("{name_on_ballot} ({ext})")),
+            alias: None,
+            description: None,
+            r#type: None,
+            presentation: None,
+            is_public: Some(true),
+            image_document_id: None,
+        };
+        candidates.push(candidate);
     }
     insert_candidates(
         &hasura_transaction,
