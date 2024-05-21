@@ -190,7 +190,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
         input[type="checkbox"]:checked {
             background-color: black;
-            border: 2px solid black;
         }
 
         .candidate-name {
@@ -261,7 +260,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <div class="candidates">
                         {{#each this.decoded_choices}}
                             <div class="candidate">
-                                {{#if (gt this.choice.selected 0)}}
+                                {{#if (gte this.choice.selected 0)}}
                                     <input type="checkbox" class="check-mark" checked />
                                 {{else}}
                                     <input type="checkbox" class="check-mark" />

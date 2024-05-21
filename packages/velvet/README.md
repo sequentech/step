@@ -30,10 +30,10 @@ cargo build
 # update velvet config with vote receipts template
 python3 testing/bin/utils/update_velvet_config.py \
     --config-path ./velvet-config.json \
-    --template-path ./src/resources/vote_receipts.hbs
+    --template-path ./src/resources/vote_receipts.hbs && \
 
 # run velvet
-rm -rf output2
+rm -rf output2 && \
 cargo run --bin velvet -- run \
     main decode-ballots \
     --config ./velvet-config.json \
