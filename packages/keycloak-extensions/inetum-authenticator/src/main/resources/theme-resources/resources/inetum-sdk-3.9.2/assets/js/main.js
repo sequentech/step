@@ -133,8 +133,11 @@ let myStrings = {
   'initial_button_mobile': 'Start',
   // INSTRUCTIONS STEP
   'instructions_step_title': 'Video Instructions',
+  'passport_custom_instructions_step_title': 'Video Instructions',
   'instructions_step_description': 'Now we are going to video you. You will have to show your document. Then we will take a selfie and you will have to match the two ovals that you will see on the screen. Find a well-lit place. Only the person who is identifying themselves may appear in the video.',
+  'passport_custom_instructions_step_description': 'Now we are going to video you. You will have to show your document. Then we will take a selfie and you will have to match the two ovals that you will see on the screen. Find a well-lit place. Only the person who is identifying themselves may appear in the video.',
   'instructions_step_button': 'Continue',
+  'passport_custom_instructions_step_button': 'Continue',
   // DOC-CAPTURE STEP
   'card_detector_evidence_not_focus': 'The image is out of focus',
   'card_detector_no_detect_docs': 'We are not detecting anything...',
@@ -593,13 +596,6 @@ dobSdk.addEventListener("status", status => {
     myStrings['instructions_step_button'] = myStrings['custom_instructions_doc_button'];
     dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
   }
-  // Esto simplemente es un ejemplo de como mostrar los texto de instrucciones por defecto, según el nombre del step
-  if (parsedStatus.step === 'instructions-face') {
-    delete myStrings['instructions_step_title'];
-    delete myStrings['instructions_step_description'];
-    delete myStrings['instructions_step_button'];
-    dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
-  }
   // Esto simplemente es un ejemplo de como cambiar los textos e iconos en la vista inicial y final en caso de capturar un pasaporte, según el nombre del step
   if (parsedStatus.step === 'permissions-passport' || parsedStatus.step === 'end-passport') {
     // initial styles
@@ -628,6 +624,11 @@ dobSdk.addEventListener("status", status => {
   if (parsedStatus.step === 'instructions-passport') {
     myStrings['instructions_step_title'] = myStrings['custom_instructions_step_title'];
     myStrings['instructions_step_description'] = myStrings['custom_instructions_step_description'];
+    dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
+  }
+  if (parsedStatus.step === 'instructions-face' && isPassportFlow) {
+    myStrings['instructions_step_title'] = myStrings['passport_custom_instructions_step_title'];
+    myStrings['instructions_step_description'] = myStrings['passport_custom_instructions_step_description'];
     dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
   }
   // Esto simplemente es un ejemplo de como cambiar los iconos en el componente secundary toolbar en caso de capturar un pasaporte, según el nombre del step
