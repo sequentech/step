@@ -1,200 +1,315 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+
 <!doctype html>
 <html lang="en-US">
 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{{extra_data.title}}</title>
-  <script src="{{extra_data.file_qrcode_lib}}"></script>
+  <title>Vote receipts</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: auto;
-      max-width: 640px;
-    }
+        @media print {
+            .next-page {
+                page-break-after: always;
+            }
 
-    h1,
-    h2,
-    h3,
-    h4 {
-      margin-top: 48px;
-      margin-bottom: 48px;
-    }
+            .ballot {
+                margin: 0;
+            }
 
-    .logo {
-      content: url("{{extra_data.file_logo}}");
-      text-align: center;
-      margin: 16px auto;
-    }
+            body {
+                margin: 0;
+            }
 
-    .main {
-      margin-top: 32px;
-    }
+            .header,
+            .footer {
+                display: block;
+            }
+        }
 
-    .main div {
-      margin-top: 32px;
-    }
+        .ballot {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid black;
+            border-top: 32px dashed black;
+            border-bottom: 32px dashed black;
+            border-left: 16px dashed black;
+            border-right: 16px dashed black;
+            box-sizing: border-box;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            font-size: 12px;
+        }
 
-    .id-content {
-      print-color-adjust: exact;
-      font-family: monospace;
-      font-size: 11px;
-      padding: 6px 12px;
-      background: #ecfdf5;
-      color: #191d23;
-      border-radius: 4px;
-    }
+        .header .left {
+            text-align: left;
+            flex: 2;
+        }
 
-    .info {
-      margin: 32px 0;
-    }
+        .header .comissioner-logo {
+            height: 60px;
+        }
 
-    .info p {
-      margin: 12px 0;
-    }
+        .header .center {
+            text-align: center;
+            flex: 1;
+        }
 
-    .ballot {
-      border: 3px dashed #43E3A1;
-      border-radius: 4px;
-      padding: 32px;
-    }
+        .header .right {
+            text-align: right;
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .header h2 {
+            font-size: 16px;
+            margin: 20px 0 0 0;
+        }
 
-    @media print {
-      .next-page {
-        page-break-after: always;
-      }
-    }
+        .header p {
+            margin: 2px 0;
+            font-size: 12px;
+        }
 
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 20px 0;
-    }
+        .header ol {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 10px;
+            width: 70%;
+        }
 
-    th,
-    td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-    }
+        .header .instructions-header {
+            padding-top: 20px;
+            font-weight: bold;
+        }
 
-    th.invalid-blank, td.invalid-blank {
-      width: 50%;
-    }
-      
-    td.checkbox {
-      text-align: center;
-    }
+        .header .qr-code {
+            display: block;
+            margin: 10px auto;
+            width: 150px;
+        }
 
-    th {
-      background-color: #f2f2f2;
-      font-weight: bold;
-      text-align: center;
-    }
+        .header .signature {
+            display: block;
+            float: right;
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: bottom;
+            width: 60%;
+            height: 50px;
+            margin-top: 10px;
+        }
 
-    thead tr {
-      border-bottom: 2px solid #ccc;
-    }
+        .content {
+            margin-top: 20px;
+            font-size: 10px;
+        }
 
-    tbody tr:nth-child(even) {
-      background-color: #f2f2f2;
-    }
+        .section {}
 
-    input[type="checkbox"] {
-      margin-right: 5px;
-    }
+        .section-title {
+            border: 1px solid black;
+            background-color: #007bff;
+            color: white;
+            padding: 5px;
+            text-align: center;
+        }
 
-    .qrcode {
-      margin-top: 32px;
-      display: flex;
-      justify-content: center;
-    }
+        .section-title.green {
+            background-color: #28a745;
+        }
 
-    .text-center {
-      text-align: center;
-    }
-  </style>
+        .section-title.blue {
+            background-color: #007bff;
+        }
+
+        .candidates {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .candidates div {
+            flex: 1 1 25%;
+            max-width: 25%;
+        }
+
+        .candidate {
+            padding: 5px;
+            border: 1px solid black;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+
+        .is-blank, .is-invalid {
+            padding: 5px 0 5px 5px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+
+        .is-blank .candidate-name, .is-invalid  .candidate-name {
+            margin-right: 10px;
+        }
+
+        .is-blank input[type="checkbox"], .is-invalid input[type="checkbox"] {
+            margin-right: 0;
+        }
+
+        input[type="checkbox"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            min-width: 15px;
+
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            margin-right: 10px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: black;
+        }
+
+        .candidate-name {
+            font-size: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: red;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 
   <body>
     <div class="content">
       <div class="logo"></div>
       <h1 class="text-center">Vote Receipts</h1>
+      <div id="dateDiv"></div>
       <div class="next-page"></div>
-
+      
       {{#each data.receipts}}
-        <div class="ballot">
-          <h3 style="margin-top: 0; margin-bottom: 12px;" class="text-center">Contest: {{sanitize_html ../data.contest.name}}</h3>
-          <h4>Ballot: {{@index}}-{{this.encoded_vote}}</h4>
-
-          {{#unless this.is_blank_or_invalid}}
-            <table>
-              <thead>
-                <tr>
-                  <th></th>
-                  <th>Selected Candidates</th>
-                </tr>
-              </thead>
-              <tbody>
-                {{#each this.selected_candidates}}
-                  <tr>
-                    <td class="checkbox"><input type="checkbox" checked /></td>
-                    <td class="text-center">{{this.name}}</td>
-                  </tr>
-                {{/each}}
-              </tbody>
-            </table>
-          {{/unless}}
-          
-          <table>
-            <thead>
-              <tr>
-                <th class="invalid-blank">Invalid vote</th>
-                <th class="invalid-blank">Blank</th>
-              </tr>
-            </thead>
-            <tbody>
-                <tr>
-                  <td class="invalid-blank checkbox">
-                    {{#if this.is_invalid}}
-                      <input type="checkbox" checked />
-                    {{/if}}
-                    {{#unless this.is_invalid}}
-                      <input type="checkbox" />
-                    {{/unless}}
-                  </td>
-                  <td class="invalid-blank checkbox">
-                    {{#if this.is_blank}}
-                      <input type="checkbox" checked />
-                    {{/if}}
-                    {{#unless this.is_blank}}
-                      <input type="checkbox" />
-                    {{/unless}}
-                  </td>
-                </tr>
-            </tbody>
-          </table>
-          
-          <div class="qrcode" id="qrcode-{{@index}}-{{this.encoded_vote}}"></div>
-          
+        <div class="ballot next-page">
+            <div class="header">
+                <div class="left">
+                    <h2>{{sanitize_html ../data.election_name}}</h2>
+                    <p class="ballot-no">Ballot No #{{@index}}</p>
+                    <p class="instructions-header">INSTRUCTIONS FOR VOTING</p>
+                    <ol>
+                        <li>Completely blacken the inside of the circle beside the name of the desired candidate.</li>
+                        <li>Use only the marking pen provided for blackening the circles.</li>
+                    </ol>
+                </div>
+                <div class="center">
+                    <div class="qr-code" id="qrcode-{{@index}}"></div>
+                </div>
+                <div class="right">
+                    <img
+                      src="https://i.imgur.com/E706UKs.png"
+                      class="comissioner-logo"
+                      alt="Electoral Commission Logo"
+                    />
+                    <div class="is-blank">
+                        <span class="candidate-name">Blank vote</span>
+                        {{#if this.is_blank }}
+                            <input type="checkbox" class="check-mark" checked />
+                        {{else}}
+                            <input type="checkbox" class="check-mark" />
+                        {{/if}}
+                    </div>
+                    <div class="is-invalid">
+                        <span class="candidate-name">Null Vote</span>
+                        {{#if this.is_invalid }}
+                            <input type="checkbox" class="check-mark" checked />
+                        {{else}}
+                            <input type="checkbox" class="check-mark" />
+                        {{/if}}
+                    </div>
+                    <div class="signature">Signature of Chairman</div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="section">
+                    <div class="section-title blue">
+                      {{sanitize_html ../data.contest.name}}
+                    </div>
+                    <div class="candidates">
+                        {{#each this.decoded_choices}}
+                            <div class="candidate">
+                                {{#if (gte this.choice.selected 0)}}
+                                    <input type="checkbox" class="check-mark" checked />
+                                {{else}}
+                                    <input type="checkbox" class="check-mark" />
+                                {{/if}}
+                                <span class="candidate-name">{{this.candidate.name}}</span>
+                            </div>
+                        {{/each}}
+                    </div>
+                </div>
+            </div>
+            <div class="footer">
+                FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
+                Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
+            </div>
         </div>
       {{/each}}
     </div>
+
+    <!-- QR Codes -->
+    <script>
+      {{#each data.receipts}}
+        new QRCode(document.getElementById("qrcode-{{@index}}"), {
+            text: '{{@index}};{{this.encoded_vote}}',
+            width: 100,
+            height: 100,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H,
+        })
+      {{/each}}
+    </script>
+
+    <!-- Report date -->
+    <script>
+      // Get the current date
+      var currentDate = new Date();
+
+      // Format the date as a string (e.g., "April 11, 2024")
+      var dateString = currentDate.toLocaleDateString('en-US', {
+          year: 'numeric', // Four digit year
+          month: 'long', // Full name of the month
+          day: 'numeric', // Day of the month
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short'
+      });
+
+      // Set the text of the div to the formatted date string
+      document.getElementById('dateDiv').textContent = dateString;
+    </script>
   </body>
-  
-  <script>
-    {{#each data.receipts}}
-      new QRCode(document.getElementById("qrcode-{{@index}}-{{this.encoded_vote}}"), {
-          text: "{{@index}}-{{this.encoded_vote}}",
-          width: 100,
-          height: 100,
-          colorDark: "#000000",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.H,
-      })
-    {{/each}}
-  </script>
 </html>
-
-
