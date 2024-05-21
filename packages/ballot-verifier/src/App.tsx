@@ -39,6 +39,7 @@ const HeaderWithContext: React.FC = () => {
 
     return (
         <Header
+            appVersion={{main: "10.4.2"}}
             userProfile={{
                 username: authContext.username,
                 email: authContext.email,
