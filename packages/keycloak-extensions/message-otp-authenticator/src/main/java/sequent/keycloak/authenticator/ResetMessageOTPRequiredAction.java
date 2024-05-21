@@ -17,6 +17,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.function.Consumer;
 import java.util.Optional;
 
@@ -150,7 +152,9 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 				false
             );
         } catch (Exception error) {
-			log.infov("there was an error {0}", error);
+            StringWriter sw = new StringWriter();
+            error.printStackTrace(new PrintWriter(sw));
+            log.infov("There was an error: {0}", sw.toString());
 			context.failure();
         }
 
