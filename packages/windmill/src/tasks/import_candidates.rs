@@ -4,6 +4,7 @@
 
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
+use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::services::import_election_event::AreaContest;
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::{Area, Candidate};
 use std::io::Seek;
 use uuid::Uuid;
 
@@ -37,6 +38,28 @@ pub async fn import_candidates_task(
         .await
         .with_context(|| "Error obtaining the document")?
         .ok_or(anyhow!("document not found"))?;
+
+    let contests = export_contests(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
+    let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
+    temp_file.rewind()?;
+    // Read the first line of the file to get the columns
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b',')
+        .has_headers(false)
+        .from_reader(temp_file);
+
+    let mut candidates: Vec<Candidate> = vec![];
+    for result in rdr.records() {
+        let record = result.with_context(|| "Error reading CSV record")?;
+    }
+    insert_candidates(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &candidates,
+    )
+    .await?;
 
     let _commit = hasura_transaction
         .commit()

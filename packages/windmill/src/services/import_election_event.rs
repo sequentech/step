@@ -25,7 +25,7 @@ use crate::hasura::election_event::insert_election_event as insert_election_even
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
-use crate::postgres::candidate::insert_candidate;
+use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
 use crate::postgres::election_event::insert_election_event;
@@ -188,7 +188,13 @@ pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
     insert_election_event(&hasura_transaction, &data).await?;
     insert_election(&hasura_transaction, &data).await?;
     insert_contest(&hasura_transaction, &data).await?;
-    insert_candidate(&hasura_transaction, &data).await?;
+    insert_candidates(
+        &hasura_transaction,
+        &data.tenant_id.to_string(),
+        &data.election_event.id,
+        &data.candidates,
+    )
+    .await?;
     insert_areas(&hasura_transaction, &data.areas).await?;
     insert_area_contests(
         &hasura_transaction,
