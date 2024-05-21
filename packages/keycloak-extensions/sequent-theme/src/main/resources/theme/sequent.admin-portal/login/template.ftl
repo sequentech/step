@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <meta name="${meta?split('==')[0]}" content="${meta?split('==')[1]}"/>
         </#list>
     </#if>
-    <title>EDU - ${msg("loginTitle",(realm.displayName!''))}</title>
+    <title>${msg("loginTitle",(realm.displayName!''))}</title>
     <link rel="icon" href="${url.resourcesPath}/img/favicon.ico" />
 
     <style id="login-custom-css" type="text/css">

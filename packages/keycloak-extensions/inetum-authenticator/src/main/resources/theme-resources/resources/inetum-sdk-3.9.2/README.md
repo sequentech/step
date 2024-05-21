@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 # INETUM
 ## SDK WEB - Digital OnBoarding
 
-<img src="assets/images/inetum-logo.jpg" alt="Logo" width="100" height="50">
+<img src="assets/images/sequent-logo.jpg" alt="Logo" width="100" height="50">
 
 Design compatible with:
 

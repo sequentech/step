@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </head>
 <body>
     <header class="inetum-header color-header-bg">
-        <img src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/images/inetum-ico.png" alt="Inetum"/>
+        <img src="${url.resourcesPath}/inetum-sdk-3.9.2/assets/images/sequent-ico.png" alt="Inetum"/>
     </header>
     <div class="dob-container dob-container-bg">
         <div class="dob-attach-messages">
