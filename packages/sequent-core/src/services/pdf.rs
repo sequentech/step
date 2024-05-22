@@ -53,7 +53,7 @@ pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
         PrintToPdfOptions {
             landscape: None,
             display_header_footer: None,
-            print_background: None,
+            print_background: Some(true),
             scale: None,
             paper_width: None,
             paper_height: None,
