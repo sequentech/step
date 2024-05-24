@@ -1,0 +1,7 @@
+yarn.lock
+yarn.nix
+browserstack/package-lock.json
+graphql.schema.json
+src/gql/graphql.ts
+src/translations/
+src/fixtures/
