@@ -18,6 +18,7 @@ Files:
   devenv.nix
   graphql.schema.json
   yarn.lock
+  packages/.ignore
   packages/admin-portal/.ignore
   packages/ballot-verifier/.ignore
   packages/braid/.ignore
