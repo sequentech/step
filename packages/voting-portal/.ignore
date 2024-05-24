@@ -4,3 +4,5 @@ graphql.schema.json
 src/gql/graphql.ts
 src/translations/
 src/fixtures/
+LICENSE
+LICENSES/*

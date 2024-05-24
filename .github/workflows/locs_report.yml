@@ -13,14 +13,14 @@ jobs:
   reuse:
     runs-on: ubuntu-latest
 
-    steps:
+    steps :
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Execute reporting tool
       run: |
         mkdir locs_report
-        ./scripts/loc.sh > locs_report/full_report.html
+        ./scripts/loc.sh > locs_report/locs_report.md
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
