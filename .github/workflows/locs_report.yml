@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: LOCs Lines Of Code Report
+
+on:
+    pull_request:
+    push:
+      branches: [ 'main' ]
+
+jobs:
+  locs:
+    runs-on: ubuntu-latest
+
+    steps :
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Execute reporting tool
+      run: |
+        mkdir locs_report
+        ./scripts/loc.sh > locs_report/locs_report.md
+        cat locs_report/locs_report.md >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: locs_report
+          path: locs_report/
