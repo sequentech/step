@@ -21,8 +21,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y wget
-        wget -O scc.tgz https://github.com/boyter/scc/releases/download/v3.3.4/scc-3.3.4-x86_64-unknown-linux-musl.tar.gz
-        tar -xvf scc.tgz
+        wget -O scc.tar.gz https://github.com/boyter/scc/releases/download/v3.3.4/scc_Linux_x86_64.tar.gz
+        tar zvf scc.tar.gz
         sudo mv scc /usr/local/bin/scc
         scc --version
 
