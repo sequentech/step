@@ -22,9 +22,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y wget
         wget -O scc.tar.gz https://github.com/boyter/scc/releases/download/v3.3.4/scc_Linux_x86_64.tar.gz
-        tar zvf scc.tar.gz
+        tar zxf scc.tar.gz
         sudo mv scc /usr/local/bin/scc
         scc --version
+
+
+tar: You must specify one of the '-Acdtrux', '--delete' or '--test-label' options
+Try 'tar --help' or 'tar --usage' for more information.
 
     - name: Execute reporting tool
       run: |
