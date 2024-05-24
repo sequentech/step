@@ -17,13 +17,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install SCC
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget
+        wget -O scc.tgz https://github.com/boyter/scc/releases/download/v3.3.4/scc-3.3.4-x86_64-unknown-linux-musl.tar.gz
+        tar -xvf scc.tgz
+        sudo mv scc /usr/local/bin/scc
+        scc --version
+
     - name: Execute reporting tool
       run: |
         mkdir locs_report
         ./scripts/loc.sh locs_report/locs_report.md
         ls -lah locs_report/locs_report.md
 
-    - name: Execute reporting tool
+    - name: Add the report to the summary
       run: |
         cat locs_report/locs_report.md >> "$GITHUB_STEP_SUMMARY"
 
