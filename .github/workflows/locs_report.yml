@@ -20,7 +20,7 @@ jobs:
     - name: Execute reporting tool
       run: |
         mkdir locs_report
-        ./scripts/loc.sh > locs_report/locs_report.md 2>/dev/null
+        bash -c "set -m; ./scripts/loc.sh > locs_report/locs_report.md" 2>/dev/null
         ls -lah locs_report/locs_report.md
 
     - name: Execute reporting tool
