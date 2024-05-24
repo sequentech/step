@@ -16,5 +16,5 @@ set -ex -o pipefail
 
 for i in $(find packages/ -maxdepth 1 -type d)
 do
-    scc -s lines $i
+    scc -s lines -o html-table $i
 done

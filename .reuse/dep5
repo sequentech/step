@@ -18,6 +18,14 @@ Files:
   devenv.nix
   graphql.schema.json
   yarn.lock
+  packages/admin-portal/.ignore
+  packages/ballot-verifier/.ignore
+  packages/braid/.ignore
+  packages/sequent-core/.ignore
+  packages/strand/.ignore
+  packages/ui-essentials/.ignore
+  packages/voting-portal/.ignore
+  packages/windmill/.ignore
   packages/package.json
   packages/admin-portal/graphql.schema.json
   packages/admin-portal/logs/*
