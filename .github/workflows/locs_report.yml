@@ -26,10 +26,6 @@ jobs:
         sudo mv scc /usr/local/bin/scc
         scc --version
 
-
-tar: You must specify one of the '-Acdtrux', '--delete' or '--test-label' options
-Try 'tar --help' or 'tar --usage' for more information.
-
     - name: Execute reporting tool
       run: |
         mkdir locs_report
