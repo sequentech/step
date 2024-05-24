@@ -21,9 +21,10 @@ jobs:
       run: |
         mkdir locs_report
         ./scripts/loc.sh > locs_report/locs_report.md
+        cat locs_report/locs_report.md >> "$GITHUB_OUTPUT"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
           name: locs_report
-          path:  locs_report/
+          path: locs_report/
