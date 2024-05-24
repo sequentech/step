@@ -604,7 +604,7 @@ docker compose exec \
   -U postgres
 
 CREATE TABLE table1_with_pk (a SERIAL, b VARCHAR(30), c TIMESTAMP NOT NULL, PRIMARY KEY(a, c));
-INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
+INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now()); 
 ```
 
 ### The disk/codespace runs out of space
