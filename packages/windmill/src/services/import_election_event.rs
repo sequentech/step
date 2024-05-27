@@ -4,20 +4,16 @@
 
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
 use std::fs;
-use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
-use uuid::Uuid;
 
 use super::database::get_hasura_pool;
 use crate::hasura::election_event::get_election_event;
@@ -33,7 +29,7 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
-
+use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AreaContest {
     pub id: Uuid,
@@ -117,6 +113,35 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
+#[instrument(skip_all, err)]
+pub async fn process_insert_election_event(object: ElectionEvent, id: String) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+
+    let mut final_object = object.clone();
+    let tenant_id = object.tenant_id.clone();
+
+    let board = upsert_immu_board(tenant_id.as_str(), &id.as_ref()).await?;
+    final_object.bulletin_board_reference = Some(board);
+    final_object.id = id.clone();
+    upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await?;
+    insert_election_event(&hasura_transaction, &final_object).await?;
+
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| anyhow!("Commit failed: {}", e));
+    Ok(())
+}
+
 #[instrument(skip(auth_headers), err)]
 pub async fn insert_election_event_db(
     auth_headers: &connection::AuthHeaders,
@@ -185,7 +210,7 @@ pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
-    insert_election_event(&hasura_transaction, &data).await?;
+    insert_election_event(&hasura_transaction, &data.election_event).await?;
     insert_election(&hasura_transaction, &data).await?;
     insert_contest(&hasura_transaction, &data).await?;
     insert_candidates(

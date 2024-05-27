@@ -3,27 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::get_election_event;
-use crate::services::import_election_event::insert_election_event_db;
-use crate::services::import_election_event::upsert_immu_board;
-use crate::services::import_election_event::upsert_keycloak_realm;
 use crate::{
     services::{
-        database::get_hasura_pool,
         documents,
         import_election_event::{self as import_election_event_service, ImportElectionEventSchema},
     },
     types::error::Result,
 };
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::services::replace_uuids::replace_uuids;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use tracing::{event, instrument, Level};
-use uuid::Uuid;
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportElectionEventBody {

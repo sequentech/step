@@ -7,6 +7,7 @@ use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -25,7 +26,7 @@ pub struct CreateElectionEventOutput {
 #[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
-    body: Json<InsertElectionEventInput>,
+    body: Json<ElectionEvent>,
     claims: JwtClaims,
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
     authorize(
@@ -36,11 +37,11 @@ pub async fn insert_election_event_f(
     )?;
     let celery_app = get_celery_app().await;
     // always set an id;
-    let object = body.into_inner().clone();
-    let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
+    let election_event = body.into_inner().clone();
+    let id = Uuid::new_v4().to_string(); //election_event.id.clone().unwrap_or(Uuid::new_v4().to_string());
     let task = celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
-            object,
+            election_event,
             id.clone(),
         ))
         .await
