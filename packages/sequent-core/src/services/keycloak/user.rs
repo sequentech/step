@@ -15,7 +15,7 @@ impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
         self.attributes.as_ref().and_then(|attributes| {
             let mobile_phone = attributes.get(MOBILE_PHONE_ATTR_NAME)?.clone();
-            serde_json::from_value(mobile_phone).ok()?
+            serde_json::from_value(mobile_phone.into()).ok()?
         })
     }
 
@@ -24,7 +24,7 @@ impl User {
             self.attributes
                 .as_ref()?
                 .get(AREA_ID_ATTR_NAME)?
-                .as_str()?
+                .get(0)?
                 .to_string(),
         )
     }
@@ -48,9 +48,9 @@ impl User {
 impl TryFrom<Row> for User {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        let attributes_value: Value = item.try_get("attributes")?;
-        let attributes_map: HashMap<String, Value> =
-            serde_json::from_value(attributes_value)?;
+        let attributes_value: Vec<String> = item.try_get("attributes")?;
+        let attributes_map: HashMap<String, Vec<String>> =
+            serde_json::from_value(attributes_value.into())?;
         Ok(User {
             id: item.try_get("id")?,
             attributes: Some(attributes_map),
@@ -109,6 +109,10 @@ impl From<User> for UserRepresentation {
             self_: None,
             service_account_client_id: None,
             username: item.username.clone(),
+            application_roles: None,
+            social_links: None,
+            totp: None,
+            user_profile_metadata: None,
         }
     }
 }
@@ -149,7 +153,7 @@ impl KeycloakAdminClient {
         let count: i32 = self
             .client
             .realm_users_count_get(
-                realm, email, None, None, None, None, search, None,
+                realm, email, None, None, None, None, search, None, None,
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
@@ -165,7 +169,7 @@ impl KeycloakAdminClient {
     pub async fn get_user(self, realm: &str, user_id: &str) -> Result<User> {
         let current_user: UserRepresentation = self
             .client
-            .realm_users_with_id_get(realm, user_id)
+            .realm_users_with_user_id_get(realm, user_id, None)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(current_user.into())
@@ -177,7 +181,7 @@ impl KeycloakAdminClient {
         realm: &str,
         user_id: &str,
         enabled: Option<bool>,
-        attributes: Option<HashMap<String, Value>>,
+        attributes: Option<HashMap<String, Vec<String>>>,
         email: Option<String>,
         first_name: Option<String>,
         last_name: Option<String>,
@@ -186,7 +190,7 @@ impl KeycloakAdminClient {
     ) -> Result<User> {
         let mut current_user: UserRepresentation = self
             .client
-            .realm_users_with_id_get(realm, user_id)
+            .realm_users_with_user_id_get(realm, user_id, None)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
@@ -254,7 +258,7 @@ impl KeycloakAdminClient {
         };
 
         self.client
-            .realm_users_with_id_put(realm, user_id, current_user.clone())
+            .realm_users_with_user_id_put(realm, user_id, current_user.clone())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
@@ -264,7 +268,7 @@ impl KeycloakAdminClient {
     #[instrument(skip(self), err)]
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
-            .realm_users_with_id_delete(realm, user_id)
+            .realm_users_with_user_id_delete(realm, user_id)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())
@@ -275,7 +279,7 @@ impl KeycloakAdminClient {
         self,
         realm: &str,
         user: &User,
-        attributes: Option<HashMap<String, Value>>,
+        attributes: Option<HashMap<String, Vec<String>>>,
         groups: Option<Vec<String>>,
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();

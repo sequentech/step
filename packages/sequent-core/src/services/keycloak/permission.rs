@@ -31,6 +31,7 @@ impl From<Permission> for RoleRepresentation {
             description: item.description.clone(),
             id: item.id.clone(),
             name: item.name.clone(),
+            scope_param_required: None,
         }
     }
 }
@@ -76,7 +77,7 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         self.client
-            .realm_groups_with_id_role_mappings_realm_post(
+            .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
                 role_id,
                 vec![role_representation],
@@ -99,7 +100,7 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         self.client
-            .realm_groups_with_id_role_mappings_realm_delete(
+            .realm_groups_with_group_id_role_mappings_realm_delete(
                 realm,
                 role_id,
                 vec![role_representation],

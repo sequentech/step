@@ -32,6 +32,8 @@ impl From<Role> for GroupRepresentation {
             path: None,
             realm_roles: item.permissions.clone(),
             sub_groups: None,
+            parent_id: None, 
+            sub_group_count: None,
         }
     }
 }
@@ -55,6 +57,7 @@ impl KeycloakAdminClient {
                 None,
                 None,
                 search.clone(),
+                None,
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
@@ -81,7 +84,7 @@ impl KeycloakAdminClient {
     ) -> Result<Vec<Role>> {
         let groups: Vec<GroupRepresentation> = self
             .client
-            .realm_users_with_id_groups_get(
+            .realm_users_with_user_id_groups_get(
                 realm,
                 user_id,
                 Some(false),
@@ -103,7 +106,7 @@ impl KeycloakAdminClient {
         role_id: &str,
     ) -> Result<()> {
         self.client
-            .realm_users_with_id_groups_with_group_id_put(
+            .realm_users_with_user_id_groups_with_group_id_put(
                 realm, user_id, role_id,
             )
             .await
@@ -119,7 +122,7 @@ impl KeycloakAdminClient {
         role_id: &str,
     ) -> Result<()> {
         self.client
-            .realm_users_with_id_groups_with_group_id_delete(
+            .realm_users_with_user_id_groups_with_group_id_delete(
                 realm, user_id, role_id,
             )
             .await
@@ -130,7 +133,7 @@ impl KeycloakAdminClient {
     #[instrument(skip(self), err)]
     pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
         self.client
-            .realm_groups_with_id_delete(realm, role_id)
+            .realm_groups_with_group_id_delete(realm, role_id)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())
