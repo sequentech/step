@@ -54,7 +54,7 @@ tracing = "0.1"
 thiserror = "1.0.50"
 
 # time
-time = "0.3.30"
+time = "0.3.31"
 
 # for sending emails and sms
 lettre = "0.11.2"
