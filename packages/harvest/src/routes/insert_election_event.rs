@@ -4,16 +4,18 @@
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
+use windmill::services;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
 
@@ -71,7 +73,25 @@ pub async fn import_election_event_f(
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
-    let document_result = import_election_event::get_document(
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction = hasura_db_client.transaction().await.map_err(
+        |err: tokio_postgres::Error| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        },
+    )?;
+
+    let document_result = services::import_election_event::get_document(
+        &hasura_transaction,
         input.clone(),
         None,
         input.tenant_id.clone(),
