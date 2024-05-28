@@ -3,14 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use chrono::NaiveDate;
-use chrono::{DateTime, Utc};
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Document;
-use sequent_core::types::keycloak::{User, VotesInfo};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
