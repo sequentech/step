@@ -285,7 +285,7 @@ pub async fn create_user(
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
-                serde_json::to_value(input.tenant_id.clone()).unwrap(),
+                vec![input.tenant_id.clone()], 
             )])),
             Some(vec![voter_group_name]),
         )
@@ -293,7 +293,7 @@ pub async fn create_user(
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
-                serde_json::to_value(input.tenant_id.clone()).unwrap(),
+                vec![input.tenant_id.clone()], 
             )])),
             None,
         )
@@ -312,7 +312,7 @@ pub struct EditUserBody {
     user_id: String,
     enabled: Option<bool>,
     election_event_id: Option<String>,
-    attributes: Option<HashMap<String, Value>>,
+    attributes: Option<HashMap<String, Vec<String>>>,
     email: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
