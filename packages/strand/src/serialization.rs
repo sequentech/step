@@ -1,6 +1,38 @@
 // SPDX-FileCopyrightText: 2023 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! # Examples
+//!
+//! ```
+//! // This example shows how to serialize and deserialize data.
+//! use strand::context::Ctx;
+//! use strand::backend::ristretto::RistrettoCtx;
+//! use strand::elgamal::{PrivateKey, PublicKey};
+//! use strand::serialization::{StrandDeserialize, StrandSerialize};
+//! use strand::elgamal::Ciphertext;
+//!
+//! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
+//! // generate an ElGamal keypair
+//! let sk1 = PrivateKey::gen(&ctx);
+//! let pk1 = sk1.get_pk();
+//!
+//! // generate a random plaintext
+//! let plaintext = ctx.rnd_plaintext(&mut rng);
+//! let encoded = ctx.encode(&plaintext).unwrap();
+//!
+//! // encrypt
+//! let ciphertext = pk1.encrypt(&encoded);
+//! // serialize
+//! let serialized = ciphertext.strand_serialize().unwrap();
+//! // deserialize
+//! let deserialized = Ciphertext::<RistrettoCtx>::strand_deserialize(&serialized).unwrap();
+//!
+//! // decrypt
+//! let decrypted = sk1.decrypt(&deserialized);
+//! let plaintext_ = ctx.decode(&decrypted);
+//! assert_eq!(plaintext, plaintext_);
+//! ```
 
 use crate::elgamal::Ciphertext;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -14,15 +46,41 @@ use rayon::prelude::*;
 
 /// Serialization frontend trait.
 pub trait StrandSerialize {
+    /// Serializes to bytes. Currently only supports the borsh backend.
     fn strand_serialize(&self) -> Result<Vec<u8>, StrandError>;
 }
 
 /// Deserialization frontend trait.
 pub trait StrandDeserialize {
+    /// Serializes from bytes. Currently only supports the borsh backend.
     fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError>
     where
         Self: Sized;
 }
+
+// Optimized (par) serialization vectors
+// See also https://github.com/rust-lang/rust/issues/31844
+// See also https://github.com/rust-lang/rust/issues/42721
+
+/// Parallelized serialization for plaintext vectors.
+#[derive(Clone, Debug)]
+pub struct StrandVectorP<C: Ctx>(pub Vec<C::P>);
+
+/// Parallelized serialization for group element vectors.
+#[derive(Clone, Debug)]
+pub struct StrandVectorE<C: Ctx>(pub Vec<C::E>);
+
+/// Parallelized serialization for "exponent" vectors.
+#[derive(Clone, Debug)]
+pub struct StrandVectorX<C: Ctx>(pub Vec<C::X>);
+
+/// Parallelized serialization for ciphertext vectors.
+#[derive(Clone, Debug)]
+pub struct StrandVectorC<C: Ctx>(pub Vec<Ciphertext<C>>);
+
+/// Parallelized serialization for ChaumPedersen proof vectors.
+#[derive(Debug)]
+pub struct StrandVectorCP<C: Ctx>(pub Vec<ChaumPedersen<C>>);
 
 impl<T: BorshSerialize> StrandSerialize for T {
     fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
@@ -39,14 +97,6 @@ impl<T: BorshDeserialize> StrandDeserialize for T {
         value.map_err(|e| e.into())
     }
 }
-
-// Optimized (par) serialization vectors
-// See also https://github.com/rust-lang/rust/issues/31844
-// See also https://github.com/rust-lang/rust/issues/42721
-
-/// Parallelized serialization for plaintext vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorP<C: Ctx>(pub Vec<C::P>);
 
 impl<C: Ctx> BorshSerialize for StrandVectorP<C> {
     fn serialize<W: std::io::Write>(
@@ -74,10 +124,6 @@ impl<C: Ctx> BorshDeserialize for StrandVectorP<C> {
     }
 }
 
-/// Parallelized serialization for group element vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorE<C: Ctx>(pub Vec<C::E>);
-
 impl<C: Ctx> BorshSerialize for StrandVectorE<C> {
     fn serialize<W: std::io::Write>(
         &self,
@@ -103,10 +149,6 @@ impl<C: Ctx> BorshDeserialize for StrandVectorE<C> {
         Ok(StrandVectorE(results?))
     }
 }
-
-/// Parallelized serialization for "exponent" vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorX<C: Ctx>(pub Vec<C::X>);
 
 impl<C: Ctx> BorshSerialize for StrandVectorX<C> {
     fn serialize<W: std::io::Write>(
@@ -134,10 +176,6 @@ impl<C: Ctx> BorshDeserialize for StrandVectorX<C> {
     }
 }
 
-/// Parallelized serialization for ciphertext vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorC<C: Ctx>(pub Vec<Ciphertext<C>>);
-
 impl<C: Ctx> BorshSerialize for StrandVectorC<C> {
     fn serialize<W: std::io::Write>(
         &self,
@@ -164,10 +202,6 @@ impl<C: Ctx> BorshDeserialize for StrandVectorC<C> {
         Ok(StrandVectorC(results?))
     }
 }
-
-/// Parallelized serialization for ChaumPedersen proof vectors.
-#[derive(Debug)]
-pub struct StrandVectorCP<C: Ctx>(pub Vec<ChaumPedersen<C>>);
 
 impl<C: Ctx> BorshSerialize for StrandVectorCP<C> {
     fn serialize<W: std::io::Write>(

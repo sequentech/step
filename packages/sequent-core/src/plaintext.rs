@@ -32,6 +32,20 @@ pub struct DecodedVoteContest {
     pub choices: Vec<DecodedVoteChoice>,
 }
 
+impl DecodedVoteContest {
+    pub fn is_invalid(&self) -> bool {
+        self.is_explicit_invalid || !self.invalid_errors.is_empty()
+    }
+    pub fn is_blank(&self) -> bool {
+        !self.is_invalid()
+            && self
+                .choices
+                .clone()
+                .iter()
+                .all(|choice| choice.selected < 0)
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteChoice {
     pub id: String,

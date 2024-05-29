@@ -250,6 +250,7 @@ const englishTranslation = {
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
+                showUserProfile: "Show User Profile",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -328,6 +329,14 @@ const englishTranslation = {
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
+            importAreas: {
+                title: "Import Areas",
+                subtitle: "Import areas data",
+                areaParagraph:
+                    "Import areas using a spreadsheet file in Comma Separated Values (CSV) format.",
+                importVotersSuccess: "Areas Imported Successfully",
+                importVotersError: "Error importing Areas",
+            },
             import: {
                 eetitle: "Import Election Event",
                 eesubtitle: "Import election event data",
@@ -335,7 +344,7 @@ const englishTranslation = {
                 subtitle: "Import voters data",
                 voters: "Voters",
                 votersParagraph:
-                    "Import voters using a spreadsheet file in Tab Separated Values (TSV) format. Download an example import TSV file here.",
+                    "Import voters using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
                 electionEventParagraph: "Import Election Events using a JSON file.",
                 elections: "Elections",
                 areas: "Areas",
@@ -354,6 +363,7 @@ const englishTranslation = {
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
             },
+            exportError: "Error exporting Election Event",
         },
         electionScreen: {
             common: {
@@ -367,6 +377,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
+                defaultLang: "Default language",
                 receipts: "Receipts",
                 image: "Image",
                 advanced: "Advanced Configuration",
@@ -378,6 +389,8 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                scheduledOpening: "Scheduled Opening",
+                scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
             },
@@ -452,6 +465,7 @@ const englishTranslation = {
                     bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
+                    exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
                 },
@@ -480,6 +494,7 @@ const englishTranslation = {
                     bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
+                    exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
                     manualVerificationError: "Error manually verifying the voter",
@@ -576,6 +591,9 @@ const englishTranslation = {
                 "support-material-write": "Edit Support Materials",
             },
         },
+        generalSettingsScreen: {
+            body: "Enable languages in the system. Only languages enabled here will be available for election events.",
+        },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
@@ -616,6 +634,8 @@ const englishTranslation = {
             language: {
                 es: "Spanish",
                 en: "English",
+                fr: "French",
+                cat: "Valencian",
             },
             channel: {
                 online: "Online",

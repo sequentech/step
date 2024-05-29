@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // DobModels - Steps
 import { InitialStep, InstructionsStep, DocCaptureStep, FaceCaptureStep, VideoIdentificationStep, AttachStep, EndStep } from './dob-models-1.1.19.esm.js';
 // DobModels - Enums
@@ -129,8 +133,11 @@ let myStrings = {
   'initial_button_mobile': 'Start',
   // INSTRUCTIONS STEP
   'instructions_step_title': 'Video Instructions',
+  'passport_custom_instructions_step_title': 'Video Instructions',
   'instructions_step_description': 'Now we are going to video you. You will have to show your document. Then we will take a selfie and you will have to match the two ovals that you will see on the screen. Find a well-lit place. Only the person who is identifying themselves may appear in the video.',
+  'passport_custom_instructions_step_description': 'Now we are going to video you. You will have to show your document. Then we will take a selfie and you will have to match the two ovals that you will see on the screen. Find a well-lit place. Only the person who is identifying themselves may appear in the video.',
   'instructions_step_button': 'Continue',
+  'passport_custom_instructions_step_button': 'Continue',
   // DOC-CAPTURE STEP
   'card_detector_evidence_not_focus': 'The image is out of focus',
   'card_detector_no_detect_docs': 'We are not detecting anything...',
@@ -495,7 +502,7 @@ let myStrings = {
   'custom_instructions_doc_button': 'Continue',
   // CUSTOM STRINGS INITIAL/END STEP - EXAMPLE: PASSPORT
   'custom_intro_row_obverse': 'Passport',
-  'custom_intro_row_reverse': 'Residence Certificate',
+  'custom_intro_row_reverse': 'Face with Passport',
   // CUSTOM STRINGS INSTRUCTIONS STEP - EXAMPLE: PASSPORT
   'custom_instructions_step_title': 'Passport Instructions',
   'custom_instructions_step_description': 'First we will start with capturing the passport.'
@@ -560,22 +567,22 @@ dobSdk.addEventListener("status", status => {
   // Esto simplemente es un ejemplo para cambiar strings en caso de querer crearlos si usamos el diseño responsive.
   switch (parsedStatus.step) {
     case 'attach_front':
-      setStringHtmlValues('Anverso del documento', 'Adjunta una foto de tu Documento de Identidad boca arriba. Asegúrate de que la imagen tenga calidad suficiente y se vea bien la información y la foto que contiene.');
+      setStringHtmlValues('Front of the document', 'Attach a photo of your Identity Document face up. Make sure the image is of sufficient quality and the information and photo it contains are clearly visible.');
       break;
     case 'attach_back':
-      setStringHtmlValues('Reverso del documento', 'Ahora adjunta una foto de tu Documento de Identidad boca abajo. Asegúrate de que la imagen tenga calidad suficiente y se vea bien la información.');
+      setStringHtmlValues('Back of the document', 'Now attach a photo of your Identity Document face down. Make sure the image is of sufficient quality and the information is clearly visible.');
       break;
     case 'attach_passport':
-      setStringHtmlValues('Pasaporte', 'Por favor, adjunta una imagen de tu pasaporte. Asegúrate de que la imagen se vea correctamente y tenga calidad suficiente.');
+      setStringHtmlValues('Passport', 'Please attach an image of your passport. Make sure the image is correctly visible and of sufficient quality.');
       break;
     case 'attach_ue':
-      setStringHtmlValues('Certificado de Residentes de la Unión Europea', 'Ahora necesitamos que adjuntes tu certificado de residente en la unión europea.');
+      setStringHtmlValues('European Union Resident Certificate', 'Now we need you to attach your European Union resident certificate.');
       break;
     case 'attach_video':
-      setStringHtmlValues('Video de tu rostro', 'Ahora, tome un video de su cara y adjunte el video para que podamos verificar que el documento le pertenece. ');
+      setStringHtmlValues('Video of your face', 'Now, take a video of your face and attach the video so we can verify that the document belongs to you.');
       break;
     case 'attach_selfie':
-      setStringHtmlValues('Foto de tu rostro', 'Ahora, hazte un selfie de tu rostro y adjunta la foto para que podamos verificar que el documento te pertenece. Asegúrate de que la imagen tenga calidad suficiente.');
+      setStringHtmlValues('Photo of your face', 'Now, take a selfie of your face and attach the photo so we can verify that the document belongs to you. Make sure the image is of sufficient quality.');
       break;
   }
   // Esto simplemente es un ejemplo para detectar que el último paso a terminado [En caso de no informar el EndStep ni urls de callbacks]
@@ -587,13 +594,6 @@ dobSdk.addEventListener("status", status => {
     myStrings['instructions_step_title'] = myStrings['custom_instructions_doc_title'];
     myStrings['instructions_step_description'] = myStrings['custom_instructions_doc_description'];
     myStrings['instructions_step_button'] = myStrings['custom_instructions_doc_button'];
-    dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
-  }
-  // Esto simplemente es un ejemplo de como mostrar los texto de instrucciones por defecto, según el nombre del step
-  if (parsedStatus.step === 'instructions-face') {
-    delete myStrings['instructions_step_title'];
-    delete myStrings['instructions_step_description'];
-    delete myStrings['instructions_step_button'];
     dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
   }
   // Esto simplemente es un ejemplo de como cambiar los textos e iconos en la vista inicial y final en caso de capturar un pasaporte, según el nombre del step
@@ -624,6 +624,11 @@ dobSdk.addEventListener("status", status => {
   if (parsedStatus.step === 'instructions-passport') {
     myStrings['instructions_step_title'] = myStrings['custom_instructions_step_title'];
     myStrings['instructions_step_description'] = myStrings['custom_instructions_step_description'];
+    dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
+  }
+  if (parsedStatus.step === 'instructions-face' && isPassportFlow) {
+    myStrings['instructions_step_title'] = myStrings['passport_custom_instructions_step_title'];
+    myStrings['instructions_step_description'] = myStrings['passport_custom_instructions_step_description'];
     dobSdk.env_config ? dobSdk.env_config.customTextsConfig = myStrings : '';
   }
   // Esto simplemente es un ejemplo de como cambiar los iconos en el componente secundary toolbar en caso de capturar un pasaporte, según el nombre del step

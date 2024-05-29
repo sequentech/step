@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use strand::backend::ristretto::RistrettoCtx;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -8,7 +12,7 @@ use tracing_tree::HierarchicalLayer;
 fn main() {
     let log_reload = init_log();
     let ctx = RistrettoCtx;
-    braid::run::dbg::dbg(ctx, log_reload).unwrap();
+    braid::test::dbg::dbg(ctx, log_reload).unwrap();
 }
 
 fn init_log() -> Handle<LevelFilter, Registry> {

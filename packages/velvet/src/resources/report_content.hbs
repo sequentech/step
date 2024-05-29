@@ -1,4 +1,10 @@
-  <div class="content">
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+
+<div class="content">
       <h1 class="title">Results of the election "{{ reports.0.election_name }}"</h1>
       <div id="dateDiv"></div>
       
@@ -100,7 +106,8 @@
             day: 'numeric', // Day of the month
             hour: '2-digit',
             minute: '2-digit',
-            timeZoneName: 'short'
+            timeZoneName: 'short',
+            timeZone: 'Asia/Manila'
         });
 
         // Set the text of the div to the formatted date string

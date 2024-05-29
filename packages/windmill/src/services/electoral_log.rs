@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::services::protocol_manager::get_board_client;
 use crate::services::protocol_manager::get_protocol_manager;
 use anyhow::Result;

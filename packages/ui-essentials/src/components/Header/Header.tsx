@@ -39,6 +39,7 @@ const StyledLink = styled.a`
 
 const StyledImage = styled(Image)`
     height: 47px !important;
+    width: unset !important;
     @media (max-width: ${theme.breakpoints.values.md}px) {
         height: 37px !important;
     }
@@ -51,7 +52,7 @@ type ApplicationVersion = {
 type UserProfile = {
     username: string
     email?: string
-    openLink: Function
+    openLink?: Function
 }
 
 export interface HeaderProps {
@@ -106,7 +107,7 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {userProfile && (
-                                <div>
+                                <Box>
                                     <IconButton
                                         className="profile-menu-button"
                                         size="large"
@@ -152,15 +153,17 @@ export default function Header({
                                                 </Span>
                                             </Box>
                                         </MenuItem>
-                                        <MenuItem
-                                            onClick={() => {
-                                                handleClose()
-                                                userProfile?.openLink()
-                                            }}
-                                        >
-                                            <AccountCircle sx={{marginRight: "14px"}} />
-                                            {t("header.profile")}
-                                        </MenuItem>
+                                        {userProfile?.openLink && (
+                                            <MenuItem
+                                                onClick={() => {
+                                                    handleClose()
+                                                    userProfile?.openLink?.()
+                                                }}
+                                            >
+                                                <AccountCircle sx={{marginRight: "14px"}} />
+                                                {t("header.profile")}
+                                            </MenuItem>
+                                        )}
                                         {logoutFn && (
                                             <MenuItem
                                                 className="logout-button"
@@ -174,7 +177,7 @@ export default function Header({
                                             </MenuItem>
                                         )}
                                     </Menu>
-                                </div>
+                                </Box>
                             )}
                         </Box>
                     </PageBanner>

@@ -12,6 +12,8 @@ const ListContainer = styled(Box)<{isactive: string}>`
     padding: 0 14px 20px 16px;
     box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
     border-radius: 5px;
+    flex-grow: 2;
+    width: 50%;
     ${({isactive}) =>
         "true" === isactive
             ? `
@@ -69,16 +71,28 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
         isActive && isCheckable && setChecked && setChecked(event.target.checked)
 
     return (
-        <ListContainer isactive={String(!!(isActive && isCheckable))} onClick={onClick}>
-            <ListHeader>
-                <ListTitle color={theme.palette.customGrey.contrastText} fontSize="24px">
-                    {title}
-                </ListTitle>
+        <ListContainer
+            isactive={String(!!(isActive && isCheckable))}
+            onClick={onClick}
+            className="candidates-list"
+        >
+            <ListHeader className="candidates-list-header">
+                <Box>
+                    <ListTitle
+                        color={theme.palette.customGrey.contrastText}
+                        fontSize="24px"
+                        className="candidates-list-title"
+                    >
+                        {title}
+                    </ListTitle>
+                </Box>
                 {isActive && isCheckable ? (
                     <Checkbox checked={checked} onChange={handleChange} />
                 ) : null}
             </ListHeader>
-            <ListChildrenContainer>{children}</ListChildrenContainer>
+            <ListChildrenContainer className="candidates-list-children">
+                {children}
+            </ListChildrenContainer>
         </ListContainer>
     )
 }

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
@@ -185,6 +189,7 @@ impl TryFrom<Message> for BoardMessage {
             statement_kind: message.statement.head.kind.to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
+            version: crate::getSchemaVersion(),
         })
     }
 }

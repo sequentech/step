@@ -8,12 +8,23 @@ import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {styled} from "@mui/material/styles"
+import {Box} from "@mui/material"
+
+const ErrorWrapper = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+`
 
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
     question: IContest
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
+    setDecodedContests: (input: IDecodedVoteContest) => void
+    isReview: boolean
 }
 
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
@@ -21,6 +32,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     question,
     isInvalidWriteIns,
     setIsInvalidWriteIns,
+    setDecodedContests,
+    isReview,
 }) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
@@ -43,11 +56,17 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const decodedContestSelection =
         contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
 
-    if (!isTouched && decodedContestSelection) {
+    if (!isReview && !isTouched && decodedContestSelection) {
         decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
             (error) => error.message !== "errors.implicit.selectedMin"
         )
     }
+
+    useEffect(() => {
+        if (decodedContestSelection) {
+            setDecodedContests(decodedContestSelection)
+        }
+    }, [decodedContestSelection, decodedContestSelection?.invalid_errors])
 
     const numAvailableChars = contestSelection
         ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
@@ -61,7 +80,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [numAvailableChars, isInvalidWriteIns, setIsInvalidWriteIns])
 
     return (
-        <>
+        <ErrorWrapper>
             {numAvailableChars < 0 ? (
                 <WarnBox variant="warning">
                     {t("errors.encoding.writeInCharsExceeded", {
@@ -74,6 +93,6 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
-        </>
+        </ErrorWrapper>
     )
 }

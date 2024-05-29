@@ -197,6 +197,19 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: export_election_event
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-election-event
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-read
 - name: export_users
   definition:
     kind: synchronous
@@ -392,6 +405,32 @@ actions:
   - role: voter-read
   - role: user-read
   - role: admin-user
+- name: import_areas
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-areas
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: area-write
+- name: import_candidates
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-candidates
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
 - name: import_election_event
   definition:
     kind: synchronous
@@ -533,6 +572,20 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: admin-user
+- name: manage_election_dates
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/manage-election-dates
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-write
   - role: admin-user
 - name: publish_ballot
   definition:
@@ -737,4 +790,5 @@ custom_types:
   - name: InsertCastVoteOutput
   - name: CreateVoteReceiptOutput
   - name: OptionalImportEvent
+  - name: ManageElectionDatesOutput
   scalars: []

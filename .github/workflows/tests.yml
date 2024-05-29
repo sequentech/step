@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 name: Tests
 
 on:
@@ -18,6 +22,7 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
+            extra: --features keycloak
           - service: board-messages
           - service: velvet
           - service: windmill
@@ -59,5 +64,4 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
-
-        run: cd packages/${{ matrix.service }} && cargo test
+        run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}

@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@craco/craco": "^7.1.0",
+    "@apollo/client": "3.8.0",
     "@fortawesome/fontawesome-svg-core": "^6.1.1",
     "@fortawesome/free-brands-svg-icons": "^6.1.1",
     "@fortawesome/free-solid-svg-icons": "^6.1.1",
@@ -14,8 +16,10 @@
     "react-dom": "18.1.0",
     "mui-image": "1.0.7",
     "react-i18next": "11.18.3",
+    "react-redux": "8.1.2",
     "react-router-dom": "6.11.2",
     "@mui/material": "5.13.3",
+    "@reduxjs/toolkit": "1.9.5",
     "@emotion/react": "11.10.0",
     "@emotion/styled": "11.10.0",
     "react-scripts": "5.0.1",
@@ -24,7 +28,7 @@
     "web-vitals": "^2.1.0"
   },
   "scripts": {
-    "start": "PORT=3001 react-scripts start",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider PORT=3001 craco start",
     "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -36,7 +40,8 @@
     "build-storybook": "sb build -s public",
     "test-storybook": "test-storybook",
     "dev": "tsc --watch",
-    "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve"
+    "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve",
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {

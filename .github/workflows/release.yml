@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 name: Automated Release Process
 run-name: ${{ format('Automated Release Process - {0}', inputs.releaseType )}}
 on:
@@ -104,7 +108,7 @@ jobs:
           # Required Input
           repo_token: ${{secrets.GITHUB_TOKEN}}
           slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
-          # Optional Input
+          # Optional Input 
           name: 'Github Actions'
 
       - name: Slack additional info

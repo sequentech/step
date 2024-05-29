@@ -4,5 +4,5 @@
 
 export interface ILanguageConf {
     enabled_language_codes?: Array<string>
-    default_language_code: string
+    default_language_code?: string
 }

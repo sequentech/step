@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use chrono::{DateTime, Local};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Area {
     pub id: String,
     pub tenant_id: String,
@@ -21,7 +21,7 @@ pub struct Area {
     pub r#type: Option<String>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionEvent {
     pub id: String,
     pub created_at: Option<DateTime<Local>>,
@@ -46,7 +46,7 @@ pub struct ElectionEvent {
     pub statistics: Option<Value>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Election {
     pub id: String,
     pub tenant_id: String,
@@ -72,7 +72,7 @@ pub struct Election {
     pub receipts: Option<Value>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Contest {
     pub id: String,
     pub tenant_id: String,
@@ -99,7 +99,7 @@ pub struct Contest {
     pub conditions: Option<Value>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Candidate {
     pub id: String,
     pub tenant_id: String,
@@ -118,7 +118,7 @@ pub struct Candidate {
     pub image_document_id: Option<String>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub id: String,
     pub tenant_id: Option<String>,
@@ -141,7 +141,7 @@ pub struct VotingChannels {
     pub paper: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionType {
     pub id: String,
     pub tenant_id: Option<String>,
@@ -170,7 +170,7 @@ pub struct CastVote {
 }
 */
 
-#[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct CommunicationTemplate {
     pub id: String,
     pub tenant_id: String,

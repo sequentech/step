@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useEffect, useState} from "react"
 
 import {Drawer} from "@mui/material"
@@ -118,7 +122,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 ) : // <ExportButton />
                 null}
 
-                {extraActions.length > 0 && extraActions.map((item) => item)}
+                {extraActions.length > 0 ? extraActions : null}
             </TopToolbar>
         </div>
     )

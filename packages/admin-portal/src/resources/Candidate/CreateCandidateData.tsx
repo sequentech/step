@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React from "react"
 import {CreateBase, EditBase, Identifier, RaRecord} from "react-admin"
 import {CandidateDataForm, Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"

@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # Immutable Logging
 
 This document contains an overview of how we use Immudb some details related to 

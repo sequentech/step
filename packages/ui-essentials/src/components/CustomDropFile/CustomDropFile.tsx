@@ -101,8 +101,13 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
 
         return (
             <>
-                <StyledForm onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+                <StyledForm
+                    onDragEnter={handleDrag}
+                    onSubmit={(e) => e.preventDefault()}
+                    className="drop-file-form"
+                >
                     <StyledInput
+                        className="drop-input-file"
                         ref={innerRef}
                         type="file"
                         onChange={handleChange}
@@ -113,11 +118,13 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         dragActive={dragActive}
                         onClick={onButtonClick}
                         data-testid="drop-label-file"
+                        className="drop-label-file"
                     >
                         {children}
                     </StyledLabel>
                     {dragActive && (
                         <DragFileElement
+                            className="drag-file-element"
                             onDragEnter={handleDrag}
                             onDragLeave={handleDrag}
                             onDragOver={handleDrag}
@@ -126,6 +133,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                     )}
                 </StyledForm>
                 <Typography
+                    className="file-name"
                     variant="h6"
                     sx={{
                         fontSize: "16px",

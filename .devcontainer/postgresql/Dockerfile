@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 FROM postgres:15-bullseye
 
 RUN apt-get update \

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::Result;
 use log::{error, info};
 use rand::seq::SliceRandom;
@@ -21,7 +25,7 @@ use board_messages::braid::newtypes::MAX_TRUSTEES;
 use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 
-use crate::protocol2::trustee::Trustee;
+use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use crate::test::vector_session::VectorSession;
 

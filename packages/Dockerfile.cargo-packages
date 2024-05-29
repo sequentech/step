@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # This is an image that builds all our crates at once. Makes it more efficient
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.

@@ -17,4 +17,5 @@ export interface IElectionEventPresentation {
     css?: string
     hide_audit?: boolean
     skip_election_list?: boolean
+    show_user_profile?: boolean
 }

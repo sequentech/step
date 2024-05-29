@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useState} from "react"
 import {Identifier, TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
@@ -23,10 +27,7 @@ export const ContestTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader
-                title={record?.name || ""}
-                subtitle="electionEventScreen.common.subtitle"
-            />
+            <ElectionHeader title={record?.name || ""} subtitle="contestScreen.common.subtitle" />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />

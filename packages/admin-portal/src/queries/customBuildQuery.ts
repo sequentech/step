@@ -1,12 +1,34 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
 import {getUsers} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
+import {isString} from "lodash"
+import {COLUMNS_MAP} from "@/types/query"
+
+export interface ParamsSort {
+    field: string
+    order: string
+}
 
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
+        let sort: ParamsSort | undefined | null = params.sort
+        if (
+            isString(resourceName) &&
+            raFetchType === "GET_LIST" &&
+            sort?.field &&
+            COLUMNS_MAP[resourceName] &&
+            !COLUMNS_MAP[resourceName].includes(sort.field)
+        ) {
+            params.sort = undefined
+        }
+
         if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
             const resource: any = {
                 type: {

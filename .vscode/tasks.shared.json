@@ -1,6 +1,57 @@
+// SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 {
     "version": "2.0.0",
     "tasks": [
+        {
+            "label": "report.locs",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/loc.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "check.reuse",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "reuse lint",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
         {
             "label": "start.admin-portal",
             "command": "devenv",

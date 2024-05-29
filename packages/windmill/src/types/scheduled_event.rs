@@ -12,6 +12,14 @@ use strum_macros::EnumString;
 pub enum EventProcessors {
     CREATE_REPORT,
     SEND_COMMUNICATION,
+    START_ELECTION,
+    END_ELECTION,
+}
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+pub struct CronConfig {
+    pub cron: Option<String>,
+    pub scheduled_date: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -24,6 +32,6 @@ pub struct ScheduledEvent {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub event_processor: Option<EventProcessors>,
-    pub cron_config: Option<String>,
+    pub cron_config: Option<CronConfig>,
     pub event_payload: Option<Value>,
 }

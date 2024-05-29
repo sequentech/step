@@ -14,3 +14,8 @@ pub mod pdf;
 pub mod probe;
 #[cfg(feature = "reports")]
 pub mod reports;
+
+pub mod error_checker;
+
+#[cfg(feature = "keycloak")]
+pub mod replace_uuids;

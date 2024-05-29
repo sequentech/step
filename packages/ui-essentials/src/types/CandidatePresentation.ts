@@ -18,4 +18,5 @@ export interface ICandidatePresentation {
     is_write_in?: boolean
     sort_order?: number
     urls?: Array<ICandidateUrl>
+    subtype?: string
 }

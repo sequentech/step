@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React from "react"
 import {EditBase, Identifier, RaRecord} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
@@ -11,13 +15,15 @@ export const EditElectionData: React.FC = () => {
         for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
             const key = Object.keys(ICommunicationMethod)[value]
             receipts[key] = {}
-            receipts[key]["allowed"] = data.allowed[key]
-            receipts[key]["template"] = data.template[key] || null
+            receipts[key]["allowed"] = data.allowed?.[key] || false
+            receipts[key]["template"] = data.template?.[key] || null
         }
 
         data.receipts = {...receipts}
         delete data.allowed
         delete data.template
+        delete data.scheduledOpening
+        delete data.scheduledClosing
 
         // save presentation object
         // language_conf
@@ -59,7 +65,7 @@ export const EditElectionData: React.FC = () => {
                 ...data.configuration,
                 language_conf: {
                     ...language_conf,
-                    default_language_code: data.defaultLanguage,
+                    default_language_code: data?.presentation?.language_conf?.default_language_code,
                 },
             },
         }

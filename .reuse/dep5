@@ -3,8 +3,49 @@ Upstream-Name: backend-services
 Upstream-Contact: Eduardo Robles <edu@sequentech.io>
 Source: https://github.com/sequentech
 
-# Sample paragraph, commented out:
-#
-# Files: src/*
-# Copyright: $YEAR $NAME <$CONTACT>
-# License: ...
+Files:
+  hasura/*
+  .ackrc
+  packages/.ackrc
+  packages/.gitignore
+  packages/yarn.lock
+  packages/devenv.lock
+  packages/Cargo.lock
+  packages/Cargo.lock.copy
+  .envrc
+  .release-it.json
+  devenv.lock
+  devenv.nix
+  graphql.schema.json
+  yarn.lock
+  packages/.ignore
+  packages/admin-portal/.ignore
+  packages/ballot-verifier/.ignore
+  packages/braid/.ignore
+  packages/sequent-core/.ignore
+  packages/strand/.ignore
+  packages/ui-essentials/.ignore
+  packages/voting-portal/.ignore
+  packages/windmill/.ignore
+  packages/package.json
+  packages/admin-portal/graphql.schema.json
+  packages/admin-portal/logs/*
+  packages/admin-portal/tests_output/*
+  packages/voting-portal/graphql.schema.json
+  packages/voting-portal/logs/*
+  packages/voting-portal/src/gql/*
+  packages/voting-portal/tests_output/*
+  packages/voting-portal/reports/*
+  packages/windmill/src/graphql/*
+  packages/immudb-rs/proto/immudb/*
+  packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/text/send-code-email.ftl
+  packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/html/send-code-email.ftl
+Copyright: 2024 Sequent Tech <legal@sequentech.io>
+License: AGPL-3.0-only
+
+Files:
+  vendor/immudb-log-audit/*
+Copyright:
+  2023 Codenotary Inc
+  2024 Sequent Tech <legal@sequentech.io>
+License: Apache-2.0

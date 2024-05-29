@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 set -e
 
 # Set default values
@@ -90,4 +95,4 @@ handle_trustee_config() {
 handle_trustee_config
 
 # Run trustee with the generated or fetched config
-trustee --server-url "$IMMUDB_URL" --board-index "$IMMUDB_INDEX_DB" --trustee-config "$TRUSTEE_CONFIG_PATH"
+trustee --server-url "$IMMUDB_URL" --board-index "$IMMUDB_INDEX_DB" --trustee-config "$TRUSTEE_CONFIG_PATH" --user "$IMMUDB_USER" --password "$IMMUDB_PASSWORD"

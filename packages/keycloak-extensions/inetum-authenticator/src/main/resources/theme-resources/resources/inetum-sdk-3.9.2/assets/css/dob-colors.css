@@ -1,403 +1,411 @@
 /*
-  For example you can replace the primary color of your company
-  Default primary color: #242b49
-*/
-
-/*
- * ----------------------
- * DEMO
- * ----------------------
+ * SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
-.color-header-bg {
-  background-color: #242b49;
+
+:root {
+  --inetum-primary-color: #23527c;
+  --inetum-secondary-color: #fff;
+  --inetum-tertiary-color: #000;
 }
 
-.dob-container-bg {
-  background: #ffffff;
-}
-
-.dob-attach-messages {
-  color: #242b49;
-}
-
-/*
- * ----------------------
- * INITIAL STEP
- * ----------------------
- */
-#dob-initial-information-layout .information-layout-color {
-  background-color: #ffffff;
-}
-
-#dob-initial-information-layout .dob-title-text-color {
-  color: #242b49;
-}
-
-#dob-initial-information-layout .dob-subtitle-text-color {
-  color: #242b49;
-}
-
-#dob-initial-information-layout .dob-lead-text-color {
-  color: #000000;
-}
-
-#dob-initial-information-layout .dob-button-color {
-  background-color: #242b49;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * INSTRUCTIONS STEP
- * ----------------------
- */
-#dob-instructions-information-layout .information-layout-color {
-  background-color: #ffffff;
-}
-
-#dob-instructions-information-layout .dob-title-text-color {
-  color: #242b49;
-}
-
-#dob-instructions-information-layout .dob-lead-text-color {
-  color: #000000;
-}
-
-#dob-instructions-information-layout .dob-button-color {
-  background-color: #242b49;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * DOC-CAPTURE STEP     | ONLY DESIGN GENERIC
- * ----------------------
- */
-#dob-doc-capture .dob-body-text-color {
-  color: #ffffff;
-}
-
-#dob-doc-capture .dob-mask-color {
-  fill: rgba(0, 0, 0, 0.8);
-}
-/*
-#dob-doc-capture .card-frame-rect {
-  fill: none;
-  stroke: #ffffff;
-}
-*/
-
-/*
- * ----------------------
- * VIDEO IDENTIF. STEP  | ONLY DESIGN GENERIC
- * ----------------------
- */
-#dob-video-identification .dob-body-text-color {
-  color: #ffffff;
-}
-
-#dob-video-identification .card-frame-rect {
-  fill: none;
-  stroke: #ffffff;
-}
-
-/*
- * ----------------------
- * FACE-CAPTURE STEP    | ONLY DESIGN GENERIC
- * ----------------------
- */
-#dob-face-capture-message .dob-body-text-color {
-  color: #ffffff;
-}
-
-#dob-face-capture-snackbar .dob-body-text-color {
-  color: #ffffff;
-}
-
-#dob-face-capture-snackbar .color-icons {
-  fill: #ffffff;
-}
-
-#dob-face-capture-frame .dob-mask-color {
-  fill: rgba(0, 0, 0, 0.5);
-}
-
-/*
- * ----------------------
- * ATTACH STEP
- * ----------------------
- */
-#dob-attach.dob-attach-color {
-  background-color: #f0f0f2;
-}
-
-#dob-attach .file-drop {
-  /* color border dashed */
-  color: #242b49;
-}
-
-#dob-attach .color-icons {
-  fill: #242b49;
-}
-
-#dob-attach .dob-attach-color {
-  /* row inside icon */
-  fill: #f0f0f2;
-}
-
-#dob-attach .dob-subtitle-text-color {
-  color: #242b49;
-}
-
-#dob-attach .dob-indeterminate-loader {
-  fill: #242b49;
-}
-
-#dob-attach .dob-button-color {
-  background-color: #242b49;
-  color: #ffffff;
-}
-
-/* drag & drop file */
-#dob-attach .dob-attach-color-over {
-  background-color: #f8f8f9;
-}
-
-#dob-attach .file-drop-color-over {
-  /* color border dashed */
-  color: #6f8393;
-}
-
-#dob-attach .color-icons-over {
-  fill: #6f8393;
-}
-
-#dob-attach .dob-attach-color-over {
-  /* row inside icon */
-  fill: #f8f8f9;
-}
-
-#dob-attach .dob-subtitle-text-color-over {
-  color: #6f8393;
-}
-
-/*
- * ----------------------
- * OTP STEP
- * ----------------------
- */
- #dob-otp-step .dob-body-text-error .dob-body-text-color {
-  color: #d70015;
-}
-
-#dob-otp-step .dob-body-text-success .dob-body-text-color {
-  color: #04aa00;
-}
-
-/*
- * ----------------------
- * END STEP
- * ----------------------
- */
-#dob-end-information-layout .information-layout-color {
-  background-color: #ffffff;
-}
-
-#dob-end-information-layout .dob-title-text-color {
-  color: #242b49;
-}
-
-#dob-end-information-layout .dob-subtitle-text-color {
-  color: #242b49;
-}
-
-#dob-end-information-layout .dob-lead-text-color {
-  color: #000000;
-}
-
-#dob-end-information-layout .dob-button-color {
-  background-color: #242b49;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * EXCEPTION VIEW
- * ----------------------
- */
-#dob-exception-information-layout .information-layout-color {
-  background-color: #ffffff;
-}
-
-#dob-exception-information-layout .dob-exception-ul-list {
-  color: #242b49;
-}
-
-#dob-exception-information-layout .dob-body-text-color {
-  color: #000000;
-}
-
-#dob-exception-information-layout .dob-button-color {
-  background-color: #242b49;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * HELP DIALOG VIEW     | ONLY DESIGN GENERIC
- * ----------------------
- */
-#dob-help-dialog .dob-title-text-color {
-  color: #242b49;
-}
-
-#dob-help-dialog .dob-help-dialog-ul-list-color {
-  color: #242b49;
-}
-
-#dob-help-dialog .dob-body-text-color {
-  color: #000000;
-}
-
-#dob-help-dialog .dob-button-color {
-  background-color: #242b49;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * EXIT DIALOG VIEW
- * ----------------------
- */
- #dob-exit-dialog .dob-subtitle-text-color,
- #dob-exit-dialog .dob-body-text-color {
-  color: #000000;
+ /*
+  * ----------------------
+  * DEMO
+  * ----------------------
+  */
+ .color-header-bg {
+   background-color: var(--inetum-primary-color);
  }
-
- #dob-exit-dialog #dob-cancel-text-color .dob-subtitle-text-color,
- #dob-exit-dialog #dob-accept-text-color .dob-subtitle-text-color {
-  color: #43aefa;
+ 
+ .dob-container-bg {
+   background: var(--inetum-secondary-color);
  }
-
-/*
- * ----------------------
- * MANUAL CAPTURE VIEW  | ONLY DESIGN GENERIC
- * ----------------------
+ 
+ .dob-attach-messages {
+   color: var(--inetum-primary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * INITIAL STEP
+  * ----------------------
+  */
+ #dob-initial-information-layout .information-layout-color {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-initial-information-layout .dob-title-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-initial-information-layout .dob-subtitle-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-initial-information-layout .dob-lead-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-initial-information-layout .dob-button-color {
+   background-color: var(--inetum-primary-color);
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * INSTRUCTIONS STEP
+  * ----------------------
+  */
+ #dob-instructions-information-layout .information-layout-color {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-instructions-information-layout .dob-title-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-instructions-information-layout .dob-lead-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-instructions-information-layout .dob-button-color {
+   background-color: var(--inetum-primary-color);
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * DOC-CAPTURE STEP     | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-doc-capture .dob-body-text-color {
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-doc-capture .dob-mask-color {
+   fill: rgba(0, 0, 0, 0.8);
+ }
+ /*
+ #dob-doc-capture .card-frame-rect {
+   fill: none;
+   stroke: var(--inetum-secondary-color);
+ }
  */
-#dob-manual-instructions .dob-lead-text-color {
-  color: #ffffff;
-}
-
-#dob-manual-instructions #dob-manual-instructions-arrow .color-icons {
-  fill: #ffffff;
-}
-
-/*
- * ----------------------
- * PREVIEW VIEW         | ONLY DESIGN GENERIC
- * ----------------------
- */
-#dob-preview .dob-lead-text-color {
-  color: #ffffff;
-}
-
-#dob-preview .dob-preview-image canvas {
-  border: 3px solid #242b49;
-}
-
-#dob-preview .dob-button-accept .dob-button-color {
-  background-color: #04aa00;
-  color: #ffffff;
-}
-
-#dob-preview .dob-button-repeat .dob-button-color {
-  background-color: #d70015;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * PREVIEW VIEW         | ONLY DESIGN RESPONSIVE
- * ----------------------
- */
-#dob-attach-preview.dob-attach-preview {
-  background-color: #ffffff;
-}
-
-#dob-attach-preview .dob-body-text-color {
-  color: #000000;
-}
-
-#dob-attach-preview .ob-preview-icons-color,
-#dob-attach-preview .ob-flip-icons {
-  fill: #000000;
-  stroke: #000000;
-}
-
-#dob-attach-preview .dob-attach-preview-image canvas {
-  border: 3px solid #242b49;
-}
-
-#dob-attach-preview .dob-button-accept .dob-button-color {
-  background-color: #04aa00;
-  color: #ffffff;
-}
-
-#dob-attach-preview .dob-button-repeat .dob-button-color {
-  background-color: #d70015;
-  color: #ffffff;
-}
-
-/*
- * ----------------------
- * LOADER VIEW
- * ----------------------
- */
-#dob-loader .dob-loader-color {
-  background-color: #ffffff;
-}
-
-#dob-loader .dob-indeterminate-loader {
-  fill: #242b49;
-}
-
-#dob-loader .dob-body-text-color {
-  color: #000000;
-}
-
-/*
- * ----------------------
- * TOOLBAR COMPONENT
- * ----------------------
- */
-#dob-secondary-toolbar.dob-secondary-toolbar-color {
-  background-color: #d7d7d7;
-}
-
-#dob-secondary-toolbar .dob-subtitle-text-color {
-  color: #242b49;
-}
-
-/*
- * ----------------------
- * INFOBAR COMPONENT    | ONLY DESIGN GENERIC
- * ----------------------
- */
-#dob-infobar.dob-infobar-color,
-#dob-infobar .dob-infobar-circle-color,
-#dob-infobar .dob-infobar-counter-color {
-  background-color: #ffffff;
-}
-
-#dob-infobar .dob-spinner-color {
-  border-color: #242b49;
-}
-
-#dob-infobar .dob-body-text-color {
-  color: #000000;
-}
-
-#dob-infobar .dob-subtitle-text-color {
-  /* counter text */
-  color: #242b49;
-}
+ 
+ /*
+  * ----------------------
+  * VIDEO IDENTIF. STEP  | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-video-identification .dob-body-text-color {
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-video-identification .card-frame-rect {
+   fill: none;
+   stroke: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * FACE-CAPTURE STEP    | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-face-capture-message .dob-body-text-color {
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-face-capture-snackbar .dob-body-text-color {
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-face-capture-snackbar .color-icons {
+   fill: var(--inetum-secondary-color);
+ }
+ 
+ #dob-face-capture-frame .dob-mask-color {
+   fill: rgba(0, 0, 0, 0.5);
+ }
+ 
+ /*
+  * ----------------------
+  * ATTACH STEP
+  * ----------------------
+  */
+ #dob-attach.dob-attach-color {
+   background-color: #f0f0f2;
+ }
+ 
+ #dob-attach .file-drop {
+   /* color border dashed */
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-attach .color-icons {
+   fill: var(--inetum-primary-color);
+ }
+ 
+ #dob-attach .dob-attach-color {
+   /* row inside icon */
+   fill: #f0f0f2;
+ }
+ 
+ #dob-attach .dob-subtitle-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-attach .dob-indeterminate-loader {
+   fill: var(--inetum-primary-color);
+ }
+ 
+ #dob-attach .dob-button-color {
+   background-color: var(--inetum-primary-color);
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /* drag & drop file */
+ #dob-attach .dob-attach-color-over {
+   background-color: #f8f8f9;
+ }
+ 
+ #dob-attach .file-drop-color-over {
+   /* color border dashed */
+   color: #6f8393;
+ }
+ 
+ #dob-attach .color-icons-over {
+   fill: #6f8393;
+ }
+ 
+ #dob-attach .dob-attach-color-over {
+   /* row inside icon */
+   fill: #f8f8f9;
+ }
+ 
+ #dob-attach .dob-subtitle-text-color-over {
+   color: #6f8393;
+ }
+ 
+ /*
+  * ----------------------
+  * OTP STEP
+  * ----------------------
+  */
+  #dob-otp-step .dob-body-text-error .dob-body-text-color {
+   color: #d70015;
+ }
+ 
+ #dob-otp-step .dob-body-text-success .dob-body-text-color {
+   color: #04aa00;
+ }
+ 
+ /*
+  * ----------------------
+  * END STEP
+  * ----------------------
+  */
+ #dob-end-information-layout .information-layout-color {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-end-information-layout .dob-title-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-end-information-layout .dob-subtitle-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-end-information-layout .dob-lead-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-end-information-layout .dob-button-color {
+   background-color: var(--inetum-primary-color);
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * EXCEPTION VIEW
+  * ----------------------
+  */
+ #dob-exception-information-layout .information-layout-color {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-exception-information-layout .dob-exception-ul-list {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-exception-information-layout .dob-body-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-exception-information-layout .dob-button-color {
+   background-color: var(--inetum-primary-color);
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * HELP DIALOG VIEW     | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-help-dialog .dob-title-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-help-dialog .dob-help-dialog-ul-list-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ #dob-help-dialog .dob-body-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-help-dialog .dob-button-color {
+   background-color: var(--inetum-primary-color);
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * EXIT DIALOG VIEW
+  * ----------------------
+  */
+  #dob-exit-dialog .dob-subtitle-text-color,
+  #dob-exit-dialog .dob-body-text-color {
+   color: var(--inetum-tertiary-color);
+  }
+ 
+  #dob-exit-dialog #dob-cancel-text-color .dob-subtitle-text-color,
+  #dob-exit-dialog #dob-accept-text-color .dob-subtitle-text-color {
+   color: #43aefa;
+  }
+ 
+ /*
+  * ----------------------
+  * MANUAL CAPTURE VIEW  | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-manual-instructions .dob-lead-text-color {
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-manual-instructions #dob-manual-instructions-arrow .color-icons {
+   fill: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * PREVIEW VIEW         | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-preview .dob-lead-text-color {
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-preview .dob-preview-image canvas {
+   border: 3px solid var(--inetum-primary-color);
+ }
+ 
+ #dob-preview .dob-button-accept .dob-button-color {
+   background-color: #04aa00;
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-preview .dob-button-repeat .dob-button-color {
+   background-color: #d70015;
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * PREVIEW VIEW         | ONLY DESIGN RESPONSIVE
+  * ----------------------
+  */
+ #dob-attach-preview.dob-attach-preview {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-attach-preview .dob-body-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-attach-preview .ob-preview-icons-color,
+ #dob-attach-preview .ob-flip-icons {
+   fill: var(--inetum-tertiary-color);
+   stroke: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-attach-preview .dob-attach-preview-image canvas {
+   border: 3px solid var(--inetum-primary-color);
+ }
+ 
+ #dob-attach-preview .dob-button-accept .dob-button-color {
+   background-color: #04aa00;
+   color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-attach-preview .dob-button-repeat .dob-button-color {
+   background-color: #d70015;
+   color: var(--inetum-secondary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * LOADER VIEW
+  * ----------------------
+  */
+ #dob-loader .dob-loader-color {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-loader .dob-indeterminate-loader {
+   fill: var(--inetum-primary-color);
+ }
+ 
+ #dob-loader .dob-body-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * TOOLBAR COMPONENT
+  * ----------------------
+  */
+ #dob-secondary-toolbar.dob-secondary-toolbar-color {
+   background-color: #d7d7d7;
+ }
+ 
+ #dob-secondary-toolbar .dob-subtitle-text-color {
+   color: var(--inetum-primary-color);
+ }
+ 
+ /*
+  * ----------------------
+  * INFOBAR COMPONENT    | ONLY DESIGN GENERIC
+  * ----------------------
+  */
+ #dob-infobar.dob-infobar-color,
+ #dob-infobar .dob-infobar-circle-color,
+ #dob-infobar .dob-infobar-counter-color {
+   background-color: var(--inetum-secondary-color);
+ }
+ 
+ #dob-infobar .dob-spinner-color {
+   border-color: var(--inetum-primary-color);
+ }
+ 
+ #dob-infobar .dob-body-text-color {
+   color: var(--inetum-tertiary-color);
+ }
+ 
+ #dob-infobar .dob-subtitle-text-color {
+   /* counter text */
+   color: var(--inetum-primary-color);
+ }
+ 

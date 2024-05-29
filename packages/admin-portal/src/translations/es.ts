@@ -252,6 +252,7 @@ const spanishTranslation: TranslationType = {
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
+                showUserProfile: "Mostrar perfil de usuario",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -330,6 +331,14 @@ const spanishTranslation: TranslationType = {
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
+            importAreas: {
+                title: "Importar Áreas",
+                subtitle: "Importar datos de áreas",
+                areaParagraph:
+                    "Importar áreas utilizando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
+                importVotersSuccess: "Áreas Importadas Exitosamente",
+                importVotersError: "Error al importar Áreas",
+            },
             import: {
                 eetitle: "Importar Evento Electoral",
                 eesubtitle: "Importar datos del Evento Electoral",
@@ -337,7 +346,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
                 votersParagraph:
-                    "Importa votantes usando una hoja de cálculo en formato Tab Separated Values (TSV) format. Descarga un ejemplo de fichero de importación TSV aquí.",
+                    "Importa votantes usando una hoja de cálculo en formato Comma Separated Values (CSV) format. Descarga un ejemplo de fichero de importación CSV aquí.",
                 electionEventParagraph: "Importa Eventos Electorales usando un fichero JSON.",
                 elections: "Elections",
                 areas: "Areas",
@@ -356,6 +365,7 @@ const spanishTranslation: TranslationType = {
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
             },
+            exportError: "Error al exportar el Evento Electoral",
         },
         electionScreen: {
             common: {
@@ -369,6 +379,7 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canales de Voto Permitidos",
                 default: "Por defecto",
+                defaultLang: "Idioma predeterminado",
                 receipts: "Comprobantes",
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
@@ -380,6 +391,8 @@ const spanishTranslation: TranslationType = {
                 votingChannels: "Canales de Voto",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
+                scheduledOpening: "Apertura Programada",
+                scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
             },
@@ -454,6 +467,7 @@ const spanishTranslation: TranslationType = {
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
+                    exportError: "Error al exportar usuarios",
                     deleteError: "Error borrando usuario",
                     deleteSuccess: "Usuario borrado",
                 },
@@ -482,6 +496,7 @@ const spanishTranslation: TranslationType = {
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
+                    exportError: "Error al exportar votantes",
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
                     manualVerificationError: "Error verificando manualmente al votante",
@@ -578,6 +593,9 @@ const spanishTranslation: TranslationType = {
                 "support-material-write": "Editar Materiales de Soporte",
             },
         },
+        generalSettingsScreen: {
+            body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
+        },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
             resources: {
@@ -618,6 +636,8 @@ const spanishTranslation: TranslationType = {
             language: {
                 es: "Español",
                 en: "Inglés",
+                fr: "Francés",
+                cat: "Valenciano",
             },
             channel: {
                 online: "En línea",

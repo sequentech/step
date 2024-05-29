@@ -14,6 +14,7 @@ import {
     IContestPresentation,
     IElectionEventPresentation,
     sortCandidatesInContest,
+    IContest,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
@@ -72,13 +73,14 @@ export type CandidateType = BaseType & {
     presentation: ICandidatePresentation
 }
 
-export type ContestType = BaseType & {
-    __typename: "sequent_backend_contest"
-    election_event_id: string
-    election_id: string
-    presentation: IContestPresentation
-    candidates: Array<CandidateType>
-}
+export type ContestType = BaseType &
+    IContest & {
+        __typename: "sequent_backend_contest"
+        election_event_id: string
+        election_id: string
+        presentation: IContestPresentation
+        candidates: Array<CandidateType>
+    }
 
 export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
@@ -173,7 +175,7 @@ export default function ElectionEvents() {
                                 contest.candidates = sortCandidatesInContest(
                                     contest.candidates,
                                     orderType
-                                )
+                                ) as any
 
                                 return contest
                             }),

@@ -1,8 +1,15 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use std::i64::MIN;
+
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+use strand::util::StrandError;
 
 use crate::braid::statement::Statement;
 use crate::braid::statement::StatementType;
@@ -34,7 +41,7 @@ impl Message {
     pub fn bootstrap_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         manager: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let statement = Statement::configuration_stmt(ConfigurationHash(cfg_h));
@@ -45,7 +52,7 @@ impl Message {
     pub fn configuration_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
@@ -59,7 +66,7 @@ impl Message {
         channel: &Channel<C>,
         artifact: bool,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let commitments_bytes = channel.strand_serialize()?;
@@ -79,7 +86,7 @@ impl Message {
         cfg: &Configuration<C>,
         commitments_hs: &ChannelsHashes,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
@@ -96,7 +103,7 @@ impl Message {
         cfg: &Configuration<C>,
         shares: &Shares<C>,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let share_bytes = shares.strand_serialize()?;
@@ -114,7 +121,7 @@ impl Message {
         commitments_hs: &ChannelsHashes,
         artifact: bool,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let pk_bytes = dkgpk.strand_serialize()?;
@@ -147,7 +154,7 @@ impl Message {
         selected_trustees: TrusteeSet,
         pk_h: PublicKeyHash,
         pm: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let ballots_bytes = ballots.strand_serialize()?;
@@ -170,7 +177,7 @@ impl Message {
         previous_ciphertexts_h: CiphertextsHash,
         mix: &Mix<C>,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let mix_bytes = mix.strand_serialize()?;
@@ -194,7 +201,7 @@ impl Message {
         mix_h: CiphertextsHash,
         mix_number: MixNumber,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
@@ -215,7 +222,7 @@ impl Message {
         mix_h: CiphertextsHash,
         shares_hs: SharesHashes,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
@@ -241,7 +248,7 @@ impl Message {
         cipher_h: CiphertextsHash,
         pk_h: PublicKeyHash,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
@@ -268,7 +275,7 @@ impl Message {
         cipher_h: CiphertextsHash,
         pk_h: PublicKeyHash,
         trustee: &S,
-    ) -> Result<Message> {
+    ) -> Result<Message, StrandError> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
@@ -407,6 +414,8 @@ fn verify_artifact<C: Ctx>(
 }
 
 use immu_board::BoardMessage;
+// Immudb uses timestamps with microsecond precision
+const MICROSECOND_FACTOR: u64 = 1000000;
 
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
@@ -414,11 +423,12 @@ impl TryFrom<Message> for BoardMessage {
     fn try_from(message: Message) -> Result<BoardMessage> {
         Ok(BoardMessage {
             id: 0,
-            created: crate::timestamp() as i64,
-            statement_timestamp: message.statement.get_timestamp() as i64,
+            created: (crate::timestamp() * MICROSECOND_FACTOR) as i64,
+            statement_timestamp: (message.statement.get_timestamp() * MICROSECOND_FACTOR) as i64,
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
+            version: crate::getSchemaVersion(),
         })
     }
 }
@@ -453,7 +463,11 @@ impl VerifiedMessage {
 pub trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
     fn get_name(&self) -> String;
-    fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
+    fn sign(
+        &self,
+        statement: Statement,
+        artifact: Option<Vec<u8>>,
+    ) -> Result<Message, StrandError> {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
         let signature: StrandSignature = sk.sign(&bytes)?;

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, styled, Button, TextField} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"

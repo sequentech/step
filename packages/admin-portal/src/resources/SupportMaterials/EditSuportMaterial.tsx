@@ -16,6 +16,7 @@ import {
     BooleanInput,
     useRecordContext,
     useGetList,
+    RaRecord,
 } from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -32,12 +33,16 @@ import {
 } from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {Sequent_Backend_Support_Material_Extended} from "../ElectionEvent/EditElectionEventDataForm"
 import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+
+export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+} & Sequent_Backend_Support_Material
 
 interface EditSupportMaterialProps {
     id?: string

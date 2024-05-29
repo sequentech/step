@@ -1,0 +1,14 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as BlankAnswerStories from './BlankAnswer.stories'
+
+<Meta of={BlankAnswerStories} title="components/BlankAnswer"/>
+
+# BlankAnswer
+
+A BlankAnswer represents a contest where no selection is made. This is
+normally shown in the review screen of the voting portal as well as in the
+ballot verifier.
+
+## Primary
+
+<Canvas of={BlankAnswerStories.Primary} />

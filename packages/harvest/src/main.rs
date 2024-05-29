@@ -45,8 +45,11 @@ async fn rocket() -> _ {
                 routes::election_stats::get_election_stats,
                 routes::scheduled_event::create_scheduled_event,
                 routes::immudb_log_audit::list_pgaudit,
+                routes::import_areas::import_areas_route,
                 routes::electoral_log::list_electoral_log,
+                routes::export_election_event::export_election_event_route,
                 routes::insert_election_event::insert_election_event_f,
+                routes::import_candidates::import_candidates_route,
                 routes::insert_election_event::import_election_event_f,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
@@ -78,7 +81,8 @@ async fn rocket() -> _ {
                 routes::tally_ceremony::update_tally_ceremony,
                 routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::tally_sheets::publish_tally_sheet,
-                routes::create_vote_receipt::create_vote_receipt
+                routes::create_vote_receipt::create_vote_receipt,
+                routes::election_dates::manage_election_dates,
             ],
         )
 }

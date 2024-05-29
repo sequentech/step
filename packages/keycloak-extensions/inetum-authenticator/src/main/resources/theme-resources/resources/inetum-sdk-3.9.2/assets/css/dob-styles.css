@@ -1,4 +1,10 @@
 /*
+ * SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+/*
   For example you can replace the fonts of your company
   Default fonts: Dob-Font-Bold(title subtitle, button) & Dob-Font-Regular(lead, body)
 */
@@ -44,7 +50,7 @@ body {
   -o-object-fit: contain;
   object-fit: contain;
   height: 0px;
-  background-image: url("../images/inetum-logo.png");
+  background-image: url("../images/sequent-logo.png");
   background-size: contain;
   background-position: center;
   padding: 2.5vh 50vw 2.5vh 50vw;

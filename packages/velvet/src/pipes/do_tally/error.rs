@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use std::error::Error as StdError;
 
 pub type Result<T, E = Box<dyn StdError>> = std::result::Result<T, E>;

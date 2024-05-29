@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // This demo utility generates all the configuration information
 // necessary to create a demo election, as files in the working directory:
 //
@@ -22,8 +26,8 @@ use strand::symm;
 
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid::protocol2::trustee::Trustee;
-use braid::run::config::TrusteeConfig;
+use braid::protocol::trustee::Trustee;
+use braid::protocol::trustee::TrusteeConfig;
 
 const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";

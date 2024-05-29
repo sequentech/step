@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <testsuites errors="1"
             failures="0"
             tests="0">

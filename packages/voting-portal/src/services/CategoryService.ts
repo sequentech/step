@@ -2,8 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ICandidate, IContest, shuffle, splitList} from "@sequentech/ui-essentials"
+import {
+    ICandidate,
+    IContest,
+    ITypePresentation,
+    shuffle,
+    splitList,
+} from "@sequentech/ui-essentials"
 import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
+import {sortBy} from "lodash"
 
 export interface ICategory {
     header?: ICandidate
@@ -58,13 +65,20 @@ export const getShuffledCategories = (
     categories: CategoriesMap,
     shuffleAllOptions: boolean,
     shuffleCategories: boolean,
-    shuffleCategoryList: Array<string>
+    shuffleCategoryList: Array<string>,
+    types_presentation?: Record<string, ITypePresentation>
 ): CategoriesMap => {
     const shuffledCategories: CategoriesMap = {}
 
     let categoryKeys = shuffleCategories
         ? shuffle(Object.keys(categories))
-        : Object.keys(categories)
+        : sortBy(
+              Object.keys(categories).map((key) => ({
+                  key,
+                  sort_order: types_presentation?.[key]?.sort_order ?? 0,
+              })),
+              "sort_order"
+          ).map((value) => value.key)
     for (let categoryKey of categoryKeys) {
         let category = categories[categoryKey]
 

@@ -37,6 +37,7 @@ const HeaderWithContext: React.FC = () => {
         ballotStyle?.ballot_eml.election_event_presentation
 
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
+    let showUserProfile = presentation?.show_user_profile ?? true
 
     return (
         <Header
@@ -44,7 +45,7 @@ const HeaderWithContext: React.FC = () => {
             userProfile={{
                 username: authContext.username,
                 email: authContext.email,
-                openLink: authContext.openProfileLink,
+                openLink: showUserProfile ? authContext.openProfileLink : undefined,
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}

@@ -1,7 +1,7 @@
-/*
-* SPDX-FileCopyrightText: 2016 Red Hat, Inc. and/or its affiliates
-* SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
-*/
+// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2016 Red Hat, Inc. and/or its affiliates
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
 
@@ -48,6 +48,7 @@ import lombok.extern.jbosslog.JBossLog;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @JBossLog
 @AutoService(FormActionFactory.class)
@@ -91,29 +92,61 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
         try {
             profile.validate();
+            // If email validation exception was not raised and an email was
+            // provided, validation should have thrown an Messages.EMAIL_EXISTS
+            // exception, so show invalid email error here
+            if (email != null && !email.isBlank()) {
+                context.error(Errors.INVALID_EMAIL);
+                List<FormMessage> errors = new ArrayList<>();
+                errors.add(new FormMessage(
+                    RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL
+                ));
+                context.validationError(formData, errors);
+                return;
+            }
         } catch (ValidationException pve) {
             log.info("validate: ValidationException pve = " + pve.toString());
-            List<FormMessage> errors = Validation
-                .getFormErrorsFromValidation(pve.getErrors());
 
-            if (pve.hasError(Messages.EMAIL_EXISTS, Messages.INVALID_EMAIL)) {
+            // Filter email exists and username exists - this is to be expected
+            List<ValidationException.Error> filteredErrors = pve.getErrors()
+                .stream()
+                .filter(error ->  (
+                    (
+                        !context
+                            .getRealm()
+                            .isRegistrationEmailAsUsername() ||
+                        !Messages.USERNAME_EXISTS.equals(error.getMessage())
+                    ) &&
+                    !Messages.EMAIL_EXISTS.equals(error.getMessage())
+                ))
+                .collect(Collectors.toList());
+            List<FormMessage> errors = Validation
+                .getFormErrorsFromValidation(filteredErrors);
+
+            if (pve.hasError(Messages.INVALID_EMAIL)) {
                 context
                     .getEvent()
                     .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
             }
 
-            if (pve.hasError(Messages.EMAIL_EXISTS)) {
-                context.error(Errors.EMAIL_IN_USE);
-            } else if (pve.hasError(Messages.USERNAME_EXISTS)) {
-                context.error(Errors.USERNAME_IN_USE);
-            } else {
-                context.error(Errors.INVALID_REGISTRATION);
-            }
+            // if error is empty but we are here, then the exception was related
+            // to error to be ignored (username/email exists), so we ignore them
+            // and continue
+            if (errors.isEmpty()) {
 
-            context.validationError(formData, errors);
-            return;
+            // if errors is not empty, show them
+            } else {
+                if (!pve.hasError(Messages.EMAIL_EXISTS)) {
+                    context.error(Errors.INVALID_EMAIL);
+                } else {
+                    context.error(Errors.INVALID_REGISTRATION);
+                }
+                log.info(errors);
+                context.validationError(formData, errors);
+                return;
+            }
         }
-    
+
         List<FormMessage> errors = new ArrayList<>();
         context.getEvent().detail(Details.REGISTER_METHOD, "form");
         if (Validation.isBlank(

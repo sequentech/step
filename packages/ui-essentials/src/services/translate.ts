@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 export type TranslationDict = {[lang: string]: string}
 
 export const translate = <T, K extends keyof T>(

@@ -104,6 +104,12 @@ type Mutation {
 }
 
 type Mutation {
+  export_election_event (
+    election_event_id: String
+  ): ExportUsersOutput
+}
+
+type Mutation {
   export_users (
     tenant_id: String!
     election_event_id: String
@@ -193,6 +199,20 @@ type Query {
 }
 
 type Mutation {
+  import_areas (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
+  import_candidates (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
   import_election_event (
     tenant_id: String!
     document_id: String!
@@ -254,6 +274,15 @@ type Query {
     user_id: String!
     election_event_id: String
   ): [KeycloakRole!]!
+}
+
+type Mutation {
+  manage_election_dates (
+    election_event_id: String!
+    election_id: String!
+    is_start: Boolean
+    is_unset: Boolean
+  ): ManageElectionDatesOutput
 }
 
 type Mutation {
@@ -796,5 +825,9 @@ type OptionalImportEvent {
   id : String
   message : String
   error : String
+}
+
+type ManageElectionDatesOutput {
+  something : String
 }
 

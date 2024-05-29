@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {StartTallyDialog} from "@/components/StartTallyDialog"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "@/gql/graphql"
 import {Box} from "@mui/material"
 import React, {useState} from "react"
@@ -13,9 +12,7 @@ import {TallyCeremony} from "../Tally/TallyCeremony"
 import {TallyCeremonyTrustees} from "../Tally/TallyCeremonyTrustees"
 
 export const EditElectionEventTally: React.FC = () => {
-    const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
-    const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
     const {tallyId, isTrustee, isCreating, isCreated} = useElectionEventTallyStore()
 
     console.log("EditElectionEventTally :: tallyId ::  ", tallyId)
@@ -23,12 +20,6 @@ export const EditElectionEventTally: React.FC = () => {
 
     return (
         <Box>
-            <StartTallyDialog
-                show={showStartTallyDialog}
-                handleClose={() => setShowStartTallyDialog(false)}
-                electionEvent={recordEvent}
-            />
-
             {isCreating || isCreated || tallyId ? (
                 <>{!isTrustee ? <TallyCeremony /> : <TallyCeremonyTrustees />}</>
             ) : (

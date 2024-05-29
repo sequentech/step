@@ -1,15 +1,19 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use strand::backend::ristretto::RistrettoCtx;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
-/*cfg_if::cfg_if! {
-    if #[cfg(unix)] {
+cfg_if::cfg_if! {
+    if #[cfg(feature = "rug")] {
         use strand::backend::rug::RugCtx;
         use strand::backend::rug::P2048 as RUGP2048;
     }
-}*/
+}
 
 #[test]
 fn test_protocol_memory() {
@@ -17,12 +21,12 @@ fn test_protocol_memory() {
 
     let ctx = RistrettoCtx;
     braid::test::protocol_test_memory::run(1000, 1, ctx);
-    /*cfg_if::cfg_if! {
-        if #[cfg(unix)] {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "rug")] {
             let ctx = RugCtx::<RUGP2048>::default();
             braid::test::protocol_test_memory::run(100, 1, ctx);
         }
-    }*/
+    }
 }
 
 #[tokio::test]
@@ -33,12 +37,12 @@ async fn test_protocol_immudb() {
     let ctx = RistrettoCtx;
     // maximum size limit is currently 135295
     braid::test::protocol_test_immudb::run(1000, 1, ctx).await;
-    /* cfg_if::cfg_if! {
-        if #[cfg(unix)] {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "rug")] {
             let ctx = RugCtx::<RUGP2048>::default();
-            braid::test::protocol_test_immudb::run_immudb(100, 1, ctx).await;
+            braid::test::protocol_test_immudb::run(100, 1, ctx).await;
         }
-    } */
+    }
 }
 
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {ReactElement, useContext} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
@@ -187,7 +191,7 @@ export const CommunicationTemplateList: React.FC = () => {
                 {recordId ? (
                     <CommunicationTemplateEdit id={recordId} close={handleCloseDrawer} />
                 ) : (
-                    <CustomApolloContextProvider role="communication-template-write">
+                    <CustomApolloContextProvider role={IPermissions.COMMUNICATION_TEMPLATE_WRITE}>
                         <CommunicationTemplateCreate close={handleCloseDrawer} />
                     </CustomApolloContextProvider>
                 )}

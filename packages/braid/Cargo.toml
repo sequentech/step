@@ -27,6 +27,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 rayon = { version = "1.5" }
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 anyhow = "1.0"
+thiserror = "1.0.50"
 
 # only needed for verifier
 serde_json = "1.0.105"
@@ -76,3 +77,4 @@ crate-type = ["cdylib", "rlib"]
 # wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
 fips_core = ["strand/fips_core"]
 fips_full = ["strand/fips_full"]
+rug = ["strand/rug"]

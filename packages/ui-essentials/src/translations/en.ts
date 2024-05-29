@@ -22,6 +22,7 @@ const englishTranslation = {
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
+            blankVote: "Blank Vote",
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",

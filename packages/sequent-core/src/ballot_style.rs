@@ -58,10 +58,16 @@ pub fn create_ballot_style(
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
         .unwrap_or(Default::default());
 
-    let election_presentation = ElectionPresentation {
-        i18n: None,
-        dates: Some(election_dates),
-    };
+    let mut election_presentation: ElectionPresentation = election
+        .presentation
+        .clone()
+        .map(|presentation| serde_json::from_value(presentation))
+        .transpose()
+        .map_err(|err| {
+            anyhow!("Error parsing election presentation {:?}", err)
+        })?
+        .unwrap_or(Default::default());
+    election_presentation.dates = Some(election_dates);
 
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()

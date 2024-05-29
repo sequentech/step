@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {TranslationDict} from "@root/services/translate"
+import {TranslationDict} from "../services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
@@ -107,4 +107,10 @@ export interface IHashableBallot {
     issue_date: string
     contests: Array<string>
     config: IBallotStyle
+}
+
+export enum EInvalidPlaintextErrorType {
+    Explicit = "Explicit",
+    Implicit = "Implicit",
+    EncodingError = "EncodingError",
 }

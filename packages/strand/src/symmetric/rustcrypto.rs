@@ -1,3 +1,30 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+//! # Examples
+//!
+//! ```
+//! // This example shows how to symmetrically encrypt bytes.
+//! use strand::rng::StrandRng;
+//! use rand::RngCore;
+//! use strand::symm::encrypt;
+//! use strand::symm::decrypt;
+//! use strand::symm::gen_key;
+//!
+//! // generate random key
+//! let key = gen_key();
+//! // generate random data
+//! let mut csprng = StrandRng;
+//! let mut data = [0u8; 256];
+//! csprng.fill_bytes(&mut data);
+//! // encrypt
+//! let encrypted = encrypt(key, &data).unwrap();
+//! // decrypt
+//! let decrypted = decrypt((&key).into(), &encrypted).unwrap();
+//!
+//! assert_eq!(data.to_vec(), decrypted);
+//! ```
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit},
@@ -78,7 +105,7 @@ mod tests {
     use rand::RngCore;
 
     #[test]
-    fn test_aes() {
+    fn test_chacha_poly() {
         let mut csprng = StrandRng;
 
         let key = gen_key();

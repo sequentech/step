@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::import_election_event::ImportElectionEventSchema;
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
@@ -298,4 +300,77 @@ pub async fn get_area_by_id(
         .collect::<Result<Vec<Area>>>()?;
 
     Ok(areas.get(0).map(|area| area.clone()))
+}
+
+#[instrument(err, skip_all)]
+pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
+    for area in areas {
+        let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.area
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8);
+            "#,
+        )
+        .await?;
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &Uuid::parse_str(&area.id)?,
+                    &Uuid::parse_str(&area.tenant_id)?,
+                    &Uuid::parse_str(&area.election_event_id)?,
+                    &area.labels,
+                    &area.annotations,
+                    &area.name,
+                    &area.description,
+                    &area.r#type,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    }
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn export_areas(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Area>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type
+                FROM
+                    sequent_backend.area
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<Area> = rows
+        .into_iter()
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
+        .collect::<Result<Vec<Area>>>()?;
+
+    Ok(election_events)
 }

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
 import Button from "@mui/material/Button"
 import React, {useContext, useEffect, useState} from "react"

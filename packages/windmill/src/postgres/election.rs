@@ -1,12 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Election;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+use crate::services::import_election_event::ImportElectionEventSchema;
 
 pub struct ElectionWrapper(pub Election);
 
@@ -161,4 +164,144 @@ pub async fn get_election_by_id(
         .collect::<Result<Vec<Election>>>()?;
 
     Ok(elections.get(0).map(|election| election.clone()))
+}
+
+pub async fn update_election_presentation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    presentation: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid: uuid::Uuid =
+        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election
+            SET
+                presentation = $4
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND id = $3
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &presentation,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_presentation query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn insert_election(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<()> {
+    for election in &data.elections {
+        election.validate()?;
+
+        let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.election
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);    
+            "#,
+        )
+        .await?;
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &Uuid::parse_str(&election.id)?,
+                    &Uuid::parse_str(&election.tenant_id)?,
+                    &Uuid::parse_str(&election.election_event_id)?,
+                    &election.labels,
+                    &election.annotations,
+                    &election.name,
+                    &election.description,
+                    &election.presentation,
+                    &election.dates,
+                    &election.status,
+                    &election.eml,
+                    &election
+                        .num_allowed_revotes
+                        .and_then(|val| Some(val as i32)),
+                    &election.is_consolidated_ballot_encoding,
+                    &election.spoil_ballot_option,
+                    &election.alias,
+                    &election.voting_channels,
+                    &election.is_kiosk,
+                    &election.image_document_id,
+                    &election.statistics,
+                    &election.receipts,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+    }
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn export_elections(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Election>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts
+                FROM
+                    sequent_backend.election
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(election_events)
 }

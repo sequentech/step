@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 FROM rust:1.70.0
 
 ENV ROCKET_ADDRESS=0.0.0.0

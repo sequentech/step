@@ -10,6 +10,7 @@ import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
+import {isString} from "@root/utils/typechecks"
 
 const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
     border: 2px solid
@@ -138,7 +139,7 @@ const Candidate: React.FC<CandidateProps> = ({
             onClick={onClick}
             className="candidate-item"
         >
-            <ImageBox>{children}</ImageBox>
+            <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
                 <Typography
                     className="candidate-title"
@@ -163,6 +164,7 @@ const Candidate: React.FC<CandidateProps> = ({
                 {isWriteIn ? (
                     <Box>
                         <TextField
+                            className="candidate-writein-textfield"
                             placeholder={t("candidate.writeInsPlaceholder")}
                             InputLabelProps={{shrink: true}}
                             value={writeInValue}
@@ -174,9 +176,10 @@ const Candidate: React.FC<CandidateProps> = ({
                 ) : null}
             </Box>
             {url ? (
-                <StyledLink href={url} target="_blank">
-                    <FontAwesomeIcon icon={faInfoCircle} size="sm" />
+                <StyledLink href={url} target="_blank" className="candidate-link">
+                    <FontAwesomeIcon icon={faInfoCircle} size="sm" className="candidate-icon" />
                     <Typography
+                        className="candidate-link-text"
                         variant="body2"
                         sx={{margin: "2px 0 0 6px", display: {xs: "none", sm: "block"}}}
                     >
@@ -187,7 +190,8 @@ const Candidate: React.FC<CandidateProps> = ({
             {isActive ? (
                 <Checkbox
                     inputProps={{
-                        className: "candidate-input",
+                        "className": "candidate-input",
+                        "aria-label": isString(title) ? title : "",
                     }}
                     checked={checked}
                     onChange={handleChange}

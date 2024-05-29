@@ -53,15 +53,32 @@ const Dialog: React.FC<DialogProps> = ({
             open={open}
             slots={{backdrop: StyledBackdrop}}
             fullWidth={fullWidth}
+            className="dialog"
         >
-            <DialogTitle>
-                <Icon variant={infoVariant} icon={faIcon} fontSize="24px" />
-                <Box component="span" flexGrow={2} pt="3px" fontWeight="bold">
+            <DialogTitle className="dialog-title">
+                <Icon
+                    variant={infoVariant}
+                    icon={faIcon}
+                    fontSize="24px"
+                    className="dialog-icon-info"
+                />
+                <Box
+                    component="span"
+                    flexGrow={2}
+                    pt="3px"
+                    fontWeight="bold"
+                    className="dialog-title-text"
+                >
                     {title}
                 </Box>
-                <IconButton icon={faTimesCircle} variant="primary" onClick={closeDialog} />
+                <IconButton
+                    icon={faTimesCircle}
+                    variant="primary"
+                    onClick={closeDialog}
+                    className="dialog-icon-close"
+                />
             </DialogTitle>
-            <DialogContent>{children}</DialogContent>
+            <DialogContent className="dialog-content">{children}</DialogContent>
             <DialogActions>
                 {cancel ? (
                     <Button

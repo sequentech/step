@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 { fetchurl, fetchgit, linkFarm, runCommand, gnutar }: rec {
   offline_cache = linkFarm "offline" packages;
   packages = [

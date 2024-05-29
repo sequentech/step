@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # Admin-portal
 
 Admin portal for Sequent Voting Platform (2nd-gen).

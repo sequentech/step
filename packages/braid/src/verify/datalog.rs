@@ -1,5 +1,9 @@
-use crate::protocol2::datalog::{hashes_add, hashes_init};
-use crate::protocol2::predicate::Predicate;
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::protocol::datalog::{hashes_add, hashes_init};
+use crate::protocol::predicate::Predicate;
 use board_messages::braid::newtypes::*;
 use crepe::crepe;
 use std::collections::HashSet;

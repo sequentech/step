@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -19,8 +19,12 @@ import {styled} from "@mui/material/styles"
 import {Link, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
-import {GetCastVoteQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVoteQuery} from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
+import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -83,11 +87,14 @@ export const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const [inputBallotId, setInputBallotId] = useState<string>("")
 
     const hasBallotId = !!ballotId
+    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const dispatch = useAppDispatch()
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
@@ -97,6 +104,19 @@ export const BallotLocator: React.FC = () => {
             ballotId,
         },
     })
+
+    useEffect(() => {
+        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
+            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+        }
+    }, [dataBallotStyles, dispatch])
+
+    useEffect(() => {
+        let defaultLangCode =
+            ballotStyle?.ballot_eml?.election_event_presentation?.language_conf
+                ?.default_language_code ?? "en"
+        i18n.changeLanguage(defaultLangCode)
+    }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
 
     const validatedBallotId = isHex(inputBallotId ?? "")
 
