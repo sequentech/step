@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::env;
-use log::info;
 use crate::ballot::{
     self, CandidatePresentation, ContestPresentation, ElectionDates,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
@@ -11,8 +10,6 @@ use crate::ballot::{
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Result};
 
-// pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
-// pub const DEMO_PUBLIC_KEY: &str = std::env::var("DEMO_PUBLIC_KEY").unwrap();
 
 fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
@@ -42,7 +39,7 @@ pub fn create_ballot_style(
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests.clone();
     sorted_contests.sort_by_key(|k| k.id.clone());
-    let demo_public_key = std::env::var("DEMO_PUBLIC_KEY").unwrap();
+    let demo_public_key = std::env::var("DEMO_PUBLIC_KEY")?;
     
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
@@ -86,7 +83,6 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    info!("public demo key {:?}", demo_public_key);
     Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
