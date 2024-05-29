@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Start with a minimal Alpine Linux image that includes a package manager
 FROM alpine:latest as alpine_base
 
