@@ -4,34 +4,40 @@
 
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
+use sequent_core::services::replace_uuids::replace_uuids;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use super::database::get_hasura_pool;
+use super::documents;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
+use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
+use crate::postgres::election_event::export_election_event;
 use crate::postgres::election_event::insert_election_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
+use crate::tasks::import_election_event::ImportElectionEventBody;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -159,9 +165,107 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
+#[instrument(err, skip(data_str, original_data))]
+pub fn replace_ids(
+    data_str: &str,
+    original_data: &ImportElectionEventSchema,
+    id_opt: Option<String>,
+    tenant_id: String,
+) -> Result<ImportElectionEventSchema> {
+    let keep: Vec<String> = if id_opt.is_some() {
+        vec![
+            original_data.election_event.id.clone(),
+            original_data.tenant_id.clone().to_string(),
+        ]
+    } else {
+        vec![original_data.tenant_id.clone().to_string()]
+    };
+    let mut new_data = replace_uuids(data_str, keep);
+
+    if let Some(id) = id_opt {
+        new_data = new_data.replace(&original_data.election_event.id, &id);
+    }
+    if original_data.tenant_id.to_string() != tenant_id {
+        new_data = new_data.replace(&original_data.tenant_id.to_string(), &tenant_id);
+    }
+
+    let data: ImportElectionEventSchema = serde_json::from_str(&new_data)?;
+    Ok(data.clone())
+}
+
+#[instrument(err)]
+pub async fn get_document(
+    hasura_transaction: &Transaction<'_>,
+    object: ImportElectionEventBody,
+    id: Option<String>,
+    tenant_id: String,
+) -> Result<ImportElectionEventSchema> {
+    let document = postgres::document::get_document(
+        hasura_transaction,
+        &object.tenant_id,
+        None,
+        &object.document_id,
+    )
+    .await?
+    .ok_or(anyhow!(
+        "Error trying to get document id {}: not found",
+        &object.document_id
+    ))?;
+
+    let temp_file_path = documents::get_document_as_temp_file(&object.tenant_id, &document)
+        .await
+        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
+
+    let mut file = File::open(temp_file_path)?;
+
+    let mut data_str = String::new();
+    file.read_to_string(&mut data_str)?;
+
+    let original_data: ImportElectionEventSchema = serde_json::from_str(&data_str)?;
+    let election_event_id = original_data.election_event.id.to_string();
+
+    let found_event =
+        export_election_event(hasura_transaction, &tenant_id, &election_event_id).await;
+
+    let replace_id = if let Some(id_val) = id {
+        if found_event.is_ok() && election_event_id != id_val {
+            Some(id_val)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let data = replace_ids(&data_str, &original_data, replace_id, tenant_id)?;
+
+    Ok(data)
+}
+
 #[instrument(err, skip_all)]
-pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
-    let mut data = data_init.clone();
+pub async fn process(
+    object: ImportElectionEventBody,
+    election_event_id: String,
+    tenant_id: String,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+
+    let mut data: ImportElectionEventSchema = get_document(
+        &hasura_transaction,
+        object,
+        Some(election_event_id),
+        tenant_id.clone(),
+    )
+    .await?;
     let tenant_id = &data.tenant_id.to_string();
     let election_event_id = &data.election_event.id;
 
@@ -173,17 +277,6 @@ pub async fn process(data_init: &ImportElectionEventSchema) -> Result<()> {
         data.keycloak_event_realm.clone(),
     )
     .await?;
-
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
     insert_election_event(&hasura_transaction, &data).await?;
     insert_election(&hasura_transaction, &data).await?;
