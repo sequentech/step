@@ -45,15 +45,61 @@ impl User {
     }
 }
 
+
+// Define a trait for converting into Vec<String>
+trait IntoVec {
+    fn into_vec(self) -> Vec<String>;
+}
+
+// Implement the trait for String
+impl IntoVec for String {
+    fn into_vec(self) -> Vec<String> {
+        vec![self]
+    }
+}
+
+// Implement the trait for Vec<String>
+impl IntoVec for Vec<String> {
+    fn into_vec(self) -> Vec<String> {
+        self
+    }
+}
+
+// Implement the trait for serde_json::Value
+impl IntoVec for Value {
+    fn into_vec(self) -> Vec<String> {
+        match self {
+            Value::String(s) => vec![s],
+            Value::Array(arr) => arr.into_iter()
+                .filter_map(|v| {
+                    if let Value::String(s) = v {
+                        Some(s)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            _ => vec![], // Return an empty vector for unsupported types
+        }
+    }
+}
+
+// Convert a HashMap<String, Value> into a HashMap<String, Vec<String>>
+fn convert_map(original_map: HashMap<String, Value>) -> HashMap<String, Vec<String>> {
+    original_map.into_iter()
+        .map(|(key, value)| (key, value.into_vec()))
+        .collect()
+}
+
 impl TryFrom<Row> for User {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        let attributes_value: Vec<String> = item.try_get("attributes")?;
-        let attributes_map: HashMap<String, Vec<String>> =
-            serde_json::from_value(attributes_value.into())?;
+        let attributes_value: Value = item.try_get("attributes")?;
+        let attributes_map: HashMap<String, Value> =
+            serde_json::from_value(attributes_value)?;
         Ok(User {
             id: item.try_get("id")?,
-            attributes: Some(attributes_map),
+            attributes: Some(convert_map(attributes_map)),
             email: item.try_get("email")?,
             email_verified: item.try_get("email_verified")?,
             enabled: item.try_get("enabled")?,
