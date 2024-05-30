@@ -285,7 +285,7 @@ pub async fn create_user(
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
-                vec![input.tenant_id.clone()], 
+                vec![input.tenant_id.clone()],
             )])),
             Some(vec![voter_group_name]),
         )
@@ -293,7 +293,7 @@ pub async fn create_user(
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
-                vec![input.tenant_id.clone()], 
+                vec![input.tenant_id.clone()],
             )])),
             None,
         )

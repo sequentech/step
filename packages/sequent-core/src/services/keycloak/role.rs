@@ -32,7 +32,7 @@ impl From<Role> for GroupRepresentation {
             path: None,
             realm_roles: item.permissions.clone(),
             sub_groups: None,
-            parent_id: None, 
+            parent_id: None,
             sub_group_count: None,
         }
     }

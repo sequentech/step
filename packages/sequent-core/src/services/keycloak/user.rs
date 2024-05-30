@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{services::keycloak::KeycloakAdminClient};
+use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
+use crate::util::convert_vec::convert_map;
 use anyhow::{anyhow, Result};
 use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
-use crate::util::convert_vec::convert_map;
 use std::convert::From;
 use tokio_postgres::row::Row;
 use tracing::instrument;
