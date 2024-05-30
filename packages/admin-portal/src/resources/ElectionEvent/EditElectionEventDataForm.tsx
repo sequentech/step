@@ -393,11 +393,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const handleImport = () => {
-        console.log("IMPORT")
-        setOpenDrawer(true)
-    }
-
     const handleExport = () => {
         console.log("EXPORT")
         setOpenExport(true)
@@ -430,8 +425,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 }}
             >
                 <ListActions
-                    withImport
-                    doImport={handleImport}
+                    withImport={false}
                     withExport
                     doExport={handleExport}
                     withColumns={false}
