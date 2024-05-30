@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::keycloak::KeycloakAdminClient;
+use crate::{services::keycloak::KeycloakAdminClient};
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
 use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
+use crate::util::convert_vec::convert_map;
 use std::convert::From;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -43,52 +44,6 @@ impl User {
             )
         })
     }
-}
-
-
-// Define a trait for converting into Vec<String>
-trait IntoVec {
-    fn into_vec(self) -> Vec<String>;
-}
-
-// Implement the trait for String
-impl IntoVec for String {
-    fn into_vec(self) -> Vec<String> {
-        vec![self]
-    }
-}
-
-// Implement the trait for Vec<String>
-impl IntoVec for Vec<String> {
-    fn into_vec(self) -> Vec<String> {
-        self
-    }
-}
-
-// Implement the trait for serde_json::Value
-impl IntoVec for Value {
-    fn into_vec(self) -> Vec<String> {
-        match self {
-            Value::String(s) => vec![s],
-            Value::Array(arr) => arr.into_iter()
-                .filter_map(|v| {
-                    if let Value::String(s) = v {
-                        Some(s)
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-            _ => vec![], // Return an empty vector for unsupported types
-        }
-    }
-}
-
-// Convert a HashMap<String, Value> into a HashMap<String, Vec<String>>
-fn convert_map(original_map: HashMap<String, Value>) -> HashMap<String, Vec<String>> {
-    original_map.into_iter()
-        .map(|(key, value)| (key, value.into_vec()))
-        .collect()
 }
 
 impl TryFrom<Row> for User {
