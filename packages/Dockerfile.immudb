@@ -13,9 +13,9 @@ RUN apk update && \
 FROM alpine:latest
 
 # Copy immudb binaries and required files from codenotary/immudb:1.5
-COPY --from=codenotary/immudb:1.5 /usr/sbin/immudb /usr/sbin/immudb
-COPY --from=codenotary/immudb:1.5 /usr/local/bin/immuadmin /usr/local/bin/immuadmin
-COPY --from=codenotary/immudb:1.5 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=codenotary/immudb:1.9.3 /usr/sbin/immudb /usr/sbin/immudb
+COPY --from=codenotary/immudb:1.9.3 /usr/local/bin/immuadmin /usr/local/bin/immuadmin
+COPY --from=codenotary/immudb:1.9.3 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy necessary binaries and libraries from the Alpine base image
 # No need to copy individual binaries like /bin/ls, /bin/bash, etc., as they are already part of the Alpine base image
