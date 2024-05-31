@@ -31,6 +31,7 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::protocol_manager::add_ballots_to_board;
 use crate::services::public_keys::deserialize_public_key;
+use crate::services::users::list_keycloak_enabled_users_by_area_id;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -308,6 +309,7 @@ pub async fn get_eligible_voters(
 async fn insert_ballots_messages(
     auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     board_name: &str,
@@ -353,8 +355,22 @@ async fn insert_ballots_messages(
 
         event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
 
+        let realm = get_event_realm(&tenant_id, &election_event_id);
+        let users_map = list_keycloak_enabled_users_by_area_id(
+            keycloak_transaction,
+            &realm,
+            &tally_session_contest.area_id,
+        )
+        .await?;
+
         let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
             .iter()
+            .filter(|ballot| {
+                let Some(voter_id) = ballot.voter_id_string.clone() else {
+                    return false;
+                };
+                users_map.contains(&voter_id)
+            })
             .map(|ballot| {
                 ballot
                     .content
@@ -392,6 +408,7 @@ async fn insert_ballots_messages(
 pub async fn upsert_ballots_messages(
     auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     board_name: &str,
@@ -436,6 +453,7 @@ pub async fn upsert_ballots_messages(
         insert_ballots_messages(
             &auth_headers,
             hasura_transaction,
+            keycloak_transaction,
             tenant_id,
             election_event_id,
             board_name,
@@ -624,6 +642,7 @@ async fn map_plaintext_data(
     let new_ballots_messages = upsert_ballots_messages(
         &auth_headers,
         hasura_transaction,
+        keycloak_transaction,
         &tenant_id,
         &election_event_id,
         &bulletin_board,

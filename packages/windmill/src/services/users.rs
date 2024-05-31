@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::stream::Filter;
 use sequent_core::types::keycloak::*;
-use std::convert::From;
+use std::{collections::HashSet, convert::From};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
@@ -83,6 +83,51 @@ async fn get_area_ids(
         None => (None, String::from(""), String::from("")),
     };
     Ok(res)
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn list_keycloak_enabled_users_by_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+) -> Result<HashSet<String>> {
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+        SELECT
+            u.id,
+            u.enabled,
+            u.realm_id,
+            u.username
+        FROM
+            user_entity AS u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        INNER JOIN 
+            user_attribute AS area_attr ON u.id = area_attr.user_id
+        WHERE
+            ra.name = $1 AND 
+            u.enabled IS TRUE AND
+            (
+                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                area_attr.value = '{area_id}'
+            )
+        GROUP BY
+            u.id;
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let found_user_ids: Vec<String> = rows.into_iter().map(|row| row.get("id")).collect();
+    Ok(found_user_ids.into_iter().collect())
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
