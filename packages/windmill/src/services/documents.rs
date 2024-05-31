@@ -208,36 +208,19 @@ pub async fn get_upload_url(
 }
 
 #[instrument(err)]
-pub async fn get_document(
-    tenant_id: &str,
-    election_event_id: Option<&str>,
-    document_id: &str,
-) -> anyhow::Result<Option<Document>> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
-
-    let auth_headers = get_client_credentials().await?;
-
-    postgres::document::get_document(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id.map(|id| id.to_string()),
-        document_id,
-    )
-    .await
-}
-
-#[instrument(err)]
 pub async fn get_document_url(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: Option<&str>,
     document_id: &str,
 ) -> anyhow::Result<Option<String>> {
-    let document = get_document(tenant_id, election_event_id, document_id).await?;
+    let document = postgres::document::get_document(
+        hasura_transaction,
+        tenant_id,
+        election_event_id.map(|id| id.to_string()),
+        document_id,
+    )
+    .await?;
     let Some(document) = document else {
         return Ok(None);
     };
