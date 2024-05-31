@@ -85,6 +85,7 @@ async fn get_area_ids(
     Ok(res)
 }
 
+#[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -98,7 +99,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
             u.id,
             u.enabled,
             u.realm_id,
-            u.username,
+            u.username
         FROM
             user_entity AS u
         INNER JOIN
