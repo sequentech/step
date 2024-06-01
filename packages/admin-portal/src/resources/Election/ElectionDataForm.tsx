@@ -53,6 +53,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
+import {OrderContests} from "@/components/election/OrderContests"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -454,6 +455,7 @@ export const ElectionDataForm: React.FC = () => {
                                     {renderTabs(parsedValue)}
                                 </Tabs>
                                 {renderTabContent(parsedValue)}
+                                <OrderContests />
                             </AccordionDetails>
                         </Accordion>
 

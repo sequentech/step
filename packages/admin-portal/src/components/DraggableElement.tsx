@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useRef, useState} from "react"
+import React, {useState} from "react"
 import styled from "@emotion/styled"
-import {theme, ICandidate} from "@sequentech/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
 import {TextField} from "react-admin"
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
 
-export interface CandidateRowItemProps {
+export interface DraggableElementProps {
     id: any
-    candidate: ICandidate
+    name: string
     index: number
     onDragStart: (event: React.DragEvent<HTMLDivElement>, index: number) => void
     onDragOver: (event: React.DragEvent<HTMLDivElement>, index: number) => void
@@ -18,7 +18,7 @@ export interface CandidateRowItemProps {
     isOver: boolean
 }
 
-const CandidateRow = styled.div`
+const DraggableElementRow = styled.div`
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -45,11 +45,9 @@ const CandidateRow = styled.div`
     }
 `
 
-export default function Candidate(props: CandidateRowItemProps) {
-    const {candidate, index, onDragStart, onDragOver, onDrop, isOver} = props
+const DraggableElement: React.FC<DraggableElementProps> = (props) => {
+    const {name, index, onDragStart, onDragOver, onDrop, isOver} = props
     const [isDragging, setIsDragging] = useState(false)
-
-    const ref = useRef<HTMLDivElement>(null)
 
     const handleDragStart = (event: React.DragEvent<HTMLDivElement>, index: number) => {
         setIsDragging(true)
@@ -62,17 +60,18 @@ export default function Candidate(props: CandidateRowItemProps) {
 
     return (
         <div
-            ref={ref}
             draggable
             onDragStart={(event) => handleDragStart(event, index)}
             onDragOver={(event) => onDragOver(event, index)}
             onDrop={(event) => onDrop(event, index)}
             onDragEnd={handleDragEnd}
         >
-            <CandidateRow className={isDragging ? "dragging" : isOver ? "over" : ""}>
+            <DraggableElementRow className={isDragging ? "dragging" : isOver ? "over" : ""}>
                 <DragIndicatorIcon sx={{mr: 1}} />
-                <TextField record={candidate} source="name" />
-            </CandidateRow>
+                <TextField record={{name: name}} source="name" />
+            </DraggableElementRow>
         </div>
     )
 }
+
+export default DraggableElement

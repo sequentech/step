@@ -4,11 +4,15 @@
 
 import React, {useState} from "react"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import Candidate from "./Candidate"
 import {useInput} from "react-admin"
 import {Box} from "@mui/material"
+import DraggableElement from "@/components/DraggableElement"
 
-export default function CandidatesInput({source}: {source: string}) {
+export interface CandidatesInputProps {
+    source: string
+}
+
+const CandidatesInput: React.FC<CandidatesInputProps> = ({source}) => {
     const {
         field: {onChange, value},
     } = useInput({source})
@@ -54,11 +58,11 @@ export default function CandidatesInput({source}: {source: string}) {
             {candidates?.map((candidate: any, index: number) => {
                 return (
                     candidate && (
-                        <Candidate
+                        <DraggableElement
                             key={candidate.id}
                             index={index}
                             id={candidate.id}
-                            candidate={candidate}
+                            name={candidate.name}
                             onDragStart={onDragStart}
                             onDragOver={onDragOver}
                             onDrop={onDrop}
@@ -70,3 +74,5 @@ export default function CandidatesInput({source}: {source: string}) {
         </Box>
     )
 }
+
+export default CandidatesInput
