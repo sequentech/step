@@ -4,6 +4,11 @@
 
 import {ILanguageConf} from "./LanguageConf"
 
+export enum ContestsOrder {
+    RANDOM = "random",
+    CUSTOM = "custom",
+    ALPHABETICAL = "alphabetical",
+}
 export interface IElectionDates {
     start_date?: string
     end_date?: string
@@ -15,5 +20,6 @@ export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
     dates?: IElectionDates
     language_conf?: ILanguageConf
+    contests_order?: ContestsOrder
     // more missing
 }

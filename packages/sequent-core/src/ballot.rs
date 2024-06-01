@@ -383,6 +383,31 @@ pub enum CandidatesOrder {
     EnumString,
     Display,
 )]
+pub enum ContestsOrder {
+    #[strum(serialize = "random")]
+    #[serde(rename = "random")]
+    Random,
+    #[strum(serialize = "custom")]
+    #[serde(rename = "custom")]
+    Custom,
+    #[strum(serialize = "alphabetical")]
+    #[serde(rename = "alphabetical")]
+    Alphabetical,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
 pub enum InvalidVotePolicy {
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
@@ -512,6 +537,7 @@ pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
+    pub contests_order: Option<ContestsOrder>,
 }
 
 #[derive(
@@ -577,6 +603,7 @@ pub struct ContestPresentation {
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
+    pub sort_order: Option<i64>,
 }
 
 impl ContestPresentation {
@@ -595,6 +622,7 @@ impl ContestPresentation {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            sort_order: None,
         }
     }
 }

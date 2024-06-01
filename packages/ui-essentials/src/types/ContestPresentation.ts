@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -47,4 +47,5 @@ export interface IContestPresentation {
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>
+    sort_order?: number
 }

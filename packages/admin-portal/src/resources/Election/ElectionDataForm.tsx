@@ -27,6 +27,7 @@ import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} fro
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Communication_Template,
+    Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -61,6 +62,7 @@ const LangsWrapper = styled(Box)`
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
+    contestsOrder?: Array<Sequent_Backend_Contest>
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {

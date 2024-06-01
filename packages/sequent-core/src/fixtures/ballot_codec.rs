@@ -194,6 +194,7 @@ fn get_contest_plurality() -> Contest {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            sort_order: None,
         }),
     }
 }
@@ -402,6 +403,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 candidates_selection_policy: None,
                 max_selections_per_type: None,
                 types_presentation: None,
+                sort_order: None,
             }),
         }],
     }
@@ -606,6 +608,7 @@ pub fn get_test_contest() -> Contest {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            sort_order: None,
         }),
     }
 }
@@ -837,6 +840,7 @@ pub(crate) fn get_configurable_contest(
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            sort_order: None,
         }),
     };
 
@@ -1095,6 +1099,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_order: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    sort_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1268,6 +1273,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_order: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    sort_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1431,6 +1437,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_selection_policy: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    sort_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1580,6 +1587,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_selection_policy: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    sort_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1729,6 +1737,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_selection_policy: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    sort_order: None,
                 }),
             },
             raw_ballot: RawBallotContest {
