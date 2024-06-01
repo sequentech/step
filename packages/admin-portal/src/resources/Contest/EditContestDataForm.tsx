@@ -649,7 +649,7 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <CandidatesInput source="candidatesOrder"></CandidatesInput>
+                                                <CandidatesInput source="candidatesOrder" />
                                                 <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </CandidateRows>
                                         ) : null

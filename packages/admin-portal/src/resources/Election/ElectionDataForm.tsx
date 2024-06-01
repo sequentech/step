@@ -43,6 +43,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     DropFile,
+    IContestPresentation,
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-essentials"
@@ -87,6 +88,14 @@ export const ElectionDataForm: React.FC = () => {
 
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
         id: record.tenant_id || tenantId,
+    })
+
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        filter: {
+            election_id: record.id,
+            tenant_id: record.tenant_id,
+            election_event_id: record.election_event_id,
+        },
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
@@ -392,6 +401,14 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const sortedContests = (contests ?? []).sort((a, b) => {
+        let presentationA = a.presentation as IContestPresentation | undefined
+        let presentationB = b.presentation as IContestPresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -430,6 +447,7 @@ export const ElectionDataForm: React.FC = () => {
 
                 return (
                     <SimpleForm
+                        defaultValues={{contestsOrder: sortedContests}}
                         validate={formValidator}
                         record={parsedValue}
                         toolbar={
@@ -457,7 +475,7 @@ export const ElectionDataForm: React.FC = () => {
                                     {renderTabs(parsedValue)}
                                 </Tabs>
                                 {renderTabContent(parsedValue)}
-                                <OrderContests />
+                                <OrderContests source="contestsOrder"/>
                             </AccordionDetails>
                         </Accordion>
 

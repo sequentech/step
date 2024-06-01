@@ -1,62 +1,76 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useContext, useEffect, useRef, useState} from "react"
+
+import React, {useState} from "react"
+import {Sequent_Backend_Contest} from "@/gql/graphql"
+import {useInput} from "react-admin"
 import {Box} from "@mui/material"
-import {sortBy} from "lodash"
-import styled from "@emotion/styled"
+import DraggableElement from "@/components/DraggableElement"
 
-const ContestsWrapper = styled(Box)`
-    display: flex;
-    flex-direction: column;
-`
-
-const ContestContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-`
-
-interface ContestData {
-    id: string
-    order: number
+export interface OrderContestsProps {
+    source: string
 }
 
-const Contest: React.FC<ContestData> = ({id, order}) => {
-    const ref = useRef<HTMLDivElement>(null)
+export const OrderContests: React.FC<OrderContestsProps> = ({source}) => {
+    const {
+        field: {onChange, value},
+    } = useInput({source})
 
-    return (
-        <ContestContainer ref={ref} draggable>
-            {id}
-        </ContestContainer>
-    )
-}
+    const [contests, setContests] = useState<Array<Sequent_Backend_Contest>>(value ?? [])
+    const [dragIndex, setDragIndex] = useState<number>(-1)
+    const [overIndex, setOverIndex] = useState<number | null>(null)
 
-export const OrderContests: React.FC = () => {
-    const [contests, setContests] = useState<Array<ContestData>>([
-        {
-            id: "A",
-            order: 0,
-        },
-        {
-            id: "B",
-            order: 1,
-        },
-        {
-            id: "C",
-            order: 2,
-        },
-    ])
+    const onDragStart = (_event: React.DragEvent<HTMLDivElement>, index: number) => {
+        setDragIndex(index)
+    }
 
-    const orderedContests = sortBy(contests, "order")
+    const onDragOver = (event: React.DragEvent<HTMLDivElement>, index: number) => {
+        event.preventDefault()
+
+        setOverIndex(index)
+    }
+
+    const onDragEnd = () => {
+        setOverIndex(-1)
+        setDragIndex(-1)
+    }
+
+    const onDrop = (event: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+        event.preventDefault()
+
+        if (dragIndex === -1 || dragIndex === dropIndex) {
+            return
+        }
+
+        const reorderedItems = [...contests]
+        const [reorderedItem] = reorderedItems.splice(dragIndex, 1)
+        reorderedItems.splice(dropIndex, 0, reorderedItem)
+
+        setContests(reorderedItems)
+        onChange(reorderedItems) // update the form value
+
+        onDragEnd()
+    }
 
     return (
         <Box>
-            Order these contests:
-            <ContestsWrapper>
-                {orderedContests.map((contest) => (
-                    <Contest key={contest.id} id={contest.id} order={contest.order} />
-                ))}
-            </ContestsWrapper>
+            {contests?.map((contest: Sequent_Backend_Contest, index: number) => {
+                return (
+                    contest && (
+                        <DraggableElement
+                            key={contest.id}
+                            index={index}
+                            id={contest.id}
+                            name={contest.name ?? ""}
+                            onDragStart={onDragStart}
+                            onDragOver={onDragOver}
+                            onDrop={onDrop}
+                            isOver={overIndex === index}
+                        />
+                    )
+                )
+            })}
         </Box>
     )
 }
