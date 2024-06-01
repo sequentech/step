@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
 import {useInput} from "react-admin"
 import {Box} from "@mui/material"
 import DraggableElement from "@/components/DraggableElement"
+import {isArray} from "@sequentech/ui-essentials"
 
 export interface CandidatesInputProps {
     source: string
@@ -20,6 +21,12 @@ const CandidatesInput: React.FC<CandidatesInputProps> = ({source}) => {
     const [candidates, setCandidates] = useState<Array<Sequent_Backend_Candidate>>(value ?? [])
     const [dragIndex, setDragIndex] = useState<number>(-1)
     const [overIndex, setOverIndex] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (isArray(value) && value.length > 0 && value.length !== candidates.length) {
+            setCandidates(value)
+        }
+    }, [value, candidates, setCandidates, isArray])
 
     const onDragStart = (_event: React.DragEvent<HTMLDivElement>, index: number) => {
         setDragIndex(index)
@@ -55,14 +62,14 @@ const CandidatesInput: React.FC<CandidatesInputProps> = ({source}) => {
 
     return (
         <Box>
-            {candidates?.map((candidate: any, index: number) => {
+            {candidates?.map((candidate: Sequent_Backend_Candidate, index: number) => {
                 return (
                     candidate && (
                         <DraggableElement
                             key={candidate.id}
                             index={index}
                             id={candidate.id}
-                            name={candidate.name}
+                            name={candidate.name ?? ""}
                             onDragStart={onDragStart}
                             onDragOver={onDragOver}
                             onDrop={onDrop}

@@ -475,7 +475,7 @@ export const ElectionDataForm: React.FC = () => {
                                     {renderTabs(parsedValue)}
                                 </Tabs>
                                 {renderTabContent(parsedValue)}
-                                <OrderContests source="contestsOrder"/>
+                                <OrderContests source="contestsOrder" />
                             </AccordionDetails>
                         </Accordion>
 
