@@ -318,7 +318,10 @@ services:
   immudb:
     profiles: ["full", "base"]
     container_name: immudb
-    image: codenotary/immudb:1.5
+    image: sequentech.local/immudb
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.immudb
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
