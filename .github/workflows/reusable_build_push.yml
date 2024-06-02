@@ -56,6 +56,10 @@ jobs:
           - service: immudb-init
             context: packages
             file: packages/Dockerfile.immudb-init.prod
+
+          - service: immudb
+            context: packages
+            file: packages/Dockerfile.immudb
             
       fail-fast: false
 
