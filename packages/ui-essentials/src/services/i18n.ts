@@ -10,7 +10,7 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 
-export const initializeLanguages = (externalTranslations: Resource) => {
+export const initializeLanguages = (externalTranslations: Resource, language: string = "en") => {
     const libTranslations: Resource = {
         en: englishTranslation,
         es: spanishTranslation,
@@ -25,7 +25,7 @@ export const initializeLanguages = (externalTranslations: Resource) => {
             // we init with resources
             resources: mergedTranslations,
             fallbackLng: "en",
-            lng: "en",
+            lng: language, // Use provided language or fallback to english if not available
             debug: true,
 
             // have a common namespace used around the full app
