@@ -9,6 +9,7 @@ use crate::ballot::{
 };
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Result};
+use tracing::info;
 
 
 fn parse_i18n_field(
@@ -39,8 +40,8 @@ pub fn create_ballot_style(
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests.clone();
     sorted_contests.sort_by_key(|k| k.id.clone());
-    let demo_public_key = std::env::var("DEMO_PUBLIC_KEY")?;
-    
+    let demo_public_key_env = std::env::var("DEMO_PUBLIC_KEY")?;
+    info!("DEMO_PUBLIC_KEY: {:?}", demo_public_key_env);
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
@@ -98,9 +99,10 @@ pub fn create_ballot_style(
                     is_demo: false,
                 })
                 .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: demo_public_key,
+                    public_key: demo_public_key_env.to_string(),
                     is_demo: true,
                 }),
+
         ),
         area_id: area.id,
         contests,
