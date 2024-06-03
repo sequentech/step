@@ -56,6 +56,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import { getLanguageFromURL } from "../utils/queryParams"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -146,10 +147,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
     useEffect(() => {
-        let defaultLangCode =
-            ballotStyle?.ballot_eml?.election_event_presentation?.language_conf
-                ?.default_language_code ?? "en"
-        i18n.changeLanguage(defaultLangCode)
+        const language = getLanguageFromURL()
+        if(!language){
+            let defaultLangCode =
+            ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code ??
+            "en"
+            i18n.changeLanguage(defaultLangCode)
+        }
     }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
 
     const dates = ballotStyle?.ballot_eml?.election_presentation?.dates

@@ -6,6 +6,9 @@ import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
+import { getLanguageFromURL } from "../utils/queryParams"
+
+const language = getLanguageFromURL();
 
 initializeLanguages({
     en: englishTranslation,
@@ -13,5 +16,5 @@ initializeLanguages({
     cat: catalanTranslation,
     fr: frenchTranslation,
 },
-"en"
+language
 )
