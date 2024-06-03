@@ -6,15 +6,16 @@ import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
-import { getLanguageFromURL } from "../utils/queryParams"
+import {getLanguageFromURL} from "../utils/queryParams"
 
-const language = getLanguageFromURL();
+const language = getLanguageFromURL()
 
-initializeLanguages({
-    en: englishTranslation,
-    es: spanishTranslation,
-    cat: catalanTranslation,
-    fr: frenchTranslation,
-},
-language
+initializeLanguages(
+    {
+        en: englishTranslation,
+        es: spanishTranslation,
+        cat: catalanTranslation,
+        fr: frenchTranslation,
+    },
+    language
 )

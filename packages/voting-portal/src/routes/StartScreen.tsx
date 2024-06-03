@@ -15,7 +15,7 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import { getLanguageFromURL } from "../utils/queryParams"
+import {getLanguageFromURL} from "../utils/queryParams"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -92,10 +92,10 @@ export const StartScreen: React.FC = () => {
 
     useEffect(() => {
         const language = getLanguageFromURL()
-        if(!language){
+        if (!language) {
             let defaultLangCode =
-            ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code ??
-            "en"
+                ballotStyle?.ballot_eml?.election_presentation?.language_conf
+                    ?.default_language_code ?? "en"
             i18n.changeLanguage(defaultLangCode)
         }
     }, [ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code])

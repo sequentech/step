@@ -25,7 +25,7 @@ import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import { getLanguageFromURL } from "../utils/queryParams"
+import {getLanguageFromURL} from "../utils/queryParams"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -114,10 +114,10 @@ export const BallotLocator: React.FC = () => {
 
     useEffect(() => {
         const language = getLanguageFromURL()
-        if(!language){
+        if (!language) {
             let defaultLangCode =
-            ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code ??
-            "en"
+                ballotStyle?.ballot_eml?.election_presentation?.language_conf
+                    ?.default_language_code ?? "en"
             i18n.changeLanguage(defaultLangCode)
         }
     }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
