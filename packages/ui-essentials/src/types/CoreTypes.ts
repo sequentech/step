@@ -28,13 +28,13 @@ export interface IElectionStatus {
 }
 
 export interface IElectionEventStatistics {
-    num_emails_sent: number
-    num_sms_sent: number
+    num_emails_sent?: number
+    num_sms_sent?: number
 }
 
 export interface IElectionStatistics {
-    num_emails_sent: number
-    num_sms_sent: number
+    num_emails_sent?: number
+    num_sms_sent?: number
 }
 
 export interface IContest {

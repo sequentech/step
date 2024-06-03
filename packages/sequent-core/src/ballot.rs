@@ -771,8 +771,8 @@ pub enum VotingStatus {
     Default,
 )]
 pub struct ElectionEventStatistics {
-    pub num_emails_sent: i64,
-    pub num_sms_sent: i64,
+    pub num_emails_sent: Option<i64>,
+    pub num_sms_sent: Option<i64>,
 }
 
 #[derive(
@@ -787,8 +787,8 @@ pub struct ElectionEventStatistics {
     Default,
 )]
 pub struct ElectionStatistics {
-    pub num_emails_sent: i64,
-    pub num_sms_sent: i64,
+    pub num_emails_sent: Option<i64>,
+    pub num_sms_sent: Option<i64>,
 }
 
 #[derive(
