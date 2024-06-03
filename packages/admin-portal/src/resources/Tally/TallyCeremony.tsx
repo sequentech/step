@@ -210,11 +210,12 @@ export const TallyCeremony: React.FC = () => {
 
     const confirmStartAction = async () => {
         try {
+            setIsButtonDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
                     tenant_id: record?.tenant_id,
                     election_event_id: record?.id,
-                    keys_ceremony_id: keyCeremony?.[0].id,
+                    keys_ceremony_id: keyCeremony?.[0]?.id,
                     election_ids: selectedElections,
                 },
             })
@@ -222,7 +223,7 @@ export const TallyCeremony: React.FC = () => {
             if (errors) {
                 notify(t("tally.createTallyError"), {type: "error"})
             }
-
+            
             if (data) {
                 notify(t("tally.createTallySuccess"), {type: "success"})
                 setLocalTallyId(data.create_tally_ceremony.tally_session_id)
@@ -230,6 +231,9 @@ export const TallyCeremony: React.FC = () => {
             }
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
+        }
+        finally {
+            setIsButtonDisabled(false)
         }
     }
 
