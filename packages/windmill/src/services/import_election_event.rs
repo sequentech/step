@@ -6,6 +6,10 @@ use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
+use sequent_core::ballot::ElectionEventStatistics;
+use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::ElectionStatistics;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
@@ -271,6 +275,21 @@ pub async fn process(
 
     let board = upsert_immu_board(tenant_id.as_str(), &election_event_id).await?;
     data.election_event.bulletin_board_reference = Some(board);
+    data.election_event.public_key = None;
+    data.election_event.statistics =
+        Some(serde_json::to_value(ElectionEventStatistics::default())?);
+    data.election_event.status = Some(serde_json::to_value(ElectionEventStatus::default())?);
+    data.elections = data
+        .elections
+        .into_iter()
+        .map(|election| -> Result<Election> {
+            let mut clone = election.clone();
+            clone.statistics = Some(serde_json::to_value(ElectionStatistics::default())?);
+            clone.status = Some(serde_json::to_value(ElectionStatus::default())?);
+            Ok(clone)
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
