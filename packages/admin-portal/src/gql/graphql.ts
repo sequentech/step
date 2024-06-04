@@ -6373,7 +6373,6 @@ export type Sequent_Backend_Contest = {
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   is_acclaimed?: Maybe<Scalars['Boolean']['output']>;
-  under_vote_alert?: Maybe<Scalars['Boolean']['output']>;
   is_active?: Maybe<Scalars['Boolean']['output']>;
   is_encrypted?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
@@ -6384,6 +6383,7 @@ export type Sequent_Backend_Contest = {
   presentation?: Maybe<Scalars['jsonb']['output']>;
   tally_configuration?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
+  under_vote_alert?: Maybe<Scalars['Boolean']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
   winning_candidates_num?: Maybe<Scalars['Int']['output']>;
 };
@@ -6569,6 +6569,7 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   tally_configuration?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  under_vote_alert?: InputMaybe<Boolean_Comparison_Exp>;
   voting_type?: InputMaybe<String_Comparison_Exp>;
   winning_candidates_num?: InputMaybe<Int_Comparison_Exp>;
 };
@@ -6637,6 +6638,7 @@ export type Sequent_Backend_Contest_Insert_Input = {
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  under_vote_alert?: InputMaybe<Scalars['Boolean']['input']>;
   voting_type?: InputMaybe<Scalars['String']['input']>;
   winning_candidates_num?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -6766,6 +6768,7 @@ export type Sequent_Backend_Contest_Order_By = {
   presentation?: InputMaybe<Order_By>;
   tally_configuration?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
+  under_vote_alert?: InputMaybe<Order_By>;
   voting_type?: InputMaybe<Order_By>;
   winning_candidates_num?: InputMaybe<Order_By>;
 };
@@ -6823,8 +6826,6 @@ export enum Sequent_Backend_Contest_Select_Column {
   /** column name */
   MinVotes = 'min_votes',
   /** column name */
-  UnderVoteAlert = 'under_vote_alert',
-  /** column name */
   Name = 'name',
   /** column name */
   Presentation = 'presentation',
@@ -6832,6 +6833,8 @@ export enum Sequent_Backend_Contest_Select_Column {
   TallyConfiguration = 'tally_configuration',
   /** column name */
   TenantId = 'tenant_id',
+  /** column name */
+  UnderVoteAlert = 'under_vote_alert',
   /** column name */
   VotingType = 'voting_type',
   /** column name */
@@ -6845,7 +6848,9 @@ export enum Sequent_Backend_Contest_Select_Column_Sequent_Backend_Contest_Aggreg
   /** column name */
   IsActive = 'is_active',
   /** column name */
-  IsEncrypted = 'is_encrypted'
+  IsEncrypted = 'is_encrypted',
+  /** column name */
+  UnderVoteAlert = 'under_vote_alert'
 }
 
 /** select "sequent_backend_contest_aggregate_bool_exp_bool_or_arguments_columns" columns of table "sequent_backend.contest" */
@@ -6855,7 +6860,9 @@ export enum Sequent_Backend_Contest_Select_Column_Sequent_Backend_Contest_Aggreg
   /** column name */
   IsActive = 'is_active',
   /** column name */
-  IsEncrypted = 'is_encrypted'
+  IsEncrypted = 'is_encrypted',
+  /** column name */
+  UnderVoteAlert = 'under_vote_alert'
 }
 
 /** input type for updating data in table "sequent_backend.contest" */
@@ -6881,6 +6888,7 @@ export type Sequent_Backend_Contest_Set_Input = {
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  under_vote_alert?: InputMaybe<Scalars['Boolean']['input']>;
   voting_type?: InputMaybe<Scalars['String']['input']>;
   winning_candidates_num?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -6961,6 +6969,7 @@ export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  under_vote_alert?: InputMaybe<Scalars['Boolean']['input']>;
   voting_type?: InputMaybe<Scalars['String']['input']>;
   winning_candidates_num?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -7017,8 +7026,6 @@ export enum Sequent_Backend_Contest_Update_Column {
   /** column name */
   MinVotes = 'min_votes',
   /** column name */
-  UnderVoteAlert = 'under_vote_alert',
-  /** column name */
   Name = 'name',
   /** column name */
   Presentation = 'presentation',
@@ -7026,6 +7033,8 @@ export enum Sequent_Backend_Contest_Update_Column {
   TallyConfiguration = 'tally_configuration',
   /** column name */
   TenantId = 'tenant_id',
+  /** column name */
+  UnderVoteAlert = 'under_vote_alert',
   /** column name */
   VotingType = 'voting_type',
   /** column name */
@@ -15096,7 +15105,6 @@ export type Sequent_Backend_Tenant = {
 export type Sequent_Backend_TenantAnnotationsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
-
 
 /** columns and relationships of "sequent_backend.tenant" */
 export type Sequent_Backend_TenantLabelsArgs = {
