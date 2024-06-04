@@ -342,10 +342,30 @@ impl RawBallotCodec for Contest {
             });
         }
 
+        let mut invalid_alerts = vec![];
+        if let Some(should_show_under_vote_alert) = self.under_vote_alert {
+            if should_show_under_vote_alert {
+                if num_selected_candidates < usize::try_from(self.max_votes).unwrap() &&
+                   num_selected_candidates > usize::try_from(self.min_votes).unwrap() {
+                    invalid_alerts.push(InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.underVote".to_string()),
+                        message_map: [
+                            ("type".to_string(), "alert".to_string()),
+                            ("numSelected".to_string(), num_selected_candidates.to_string()),
+                            ("underVote".to_string(), self.max_votes.to_string()),
+                        ].iter().cloned().collect(),
+                    });
+                }
+            }
+        }
+
         Ok(DecodedVoteContest {
             contest_id: self.id.clone(),
             is_explicit_invalid,
             invalid_errors,
+            invalid_alerts,
             choices: sorted_choices,
         })
     }

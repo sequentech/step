@@ -629,6 +629,7 @@ pub struct Contest {
     pub alias_i18n: Option<I18nContent>,
     pub max_votes: i64,
     pub min_votes: i64,
+    pub under_vote_alert: Option<bool>,
     pub winning_candidates_num: i64,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */

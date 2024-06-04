@@ -428,6 +428,8 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
+            newContest.under_vote_alert = newContest.under_vote_alert || false
+            
             return newContest
         },
         [languageConf, electionEvent, candidates]
@@ -542,6 +544,7 @@ export const ContestDataForm: React.FC = () => {
     return electionEvent && isArray(candidates) ? (
         <RecordContext.Consumer>
             {(incoming) => {
+                //TODO: Add under_vote_alert to GraphQL Data
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
 
                 return (
@@ -621,6 +624,7 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
+                                <BooleanInput source="under_vote_alert" />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />

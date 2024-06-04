@@ -69,6 +69,57 @@ pub fn check_max_selections_per_type(
     invalid_errors
 }
 
+pub fn check_under_vote_selections(contest: &Contest,
+    decoded_vote: &DecodedVoteContest) -> Vec<InvalidPlaintextError>{
+        let min_vote_count = &contest.min_votes;
+        let max_vote_count = &contest.max_votes;
+        let under_vote_alert = &contest.under_vote_alert;
+        match under_vote_alert{
+            Some(should_show_under_vote_alert)=>{
+                if !should_show_under_vote_alert{
+                    return vec![];
+                }
+                else{
+                    let selection_count = &decoded_vote.choices.iter().filter(|choice| choice.selected > -1).count();
+                    let mut invalid_alerts = vec![];
+                    let under_vote_err = check_selection_count(selection_count, min_vote_count, max_vote_count);
+                    match under_vote_err{
+                        Some(alert) =>{
+                            invalid_alerts.push(alert);
+                            return invalid_alerts;
+                        },
+                        None=> {
+                            return invalid_alerts;
+                        }
+                    }
+                    
+                }
+            },
+            None=>{
+                return vec![];
+            }
+        }
+    }
+
+fn check_selection_count(selection_count: &usize, min_vote_count: &i64, max_vote_count: &i64) -> Option<InvalidPlaintextError> {
+        if *selection_count > *min_vote_count as usize && *selection_count < *max_vote_count as usize  {
+            Some(InvalidPlaintextError { 
+                error_type: InvalidPlaintextErrorType::Implicit,
+                candidate_id: None,
+                message: Some(
+                    "errors.implicit.underVote".to_string(),
+                ),
+                message_map: HashMap::from([
+                    ("type".to_string(), "alert".to_string()),
+                    ("numSelected".to_string(), selection_count.to_string()),
+                    ("underVote".to_string(), max_vote_count.to_string()),
+                ]),
+             })
+        } else {
+            None
+        }
+}
+
 pub fn check_contest(
     contest: &Contest,
     decoded_vote: &DecodedVoteContest,
@@ -76,10 +127,15 @@ pub fn check_contest(
     let mut with_errors = decoded_vote.clone();
 
     let mut invalid_errors = decoded_vote.invalid_errors.clone();
+    let mut invalid_alerts = decoded_vote.invalid_alerts.clone();
 
     // check max selections per type
     invalid_errors.extend(check_max_selections_per_type(contest, decoded_vote));
 
+    // check range selection per type
+    invalid_alerts.extend(check_under_vote_selections(contest, decoded_vote));
+
     with_errors.invalid_errors = invalid_errors;
+    with_errors.invalid_alerts = invalid_alerts;
     with_errors
 }

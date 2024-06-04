@@ -90,6 +90,7 @@ pub struct Contest {
     pub presentation: Option<Value>,
     pub min_votes: Option<i64>,
     pub max_votes: Option<i64>,
+    pub under_vote_alert: Option<bool>,
     pub winning_candidates_num: Option<i64>,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>,

@@ -6373,6 +6373,7 @@ export type Sequent_Backend_Contest = {
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   is_acclaimed?: Maybe<Scalars['Boolean']['output']>;
+  under_vote_alert?: Maybe<Scalars['Boolean']['output']>;
   is_active?: Maybe<Scalars['Boolean']['output']>;
   is_encrypted?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;

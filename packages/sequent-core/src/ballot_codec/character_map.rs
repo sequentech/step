@@ -197,6 +197,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             invalid_errors: vec![],
+            invalid_alerts: vec![],
             choices: vec![
                 DecodedVoteChoice {
                     id: 0.to_string(),
