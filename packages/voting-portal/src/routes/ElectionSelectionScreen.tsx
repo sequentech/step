@@ -56,9 +56,6 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
-import '../components/WaterMark/style.css';
-import WatermarkBackground from "../components/WaterMark/Watermark"
-import  '../components/WaterMark/style.css'
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

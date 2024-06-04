@@ -92,16 +92,14 @@ const App = () => {
     return (
         <StyledApp
             className="app-root"
-        
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                     <PageBanner marginBottom="auto">
-                        <WatermarkBackground>
-                            <Outlet />
-                        </WatermarkBackground>
+                        <WatermarkBackground/>
+                        <Outlet />
                     </PageBanner>
             </ApolloWrapper>
             <Footer />

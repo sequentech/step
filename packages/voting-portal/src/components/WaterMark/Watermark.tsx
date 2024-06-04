@@ -1,38 +1,32 @@
-import React, { PropsWithChildren } from 'react';
-import './style.css'; // Import your CSS file
-import { styled } from '@mui/material/styles';
-import { Box } from '@mui/material';
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-const Background = styled(Box)(({ theme }) => ({
-  position: 'relative',
-  width: '100%',
-  height: '100vh',
-  backgroundColor: '#ffffff',
-  overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundImage: 'url("https://example.com/path/to/your/watermark-image.png")',
-    backgroundRepeat: 'repeat',
-    backgroundPosition: 'center',
-    backgroundSize: '100px 100px',
-    opacity: 0.1, // 10% opacity
-  },
-  '& > *': {
-    position: 'relative',
-    zIndex: 1,
-  }
-}));
+import React, { useCallback, useMemo } from 'react';
+import demoBanner from './assets/demo-banner.png'
+import { useAppSelector } from '../../store/hooks';
+import { selectFirstBallotStyle } from '../../store/ballotStyles/ballotStylesSlice';
+import Background from './Background';
 
-const WatermarkBackground: React.FC<PropsWithChildren> = ({ children }) => {
+const WatermarkBackground: React.FC = () => {
+  const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+  const isDemo = useMemo(() => {
+    return oneBallotStyle?.ballot_eml.public_key?.is_demo
+}, [oneBallotStyle]);
+
+const imageUrl = useCallback(() => {
+    if(isDemo) {
+        return demoBanner;
+    }
+}, [isDemo])
+
+if(!imageUrl()) {
+  return null;
+}
+
   return (
-    <Background>
-      {children}
-    </Background>
+    <Background imageUrl = {imageUrl()}/>
   );
 };
 
