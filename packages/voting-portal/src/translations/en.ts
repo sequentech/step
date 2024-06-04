@@ -143,8 +143,9 @@ const englishTranslation = {
             noResults: "No ballots for now.",
             demoDialog: {
                 title: "Demo voting booth",
-                content: "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
-                ok: "I accept my vote will Not be cast"
+                content:
+                    "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
+                ok: "I accept my vote will Not be cast",
             },
         },
         errors: {

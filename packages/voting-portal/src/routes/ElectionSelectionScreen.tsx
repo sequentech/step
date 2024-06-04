@@ -222,7 +222,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
     const isDemo = useMemo(() => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
-    }, [oneBallotStyle]);
+    }, [oneBallotStyle])
     const bypassChooser = useAppSelector(selectBypassChooser())
 
     const {error: errorBallotStyles, data: dataBallotStyles} =
@@ -337,8 +337,8 @@ export const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        console.log('openDemoModal', openDemoModal);
-        if(isDemo && openDemoModal === undefined) {
+        console.log("openDemoModal", openDemoModal)
+        if (isDemo && openDemoModal === undefined) {
             setOpenDemoModal(true)
         }
     }, [isDemo])

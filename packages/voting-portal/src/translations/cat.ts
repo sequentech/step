@@ -145,9 +145,10 @@ const catalanTranslation: TranslationType = {
             noResults: "No hi ha eleccions per ara.",
             demoDialog: {
                 title: "Cabina de votació de demostració",
-                content: "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
-                ok: "Accepto que el meu vot NO serà comptabilitzat"
-            }
+                content:
+                    "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
+                ok: "Accepto que el meu vot NO serà comptabilitzat",
+            },
         },
         errors: {
             encoding: {

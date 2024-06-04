@@ -97,10 +97,10 @@ const App = () => {
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-                    <PageBanner marginBottom="auto">
-                        <WatermarkBackground/>
-                        <Outlet />
-                    </PageBanner>
+                <PageBanner marginBottom="auto">
+                    <WatermarkBackground />
+                    <Outlet />
+                </PageBanner>
             </ApolloWrapper>
             <Footer />
         </StyledApp>
