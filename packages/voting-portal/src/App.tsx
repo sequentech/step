@@ -20,6 +20,7 @@ import {
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
+import WatermarkBackground from "./components/WaterMark/Watermark"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -91,14 +92,17 @@ const App = () => {
     return (
         <StyledApp
             className="app-root"
+        
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-                <PageBanner marginBottom="auto">
-                    <Outlet />
-                </PageBanner>
+                    <PageBanner marginBottom="auto">
+                        <WatermarkBackground>
+                            <Outlet />
+                        </WatermarkBackground>
+                    </PageBanner>
             </ApolloWrapper>
             <Footer />
         </StyledApp>
