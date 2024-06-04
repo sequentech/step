@@ -596,7 +596,7 @@ impl ContestPresentation {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
-            under_vote_alert: None,
+            under_vote_alert: Some(false),
         }
     }
 }

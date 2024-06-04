@@ -85,7 +85,6 @@ export const GET_TALLY_DATA = gql`
             name
             min_votes
             max_votes
-            under_vote_alert
             last_updated_at
             labels
             is_encrypted

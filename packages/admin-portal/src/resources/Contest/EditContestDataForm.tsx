@@ -428,7 +428,7 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
-            newContest.under_vote_alert = newContest.under_vote_alert || false
+            newContest.presentation.under_vote_alert = newContest.presentation.under_vote_alert || false
             
             return newContest
         },
