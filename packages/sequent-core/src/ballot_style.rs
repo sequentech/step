@@ -2,15 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::env;
 use crate::ballot::{
     self, CandidatePresentation, ContestPresentation, ElectionDates,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Result};
+use std::env;
 use tracing::info;
-
 
 fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
@@ -41,7 +40,6 @@ pub fn create_ballot_style(
     let mut sorted_contests = contests.clone();
     sorted_contests.sort_by_key(|k| k.id.clone());
     let demo_public_key_env = std::env::var("DEMO_PUBLIC_KEY")?;
-    info!("DEMO_PUBLIC_KEY: {:?}", demo_public_key_env);
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
@@ -102,7 +100,6 @@ pub fn create_ballot_style(
                     public_key: demo_public_key_env.to_string(),
                     is_demo: true,
                 }),
-
         ),
         area_id: area.id,
         contests,
