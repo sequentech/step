@@ -28,6 +28,7 @@ insert_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -58,6 +59,7 @@ insert_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -86,6 +88,7 @@ insert_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -115,6 +118,7 @@ select_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -146,6 +150,7 @@ select_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -177,6 +182,7 @@ select_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -208,6 +214,7 @@ select_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -236,6 +243,7 @@ select_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -270,6 +278,7 @@ update_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -303,6 +312,7 @@ update_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions
@@ -334,6 +344,7 @@ update_permissions:
     - voting_type
     - max_votes
     - min_votes
+    - under_vote_alert
     - winning_candidates_num
     - annotations
     - conditions

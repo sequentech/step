@@ -15106,6 +15106,7 @@ export type Sequent_Backend_TenantAnnotationsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
+
 /** columns and relationships of "sequent_backend.tenant" */
 export type Sequent_Backend_TenantLabelsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
