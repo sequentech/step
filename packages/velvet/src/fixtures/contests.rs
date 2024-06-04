@@ -27,6 +27,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         alias_i18n: None,
         max_votes: 1,
         min_votes: 0,
+        under_vote_alert: Some(false),
         winning_candidates_num: 1,
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
@@ -81,6 +82,7 @@ pub fn get_contest_min_max_votes(
         alias_i18n: None,
         max_votes: max_votes as i64,
         min_votes: min_votes as i64,
+        under_vote_alert: Some(false),
         winning_candidates_num: 1,
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */

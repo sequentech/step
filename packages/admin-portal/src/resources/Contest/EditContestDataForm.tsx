@@ -544,6 +544,7 @@ export const ContestDataForm: React.FC = () => {
     return electionEvent && isArray(candidates) ? (
         <RecordContext.Consumer>
             {(incoming) => {
+                console.log({incoming})
                 //TODO: Add under_vote_alert to GraphQL Data
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
 

@@ -1,6 +1,14 @@
 table:
   name: tenant
   schema: sequent_backend
+array_relationships:
+- name: contests
+  using:
+    foreign_key_constraint_on:
+      column: tenant_id
+      table:
+        name: contest
+        schema: sequent_backend
 insert_permissions:
 - comment: ""
   permission:

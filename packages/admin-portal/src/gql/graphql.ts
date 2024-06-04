@@ -6823,6 +6823,8 @@ export enum Sequent_Backend_Contest_Select_Column {
   /** column name */
   MinVotes = 'min_votes',
   /** column name */
+  UnderVoteAlert = 'under_vote_alert',
+  /** column name */
   Name = 'name',
   /** column name */
   Presentation = 'presentation',
@@ -7014,6 +7016,8 @@ export enum Sequent_Backend_Contest_Update_Column {
   MaxVotes = 'max_votes',
   /** column name */
   MinVotes = 'min_votes',
+  /** column name */
+  UnderVoteAlert = 'under_vote_alert',
   /** column name */
   Name = 'name',
   /** column name */
