@@ -577,6 +577,7 @@ pub struct ContestPresentation {
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
+    pub under_vote_alert: Option<bool>,
 }
 
 impl ContestPresentation {
@@ -595,6 +596,7 @@ impl ContestPresentation {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            under_vote_alert: None,
         }
     }
 }
@@ -629,7 +631,6 @@ pub struct Contest {
     pub alias_i18n: Option<I18nContent>,
     pub max_votes: i64,
     pub min_votes: i64,
-    pub under_vote_alert: Option<bool>,
     pub winning_candidates_num: i64,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */

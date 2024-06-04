@@ -175,7 +175,6 @@ fn create_contest(
         alias_i18n,
         max_votes: contest.max_votes.unwrap_or(0),
         min_votes: contest.min_votes.unwrap_or(0),
-        under_vote_alert: contest.under_vote_alert,
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,

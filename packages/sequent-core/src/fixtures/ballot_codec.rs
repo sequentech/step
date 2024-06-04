@@ -44,7 +44,6 @@ fn get_contest_plurality() -> Contest {
         description_i18n: None,
         max_votes: 1,
         min_votes: 0,
-        under_vote_alert: Some(false),
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: true,
@@ -195,6 +194,7 @@ fn get_contest_plurality() -> Contest {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            under_vote_alert: Some(false),
         }),
     }
 }
@@ -262,7 +262,6 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             winning_candidates_num: 1,
             max_votes: 2,
             min_votes: 1,
-            under_vote_alert: Some(false),
             voting_type: Some("first-past-the-post".into()),
             counting_algorithm: Some("plurality-at-large".into()),
             is_encrypted: true,
@@ -405,6 +404,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 candidates_selection_policy: None,
                 max_selections_per_type: None,
                 types_presentation: None,
+                under_vote_alert: Some(false),
             }),
         }],
     }
@@ -500,7 +500,6 @@ pub fn get_test_contest() -> Contest {
         description_i18n: None,
         max_votes: 3,
         min_votes: 1,
-        under_vote_alert: Some(false),
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: true,
@@ -612,6 +611,7 @@ pub fn get_test_contest() -> Contest {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            under_vote_alert: Some(false),
         }),
     }
 }
@@ -642,7 +642,6 @@ pub(crate) fn get_configurable_contest(
         winning_candidates_num: 1,
         max_votes: 3,
         min_votes: 0,
-        under_vote_alert: Some(false),
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: true,
@@ -844,6 +843,7 @@ pub(crate) fn get_configurable_contest(
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            under_vote_alert: Some(false),
         }),
     };
 
@@ -989,7 +989,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 max_votes: 1,
                 winning_candidates_num: 1,
                 min_votes: 0,
-                under_vote_alert: Some(false),
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
                 is_encrypted: true,
@@ -1105,6 +1104,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_order: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    under_vote_alert: Some(false),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1163,7 +1163,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                 max_votes: 1,
                 min_votes: 0,
-                under_vote_alert:Some(false),
                 winning_candidates_num: 1,
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
@@ -1280,6 +1279,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_order: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    under_vote_alert: Some(false),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1328,7 +1328,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                 max_votes: 1,
                 min_votes: 0,
-                under_vote_alert: Some(false),
                 winning_candidates_num: 1,
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
@@ -1445,6 +1444,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_selection_policy: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    under_vote_alert: Some(false),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1503,7 +1503,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                 max_votes: 1,
                 min_votes: 1,
-                under_vote_alert: Some(false),
                 winning_candidates_num: 1,
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
@@ -1596,6 +1595,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_selection_policy: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    under_vote_alert: Some(false),
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1654,7 +1654,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         description_i18n: None,
                 max_votes: 1,
                 min_votes: 1,
-                under_vote_alert: Some(false),
                 winning_candidates_num: 1,
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some("plurality-at-large".into()),
@@ -1747,6 +1746,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     candidates_selection_policy: None,
                     max_selections_per_type: None,
                     types_presentation: None,
+                    under_vote_alert: Some(false),
                 }),
             },
             raw_ballot: RawBallotContest {

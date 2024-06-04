@@ -73,13 +73,9 @@ pub fn check_under_vote_selections(contest: &Contest,
     decoded_vote: &DecodedVoteContest) -> Vec<InvalidPlaintextError>{
         let min_vote_count = &contest.min_votes;
         let max_vote_count = &contest.max_votes;
-        let under_vote_alert = &contest.under_vote_alert;
-        match under_vote_alert{
-            Some(should_show_under_vote_alert)=>{
-                if !should_show_under_vote_alert{
-                    return vec![];
-                }
-                else{
+        if let Some(presentation) = &contest.presentation{
+            if let Some(under_vote_alert) = &presentation.under_vote_alert{
+                if(*under_vote_alert){
                     let selection_count = &decoded_vote.choices.iter().filter(|choice| choice.selected > -1).count();
                     let mut invalid_alerts = vec![];
                     let under_vote_err = check_selection_count(selection_count, min_vote_count, max_vote_count);
@@ -92,13 +88,10 @@ pub fn check_under_vote_selections(contest: &Contest,
                             return invalid_alerts;
                         }
                     }
-                    
                 }
-            },
-            None=>{
-                return vec![];
             }
         }
+        vec![]
     }
 
 fn check_selection_count(selection_count: &usize, min_vote_count: &i64, max_vote_count: &i64) -> Option<InvalidPlaintextError> {
