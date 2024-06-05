@@ -41,7 +41,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
-    const contestSelection = useMemo(()=> selectionState?.find((contest) => contest.contest_id === question.id),[selectionState])
+    const contestSelection = useMemo(
+        () => selectionState?.find((contest) => contest.contest_id === question.id),
+        [selectionState]
+    )
 
     useEffect(() => {
         if (isTouched || !contestSelection) {
@@ -53,17 +56,19 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [contestSelection, isTouched])
 
-    const decodedContestSelection = useMemo(()=>{
-        return contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
-    },[contestSelection])
+    const decodedContestSelection = useMemo(() => {
+        return (
+            contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+        )
+    }, [contestSelection])
 
-    useEffect(()=>{
-            if (!isReview && !isTouched && decodedContestSelection) {
-                decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
-                    (error) => error.message !== "errors.implicit.selectedMin"
-                )
-            }
-    },[isReview ,isTouched , decodedContestSelection])
+    useEffect(() => {
+        if (!isReview && !isTouched && decodedContestSelection) {
+            decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
+                (error) => error.message !== "errors.implicit.selectedMin"
+            )
+        }
+    }, [isReview, isTouched, decodedContestSelection])
 
     useEffect(() => {
         if (decodedContestSelection) {
