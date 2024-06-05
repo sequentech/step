@@ -545,7 +545,7 @@ export const ContestDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
-                console.log(parsedValue)
+
                 return (
                     <SimpleForm
                         defaultValues={{candidatesOrder: sortedCandidates}}

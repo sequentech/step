@@ -93,6 +93,11 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
+            {decodedContestSelection?.invalid_alerts.map((error, index) => (
+                <WarnBox variant="info" key={index}>
+                    {t(error.message || "", error.message_map ?? {})}
+                </WarnBox>
+            ))}
         </ErrorWrapper>
     )
 }
