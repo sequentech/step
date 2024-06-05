@@ -89,7 +89,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             }
             let current: Sequent_Backend_Area | undefined = parent
             while (current) {
-                if (current.parent_id && parents.includes(current.parent_id)) {
+                if (parents.includes(current.id)) {
                     return true
                 }
                 parents.push(current.id)
