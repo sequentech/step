@@ -4,6 +4,7 @@
 
 pub mod area;
 pub mod area_contest;
+pub mod ballot_publication;
 pub mod candidate;
 pub mod cast_vote;
 pub mod communication_template;

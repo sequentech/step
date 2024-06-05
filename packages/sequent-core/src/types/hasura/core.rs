@@ -8,6 +8,39 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct BallotPublication {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub created_at: Option<DateTime<Local>>,
+    pub deleted_at: Option<DateTime<Local>>,
+    pub created_by_user_id: Option<String>,
+    pub is_generated: Option<bool>,
+    pub election_ids: Option<Vec<String>>,
+    pub published_at: Option<DateTime<Local>>,
+    pub election_id: Option<String>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct BallotStyle {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_id: String,
+    pub area_id: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub ballot_eml: Option<String>,
+    pub ballot_signature: Option<Vec<u8>>,
+    pub status: Option<String>,
+    pub election_event_id: String,
+    pub deleted_at: Option<DateTime<Local>>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Area {
     pub id: String,
     pub tenant_id: String,
