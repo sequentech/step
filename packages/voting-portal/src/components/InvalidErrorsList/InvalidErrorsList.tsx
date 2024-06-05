@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {WarnBox, IContest} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
@@ -41,7 +41,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
-    const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
+    const contestSelection = useMemo(()=> selectionState?.find((contest) => contest.contest_id === question.id),[selectionState])
 
     useEffect(() => {
         if (isTouched || !contestSelection) {
@@ -53,14 +53,17 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [contestSelection, isTouched])
 
-    const decodedContestSelection =
-        contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+    const decodedContestSelection = useMemo(()=>{
+        return contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+    },[contestSelection])
 
-    if (!isReview && !isTouched && decodedContestSelection) {
-        decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
-            (error) => error.message !== "errors.implicit.selectedMin"
-        )
-    }
+    useEffect(()=>{
+            if (!isReview && !isTouched && decodedContestSelection) {
+                decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
+                    (error) => error.message !== "errors.implicit.selectedMin"
+                )
+            }
+    },[isReview ,isTouched , decodedContestSelection])
 
     useEffect(() => {
         if (decodedContestSelection) {
