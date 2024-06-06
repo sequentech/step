@@ -29,6 +29,9 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {translate, translateElection} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import styled from "@emotion/styled"
+import {colors} from '../../../../constants/colors'
+import { Box } from "@mui/material"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -91,10 +94,10 @@ function TreeLeaves({
     }, [i18n, i18n.language, data])
 
     const {canCreateElectionEvent} = useActionPermissions()
-
+    console.log('treeResourcesName', treeResourceNames[0]);
     return (
-        <div className="bg-white">
-            <div className="flex flex-col ml-3">
+        <Box sx={{backgroundColor: colors.white}}>
+            <TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
                         return (
@@ -119,36 +122,33 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && canCreateElectionEvent && (
-                    <div
-                        className="flex items-center space-x-2 text-secondary"
+                    <CreateElectionContainer
                         style={{
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
                         }}
                     >
-                        <AddIcon
-                            className="flex-none"
+                        <StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
-                        <NavLink
-                            className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
+                        <StyledNavLink
+                            className={treeResourceNames[0]}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
                             style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
-                        </NavLink>
-                        <AddIcon
-                            className="flex-none"
+                        </StyledNavLink>
+                        <StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
                             }}
                         />
-                        <div className="flex-none w-6 h-6 invisible"></div>
-                    </div>
+                        <StyledHiddenDiv/>
+                    </CreateElectionContainer>
                 )}
-            </div>
-        </div>
+            </TreeLeavesContainer>
+        </Box>
     )
 }
 
@@ -237,8 +237,9 @@ function TreeMenuItem({
     }
 
     return (
-        <div className="bg-white">
-            <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
+        <Box sx={{backgroundColor: colors.white}}>
+
+            <TreeMenuItemContainer ref={menuItemRef}>
                 {hasNext && canCreateElectionEvent ? (
                     <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
                         {open ? (
@@ -286,7 +287,7 @@ function TreeMenuItem({
                         ></MenuActions>
                     ) : null}
                 </div>
-            </div>
+            </TreeMenuItemContainer>
             {open && (
                 <div className="">
                     {hasNext && (
@@ -299,7 +300,7 @@ function TreeMenuItem({
                     )}
                 </div>
             )}
-        </div>
+        </Box>
     )
 }
 
@@ -317,36 +318,22 @@ export function TreeMenu({
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
-
+        console.log('isEmpty', isEmpty);
     return (
         <>
-            <ul className="flex px-4 space-x-4 bg-white uppercase text-xs leading-6">
-                <li
-                    className={cn(
-                        "px-4 py-1 cursor-pointer",
-                        !isArchivedElectionEvents
-                            ? "text-brand-color border-b-2 border-brand-success"
-                            : "text-secondary"
-                    )}
-                    onClick={() => onArchiveElectionEventsSelect(0)}
-                >
-                    {t("sideMenu.active")}
-                </li>
-                <li
-                    className={cn(
-                        "px-4 py-1 cursor-pointer",
-                        isArchivedElectionEvents
-                            ? "text-brand-color border-b-2 border-brand-success"
-                            : "text-secondary"
-                    )}
-                    onClick={() => onArchiveElectionEventsSelect(1)}
-                >
-                    {t("sideMenu.archived")}
-                </li>
-            </ul>
-            <div className="py-2">
+           <SideMenuContainer>
+            <SideMenuActiveItem onClick={() => onArchiveElectionEventsSelect(0)} isArchivedElectionEvents = {isArchivedElectionEvents}>
+                {t("sideMenu.active")}
+            </SideMenuActiveItem>
+            <SideMenuArchiveItem onClick={() => onArchiveElectionEventsSelect(1)} isArchivedElectionEvents = {isArchivedElectionEvents}>
+                {t("sideMenu.archived")}
+            </SideMenuArchiveItem>
+            </SideMenuContainer>
+            <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
-                    <div className="p-4 bg-white">No result</div>
+                    <EmptyStateContainer>
+                        No Result
+                    </EmptyStateContainer>
                 ) : (
                     <TreeLeaves
                         data={data}
@@ -355,7 +342,98 @@ export function TreeMenu({
                         isArchivedElectionEvents={isArchivedElectionEvents}
                     />
                 )}
-            </div>
+            </Box>
         </>
     )
 }
+
+const SideMenuContainer = styled.ul`
+  display: flex;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  background-color: white;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  line-height: 1.5rem;
+  & > *:not(:last-child) {
+    margin-right: 1rem;
+  }
+`;
+
+const SideMenuActiveItem = styled.li<{isArchivedElectionEvents: boolean}>`
+padding-left: 1rem;
+padding-right: 1rem;
+padding-top: 0.5rem;
+padding-bottom: 0.5rem;
+cursor: pointer;
+color: ${({isArchivedElectionEvents}) => (!isArchivedElectionEvents ? colors.brandColor : colors.secondary)};
+border-bottom: ${({ isArchivedElectionEvents }) => (!isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : 'none')};
+`
+
+const SideMenuArchiveItem = styled.li<{isArchivedElectionEvents: boolean}>`
+padding-left: 1rem;
+padding-right: 1rem;
+padding-top: 0.5rem;
+padding-bottom: 0.5rem;
+cursor: pointer;
+color: ${({isArchivedElectionEvents}) => (isArchivedElectionEvents ? colors.brandColor : colors.secondary)};
+border-bottom: ${({ isArchivedElectionEvents }) => (isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : 'none')};
+`
+
+const EmptyStateContainer = styled.div`
+  padding: 1rem;
+  background-color: white;
+`
+
+const TreeLeavesContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    margin-left: 0.75rem;
+`
+
+const CreateElectionContainer = styled.div`
+display: flex;
+align-items: center;
+color: ${colors.secondary};
+& > *:not(:last-child) {
+  margin-right: 0.5rem;
+}
+`
+
+const StyledAddIcon = styled(AddIcon)`
+flex: 0 0 auto;
+`
+
+const StyledNavLink = styled(NavLink)`
+flex-grow: 1;
+padding-top: 0.375rem;
+padding-bottom: 0.375rem;
+border-bottom-width: 2px;
+border-bottom-color: white;
+cursor: pointer;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+
+&:hover {
+  border-bottom-color: ${colors.secondary};
+}
+`
+
+const StyledHiddenDiv = styled.div`
+flex: 0 0 auto;
+width: 1.5rem;
+height: 1.5rem;
+visibility: hidden;
+`
+
+const TreeMenuItemContainer = styled.div`
+  display: flex;                   /* flex */
+  text-align: left;                /* text-left */
+  align-items: center;             /* items-center */
+  & > *:not(:last-child) {
+    margin-right: 0.5rem;          /* space-x-2 */
+  }
+`;
+
+
