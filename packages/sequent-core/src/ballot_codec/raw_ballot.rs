@@ -348,30 +348,33 @@ impl RawBallotCodec for Contest {
                 presentation.under_vote_alert
             {
                 if should_show_under_vote_alert {
-                    if num_selected_candidates
-                        < usize::try_from(self.max_votes).unwrap()
-                        && num_selected_candidates
-                            >= usize::try_from(self.min_votes).unwrap()
-                    {
-                        invalid_alerts.push(InvalidPlaintextError {
-                            error_type: InvalidPlaintextErrorType::Implicit,
-                            candidate_id: None,
-                            message: Some(
-                                "errors.implicit.underVote".to_string(),
-                            ),
-                            message_map: [
-                                ("type".to_string(), "alert".to_string()),
-                                (
-                                    "numSelected".to_string(),
-                                    num_selected_candidates.to_string(),
-                                ),
-                                ("min".to_string(), self.min_votes.to_string()),
-                                ("max".to_string(), self.max_votes.to_string()),
-                            ]
-                            .iter()
-                            .cloned()
-                            .collect(),
-                        });
+                    let max_votes = match usize::try_from(self.max_votes) {
+                        Ok(val) => Some(val),
+                        Err(_) => None,
+                    };
+        
+                    let min_votes = match usize::try_from(self.min_votes) {
+                        Ok(val) => Some(val),
+                        Err(_) => None,
+                    };
+
+                    if let (Some(max_votes), Some(min_votes)) = (max_votes, min_votes) {
+                        if num_selected_candidates < max_votes && num_selected_candidates >= min_votes {
+                            invalid_alerts.push(InvalidPlaintextError {
+                                error_type: InvalidPlaintextErrorType::Implicit,
+                                candidate_id: None,
+                                message: Some("errors.implicit.underVote".to_string()),
+                                message_map: [
+                                    ("type".to_string(), "alert".to_string()),
+                                    ("numSelected".to_string(), num_selected_candidates.to_string()),
+                                    ("min".to_string(), self.min_votes.to_string()),
+                                    ("max".to_string(), self.max_votes.to_string()),
+                                ]
+                                .iter()
+                                .cloned()
+                                .collect(),
+                            });
+                        }
                     }
                 }
             }
