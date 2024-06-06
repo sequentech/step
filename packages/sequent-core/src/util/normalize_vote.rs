@@ -24,6 +24,7 @@ pub fn normalize_vote_contest(
     original.choices = choices;
     if remove_errors {
         original.invalid_errors = vec![];
+        original.invalid_alerts = vec![];
     }
     original
 }
