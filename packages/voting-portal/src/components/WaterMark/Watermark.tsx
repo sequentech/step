@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: 2023 Omri Ovadia <Omrio@moveo.co.il>
-//
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useCallback, useMemo} from "react"
