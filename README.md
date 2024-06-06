@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 
 -->
- 
+
 # Sequent Voting Platform
 
 WARNING: This is a work-in-progress - not usable yet.
