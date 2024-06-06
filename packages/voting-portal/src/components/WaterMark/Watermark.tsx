@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal[@sequentech.io>](https://github.com/sequentech.io>)
+//
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useCallback, useMemo} from "react"
