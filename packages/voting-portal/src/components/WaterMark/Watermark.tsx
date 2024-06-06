@@ -39,13 +39,13 @@ const WatermarkBackground: React.FC = () => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
 
-    const imageUrl = useCallback(() => {
+    const imageUrlPath = useCallback(() => {
         if (isDemo) {
-            return demoBanner
+            return '/demo-banner.png'
         }
     }, [isDemo])
 
-    return imageUrl() ? <Background imageUrl={imageUrl()} /> : null
+    return imageUrlPath() ? <Background imageUrl={imageUrlPath()} /> : null
 }
 
 export default WatermarkBackground
