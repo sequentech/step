@@ -15,7 +15,7 @@ COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
 
 # Install dependencies
-RUN yarn install --frozen-lockfile --non-interactive
+RUN yarn install --frozen-lockfile --non-interactive --verbose
 
 ARG SPA_NAME
 
