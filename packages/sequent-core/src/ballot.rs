@@ -770,11 +770,19 @@ pub enum VotingStatus {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionEventStatistics {
-    pub num_emails_sent: i64,
-    pub num_sms_sent: i64,
+    pub num_emails_sent: Option<i64>,
+    pub num_sms_sent: Option<i64>,
+}
+
+impl Default for ElectionEventStatistics {
+    fn default() -> Self {
+        ElectionEventStatistics {
+            num_emails_sent: Some(0),
+            num_sms_sent: Some(0),
+        }
+    }
 }
 
 #[derive(
@@ -786,11 +794,19 @@ pub struct ElectionEventStatistics {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionStatistics {
-    pub num_emails_sent: i64,
-    pub num_sms_sent: i64,
+    pub num_emails_sent: Option<i64>,
+    pub num_sms_sent: Option<i64>,
+}
+
+impl Default for ElectionStatistics {
+    fn default() -> Self {
+        ElectionStatistics {
+            num_emails_sent: Some(0),
+            num_sms_sent: Some(0),
+        }
+    }
 }
 
 #[derive(
@@ -805,6 +821,14 @@ pub struct ElectionStatistics {
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+}
+
+impl Default for ElectionStatus {
+    fn default() -> Self {
+        ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+        }
+    }
 }
 
 #[derive(
