@@ -43,7 +43,7 @@ const WatermarkBackground: React.FC = () => {
 
     const imageUrlPath = useCallback(() => {
         if (isDemo) {
-            return '/demo-banner.png'
+            return "/demo-banner.png"
         }
     }, [isDemo])
 
