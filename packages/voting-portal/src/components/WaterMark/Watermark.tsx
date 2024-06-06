@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Omri Ovadia <Omrio@moveo.co.il>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,11 +14,12 @@ interface BackgroundProps extends SystemProps {
     imageUrl: string | undefined
 }
 
-const Background = styled(Box)<BackgroundProps>(({imageUrl}) => ({
+const Background = styled.div<BackgroundProps>(({imageUrl}) => ({
     "position": "absolute",
     "width": "100%",
     "height": "100%",
     "overflow": "hidden",
+    "z-index": "-1",
     "&::before": {
         content: '""',
         position: "absolute",
