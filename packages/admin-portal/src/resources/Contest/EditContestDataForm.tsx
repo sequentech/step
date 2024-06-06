@@ -428,6 +428,9 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
+            newContest.presentation.under_vote_alert =
+                newContest.presentation.under_vote_alert ?? false
+
             return newContest
         },
         [languageConf, electionEvent, candidates]
@@ -621,6 +624,10 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
+                                <BooleanInput
+                                    source="presentation.under_vote_alert"
+                                    label={"Under-Vote Alert"}
+                                />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
