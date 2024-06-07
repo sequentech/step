@@ -577,6 +577,7 @@ pub struct ContestPresentation {
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
+    pub under_vote_alert: Option<bool>,
 }
 
 impl ContestPresentation {
@@ -595,6 +596,7 @@ impl ContestPresentation {
             candidates_selection_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
+            under_vote_alert: Some(false),
         }
     }
 }

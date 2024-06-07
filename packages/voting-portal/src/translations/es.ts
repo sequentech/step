@@ -162,6 +162,8 @@ const spanishTranslation: TranslationType = {
                     "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
                 maxSelectionsPerType:
                     "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
+                underVote:
+                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
             },
             explicit: {
                 notAllowed:
