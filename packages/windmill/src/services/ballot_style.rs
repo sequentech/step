@@ -4,7 +4,9 @@
 
 use super::database::get_hasura_pool;
 use crate::postgres::area::get_event_areas;
-use crate::postgres::ballot_publication::get_ballot_publication_by_id;
+use crate::postgres::ballot_publication::{
+    get_ballot_publication_by_id, update_ballot_publication_status,
+};
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
@@ -348,6 +350,27 @@ pub async fn update_election_event_ballot_styles(
     };
 
     let areas = get_event_areas(&hasura_transaction, tenant_id, election_event_id).await?;
+
+    for area in &areas {
+        /*create_ballot_style(
+            auth_headers.clone(),
+            area.id.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            ballot_publication.election_ids.clone().unwrap_or(vec![]),
+            ballot_publication.id.clone(),
+        )
+        .await?;*/
+    }
+    update_ballot_publication_status(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+        true,
+        None,
+    )
+    .await?;
 
     let _commit = hasura_transaction
         .commit()

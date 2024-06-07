@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::import_election_event::ImportElectionEventSchema;
-use anyhow::anyhow;
-use anyhow::{Context, Result};
+use crate::services::date::ISO8601;
+use anyhow::Result;
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::types::{hasura::core::BallotPublication, keycloak::UserArea};
-use std::collections::HashMap;
+use sequent_core::types::hasura::core::BallotPublication;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -64,6 +63,60 @@ pub async fn get_ballot_publication_by_id(
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(ballot_publication_id)?,
+            ],
+        )
+        .await?;
+
+    let results: Vec<BallotPublication> = rows
+        .into_iter()
+        .map(|row| -> Result<BallotPublication> {
+            row.try_into()
+                .map(|res: BallotPublicationWrapper| -> BallotPublication { res.0 })
+        })
+        .collect::<Result<Vec<BallotPublication>>>()?;
+
+    Ok(results
+        .get(0)
+        .map(|element: &BallotPublication| element.clone()))
+}
+
+pub async fn update_ballot_publication_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+    is_generated: bool,
+    published_at: Option<DateTime<Local>>,
+) -> Result<Option<BallotPublication>> {
+    let published_at_str = published_at.clone().map(|naive| ISO8601::to_string(&naive));
+    let query = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                sequent_backend.ballot_publication
+            SET
+                is_generated = $4,
+                published_at = $5
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = $3 AND
+                deleted_at IS NULL
+            RETURNING
+                *;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &query,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(ballot_publication_id)?,
+                &is_generated,
+                &published_at_str,
             ],
         )
         .await?;
