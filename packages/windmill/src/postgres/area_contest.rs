@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::import_election_event::{AreaContest, ImportElectionEventSchema};
+use crate::services::import_election_event::AreaContest;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use tokio_postgres::row::Row;
