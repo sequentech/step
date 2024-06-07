@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -9,6 +9,7 @@ use tracing::instrument;
 
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::ballot_publication::*;
+use crate::services::ballot_style;
 use crate::services::ballot_style::create_ballot_style;
 use crate::types::error::Result;
 
@@ -61,6 +62,13 @@ pub async fn update_election_event_ballot_styles(
         ballot_publication_id.clone(),
         true,
         None,
+    )
+    .await?;
+
+    ballot_style::update_election_event_ballot_styles(
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
     )
     .await?;
 

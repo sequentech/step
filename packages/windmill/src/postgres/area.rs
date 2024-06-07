@@ -338,7 +338,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
 }
 
 #[instrument(err, skip_all)]
-pub async fn export_areas(
+pub async fn get_event_areas(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

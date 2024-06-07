@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::database::get_hasura_pool;
+use crate::postgres::area::get_event_areas;
+use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::types::error::Result;
-use anyhow::Context;
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::types::hasura::core as hasura_type;
@@ -312,5 +316,42 @@ pub async fn create_ballot_style(
     }
     lock.release().await?;
 
+    Ok(())
+}
+
+#[instrument(err)]
+pub async fn update_election_event_ballot_styles(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> AnyhowResult<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting hasura db pool")?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+
+    let Some(ballot_publication) = get_ballot_publication_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await?
+    else {
+        return Err(anyhow!("can't find ballot publication"));
+    };
+
+    let areas = get_event_areas(&hasura_transaction, tenant_id, election_event_id).await?;
+
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Commit failed");
     Ok(())
 }

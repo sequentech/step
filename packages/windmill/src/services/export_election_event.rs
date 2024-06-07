@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::area::export_areas;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
@@ -36,7 +36,7 @@ pub async fn read_export_data(
         export_elections(&transaction, tenant_id, election_event_id),
         export_contests(&transaction, tenant_id, election_event_id),
         export_candidates(&transaction, tenant_id, election_event_id),
-        export_areas(&transaction, tenant_id, election_event_id),
+        get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
     )?;
 
