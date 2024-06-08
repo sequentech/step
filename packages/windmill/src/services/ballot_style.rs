@@ -33,32 +33,30 @@ use crate::services::pg_lock::PgLock;
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
+    areas_map: &HashMap<String, Area>,
     tenant_id: &str,
     election_event: &ElectionEvent,
     ballot_publication: &BallotPublication,
-    elections_input: &Vec<Election>,
-    contests_input: &Vec<Contest>,
-    candidates_input: &Vec<Candidate>,
-    area_contests_input: &Vec<AreaContest>,
+    elections_map: &HashMap<String, Election>,
+    contests_map: &HashMap<String, Contest>,
+    candidates_map: &HashMap<String, Candidate>,
+    area_contests_map: &HashMap<String, AreaContest>,
 ) -> Result<()> {
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
     if 0 == election_ids.len() {
         event!(Level::INFO, "No election ids",);
         return Ok(());
     }
-    let area_contests: Vec<AreaContest> = area_contests_input
+    let area_contests: Vec<AreaContest> = area_contests_map
         .clone()
-        .into_iter()
+        .values()
         .filter(|area_contest| area_contest.area_id.to_string() == area.id)
         .collect();
-
     // election_id, vec<contest_ids>
     let mut election_contest_map: HashMap<String, Vec<String>> = HashMap::new();
 
     for area_contest in area_contests.iter() {
-        let Some(contest) = contests_input
-            .iter()
-            .find(|contest| contest.id == area_contest.contest_id.to_string())
+        let Some(contest) = contests_map.get(&area_contest.contest_id.to_string())
         else {
             event!(
                 Level::INFO,
@@ -183,18 +181,48 @@ pub async fn update_election_event_ballot_styles(
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
     )?;
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area))
+        .collect();
+
+    let elections_map: HashMap<String, Contest> = elections
+        .clone()
+        .into_iter()
+        .map(|election: Election| (election.id.clone(), election))
+        .collect();
+
+    let contests_map: HashMap<String, Contest> = contests
+        .clone()
+        .into_iter()
+        .map(|contest| (contest.id.clone(), contest))
+        .collect();
+
+    let candidates_map: HashMap<String, Candidate> = candidates
+        .clone()
+        .into_iter()
+        .map(|candidate: Candidate| (candidate.id.clone(), candidate))
+        .collect();
+
+    let area_contests_map: HashMap<String, Area> = area_contests
+        .clone()
+        .into_iter()
+        .map(|area_contest: Area| (area_contest.id.clone(), area_contest))
+        .collect();
 
     for area in &areas {
         create_ballot_style_postgres(
             &transaction,
             area,
+            &areas_map,
             &tenant_id,
             &election_event,
             &ballot_publication,
-            &elections,
-            &contests,
-            &candidates,
-            &area_contests,
+            &elections_map,
+            &contests_map,
+            &candidates_map,
+            &area_contests_map,
         )
         .await?;
     }
