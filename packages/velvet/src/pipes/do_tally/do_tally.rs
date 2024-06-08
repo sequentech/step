@@ -14,8 +14,9 @@ use crate::utils::HasId;
 use sequent_core::{ballot::Candidate, services::area_tree::TreeNodeArea};
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, path::PathBuf};
 use tracing::instrument;
+use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER: &str = "aggregate";
@@ -69,6 +70,7 @@ impl Pipe for DoTally {
                         Some(&contest_input.id),
                         Some(&area_input.id),
                     );
+                    let decoded_ballots_file = base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
                     // create aggregate tally from children areas
                     let Some(area_tree) = areas_tree.find_area(&area_input.id.to_string()) else {
                         return Err(Error::UnexpectedError(format!(
@@ -81,9 +83,39 @@ impl Pipe for DoTally {
                         let base_aggregate_path =
                             base_input_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
                         fs::create_dir_all(&base_aggregate_path)?;
-                    }
-                    let decoded_ballots_file = base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
 
+                        let mut children_area_paths: Vec<PathBuf> = children_areas
+                            .iter()
+                            .map(|child_area| -> Result<PathBuf> {
+                                Ok(PipeInputs::build_path(
+                                    &input_dir,
+                                    &contest_input.election_id,
+                                    Some(&contest_input.id),
+                                    Some(&Uuid::parse_str(&child_area.id).map_err(|err| {
+                                        Error::UnexpectedError(format!("{:?}", err))
+                                    })?),
+                                ))
+                            })
+                            .collect::<Result<Vec<PathBuf>>>()?;
+                        children_area_paths.push(decoded_ballots_file.clone());
+
+                        let counting_algorithm = tally::create_tally(
+                            &contest_input.contest,
+                            children_area_paths,
+                            area_input.census,
+                        )
+                        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                        let res: ContestResult = counting_algorithm
+                            .tally()
+                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                        let file_path = base_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
+
+                        let file = fs::File::create(file_path)?;
+
+                        serde_json::to_writer(file, &res)?;
+                    }
+
+                    // create area tally
                     let counting_algorithm = tally::create_tally(
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
@@ -113,6 +145,7 @@ impl Pipe for DoTally {
                     sum_census += area_input.census;
                 }
 
+                // create contest tally
                 let counting_algorithm =
                     tally::create_tally(&contest_input.contest, contest_ballot_files, sum_census)
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
