@@ -50,13 +50,19 @@ pub async fn create_ballot_style_postgres(
         event!(Level::INFO, "No election ids",);
         return Ok(());
     }
+    let area_ids: Vec<String> = areas_tree
+        .find_path_to_area(&area.id)
+        .ok_or(anyhow!("area not found in tree"))?
+        .into_iter()
+        .map(|area| area.id)
+        .collect();
     let area_contests: Vec<AreaContest> = area_contests_map
         .values()
-        .filter(|area_contest| area_contest.area_id.to_string() == area.id)
+        .filter(|area_contest| area_ids.contains(&area_contest.area_id.to_string()))
         .map(|val| val.clone())
         .collect();
-    // election_id, vec<contest_ids>
-    let mut election_contest_map: HashMap<String, Vec<String>> = HashMap::new();
+    // election_id, vec<contest>
+    let mut election_contest_map: HashMap<String, Vec<Contest>> = HashMap::new();
 
     for area_contest in area_contests.iter() {
         let Some(contest) = contests_map.get(&area_contest.contest_id.to_string()) else {
@@ -72,45 +78,24 @@ pub async fn create_ballot_style_postgres(
         }
         election_contest_map
             .entry(contest.election_id.clone())
-            .and_modify(|contest_ids| contest_ids.push(contest.id.clone()))
-            .or_insert(vec![contest.id.clone()]);
+            .and_modify(|contests| contests.push(contest.clone()))
+            .or_insert(vec![contest.clone()]);
     }
 
-    for (election_id, contest_ids) in election_contest_map.into_iter() {
+    for (election_id, contests) in election_contest_map.into_iter() {
         let election = elections_map
             .get(&election_id)
             .ok_or(anyhow!("election id not found {}", election_id))?;
-        let contests = contest_ids
-            .clone()
-            .into_iter()
-            .map(|contest_id| -> Result<hasura_type::Contest> {
-                let area_contest = area_contests
-                    .iter()
-                    .find(|area_contest| area_contest.contest_id.to_string() == contest_id)
-                    .with_context(|| format!("contest id not found {}", contest_id))?;
-                let contest = contests_map
-                    .get(&contest_id)
-                    .ok_or(anyhow!("contest not found {}", contest_id))?;
-                Ok(contest.clone())
+        let contest_ids: Vec<String> = contests.iter().map(|contest| contest.id.clone()).collect();
+        let candidates: Vec<Candidate> = candidates_map
+            .values()
+            .filter(|candidate| {
+                let Some(contest_id) = candidate.contest_id.clone() else {
+                    return false;
+                };
+                contest_ids.contains(&contest_id)
             })
-            .collect::<Result<Vec<hasura_type::Contest>>>()?;
-        let candidates: Vec<hasura_type::Candidate> = contest_ids
-            .into_iter()
-            .map(|contest_id| -> Result<Vec<hasura_type::Candidate>> {
-                let area_contest = area_contests
-                    .iter()
-                    .find(|area_contest| area_contest.contest_id.to_string() == contest_id)
-                    .with_context(|| format!("contest id not found {}", contest_id))?;
-                let area_candidates: Vec<Candidate> = candidates_map
-                    .values()
-                    .filter(|candidate| candidate.contest_id == Some(contest_id.clone()))
-                    .map(|val| val.clone())
-                    .collect();
-                Ok(area_candidates)
-            })
-            .collect::<Result<Vec<Vec<hasura_type::Candidate>>>>()?
-            .into_iter()
-            .flatten()
+            .map(|candidate| candidate.clone())
             .collect();
 
         let ballot_style_id = Uuid::new_v4();
@@ -123,7 +108,7 @@ pub async fn create_ballot_style_postgres(
             candidates.clone(),
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
-        let _hasura_response = insert_ballot_style(
+        let _created_ballot_style = insert_ballot_style(
             transaction,
             &ballot_style_id.to_string(),
             tenant_id,
