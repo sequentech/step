@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::database::get_hasura_pool;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{
@@ -13,6 +12,7 @@ use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::database::get_hasura_pool;
 use crate::services::import_election_event::AreaContest;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};

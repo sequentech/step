@@ -5,7 +5,7 @@
 use celery::error::TaskError;
 use tracing::instrument;
 
-use crate::services::ballot_style;
+use crate::services::ballot_styles::ballot_style;
 use crate::types::error::Result;
 
 #[instrument(err)]
