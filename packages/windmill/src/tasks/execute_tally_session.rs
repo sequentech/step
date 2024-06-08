@@ -12,6 +12,7 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::area::get_event_areas;
 use crate::services::cast_votes::find_area_ballots;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::results::populate_results_tables;
@@ -59,6 +60,8 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
+use sequent_core::types::hasura::core::Area;
+use std::collections::HashMap;
 use std::str::FromStr;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
@@ -102,6 +105,7 @@ async fn process_plaintexts(
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
+    areas_map: &HashMap<String, Area>,
 ) -> Result<Vec<AreaContestDataType>> {
     let almost_vec: Vec<AreaContestDataType> = tally_session_data
         .sequent_backend_tally_session_contest
@@ -144,9 +148,13 @@ async fn process_plaintexts(
                         .flatten()
                 })
                 .flatten() else {
-                    event!(Level::INFO, "Expected: Plantexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
+                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
                     return None;
                 };
+            let Some(area) = areas_map.get(&ballot_style.area_id) else {
+                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+                return None;
+            };
 
             Some(AreaContestDataType {
                 plaintexts,
@@ -154,6 +162,7 @@ async fn process_plaintexts(
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
                 eligible_voters: 0,
+                area: area.clone(),
             })
         })
         .collect();
@@ -748,11 +757,19 @@ async fn map_plaintext_data(
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
+    let areas = get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
+
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
         relevant_plaintexts,
         ballot_styles,
         tally_session_data,
+        &areas_map,
     )
     .await?;
 

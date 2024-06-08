@@ -229,4 +229,5 @@ pub struct AreaConfig {
     pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub census: u64,
+    pub parent_id: Option<Uuid>,
 }

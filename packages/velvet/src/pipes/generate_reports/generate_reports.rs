@@ -100,6 +100,8 @@ impl GenerateReports {
                     contest_result: r.contest_result.clone(),
                     area_id: r.area_id.clone(),
                     candidate_result,
+                    is_aggregate: false,
+                    tally_sheet_id: None,
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
@@ -393,6 +395,8 @@ pub struct ReportDataComputed {
     pub election_name: String,
     pub contest: Contest,
     pub area_id: Option<String>,
+    pub is_aggregate: bool,
+    pub tally_sheet_id: Option<String>,
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
 }
