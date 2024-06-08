@@ -32,6 +32,21 @@ pub struct TreeNode {
 }
 
 impl TreeNode {
+    pub fn get_all_children(&self) -> Vec<TreeNodeArea> {
+        let mut children: Vec<TreeNodeArea> = vec![];
+        if let Some(area) = self.area.clone() {
+            children.push(area);
+        };
+        let sub_children: Vec<TreeNodeArea> = self
+            .children
+            .iter()
+            .map(|child| child.get_all_children())
+            .flatten()
+            .collect();
+        children.extend(sub_children);
+        children
+    }
+
     pub fn from_areas(areas: Vec<TreeNodeArea>) -> Result<TreeNode> {
         let mut nodes: HashMap<String, TreeNode> = HashMap::new();
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -116,6 +131,20 @@ impl TreeNode {
 
         visited.remove(id);
         Ok(new_node)
+    }
+
+    pub fn find_area(&self, area_id: &str) -> Option<TreeNode> {
+        if let Some(area) = self.area.clone() {
+            if &area.id == area_id {
+                return Some(self.clone());
+            }
+        }
+        for leave in self.children.iter() {
+            if let Some(area) = leave.find_area(area_id) {
+                return Some(area);
+            }
+        }
+        None
     }
 
     pub fn find_path_to_area(

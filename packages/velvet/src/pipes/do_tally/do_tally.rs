@@ -11,8 +11,8 @@ use crate::pipes::{
     Pipe,
 };
 use crate::utils::HasId;
-use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use sequent_core::{ballot::Candidate, services::area_tree::TreeNodeArea};
+use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tracing::instrument;
@@ -58,18 +58,31 @@ impl Pipe for DoTally {
                     .map(|area| (&area.area).into())
                     .collect();
 
-                let areas_tree = TreeNode::from_areas(areas)
-                    .map_err(|err| Error::UnexpectedError(format!("Error building area tree {:?}", err)))?;
+                let areas_tree = TreeNode::from_areas(areas).map_err(|err| {
+                    Error::UnexpectedError(format!("Error building area tree {:?}", err))
+                })?;
 
                 for area_input in &contest_input.area_list {
-                    //fs::create_dir_all(&ballots_path)?;
-                    let decoded_ballots_file = PipeInputs::build_path(
+                    let base_input_path = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
-                    )
-                    .join(OUTPUT_DECODED_BALLOTS_FILE);
+                    );
+                    // create aggregate tally from children areas
+                    let Some(area_tree) = areas_tree.find_area(&area_input.id.to_string()) else {
+                        return Err(Error::UnexpectedError(format!(
+                            "Error finding area {} in areas tree {:?}",
+                            area_input.id, areas_tree
+                        )));
+                    };
+                    let children_areas = area_tree.get_all_children();
+                    if !children_areas.is_empty() {
+                        let base_aggregate_path =
+                            base_input_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+                        fs::create_dir_all(&base_aggregate_path)?;
+                    }
+                    let decoded_ballots_file = base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
 
                     let counting_algorithm = tally::create_tally(
                         &contest_input.contest,
@@ -81,17 +94,17 @@ impl Pipe for DoTally {
                         .tally()
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                    let mut file = PipeInputs::build_path(
+                    let base_output_path = PipeInputs::build_path(
                         &output_dir,
                         &contest_input.election_id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
                     );
 
-                    fs::create_dir_all(&file)?;
-                    file.push(OUTPUT_CONTEST_RESULT_FILE);
+                    fs::create_dir_all(&base_output_path)?;
+                    let file_path = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
 
-                    let file = fs::File::create(file)?;
+                    let file = fs::File::create(file_path)?;
 
                     serde_json::to_writer(file, &res)?;
 
