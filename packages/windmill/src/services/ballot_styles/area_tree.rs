@@ -53,6 +53,8 @@ impl TreeNode {
         };
 
         // Build the forest under a single root
+        // as build_tree is recursive, we defined the visited var outside to
+        // maintain state outside the multiple recursive calls
         let mut visited: HashSet<String> = HashSet::new();
         for root_id in root_ids {
             let child_node = TreeNode::build_tree(&root_id, &nodes, &mut visited, &parent_map)?;
