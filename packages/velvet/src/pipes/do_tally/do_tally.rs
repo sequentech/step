@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::tally;
+use super::{counting_algorithm, tally};
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
     error::{Error, Result},
@@ -60,13 +60,13 @@ impl Pipe for DoTally {
                     )
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                    let ca = tally::create_tally(
+                    let counting_algorithm = tally::create_tally(
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
                         area_input.census,
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                    let res = ca
+                    let res = counting_algorithm
                         .tally()
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
@@ -89,10 +89,10 @@ impl Pipe for DoTally {
                     sum_census += area_input.census;
                 }
 
-                let ca =
+                let counting_algorithm =
                     tally::create_tally(&contest_input.contest, contest_ballot_files, sum_census)
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                let res = ca
+                let res = counting_algorithm
                     .tally()
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
