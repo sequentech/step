@@ -45,7 +45,6 @@ pub async fn insert_ballot_style(
     election_id: &str,
     area_id: &str,
     ballot_eml: Option<String>,
-    ballot_signature: Option<String>,
     status: Option<String>,
     ballot_publication_id: &str,
 ) -> Result<BallotStyle> {
@@ -54,7 +53,7 @@ pub async fn insert_ballot_style(
             r#"
                 INSERT INTO
                     sequent_backend.ballot_style
-                (tenant_id, election_event_id, election_id, area_id, ballot_eml, ballot_signature, status, ballot_publication_id, created_at, last_updated_at)
+                (id, tenant_id, election_event_id, election_id, area_id, ballot_eml, status, ballot_publication_id, created_at, last_updated_at)
                 VALUES(
                     $1,
                     $2,
@@ -79,12 +78,11 @@ pub async fn insert_ballot_style(
                 &Uuid::parse_str(ballot_style_id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
                 &Uuid::parse_str(area_id)?,
                 &ballot_eml,
-                &ballot_signature,
                 &status,
                 &Uuid::parse_str(ballot_publication_id)?,
-                &Uuid::parse_str(tenant_id)?,
             ],
         )
         .await

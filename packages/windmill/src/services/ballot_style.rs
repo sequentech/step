@@ -134,7 +134,6 @@ pub async fn create_ballot_style_postgres(
             &area.id,
             Some(election_dto_json_string),
             None,
-            None,
             &ballot_publication.id,
         )
         .await?;
