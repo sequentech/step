@@ -11,7 +11,7 @@ use crate::pipes::{
     Pipe,
 };
 use crate::utils::HasId;
-use sequent_core::ballot::Contest;
+use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use sequent_core::{ballot::Candidate, services::area_tree::TreeNodeArea};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -57,6 +57,9 @@ impl Pipe for DoTally {
                     .iter()
                     .map(|area| (&area.area).into())
                     .collect();
+
+                let areas_tree = TreeNode::from_areas(areas)
+                    .map_err(|err| Error::UnexpectedError(format!("Error building area tree {:?}", err)))?;
 
                 for area_input in &contest_input.area_list {
                     //fs::create_dir_all(&ballots_path)?;
