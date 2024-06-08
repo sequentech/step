@@ -83,6 +83,7 @@ pub async fn import_areas_task(
                 name: Some(area_id.to_string()),
                 description: area_name,
                 r#type: None,
+                parent_id: None,
             });
             let new_area_contests: Vec<AreaContest> = contests
                 .clone()

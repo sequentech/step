@@ -52,6 +52,7 @@ pub struct Area {
     pub name: Option<String>,
     pub description: Option<String>,
     pub r#type: Option<String>,
+    pub parent_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
