@@ -48,16 +48,15 @@ pub async fn create_ballot_style_postgres(
         return Ok(());
     }
     let area_contests: Vec<AreaContest> = area_contests_map
-        .clone()
         .values()
         .filter(|area_contest| area_contest.area_id.to_string() == area.id)
+        .map(|val| val.clone())
         .collect();
     // election_id, vec<contest_ids>
     let mut election_contest_map: HashMap<String, Vec<String>> = HashMap::new();
 
     for area_contest in area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id.to_string())
-        else {
+        let Some(contest) = contests_map.get(&area_contest.contest_id.to_string()) else {
             event!(
                 Level::INFO,
                 "missing contest for area contest: {}",
@@ -75,10 +74,9 @@ pub async fn create_ballot_style_postgres(
     }
 
     for (election_id, contest_ids) in election_contest_map.into_iter() {
-        let election = elections_input
-            .iter()
-            .find(|election| election.id == election_id)
-            .with_context(|| format!("election id not found {}", election_id))?;
+        let election = elections_map
+            .get(&election_id)
+            .ok_or(anyhow!("election id not found {}", election_id))?;
         let contests = contest_ids
             .clone()
             .into_iter()
@@ -87,10 +85,9 @@ pub async fn create_ballot_style_postgres(
                     .iter()
                     .find(|area_contest| area_contest.contest_id.to_string() == contest_id)
                     .with_context(|| format!("contest id not found {}", contest_id))?;
-                let contest = contests_input
-                    .iter()
-                    .find(|contest| contest.id == contest_id)
-                    .with_context(|| format!("contest not found {}", contest_id))?;
+                let contest = contests_map
+                    .get(&contest_id)
+                    .ok_or(anyhow!("contest not found {}", contest_id))?;
                 Ok(contest.clone())
             })
             .collect::<Result<Vec<hasura_type::Contest>>>()?;
@@ -101,10 +98,10 @@ pub async fn create_ballot_style_postgres(
                     .iter()
                     .find(|area_contest| area_contest.contest_id.to_string() == contest_id)
                     .with_context(|| format!("contest id not found {}", contest_id))?;
-                let area_candidates: Vec<Candidate> = candidates_input
-                    .clone()
-                    .into_iter()
+                let area_candidates: Vec<Candidate> = candidates_map
+                    .values()
                     .filter(|candidate| candidate.contest_id == Some(contest_id.clone()))
+                    .map(|val| val.clone())
                     .collect();
                 Ok(area_candidates)
             })
@@ -184,31 +181,27 @@ pub async fn update_election_event_ballot_styles(
     let areas_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
-        .map(|area: Area| (area.id.clone(), area))
+        .map(|area: Area| (area.id.clone(), area.clone()))
         .collect();
 
-    let elections_map: HashMap<String, Contest> = elections
-        .clone()
+    let elections_map: HashMap<String, Election> = elections
         .into_iter()
-        .map(|election: Election| (election.id.clone(), election))
+        .map(|election: Election| (election.id.clone(), election.clone()))
         .collect();
 
     let contests_map: HashMap<String, Contest> = contests
-        .clone()
         .into_iter()
-        .map(|contest| (contest.id.clone(), contest))
+        .map(|contest| (contest.id.clone(), contest.clone()))
         .collect();
 
     let candidates_map: HashMap<String, Candidate> = candidates
-        .clone()
         .into_iter()
-        .map(|candidate: Candidate| (candidate.id.clone(), candidate))
+        .map(|candidate: Candidate| (candidate.id.clone(), candidate.clone()))
         .collect();
 
-    let area_contests_map: HashMap<String, Area> = area_contests
-        .clone()
+    let area_contests_map: HashMap<String, AreaContest> = area_contests
         .into_iter()
-        .map(|area_contest: Area| (area_contest.id.clone(), area_contest))
+        .map(|area_contest| (area_contest.id.to_string(), area_contest.clone()))
         .collect();
 
     for area in &areas {
