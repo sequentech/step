@@ -156,6 +156,7 @@ impl PipeInputs {
                     contest_id,
                     census: area_config.census,
                     path: path_area,
+                    area: area_config.clone(),
                 });
             }
         }
@@ -209,6 +210,7 @@ pub struct InputAreaConfig {
     pub contest_id: Uuid,
     pub census: u64,
     pub path: PathBuf,
+    pub area: AreaConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -222,7 +224,7 @@ pub struct ElectionConfig {
     pub ballot_styles: Vec<BallotStyle>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaConfig {
     pub id: Uuid,
     pub tenant_id: Uuid,
