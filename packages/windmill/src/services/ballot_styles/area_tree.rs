@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::collections::{HashMap, HashSet};
-
+use anyhow::{anyhow, Result};
 use sequent_core::types::hasura::core::Area;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub struct TreeNode {
@@ -12,7 +12,7 @@ pub struct TreeNode {
 }
 
 impl TreeNode {
-    pub fn from_areas(areas: Vec<Area>) -> Result<TreeNode, String> {
+    pub fn from_areas(areas: Vec<Area>) -> Result<TreeNode> {
         let mut nodes: HashMap<String, TreeNode> = HashMap::new();
         // Map<parent_id, Vec<children ids>>
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -35,7 +35,7 @@ impl TreeNode {
                 parent_map.entry(parent_id).or_default().push(id);
             } else {
                 if root_id.is_some() {
-                    return Err("Multiple roots detected".into());
+                    return Err(anyhow!("Multiple roots detected"));
                 }
                 root_id = Some(id);
             }
@@ -44,14 +44,14 @@ impl TreeNode {
         // Ensure all parent_ids are valid
         for (parent_id, _) in &parent_map {
             if !nodes.contains_key(parent_id) {
-                return Err(format!(
+                return Err(anyhow!(
                     "Parent id {} not found in the tree structure",
                     parent_id
                 ));
             }
         }
 
-        let root_id = root_id.ok_or("No root found".to_string())?;
+        let root_id = root_id.ok_or(anyhow!("No root found"))?;
         // as build_tree is recursive, we defined the visited var outside to
         // maintain state outside the multiple recursive calls
         let mut visited: HashSet<String> = HashSet::new();
@@ -63,13 +63,13 @@ impl TreeNode {
         nodes: &'a HashMap<String, TreeNode>,
         visited: &mut HashSet<String>,
         parent_map: &'a HashMap<String, Vec<String>>,
-    ) -> Result<TreeNode, String> {
+    ) -> Result<TreeNode> {
         if visited.contains(id) {
-            return Err("Loop detected in the tree structure".into());
+            return Err(anyhow!("Loop detected in the tree structure"));
         }
 
         visited.insert(id.to_string());
-        let node = nodes.get(id).ok_or("Node not found".to_string())?.clone();
+        let node = nodes.get(id).ok_or(anyhow!("Node not found"))?.clone();
         let mut new_node = TreeNode {
             area: node.area.clone(),
             children: Vec::new(),
@@ -96,7 +96,7 @@ impl TreeNode {
         }
     }
 
-    // Helper function to recursively find the path
+    // Depth First Helper function to recursively find the path
     fn dfs(node: &TreeNode, area_id: &str, path: &mut Vec<Area>) -> bool {
         // Add current node to the path
         path.push(node.area.clone());

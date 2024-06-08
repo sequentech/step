@@ -30,10 +30,13 @@ use uuid::Uuid;
 use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 
+use super::area_tree::TreeNode;
+
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
     areas_map: &HashMap<String, Area>,
+    areas_tree: &TreeNode,
     tenant_id: &str,
     election_event: &ElectionEvent,
     ballot_publication: &BallotPublication,
@@ -204,11 +207,14 @@ pub async fn update_election_event_ballot_styles(
         .map(|area_contest| (area_contest.id.to_string(), area_contest.clone()))
         .collect();
 
+    let areas_tree = TreeNode::from_areas(areas.clone())?;
+
     for area in &areas {
         create_ballot_style_postgres(
             &transaction,
             area,
             &areas_map,
+            &areas_tree,
             &tenant_id,
             &election_event,
             &ballot_publication,
