@@ -26,9 +26,19 @@ impl TryFrom<Row> for BallotPublicationWrapper {
             deleted_at: item.get("deleted_at"),
             created_by_user_id: item.try_get("created_by_user_id")?,
             is_generated: item.try_get("is_generated")?,
-            election_ids: item.get("election_ids"),
+            election_ids: item
+                .try_get::<_, Option<Vec<Uuid>>>("election_ids")?
+                .map(|uuids| {
+                    uuids
+                        .clone()
+                        .into_iter()
+                        .map(|uuid| uuid.to_string())
+                        .collect()
+                }),
             published_at: item.get("published_at"),
-            election_id: item.get("election_id"),
+            election_id: item
+                .try_get::<_, Option<Uuid>>("election_id")?
+                .map(|val| val.to_string()),
         }))
     }
 }
@@ -88,7 +98,7 @@ pub async fn update_ballot_publication_status(
     is_generated: bool,
     published_at: Option<DateTime<Local>>,
 ) -> Result<Option<BallotPublication>> {
-    let published_at_str = published_at.clone().map(|naive| ISO8601::to_string(&naive));
+    //let published_at_str = published_at.clone().map(|naive| ISO8601::to_string(&naive));
     let query = hasura_transaction
         .prepare(
             r#"
@@ -116,7 +126,7 @@ pub async fn update_ballot_publication_status(
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(ballot_publication_id)?,
                 &is_generated,
-                &published_at_str,
+                &published_at,
             ],
         )
         .await?;
