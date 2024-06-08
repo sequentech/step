@@ -121,7 +121,7 @@ pub fn prepare_tally_for_area_contest(
             .area
             .parent_id
             .clone()
-            .map(|parent_id| Uuid::parse_str(&area_id))
+            .map(|parent_id| Uuid::parse_str(&parent_id))
             .transpose()?,
     };
     let mut area_config_file = fs::File::create(area_config_path)?;

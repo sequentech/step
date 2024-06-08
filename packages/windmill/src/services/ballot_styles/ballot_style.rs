@@ -30,7 +30,7 @@ use uuid::Uuid;
 use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 
-use super::area_tree::TreeNode;
+use sequent_core::services::area_tree::TreeNode;
 
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
@@ -192,7 +192,8 @@ pub async fn update_election_event_ballot_styles(
         .map(|area_contest| (area_contest.id.to_string(), area_contest.clone()))
         .collect();
 
-    let areas_tree = TreeNode::from_areas(areas.clone())?;
+    let basic_areas = areas.iter().map(|area| area.into()).collect();
+    let areas_tree = TreeNode::from_areas(basic_areas)?;
 
     for area in &areas {
         create_ballot_style_postgres(
