@@ -11,13 +11,14 @@ use crate::pipes::{
     Pipe,
 };
 use crate::utils::HasId;
-use sequent_core::ballot::Candidate;
 use sequent_core::ballot::Contest;
+use sequent_core::{ballot::Candidate, services::area_tree::TreeNodeArea};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tracing::instrument;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
+pub const OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER: &str = "aggregate";
 
 pub struct DoTally {
     pub pipe_inputs: PipeInputs,
@@ -51,7 +52,14 @@ impl Pipe for DoTally {
                 let mut contest_ballot_files = vec![];
                 let mut sum_census: u64 = 0;
 
+                let areas: Vec<TreeNodeArea> = contest_input
+                    .area_list
+                    .iter()
+                    .map(|area| (&area.area).into())
+                    .collect();
+
                 for area_input in &contest_input.area_list {
+                    //fs::create_dir_all(&ballots_path)?;
                     let decoded_ballots_file = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,

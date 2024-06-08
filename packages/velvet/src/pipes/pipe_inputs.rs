@@ -7,7 +7,10 @@ use crate::{
     cli::{state::Stage, CliRun},
     utils::parse_file,
 };
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::{
+    ballot::{BallotStyle, Contest},
+    services::area_tree::TreeNodeArea,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -232,4 +235,15 @@ pub struct AreaConfig {
     pub election_id: Uuid,
     pub census: u64,
     pub parent_id: Option<Uuid>,
+}
+
+impl Into<TreeNodeArea> for &AreaConfig {
+    fn into(self) -> TreeNodeArea {
+        TreeNodeArea {
+            id: self.id.to_string(),
+            tenant_id: self.tenant_id.to_string(),
+            election_event_id: self.election_event_id.to_string(),
+            parent_id: self.parent_id.clone().map(|val| val.to_string()),
+        }
+    }
 }
