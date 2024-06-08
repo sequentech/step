@@ -7,16 +7,15 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub struct TreeNode {
-    pub area: Area,
+    pub area: Option<Area>,
     pub children: Vec<TreeNode>,
 }
 
 impl TreeNode {
     pub fn from_areas(areas: Vec<Area>) -> Result<TreeNode> {
         let mut nodes: HashMap<String, TreeNode> = HashMap::new();
-        // Map<parent_id, Vec<children ids>>
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
-        let mut root_id: Option<String> = None;
+        let mut root_ids: Vec<String> = Vec::new();
 
         // Initialize TreeNodes and parent map
         for area in areas.into_iter() {
@@ -26,7 +25,7 @@ impl TreeNode {
             nodes.insert(
                 id.clone(),
                 TreeNode {
-                    area,
+                    area: Some(area),
                     children: Vec::new(),
                 },
             );
@@ -34,10 +33,7 @@ impl TreeNode {
             if let Some(parent_id) = parent_id {
                 parent_map.entry(parent_id).or_default().push(id);
             } else {
-                if root_id.is_some() {
-                    return Err(anyhow!("Multiple roots detected"));
-                }
-                root_id = Some(id);
+                root_ids.push(id);
             }
         }
 
@@ -51,11 +47,19 @@ impl TreeNode {
             }
         }
 
-        let root_id = root_id.ok_or(anyhow!("No root found"))?;
-        // as build_tree is recursive, we defined the visited var outside to
-        // maintain state outside the multiple recursive calls
+        let mut root_node = TreeNode {
+            area: None,
+            children: Vec::new(),
+        };
+
+        // Build the forest under a single root
         let mut visited: HashSet<String> = HashSet::new();
-        TreeNode::build_tree(&root_id, &nodes, &mut visited, &parent_map)
+        for root_id in root_ids {
+            let child_node = TreeNode::build_tree(&root_id, &nodes, &mut visited, &parent_map)?;
+            root_node.children.push(child_node);
+        }
+
+        Ok(root_node)
     }
 
     fn build_tree<'a>(
@@ -98,11 +102,13 @@ impl TreeNode {
 
     // Depth First Helper function to recursively find the path
     fn dfs(node: &TreeNode, area_id: &str, path: &mut Vec<Area>) -> bool {
-        // Add current node to the path
-        path.push(node.area.clone());
+        // Add current node to the path if it has an area
+        if let Some(area) = &node.area {
+            path.push(area.clone());
+        }
 
         // Check if the current node is the target node
-        if node.area.id == area_id {
+        if node.area.as_ref().map_or(false, |area| area.id == area_id) {
             return true;
         }
 
@@ -114,7 +120,9 @@ impl TreeNode {
         }
 
         // If not found, backtrack
-        path.pop();
+        if node.area.is_some() {
+            path.pop();
+        }
         false
     }
 }
