@@ -174,6 +174,7 @@ pub async fn upload_file_to_s3(
     s3_bucket: String,
     media_type: String,
     file_path: String,
+    add_cache_control: Option<bool>,
 ) -> Result<()> {
     let body = ByteStream::from_path(&file_path)
         .await
@@ -185,13 +186,19 @@ pub async fn upload_file_to_s3(
         .await
         .with_context(|| "Error getting s3 client")?;
 
-    client
+    
+
+    let mut request = client
         .put_object()
         .bucket(s3_bucket)
         .key(key)
         .content_type(media_type)
-        .body(body)
-        .send()
+        .body(body);
+
+    if add_cache_control.unwrap_or(false) {
+        request = request.cache_control("max-age-30");
+    }
+        request.send()
         .await
         .context("Error uploading file to S3")?;
 
