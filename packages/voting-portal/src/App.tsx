@@ -6,7 +6,13 @@
 import React, {useEffect, useContext} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, HeaderErrorVariant, IElectionEventPresentation, PageBanner} from "@sequentech/ui-essentials"
+import {
+    Footer,
+    Header,
+    HeaderErrorVariant,
+    IElectionEventPresentation,
+    PageBanner,
+} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -47,7 +53,11 @@ const HeaderWithContext: React.FC = () => {
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
             }}
-            errorVariant={(!authContext.email && !authContext.username) ? HeaderErrorVariant.HIDE_PROFILE : undefined} // If no keycloak user information was successfully retrieved then just show logout button
+            errorVariant={
+                !authContext.email && !authContext.username
+                    ? HeaderErrorVariant.HIDE_PROFILE
+                    : undefined
+            } // If no keycloak user information was retrieved then just show logout button
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl={presentation?.logo_url}

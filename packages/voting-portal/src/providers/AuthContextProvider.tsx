@@ -248,7 +248,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
-                setUserProfile((val) =>({
+                setUserProfile((val) => ({
                     ...val,
                     userId: profile?.id || val?.userId,
                     email: profile?.email || val?.email,
