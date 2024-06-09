@@ -11,8 +11,8 @@ use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
-use std::fmt;
 use s3::presigning::PresigningConfig;
+use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::{env, error::Error};
@@ -33,7 +33,6 @@ impl fmt::Display for CacheControlOptions {
         }
     }
 }
-
 
 #[instrument(err, ret)]
 pub fn get_private_bucket() -> Result<String> {
