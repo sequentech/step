@@ -14,7 +14,7 @@ use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::import_election_event::AreaContest;
-use crate::types::error::Result;
+use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -23,7 +23,7 @@ use sequent_core::types::hasura::core::{
     self as hasura_type, Area, BallotPublication, Candidate, Contest, Election, ElectionEvent,
 };
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -35,7 +35,6 @@ use sequent_core::services::area_tree::TreeNode;
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
-    areas_map: &HashMap<String, Area>,
     areas_tree: &TreeNode,
     tenant_id: &str,
     election_event: &ElectionEvent,
@@ -62,7 +61,7 @@ pub async fn create_ballot_style_postgres(
         .map(|val| val.clone())
         .collect();
     // election_id, vec<contest>
-    let mut election_contest_map: HashMap<String, Vec<Contest>> = HashMap::new();
+    let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
 
     for area_contest in area_contests.iter() {
         let Some(contest) = contests_map.get(&area_contest.contest_id.to_string()) else {
@@ -78,15 +77,30 @@ pub async fn create_ballot_style_postgres(
         }
         election_contest_map
             .entry(contest.election_id.clone())
-            .and_modify(|contests| contests.push(contest.clone()))
-            .or_insert(vec![contest.clone()]);
+            .and_modify(|contest_ids| {
+                contest_ids.insert(contest.id.clone());
+            })
+            .or_insert_with(|| {
+                let mut set = HashSet::new();
+                set.insert(contest.id.clone());
+                set
+            });
     }
 
-    for (election_id, contests) in election_contest_map.into_iter() {
+    for (election_id, contest_ids) in election_contest_map.into_iter() {
         let election = elections_map
             .get(&election_id)
             .ok_or(anyhow!("election id not found {}", election_id))?;
-        let contest_ids: Vec<String> = contests.iter().map(|contest| contest.id.clone()).collect();
+        //let contest_ids: Vec<String> = contests.iter().map(|contest| contest.id.clone()).collect();
+        let contests: Vec<Contest> = contest_ids
+            .iter()
+            .map(|contest_id| {
+                contests_map
+                    .get(contest_id)
+                    .map(|val| val.clone())
+                    .ok_or(Error::String("Can't find contest".into()))
+            })
+            .collect::<Result<Vec<Contest>>>()?;
         let candidates: Vec<Candidate> = candidates_map
             .values()
             .filter(|candidate| {
@@ -166,11 +180,6 @@ pub async fn update_election_event_ballot_styles(
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
     )?;
-    let areas_map: HashMap<String, Area> = areas
-        .clone()
-        .into_iter()
-        .map(|area: Area| (area.id.clone(), area.clone()))
-        .collect();
 
     let elections_map: HashMap<String, Election> = elections
         .into_iter()
@@ -199,7 +208,6 @@ pub async fn update_election_event_ballot_styles(
         create_ballot_style_postgres(
             &transaction,
             area,
-            &areas_map,
             &areas_tree,
             &tenant_id,
             &election_event,
