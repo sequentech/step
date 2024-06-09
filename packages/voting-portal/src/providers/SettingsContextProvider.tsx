@@ -87,15 +87,10 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     )
 }
 
-
 export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {loaded} = useContext(SettingsContext)
 
-    return loaded ? (
-        <>{children}</>
-    ) : (
-        <Loader/>
-    )
+    return loaded ? <>{children}</> : <Loader />
 }
 
 export const SettingsWrapper: React.FC<React.PropsWithChildren> = ({children}) => (

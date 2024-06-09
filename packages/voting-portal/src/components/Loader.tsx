@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from 'react'
+import React from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {styled} from "@mui/material/styles"
-
 
 const StyledBox = styled(Box)`
     display: flex;
@@ -20,11 +19,11 @@ const StyledBox = styled(Box)`
 `
 
 const Loader = () => {
-  return (
-    <StyledBox>
+    return (
+        <StyledBox>
             <CircularProgress />
-    </StyledBox>
-  )
+        </StyledBox>
+    )
 }
 
 export default Loader

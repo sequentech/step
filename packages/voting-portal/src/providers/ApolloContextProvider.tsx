@@ -47,11 +47,10 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     }, [isAuthContextInitialized, keycloakAccessToken, globalSettings.HASURA_URL])
 
     return client === null ? (
-        <Box sx={{flex: 1, display: "flex", justifyContent:"center", alignItems:"center"}}>
-        <CircularProgress />
+        <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
+            <CircularProgress />
         </Box>
     ) : (
-       
         <ApolloProvider client={client}>{children}</ApolloProvider>
     )
 }

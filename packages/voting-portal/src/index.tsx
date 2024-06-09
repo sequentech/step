@@ -18,20 +18,20 @@ import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {ErrorPage} from "./routes/ErrorPage"
-import  {action as votingAction} from "./routes/VotingScreen"
+import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
 
-const TenantEvent = lazy(() => import("./routes/TenantEvent"));
-const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"));
-const LoginScreen = lazy(() => import("./routes/LoginScreen"));
-const StartScreen = lazy(() => import("./routes/StartScreen"));
-const VotingScreen = lazy(() => import("./routes/VotingScreen"));
-const ReviewScreen = lazy(() => import("./routes/ReviewScreen"));
-const ConfirmationScreen = lazy(() => import("./routes/ConfirmationScreen"));
-const AuditScreen = lazy(() => import("./routes/AuditScreen"));
-const BallotLocator = lazy(() => import("./routes/BallotLocator"));
-const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScreen"));
+const TenantEvent = lazy(() => import("./routes/TenantEvent"))
+const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
+const LoginScreen = lazy(() => import("./routes/LoginScreen"))
+const StartScreen = lazy(() => import("./routes/StartScreen"))
+const VotingScreen = lazy(() => import("./routes/VotingScreen"))
+const ReviewScreen = lazy(() => import("./routes/ReviewScreen"))
+const ConfirmationScreen = lazy(() => import("./routes/ConfirmationScreen"))
+const AuditScreen = lazy(() => import("./routes/AuditScreen"))
+const BallotLocator = lazy(() => import("./routes/BallotLocator"))
+const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScreen"))
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -62,66 +62,109 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
-const router = createBrowserRouter([
-    {
-      path: "/",
-      element: <App />,
-      errorElement: <ErrorPage />,
-      children: [
+const router = createBrowserRouter(
+    [
         {
-          path: "/tenant/:tenantId/event/:eventId",
-          element: <Suspense fallback={<Loader/>}><TenantEvent /></Suspense>,
-          children: [
-            {
-              path: "election-chooser",
-              element: <Suspense fallback={<Loader/>}><ElectionSelectionScreen /></Suspense>,
-            },
-            {
-              path: "login",
-              element: <Suspense fallback={<Loader/>}><LoginScreen /></Suspense>,
-            },
-            {
-              path: "election/:electionId",
-              children: [
+            path: "/",
+            element: <App />,
+            errorElement: <ErrorPage />,
+            children: [
                 {
-                  path: "start",
-                  element: <Suspense fallback={<Loader/>}><StartScreen /></Suspense>,
+                    path: "/tenant/:tenantId/event/:eventId",
+                    element: (
+                        <Suspense fallback={<Loader />}>
+                            <TenantEvent />
+                        </Suspense>
+                    ),
+                    children: [
+                        {
+                            path: "election-chooser",
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <ElectionSelectionScreen />
+                                </Suspense>
+                            ),
+                        },
+                        {
+                            path: "login",
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <LoginScreen />
+                                </Suspense>
+                            ),
+                        },
+                        {
+                            path: "election/:electionId",
+                            children: [
+                                {
+                                    path: "start",
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <StartScreen />
+                                        </Suspense>
+                                    ),
+                                },
+                                {
+                                    path: "vote",
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <VotingScreen />
+                                        </Suspense>
+                                    ),
+                                    action: votingAction,
+                                },
+                                {
+                                    path: "review",
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <ReviewScreen />
+                                        </Suspense>
+                                    ),
+                                    action: castBallotAction,
+                                },
+                                {
+                                    path: "confirmation",
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <ConfirmationScreen />
+                                        </Suspense>
+                                    ),
+                                },
+                                {
+                                    path: "audit",
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <AuditScreen />
+                                        </Suspense>
+                                    ),
+                                },
+                                {
+                                    path: "ballot-locator/:ballotId?",
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <BallotLocator />
+                                        </Suspense>
+                                    ),
+                                },
+                            ],
+                        },
+                        {
+                            path: "materials",
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <SupportMaterialsScreen />
+                                </Suspense>
+                            ),
+                        },
+                    ],
                 },
-                {
-                  path: "vote",
-                  element: <Suspense fallback={<Loader/>}><VotingScreen /></Suspense>,
-                  action: votingAction,
-                },
-                {
-                  path: "review",
-                  element: <Suspense fallback={<Loader/>}><ReviewScreen /></Suspense>,
-                  action: castBallotAction,
-                },
-                {
-                  path: "confirmation",
-                  element: <Suspense fallback={<Loader/>}><ConfirmationScreen /></Suspense>,
-                },
-                {
-                  path: "audit",
-                  element: <Suspense fallback={<Loader/>}><AuditScreen /></Suspense>,
-                },
-                {
-                  path: "ballot-locator/:ballotId?",
-                  element: <Suspense fallback={<Loader/>}><BallotLocator /></Suspense>,
-                },
-              ],
-            },
-            {
-              path: "materials",
-              element: <Suspense fallback={<Loader/>}><SupportMaterialsScreen /></Suspense>,
-            },
-          ],
+            ],
         },
-      ],
-    },
-  ], {
-    basename: "/",
-  });
+    ],
+    {
+        basename: "/",
+    }
+)
 
 root.render(
     <React.StrictMode>
