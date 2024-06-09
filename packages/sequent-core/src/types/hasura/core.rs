@@ -217,3 +217,10 @@ pub struct CommunicationTemplate {
     pub communication_method: String,
     pub communication_type: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AreaContest {
+    pub id: String,
+    pub area_id: String,
+    pub contest_id: String,
+}

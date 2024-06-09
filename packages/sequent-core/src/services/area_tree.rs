@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::types::hasura::core::{Area, AreaContest, Contest};
 use anyhow::{anyhow, Result};
 use std::collections::{HashMap, HashSet};
-
-use crate::types::hasura::core::Area;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TreeNodeArea {
@@ -188,5 +187,28 @@ impl TreeNode {
             path.pop();
         }
         false
+    }
+
+    pub fn find_areas_for_election(
+        &self,
+        election_id: &str,
+        contests_map: &HashMap<String, Contest>,
+        area_contests: &Vec<AreaContest>,
+    ) -> Vec<TreeNodeArea> {
+        // Map<area_id, Set<contest_id>>
+        let mut areas_map: HashMap<String, HashSet<String>> = HashMap::new();
+        for area_contest in area_contests.iter() {
+            areas_map
+                .entry(area_contest.area_id.clone())
+                .and_modify(|contest_ids| {
+                    contest_ids.insert(area_contest.contest_id.clone());
+                })
+                .or_insert_with(|| {
+                    let mut set = HashSet::new();
+                    set.insert(area_contest.contest_id.clone());
+                    set
+                });
+        }
+        vec![]
     }
 }

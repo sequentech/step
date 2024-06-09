@@ -13,14 +13,14 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::import_election_event::AreaContest;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::types::hasura::core::{
-    self as hasura_type, Area, BallotPublication, Candidate, Contest, Election, ElectionEvent,
+    self as hasura_type, Area, AreaContest, BallotPublication, Candidate, Contest, Election,
+    ElectionEvent,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -56,14 +56,14 @@ pub fn get_elections_contests_map_for_area(
         .collect();
     let area_contests: Vec<AreaContest> = area_contests_map
         .values()
-        .filter(|area_contest| area_ids.contains(&area_contest.area_id.to_string()))
+        .filter(|area_contest| area_ids.contains(&area_contest.area_id))
         .map(|val| val.clone())
         .collect();
     // election_id, set<contest>
     let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
 
     for area_contest in area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id.to_string()) else {
+        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
             event!(
                 Level::INFO,
                 "missing contest for area contest: {}",
@@ -218,7 +218,7 @@ pub async fn update_election_event_ballot_styles(
 
     let area_contests_map: HashMap<String, AreaContest> = area_contests
         .into_iter()
-        .map(|area_contest| (area_contest.id.to_string(), area_contest.clone()))
+        .map(|area_contest| (area_contest.id.clone(), area_contest.clone()))
         .collect();
 
     let basic_areas = areas.iter().map(|area| area.into()).collect();
