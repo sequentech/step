@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, CircularProgress} from "@mui/material"
 import React, {createContext, useContext, useEffect, useState} from "react"
-import {styled} from "@mui/material/styles"
+import Loader from "../components/Loader"
 
 export interface GlobalSettings {
     DISABLE_AUTH: boolean
@@ -88,17 +87,6 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     )
 }
 
-const StyledBox = styled(Box)`
-    display: flex;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    margin: auto;
-    align-items: center;
-    justify-content: center;
-`
 
 export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {loaded} = useContext(SettingsContext)
@@ -106,9 +94,7 @@ export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
     return loaded ? (
         <>{children}</>
     ) : (
-        <StyledBox>
-            <CircularProgress />
-        </StyledBox>
+        <Loader/>
     )
 }
 
