@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -11,7 +12,9 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::services::ceremonies::tally_ceremony;
+use windmill::services::{
+    ceremonies::tally_ceremony, database::get_hasura_pool,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -40,6 +43,22 @@ pub async fn create_tally_ceremony(
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
+
     let tally_session_id = tally_ceremony::create_tally_ceremony(
         tenant_id,
         input.election_event_id.clone(),
@@ -48,12 +67,16 @@ pub async fn create_tally_ceremony(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    let _commit = hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
     event!(
         Level::INFO,
-        "Creating Tally Ceremony, electionEventId={}, tallySessionId={}",
+        "Created Tally Ceremony, electionEventId={}, tallySessionId={}",
         input.election_event_id,
         tally_session_id,
     );
+
     Ok(Json(CreateTallyCeremonyOutput { tally_session_id }))
 }
 
