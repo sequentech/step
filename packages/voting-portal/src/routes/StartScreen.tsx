@@ -81,7 +81,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     )
 }
 
-export const StartScreen: React.FC = () => {
+const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -151,3 +151,5 @@ export const StartScreen: React.FC = () => {
         </PageLimit>
     )
 }
+
+export default StartScreen

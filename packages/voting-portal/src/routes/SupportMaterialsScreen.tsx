@@ -76,7 +76,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
     )
 }
 
-export const SupportMaterialsScreen: React.FC = () => {
+const SupportMaterialsScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
@@ -199,3 +199,5 @@ export const SupportMaterialsScreen: React.FC = () => {
         </PageLimit>
     )
 }
+
+export default SupportMaterialsScreen

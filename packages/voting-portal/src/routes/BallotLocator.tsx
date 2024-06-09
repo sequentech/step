@@ -83,7 +83,7 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
-export const BallotLocator: React.FC = () => {
+const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
@@ -250,3 +250,5 @@ export const BallotLocator: React.FC = () => {
         </>
     )
 }
+
+export default BallotLocator

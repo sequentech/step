@@ -295,7 +295,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     )
 }
 
-export const ConfirmationScreen: React.FC = () => {
+const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -419,3 +419,5 @@ export const ConfirmationScreen: React.FC = () => {
         </PageLimit>
     )
 }
+
+export default ConfirmationScreen
