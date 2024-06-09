@@ -161,7 +161,7 @@ const englishTranslation = {
                 maxSelectionsPerType:
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
                 underVote:
-                    "Number of selected choices {{numSelected}} is less than the maximun {{max}}",
+                    "Number of selected choices {{numSelected}} is less than the maximum {{max}}",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
