@@ -59,7 +59,7 @@ impl Pipe for DoTally {
                     .map(|area| (&area.area).into())
                     .collect();
 
-                let areas_tree = TreeNode::from_areas(areas).map_err(|err| {
+                let areas_tree = TreeNode::<()>::from_areas(areas).map_err(|err| {
                     Error::UnexpectedError(format!("Error building area tree {:?}", err))
                 })?;
 

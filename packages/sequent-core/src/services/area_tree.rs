@@ -13,6 +13,11 @@ pub struct TreeNodeArea {
     pub parent_id: Option<String>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
+pub struct ContestsData {
+    contest_ids: HashSet<String>,
+}
+
 impl From<&Area> for TreeNodeArea {
     fn from(area: &Area) -> Self {
         TreeNodeArea {
@@ -25,12 +30,16 @@ impl From<&Area> for TreeNodeArea {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct TreeNode {
+pub struct TreeNode<T = ()> {
     pub area: Option<TreeNodeArea>,
-    pub children: Vec<TreeNode>,
+    pub children: Vec<TreeNode<T>>,
+    pub data: T,
 }
 
-impl TreeNode {
+impl<T> TreeNode<T>
+where
+    T: Clone + Default,
+{
     pub fn get_all_children(&self) -> Vec<TreeNodeArea> {
         let mut children: Vec<TreeNodeArea> = vec![];
         if let Some(area) = self.area.clone() {
@@ -46,8 +55,8 @@ impl TreeNode {
         children
     }
 
-    pub fn from_areas(areas: Vec<TreeNodeArea>) -> Result<TreeNode> {
-        let mut nodes: HashMap<String, TreeNode> = HashMap::new();
+    pub fn from_areas(areas: Vec<TreeNodeArea>) -> Result<TreeNode<T>> {
+        let mut nodes: HashMap<String, TreeNode<T>> = HashMap::new();
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
         let mut root_ids: Vec<String> = Vec::new();
 
@@ -58,9 +67,10 @@ impl TreeNode {
 
             nodes.insert(
                 id.clone(),
-                TreeNode {
+                TreeNode::<T> {
                     area: Some(area),
                     children: Vec::new(),
+                    data: Default::default(),
                 },
             );
 
@@ -81,9 +91,10 @@ impl TreeNode {
             }
         }
 
-        let mut root_node = TreeNode {
+        let mut root_node = TreeNode::<T> {
             area: None,
             children: Vec::new(),
+            data: Default::default(),
         };
 
         // Build the forest under a single root
@@ -91,7 +102,7 @@ impl TreeNode {
         // maintain state outside the multiple recursive calls
         let mut visited: HashSet<String> = HashSet::new();
         for root_id in root_ids {
-            let child_node = TreeNode::build_tree(
+            let child_node = TreeNode::<T>::build_tree(
                 &root_id,
                 &nodes,
                 &mut visited,
@@ -105,25 +116,27 @@ impl TreeNode {
 
     fn build_tree<'a>(
         id: &'a str,
-        nodes: &'a HashMap<String, TreeNode>,
+        nodes: &'a HashMap<String, TreeNode<T>>,
         visited: &mut HashSet<String>,
         parent_map: &'a HashMap<String, Vec<String>>,
-    ) -> Result<TreeNode> {
+    ) -> Result<TreeNode<T>> {
         if visited.contains(id) {
             return Err(anyhow!("Loop detected in the tree structure"));
         }
 
         visited.insert(id.to_string());
         let node = nodes.get(id).ok_or(anyhow!("Node not found"))?.clone();
-        let mut new_node = TreeNode {
+        let mut new_node = TreeNode::<T> {
             area: node.area.clone(),
             children: Vec::new(),
+            data: Default::default(),
         };
 
         if let Some(children_ids) = parent_map.get(id) {
             for child_id in children_ids {
-                let child_node =
-                    TreeNode::build_tree(child_id, nodes, visited, parent_map)?;
+                let child_node = TreeNode::<T>::build_tree(
+                    child_id, nodes, visited, parent_map,
+                )?;
                 new_node.children.push(child_node);
             }
         }
@@ -132,7 +145,7 @@ impl TreeNode {
         Ok(new_node)
     }
 
-    pub fn find_area(&self, area_id: &str) -> Option<TreeNode> {
+    pub fn find_area(&self, area_id: &str) -> Option<TreeNode<T>> {
         if let Some(area) = self.area.clone() {
             if &area.id == area_id {
                 return Some(self.clone());
@@ -161,7 +174,7 @@ impl TreeNode {
 
     // Depth First Helper function to recursively find the path
     fn dfs(
-        node: &TreeNode,
+        node: &TreeNode<T>,
         area_id: &str,
         path: &mut Vec<TreeNodeArea>,
     ) -> bool {
@@ -189,12 +202,12 @@ impl TreeNode {
         false
     }
 
-    pub fn find_areas_for_election(
+    // generate a tree where each node has the data of all related contests
+    // note that areas spread down the tree
+    pub fn get_contests_data_tree(
         &self,
-        election_id: &str,
-        contests_map: &HashMap<String, Contest>,
         area_contests: &Vec<AreaContest>,
-    ) -> Vec<TreeNodeArea> {
+    ) -> TreeNode<ContestsData> {
         // Map<area_id, Set<contest_id>>
         let mut areas_map: HashMap<String, HashSet<String>> = HashMap::new();
         for area_contest in area_contests.iter() {
@@ -209,6 +222,37 @@ impl TreeNode {
                     set
                 });
         }
-        vec![]
+        let root_data: ContestsData = Default::default();
+        self.contests_data_tree(&root_data, &areas_map)
+    }
+
+    fn contests_data_tree(
+        &self,
+        parent_data: &ContestsData,
+        // Map<area_id, Set<contest_id>>
+        areas_map: &HashMap<String, HashSet<String>>,
+    ) -> TreeNode<ContestsData> {
+        let mut contest_ids = parent_data.contest_ids.clone();
+        if let Some(area) = self.area.clone() {
+            if let Some(self_contests) = areas_map.get(&area.id) {
+                contest_ids.extend(self_contests.clone());
+            }
+        }
+        let data = ContestsData { contest_ids };
+        let children: Vec<TreeNode<ContestsData>> = self
+            .children
+            .iter()
+            .map(|child| {
+                child.contests_data_tree(
+                    &data, // Map<area_id, Set<contest_id>>
+                    &areas_map,
+                )
+            })
+            .collect();
+        TreeNode::<ContestsData> {
+            area: self.area.clone(),
+            children: children,
+            data: data,
+        }
     }
 }
