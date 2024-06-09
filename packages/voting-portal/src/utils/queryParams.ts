@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <leaal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
