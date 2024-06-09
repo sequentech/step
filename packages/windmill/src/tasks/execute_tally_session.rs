@@ -380,23 +380,27 @@ async fn insert_ballots_messages(
                 };
                 users_map.contains(&voter_id)
             })
-            .map(|ballot| {
-                ballot
+            .map(|ballot| -> Result<Option<Ciphertext<RistrettoCtx>>> {
+                Ok(ballot
                     .content
                     .clone()
-                    .map(|ballot_str| {
+                    .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
                         event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
 
-                        let hashable_ballot: HashableBallot =
-                            serde_json::from_str(&ballot_str).unwrap();
-                        let contests = hashable_ballot.deserialize_contests().unwrap();
-                        contests
+                        let hashable_ballot: HashableBallot = serde_json::from_str(&ballot_str)?;
+                        let contests = hashable_ballot
+                            .deserialize_contests()
+                            .map_err(|err| anyhow!("{:?}", err))?;
+                        Ok(contests
                             .iter()
                             .find(|contest| contest.contest_id == tally_session_contest.contest_id)
-                            .map(|contest| contest.ciphertext.clone())
+                            .map(|contest| contest.ciphertext.clone()))
                     })
-                    .flatten()
+                    .transpose()?
+                    .flatten())
             })
+            .collect::<Result<Vec<_>>>()?
+            .iter()
             .filter(|ballot| ballot.is_some())
             .map(|ballot| ballot.clone().unwrap())
             .collect();
