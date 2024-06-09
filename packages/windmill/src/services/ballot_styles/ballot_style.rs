@@ -32,22 +32,21 @@ use crate::services::pg_lock::PgLock;
 
 use sequent_core::services::area_tree::TreeNode;
 
-pub async fn create_ballot_style_postgres(
-    transaction: &Transaction<'_>,
+/**
+ * Returns a HashMap<election_id, set<contest_id>> with all
+ * the election ids and contest ids related to an area,
+ * taking into consideration the parent areas as well.
+ */
+pub fn get_elections_contests_map_for_area(
     area: &Area,
     areas_tree: &TreeNode,
-    tenant_id: &str,
-    election_event: &ElectionEvent,
     ballot_publication: &BallotPublication,
-    elections_map: &HashMap<String, Election>,
     contests_map: &HashMap<String, Contest>,
-    candidates_map: &HashMap<String, Candidate>,
     area_contests_map: &HashMap<String, AreaContest>,
-) -> Result<()> {
+) -> AnyhowResult<HashMap<String, HashSet<String>>> {
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
     if 0 == election_ids.len() {
-        event!(Level::INFO, "No election ids",);
-        return Ok(());
+        return Err(anyhow!("No election ids"));
     }
     let area_ids: Vec<String> = areas_tree
         .find_path_to_area(&area.id)
@@ -60,7 +59,7 @@ pub async fn create_ballot_style_postgres(
         .filter(|area_contest| area_ids.contains(&area_contest.area_id.to_string()))
         .map(|val| val.clone())
         .collect();
-    // election_id, vec<contest>
+    // election_id, set<contest>
     let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
 
     for area_contest in area_contests.iter() {
@@ -86,12 +85,33 @@ pub async fn create_ballot_style_postgres(
                 set
             });
     }
+    Ok(election_contest_map)
+}
+
+pub async fn create_ballot_style_postgres(
+    transaction: &Transaction<'_>,
+    area: &Area,
+    areas_tree: &TreeNode,
+    tenant_id: &str,
+    election_event: &ElectionEvent,
+    ballot_publication: &BallotPublication,
+    elections_map: &HashMap<String, Election>,
+    contests_map: &HashMap<String, Contest>,
+    candidates_map: &HashMap<String, Candidate>,
+    area_contests_map: &HashMap<String, AreaContest>,
+) -> Result<()> {
+    let election_contest_map = get_elections_contests_map_for_area(
+        area,
+        areas_tree,
+        ballot_publication,
+        contests_map,
+        area_contests_map,
+    )?;
 
     for (election_id, contest_ids) in election_contest_map.into_iter() {
         let election = elections_map
             .get(&election_id)
             .ok_or(anyhow!("election id not found {}", election_id))?;
-        //let contest_ids: Vec<String> = contests.iter().map(|contest| contest.id.clone()).collect();
         let contests: Vec<Contest> = contest_ids
             .iter()
             .map(|contest_id| {
