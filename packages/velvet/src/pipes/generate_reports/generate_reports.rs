@@ -155,6 +155,28 @@ impl GenerateReports {
     }
 
     #[instrument(skip(self))]
+    pub fn has_aggregate(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: &Uuid,
+    ) -> bool {
+        let base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::DoTally.as_ref()),
+            election_id,
+            contest_id,
+            Some(area_id.clone()).as_ref(),
+        );
+        let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+        aggregate_path.exists() && aggregate_path.is_dir()
+    }
+
+    #[instrument(skip(self))]
     fn read_contest_result(
         &self,
         election_id: &Uuid,
@@ -362,16 +384,35 @@ impl Pipe for GenerateReports {
                     .contest_list
                     .par_iter()
                     .map(|contest_input| {
-                        contest_input.area_list.par_iter().for_each(|area_input| {
-                            let _ = self.make_report(
-                                &election_input.id,
-                                &election_input.name,
-                                Some(&contest_input.id),
-                                Some(&area_input.id),
-                                contest_input.contest.clone(),
-                                false,
-                            );
-                        });
+                        let _area_contest_reports: Vec<ReportData> = contest_input
+                            .area_list
+                            .par_iter()
+                            .map(|area_input| -> Result<ReportData> {
+                                let has_aggregate = self.has_aggregate(
+                                    &election_input.id,
+                                    Some(&contest_input.id),
+                                    &area_input.id,
+                                );
+                                if has_aggregate {
+                                    self.make_report(
+                                        &election_input.id,
+                                        &election_input.name,
+                                        Some(&contest_input.id),
+                                        Some(&area_input.id),
+                                        contest_input.contest.clone(),
+                                        true,
+                                    )?;
+                                }
+                                self.make_report(
+                                    &election_input.id,
+                                    &election_input.name,
+                                    Some(&contest_input.id),
+                                    Some(&area_input.id),
+                                    contest_input.contest.clone(),
+                                    false,
+                                )
+                            })
+                            .collect::<Result<Vec<ReportData>>>()?;
 
                         let contest_report = self.make_report(
                             &election_input.id,
