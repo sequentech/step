@@ -98,7 +98,7 @@ pub async fn create_ballot_style_postgres(
                 contests_map
                     .get(contest_id)
                     .map(|val| val.clone())
-                    .ok_or(Error::String("Can't find contest".into()))
+                    .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
             })
             .collect::<Result<Vec<Contest>>>()?;
         let candidates: Vec<Candidate> = candidates_map
