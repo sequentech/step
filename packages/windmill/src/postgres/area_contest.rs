@@ -1,22 +1,24 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::import_election_event::{AreaContest, ImportElectionEventSchema};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::hasura::core::AreaContest;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-impl TryFrom<Row> for AreaContest {
+pub struct AreaContestWrapper(pub AreaContest);
+
+impl TryFrom<Row> for AreaContestWrapper {
     type Error = anyhow::Error;
 
     fn try_from(item: Row) -> Result<Self> {
-        Ok(AreaContest {
-            id: item.try_get("id")?,
-            area_id: item.try_get("area_id")?,
-            contest_id: item.try_get("contest_id")?,
-        })
+        Ok(AreaContestWrapper(AreaContest {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            area_id: item.try_get::<_, Uuid>("area_id")?.to_string(),
+            contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
+        }))
     }
 }
 
@@ -89,7 +91,10 @@ pub async fn export_area_contests(
 
     let area_contests: Vec<AreaContest> = rows
         .into_iter()
-        .map(|row| -> Result<AreaContest> { row.try_into() })
+        .map(|row| -> Result<AreaContest> {
+            row.try_into()
+                .map(|res: AreaContestWrapper| -> AreaContest { res.0 })
+        })
         .collect::<Result<Vec<AreaContest>>>()?;
 
     Ok(area_contests)
