@@ -70,6 +70,14 @@ impl Pipe for DoTally {
                         Some(&contest_input.id),
                         Some(&area_input.id),
                     );
+
+                    let base_output_path = PipeInputs::build_path(
+                        &output_dir,
+                        &contest_input.election_id,
+                        Some(&contest_input.id),
+                        Some(&area_input.id),
+                    );
+
                     let decoded_ballots_file = base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
                     // create aggregate tally from children areas
                     let Some(area_tree) = areas_tree.find_area(&area_input.id.to_string()) else {
@@ -81,7 +89,7 @@ impl Pipe for DoTally {
                     let children_areas = area_tree.get_all_children();
                     if !children_areas.is_empty() {
                         let base_aggregate_path =
-                            base_input_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+                            base_output_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
                         fs::create_dir_all(&base_aggregate_path)?;
 
                         let mut children_area_paths: Vec<PathBuf> = children_areas
@@ -125,13 +133,6 @@ impl Pipe for DoTally {
                     let res = counting_algorithm
                         .tally()
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-
-                    let base_output_path = PipeInputs::build_path(
-                        &output_dir,
-                        &contest_input.election_id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    );
 
                     fs::create_dir_all(&base_output_path)?;
                     let file_path = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);

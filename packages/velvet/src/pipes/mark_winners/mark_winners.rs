@@ -10,7 +10,7 @@ use tracing::{event, instrument, Level};
 
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
-    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
+    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
@@ -73,32 +73,57 @@ impl Pipe for MarkWinners {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 for area_input in &contest_input.area_list {
-                    let contest_result_file = PipeInputs::build_path(
+                    let base_input_path = PipeInputs::build_path(
                         &input_dir,
-                        &contest_input.election_id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    )
-                    .join(OUTPUT_CONTEST_RESULT_FILE);
-
-                    let f = fs::File::open(&contest_result_file)
-                        .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                    let contest_result: ContestResult = parse_file(f)?;
-
-                    let winner = self.get_winners(&contest_result);
-
-                    let mut file = PipeInputs::build_path(
-                        &output_dir,
                         &contest_input.election_id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
                     );
 
-                    fs::create_dir_all(&file)?;
-                    file.push(OUTPUT_WINNERS);
-                    let file = fs::File::create(file)?;
+                    let base_output_path = PipeInputs::build_path(
+                        &output_dir,
+                        &contest_input.election_id,
+                        Some(&contest_input.id),
+                        Some(&area_input.id),
+                    );
+                    // do aggregate winners
+                    let base_input_aggregate_path =
+                        base_input_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+                    if base_input_aggregate_path.exists() && base_input_aggregate_path.is_dir() {
+                        let contest_result_file =
+                            base_input_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
 
-                    serde_json::to_writer(file, &winner)?;
+                        let contest_results_file = fs::File::open(&contest_result_file)
+                            .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
+                        let contest_result: ContestResult = parse_file(contest_results_file)?;
+
+                        let winners = self.get_winners(&contest_result);
+
+                        let aggregate_output_path =
+                            base_output_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+
+                        fs::create_dir_all(&aggregate_output_path)?;
+                        let winners_file_path = aggregate_output_path.join(OUTPUT_WINNERS);
+                        let winners_file = fs::File::create(winners_file_path)?;
+
+                        serde_json::to_writer(winners_file, &winners)?;
+                    }
+
+                    // do area winners
+
+                    let contest_result_file = base_input_path.join(OUTPUT_CONTEST_RESULT_FILE);
+
+                    let contest_results_file = fs::File::open(&contest_result_file)
+                        .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
+                    let contest_result: ContestResult = parse_file(contest_results_file)?;
+
+                    let winners = self.get_winners(&contest_result);
+
+                    fs::create_dir_all(&base_output_path)?;
+                    let winners_file_path = base_output_path.join(OUTPUT_WINNERS);
+                    let winners_file = fs::File::create(winners_file_path)?;
+
+                    serde_json::to_writer(winners_file, &winners)?;
                 }
 
                 let contest_result_file = PipeInputs::build_path(
