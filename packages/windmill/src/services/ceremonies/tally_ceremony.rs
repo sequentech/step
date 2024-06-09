@@ -208,36 +208,9 @@ pub async fn insert_tally_session_contests(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    election_ids: &Vec<String>,
+    relevant_area_contests: &HashSet<AreaContest>,
+    contests_map: &HashMap<String, Contest>,
 ) -> Result<()> {
-    let areas_data = get_election_event_areas(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        election_ids.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find election event areas")?;
-
-    let contest_ids = areas_data
-        .sequent_backend_contest
-        .clone()
-        .into_iter()
-        .map(|contest| contest.id)
-        .collect::<Vec<_>>();
-    let contest_areas = areas_data
-        .sequent_backend_area_contest
-        .into_iter()
-        .filter(|contest_area| {
-            contest_area
-                .contest_id
-                .clone()
-                .map(|contest_id| contest_ids.contains(&contest_id))
-                .unwrap_or(false)
-        })
-        .collect::<Vec<_>>();
-
     let mut batch: BatchNumber = get_tally_session_highest_batch(
         auth_headers.clone(),
         tenant_id.to_string(),
@@ -245,20 +218,16 @@ pub async fn insert_tally_session_contests(
     )
     .await?;
 
-    for area_contest in contest_areas.into_iter() {
-        let contest_id = area_contest.contest_id.clone().unwrap();
-        let contest = areas_data
-            .sequent_backend_contest
-            .clone()
-            .into_iter()
-            .find(|contest| contest.id == contest_id)
-            .unwrap();
-        let tally_session_contest = insert_tally_session_contest(
+    for area_contest in relevant_area_contests.iter() {
+        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+            return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
+        };
+        let _tally_session_contest = insert_tally_session_contest(
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            area_contest.area_id.clone().unwrap(),
-            contest_id.clone(),
+            area_contest.area_id.clone(),
+            area_contest.contest_id.clone(),
             batch.clone(),
             tally_session_id.to_string(),
             contest.election_id.clone(),
@@ -359,7 +328,8 @@ pub async fn create_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-        &election_ids,
+        &relevant_area_contests,
+        &contests_map,
     )
     .await?;
 
