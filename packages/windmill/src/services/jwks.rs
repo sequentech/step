@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::s3;
+use crate::services::s3::CacheControlOptions;
 use crate::services::temp_path::generate_temp_file;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -111,6 +112,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         /* s3_bucket */ s3::get_public_bucket()?,
         /* media_type */ "application/json".to_string(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
+        /* cache_control_policy */ Some(CacheControlOptions::MaxAge(30)),
     )
     .await
     .with_context(|| "Error uploading file to s3")?;

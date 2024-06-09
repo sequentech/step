@@ -19,6 +19,20 @@ use tempfile::{tempfile, NamedTempFile};
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
+//This can be enhanced to more kinds of cache-policies
+#[derive(Debug)]
+pub enum CacheControlOptions {
+    MaxAge(u32),
+}
+
+impl ToString for CacheControlOptions {
+    fn to_string(&self) -> String {
+        match self {
+            CacheControlOptions::MaxAge(seconds) => format!("max-age={}", seconds),
+        }
+    }
+}
+
 #[instrument(err, ret)]
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket =
@@ -174,7 +188,7 @@ pub async fn upload_file_to_s3(
     s3_bucket: String,
     media_type: String,
     file_path: String,
-    add_cache_control: Option<bool>,
+    cache_control: Option<CacheControlOptions>,
 ) -> Result<()> {
     let body = ByteStream::from_path(&file_path)
         .await
@@ -186,21 +200,20 @@ pub async fn upload_file_to_s3(
         .await
         .with_context(|| "Error getting s3 client")?;
 
-    
-
-    let mut request = client
+    let request = client
         .put_object()
         .bucket(s3_bucket)
         .key(key)
         .content_type(media_type)
         .body(body);
 
-    if add_cache_control.unwrap_or(false) {
-        request = request.cache_control("max-age-30");
-    }
-        request.send()
-        .await
-        .context("Error uploading file to S3")?;
+    let request = if let Some(cache_control_value) = cache_control {
+        request.cache_control(cache_control_value.to_string())
+    } else {
+        request
+    };
+
+    request.send().await.context("Error uploading file to S3")?;
 
     Ok(())
 }
