@@ -92,20 +92,20 @@ impl Pipe for DoTally {
                             area_input.id, areas_tree
                         )));
                     };
+                    // Note: children areas includes itself
                     let children_areas = area_tree.get_all_children();
                     if !children_areas.is_empty() {
                         let base_aggregate_path =
                             base_output_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
                         fs::create_dir_all(&base_aggregate_path)?;
 
-                        let mut census_size: u64 = children_areas
+                        let census_size: u64 = children_areas
                             .iter()
                             .map(|child_area| census_map.get(&child_area.id))
                             .filter_map(|census| census.clone())
                             .sum();
-                        census_size += area_input.census;
 
-                        let mut children_area_paths: Vec<PathBuf> = children_areas
+                        let children_area_paths: Vec<PathBuf> = children_areas
                             .iter()
                             .map(|child_area| -> Result<PathBuf> {
                                 Ok(PipeInputs::build_path(
@@ -119,7 +119,6 @@ impl Pipe for DoTally {
                                 .join(OUTPUT_DECODED_BALLOTS_FILE))
                             })
                             .collect::<Result<Vec<PathBuf>>>()?;
-                        children_area_paths.push(decoded_ballots_file.clone());
 
                         let counting_algorithm = tally::create_tally(
                             &contest_input.contest,
