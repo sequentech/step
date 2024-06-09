@@ -327,7 +327,13 @@ impl GenerateReports {
             winners,
         };
 
-        self.write_report(election_id, contest_id, area_id, vec![report.clone()])?;
+        self.write_report(
+            election_id,
+            contest_id,
+            area_id,
+            vec![report.clone()],
+            is_aggregate,
+        )?;
 
         Ok(report)
     }
@@ -338,36 +344,42 @@ impl GenerateReports {
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         reports: Vec<ReportData>,
+        is_aggregate: bool,
     ) -> Result<()> {
         let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
 
-        let path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+        let mut base_path =
+            PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
-        fs::create_dir_all(&path)?;
+        if is_aggregate {
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+        }
 
-        let file = path.join(OUTPUT_PDF);
-        let mut file = OpenOptions::new()
+        fs::create_dir_all(&base_path)?;
+
+        let pdf_path = base_path.join(OUTPUT_PDF);
+        let mut pdf_file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
-            .open(file)?;
-        file.write_all(&bytes_pdf)?;
+            .open(pdf_path)?;
+        pdf_file.write_all(&bytes_pdf)?;
 
-        let file = path.join(OUTPUT_HTML);
-        let mut file = OpenOptions::new()
+        let html_path = base_path.join(OUTPUT_HTML);
+        let mut html_file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
-            .open(file)?;
-        file.write_all(&bytes_html)?;
+            .open(html_path)?;
+        html_file.write_all(&bytes_html)?;
 
-        let file = path.join(OUTPUT_JSON);
-        let mut file = OpenOptions::new()
+        let json_path = base_path.join(OUTPUT_JSON);
+        let mut json_file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
-            .open(file)?;
-        file.write_all(&bytes_json)?;
+            .open(json_path)?;
+        json_file.write_all(&bytes_json)?;
 
         Ok(())
     }
@@ -428,7 +440,7 @@ impl Pipe for GenerateReports {
                     .collect();
 
                 // write report for the current election
-                self.write_report(&election_input.id, None, None, contest_reports?)?;
+                self.write_report(&election_input.id, None, None, contest_reports?, false)?;
 
                 Ok(())
             })
