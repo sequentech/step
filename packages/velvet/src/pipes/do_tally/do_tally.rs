@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::{counting_algorithm, tally};
+use super::tally;
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
     error::{Error, Result},
@@ -79,6 +79,7 @@ impl Pipe for DoTally {
                     );
 
                     let decoded_ballots_file = base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
+
                     // create aggregate tally from children areas
                     let Some(area_tree) = areas_tree.find_area(&area_input.id.to_string()) else {
                         return Err(Error::UnexpectedError(format!(
@@ -102,7 +103,8 @@ impl Pipe for DoTally {
                                     Some(&Uuid::parse_str(&child_area.id).map_err(|err| {
                                         Error::UnexpectedError(format!("{:?}", err))
                                     })?),
-                                ))
+                                )
+                                .join(OUTPUT_DECODED_BALLOTS_FILE))
                             })
                             .collect::<Result<Vec<PathBuf>>>()?;
                         children_area_paths.push(decoded_ballots_file.clone());
