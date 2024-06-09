@@ -256,3 +256,30 @@ where
         }
     }
 }
+
+impl TreeNode<ContestsData> {
+    pub fn get_contest_matches(
+        &self,
+        contest_ids: &HashSet<String>,
+    ) -> HashSet<AreaContest> {
+        let mut set = HashSet::new();
+        if let Some(area) = self.area.clone() {
+            let own_area_contests: HashSet<AreaContest> = self
+                .data
+                .contest_ids
+                .iter()
+                .map(|contest_id| AreaContest {
+                    id: area.id.clone(),
+                    area_id: area.id.clone(),
+                    contest_id: contest_id.clone(),
+                })
+                .collect();
+            set.extend(own_area_contests);
+        }
+        for child in self.children.iter() {
+            let child_set = child.get_contest_matches(contest_ids);
+            set.extend(child_set);
+        }
+        set
+    }
+}

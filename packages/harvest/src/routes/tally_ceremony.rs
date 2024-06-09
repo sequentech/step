@@ -60,6 +60,7 @@ pub async fn create_tally_ceremony(
         })?;
 
     let tally_session_id = tally_ceremony::create_tally_ceremony(
+        &hasura_transaction,
         tenant_id,
         input.election_event_id.clone(),
         input.election_ids,

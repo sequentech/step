@@ -218,7 +218,7 @@ pub struct CommunicationTemplate {
     pub communication_type: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct AreaContest {
     pub id: String,
     pub area_id: String,

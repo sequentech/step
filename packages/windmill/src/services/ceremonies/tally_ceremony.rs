@@ -14,6 +14,9 @@ use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::postgres::area::get_event_areas;
+use crate::postgres::area_contest::export_area_contests;
+use crate::postgres::contest::export_contests;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
@@ -35,12 +38,19 @@ use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::newtypes::BatchNumber;
+use deadpool_postgres::Transaction;
+use futures::try_join;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::area_tree::ContestsData;
+use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
+use sequent_core::types::hasura::core::AreaContest;
+use sequent_core::types::hasura::core::Contest;
 use serde_json::{from_value, Value};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
 use tracing::{event, instrument, Level};
@@ -304,12 +314,42 @@ pub async fn insert_tally_session_contests(
     Ok(())
 }
 
+fn get_area_contests_for_election_ids(
+    contests_map: &HashMap<String, Contest>,
+    area_contests_tree: &TreeNode<ContestsData>,
+    election_ids: &Vec<String>,
+) -> HashSet<AreaContest> {
+    let contest_ids: HashSet<String> = contests_map
+        .values()
+        .filter(|contest| election_ids.contains(&contest.election_id))
+        .map(|contest| contest.id.clone())
+        .collect();
+    area_contests_tree.get_contest_matches(&contest_ids)
+}
+
 #[instrument(err)]
 pub async fn create_tally_ceremony(
+    transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
 ) -> Result<String> {
+    let (contests, areas, area_contests) = try_join!(
+        export_contests(&transaction, &tenant_id, &election_event_id),
+        get_event_areas(&transaction, &tenant_id, &election_event_id),
+        export_area_contests(&transaction, &tenant_id, &election_event_id),
+    )?;
+
+    let contests_map: HashMap<String, Contest> = contests
+        .into_iter()
+        .map(|contest| (contest.id.clone(), contest.clone()))
+        .collect();
+    let basic_areas = areas.iter().map(|area| area.into()).collect();
+    let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
+    let area_contests_tree = areas_tree.get_contests_data_tree(&area_contests);
+    let area_contests =
+        get_area_contests_for_election_ids(&contests_map, &area_contests_tree, &election_ids);
+
     let auth_headers = keycloak::get_client_credentials().await?;
     let keys_ceremony = find_keys_ceremony(
         auth_headers.clone(),
