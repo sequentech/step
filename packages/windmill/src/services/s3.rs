@@ -11,6 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
+use std::fmt;
 use s3::presigning::PresigningConfig;
 use std::fs::File;
 use std::io::Write;
@@ -25,13 +26,14 @@ pub enum CacheControlOptions {
     MaxAge(u32),
 }
 
-impl ToString for CacheControlOptions {
-    fn to_string(&self) -> String {
+impl fmt::Display for CacheControlOptions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CacheControlOptions::MaxAge(seconds) => format!("max-age={}", seconds),
+            CacheControlOptions::MaxAge(seconds) => write!(f, "max-age={}", seconds),
         }
     }
 }
+
 
 #[instrument(err, ret)]
 pub fn get_private_bucket() -> Result<String> {
