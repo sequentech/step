@@ -202,51 +202,6 @@ fn generate_initial_tally_status(
     }
 }
 
-// get area ids that are linked to these election ids
-#[instrument(skip(auth_headers), err)]
-pub async fn get_area_ids(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    election_ids: Vec<String>,
-) -> Result<Vec<String>> {
-    let areas_data = get_election_event_areas(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        election_ids.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find election event areas")?;
-    let contest_ids = areas_data
-        .sequent_backend_contest
-        .into_iter()
-        .map(|contest| contest.id)
-        .collect::<Vec<_>>();
-    let contest_areas = areas_data
-        .sequent_backend_area_contest
-        .into_iter()
-        .filter(|contest_area| {
-            contest_area
-                .contest_id
-                .clone()
-                .map(|contest_id| contest_ids.contains(&contest_id))
-                .unwrap_or(false)
-        })
-        .collect::<Vec<_>>();
-    let area_ids = contest_areas
-        .clone()
-        .into_iter()
-        .filter(|contest_area| contest_area.area_id.is_some())
-        .map(|contest_area| contest_area.area_id.unwrap())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-
-    Ok(area_ids)
-}
-
 #[instrument(err)]
 pub async fn insert_tally_session_contests(
     auth_headers: &connection::AuthHeaders,
@@ -347,8 +302,15 @@ pub async fn create_tally_ceremony(
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
     let area_contests_tree = areas_tree.get_contests_data_tree(&area_contests);
-    let area_contests =
+    let relevant_area_contests =
         get_area_contests_for_election_ids(&contests_map, &area_contests_tree, &election_ids);
+    let area_ids: Vec<String> = relevant_area_contests
+        .iter()
+        .map(|area_contest| area_contest.area_id.clone())
+        .collect::<HashSet<String>>()
+        .iter()
+        .map(|val| val.clone())
+        .collect();
 
     let auth_headers = keycloak::get_client_credentials().await?;
     let keys_ceremony = find_keys_ceremony(
@@ -359,13 +321,6 @@ pub async fn create_tally_ceremony(
     .await?;
     let keys_ceremony_status = get_keys_ceremony_status(keys_ceremony.status)?;
     let keys_ceremony_id = keys_ceremony.id.clone();
-    let area_ids = get_area_ids(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        election_ids.clone(),
-    )
-    .await?;
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
     let _tally_session = insert_tally_session(
