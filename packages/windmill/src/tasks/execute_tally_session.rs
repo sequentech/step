@@ -401,8 +401,7 @@ async fn insert_ballots_messages(
             })
             .collect::<Result<Vec<_>>>()?
             .iter()
-            .filter(|ballot| ballot.is_some())
-            .map(|ballot| ballot.clone().unwrap())
+            .filter_map(|ballot_opt| ballot_opt.clone())
             .collect();
 
         let batch = tally_session_contest.session_id.clone() as BatchNumber;

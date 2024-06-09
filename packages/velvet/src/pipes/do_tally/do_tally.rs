@@ -14,7 +14,7 @@ use crate::utils::HasId;
 use sequent_core::{ballot::Candidate, services::area_tree::TreeNodeArea};
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -62,6 +62,11 @@ impl Pipe for DoTally {
                 let areas_tree = TreeNode::<()>::from_areas(areas).map_err(|err| {
                     Error::UnexpectedError(format!("Error building area tree {:?}", err))
                 })?;
+                let census_map: HashMap<String, u64> = contest_input
+                    .area_list
+                    .iter()
+                    .map(|area_input| (area_input.area.id.to_string(), area_input.census))
+                    .collect();
 
                 for area_input in &contest_input.area_list {
                     let base_input_path = PipeInputs::build_path(
@@ -93,6 +98,13 @@ impl Pipe for DoTally {
                             base_output_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
                         fs::create_dir_all(&base_aggregate_path)?;
 
+                        let mut census_size: u64 = children_areas
+                            .iter()
+                            .map(|child_area| census_map.get(&child_area.id))
+                            .filter_map(|census| census.clone())
+                            .sum();
+                        census_size += area_input.census;
+
                         let mut children_area_paths: Vec<PathBuf> = children_areas
                             .iter()
                             .map(|child_area| -> Result<PathBuf> {
@@ -112,7 +124,7 @@ impl Pipe for DoTally {
                         let counting_algorithm = tally::create_tally(
                             &contest_input.contest,
                             children_area_paths,
-                            area_input.census,
+                            census_size,
                         )
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                         let res: ContestResult = counting_algorithm
