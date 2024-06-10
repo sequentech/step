@@ -50,8 +50,8 @@ pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<
         .with_prompt("")
         .with_command(
             Command::new("reset")
-                .arg(Arg::new("trustees").required(true))
-                .arg(Arg::new("threshold").required(true))
+                .arg(Arg::new("trustees").required(true).help("The total number of trustees"))
+                .arg(Arg::new("threshold").required(true).help("The trustees that will participate in the protocol (eg '1,2')"))
                 .about("Reset the run"),
             reset,
         )
@@ -190,7 +190,13 @@ impl<C: Ctx> Status<C> {
             ])
         }
         boards.push("Last step messages".to_string());
-        boards.push(ascii_table.format(data));
+        if data.len() > 0 {
+            boards.push(ascii_table.format(data));
+        }
+        else {
+            boards.push("* None *".to_string());
+            boards.push("".to_string());
+        }
 
         let mut ascii_table = AsciiTable::default();
         ascii_table.set_max_width(205);
