@@ -535,7 +535,7 @@ mod tests {
                 // Test for overvote
                 if num_selected_candidates > max_votes {
                     let has_max_vote_error =
-                        decoded_ballot.invalid_alerts.iter().any(|err| {
+                        decoded_ballot.invalid_errors.iter().any(|err| {
                             err.message
                                 == Some(
                                     "errors.implicit.selectedMax".to_string(),
