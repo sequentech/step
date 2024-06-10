@@ -510,38 +510,63 @@ mod tests {
                     }
                 }
 
-                // Test for undervote
                 let num_selected_candidates = decoded_ballot
                     .choices
                     .iter()
                     .filter(|choice| choice.selected > -1)
                     .count();
-                let min_votes = fixture.contest.min_votes as usize;
-                let max_votes = fixture.contest.max_votes as usize;
-
-                if num_selected_candidates >= min_votes
-                    && num_selected_candidates < max_votes
+                let max_votes = match usize::try_from(fixture.contest.max_votes)
                 {
-                    let has_under_vote_alert =
-                        decoded_ballot.invalid_alerts.iter().any(|alert| {
-                            alert.message
-                                == Some("errors.implicit.underVote".to_string())
-                        });
-                    assert!(
-                        has_under_vote_alert,
-                        "Expected undervote alert not found in invalid_alerts"
-                    );
-                }
-                // Test for overvote
-                if num_selected_candidates > max_votes {
-                    let has_max_vote_error =
-                        decoded_ballot.invalid_errors.iter().any(|err| {
-                            err.message
-                                == Some(
-                                    "errors.implicit.selectedMax".to_string(),
-                                )
-                        });
-                    assert!(has_max_vote_error, "Expected selected max overvote error not found in invalid_errors");
+                    Ok(val) => Some(val),
+                    Err(_) => None,
+                };
+                let min_votes = match usize::try_from(fixture.contest.min_votes)
+                {
+                    Ok(val) => Some(val),
+                    Err(_) => None,
+                };
+
+                if let (Some(max_votes), Some(min_votes)) =
+                    (max_votes, min_votes)
+                {
+                    // Test for undervote
+                    if let Some(presentation) = fixture.contest.presentation {
+                        if let Some(under_vote_alert_enabled) =
+                            presentation.under_vote_alert
+                        {
+                            if num_selected_candidates < max_votes
+                                && num_selected_candidates >= min_votes
+                                && under_vote_alert_enabled
+                            {
+                                let has_under_vote_alert = decoded_ballot
+                                    .invalid_alerts
+                                    .iter()
+                                    .any(|alert| {
+                                        alert.message
+                                            == Some(
+                                                "errors.implicit.underVote"
+                                                    .to_string(),
+                                            )
+                                    });
+                                assert!(
+                                has_under_vote_alert,
+                                "Expected undervote alert not found in invalid_alerts"
+                            );
+                            }
+                        }
+                    }
+                    // Test for overvote
+                    if num_selected_candidates > max_votes {
+                        let has_max_vote_error =
+                            decoded_ballot.invalid_errors.iter().any(|err| {
+                                err.message
+                                    == Some(
+                                        "errors.implicit.selectedMax"
+                                            .to_string(),
+                                    )
+                            });
+                        assert!(has_max_vote_error, "Expected selected max overvote error not found in invalid_errors");
+                    }
                 }
             }
         }
