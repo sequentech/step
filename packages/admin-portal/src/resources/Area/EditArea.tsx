@@ -8,6 +8,8 @@ import {
     Identifier,
     RecordContext,
     SaveButton,
+    SelectField,
+    SelectInput,
     SimpleForm,
     TextInput,
     useGetList,
@@ -21,6 +23,8 @@ import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
+import {Sequent_Backend_Area} from "@/gql/graphql"
+import {keyBy} from "@sequentech/ui-essentials"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -30,6 +34,7 @@ interface EditAreaProps {
 
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
+    const [areasList, setAreasList] = useState<Array<Sequent_Backend_Area>>([])
 
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
     const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
@@ -55,12 +60,48 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         filter: {election_event_id: electionEventId},
     })
 
+    const {data: allAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+        filter: {
+            tenant_id: tenantId,
+            election_event_id: electionEventId,
+        },
+    })
+
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
             electionEventId,
             areaId: id,
         },
     })
+
+    useEffect(() => {
+        let allAreasDefault = allAreas ?? []
+        let areasMap = keyBy(allAreasDefault, "id")
+
+        const isCyclical = (
+            childId: Identifier | undefined,
+            parent: Sequent_Backend_Area,
+            map: Record<string, Sequent_Backend_Area>
+        ): boolean => {
+            let parents: Array<Identifier> = []
+            if (childId) {
+                parents.push(childId)
+            }
+            let current: Sequent_Backend_Area | undefined = parent
+            while (current) {
+                if (parents.includes(current.id)) {
+                    return true
+                }
+                parents.push(current.id)
+                current = current.parent_id ? map[current.parent_id] : undefined
+            }
+            return false
+        }
+
+        let nonCyclicalAreas = allAreasDefault.filter((area) => !isCyclical(id, area, areasMap))
+
+        setAreasList(nonCyclicalAreas)
+    }, [allAreas, id])
 
     useEffect(() => {
         if (contests && areas) {
@@ -210,6 +251,8 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 row={false}
                                             />
                                         ) : null}
+
+                                        <SelectInput source="parent_id" choices={areasList} />
                                     </>
                                 </SimpleForm>
                             )

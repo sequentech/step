@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::area::export_areas;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
-use crate::postgres::election_event::export_election_event;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Result};
@@ -32,11 +32,11 @@ pub async fn read_export_data(
     let board_name = get_event_realm(tenant_id, election_event_id);
     let realm = client.get_realm(&other_client, &board_name).await?;
     let (election_event, elections, contests, candidates, areas, area_contests) = try_join!(
-        export_election_event(&transaction, tenant_id, election_event_id),
+        get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
         export_contests(&transaction, tenant_id, election_event_id),
         export_candidates(&transaction, tenant_id, election_event_id),
-        export_areas(&transaction, tenant_id, election_event_id),
+        get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
     )?;
 

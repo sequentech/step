@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::election_event_board::get_election_event_board;
 use crate::hasura::ballot_publication::{
     get_ballot_publication, get_previous_publication, get_previous_publication_election,
     get_publication_ballot_styles, insert_ballot_publication,
@@ -11,10 +10,11 @@ use crate::hasura::ballot_publication::{
 use crate::hasura::election::get_all_elections_for_event;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
-use crate::services::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
-use crate::services::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
+use crate::services::ballot_styles::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
+use crate::services::ballot_styles::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
 use crate::services::date::ISO8601;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::*;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;

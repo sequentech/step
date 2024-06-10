@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2022-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
@@ -8,7 +8,6 @@ use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::Serializer;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;

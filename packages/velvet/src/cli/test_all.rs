@@ -46,6 +46,7 @@ pub fn generate_ballots(
                     &election.id,
                     &Uuid::from_str(&contest.id).unwrap(),
                     100,
+                    None,
                 )?;
 
                 election.ballot_styles.push(generate_ballot_style(
@@ -413,6 +414,7 @@ mod tests {
             &election.id,
             &Uuid::from_str(&contest.id).unwrap(),
             100,
+            None,
         )?;
         let first_area_id = area_config.id;
 
@@ -514,6 +516,7 @@ mod tests {
             &election.id,
             &Uuid::from_str(&contest.id).unwrap(),
             100,
+            None,
         )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
@@ -617,6 +620,7 @@ mod tests {
             &election.id,
             &Uuid::from_str(&contest.id).unwrap(),
             100,
+            None,
         )?;
 
         election.ballot_styles.push(generate_ballot_style(
@@ -830,6 +834,7 @@ mod tests {
             &election.id,
             &Uuid::from_str(&contest.id).unwrap(),
             100,
+            None,
         )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
@@ -925,6 +930,7 @@ mod tests {
             &election.id,
             &Uuid::from_str(&contest.id).unwrap(),
             100,
+            None,
         )?;
 
         election.ballot_styles.push(generate_ballot_style(
@@ -1078,6 +1084,7 @@ mod tests {
             &election.id,
             &Uuid::from_str(&contest.id).unwrap(),
             100,
+            None,
         )?;
 
         election.ballot_styles.push(generate_ballot_style(
