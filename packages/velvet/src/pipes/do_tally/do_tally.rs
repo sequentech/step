@@ -94,7 +94,13 @@ impl Pipe for DoTally {
                     };
                     // Note: children areas includes itself
                     let children_areas = area_tree.get_all_children();
-                    if !children_areas.is_empty() {
+                    let num_children_areas = children_areas
+                        .clone()
+                        .iter()
+                        .filter(|child| child.id != area_input.id.to_string())
+                        .count();
+
+                    if num_children_areas > 0usize {
                         let base_aggregate_path =
                             base_output_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
                         fs::create_dir_all(&base_aggregate_path)?;
