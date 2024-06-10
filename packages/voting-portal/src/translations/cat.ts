@@ -143,6 +143,8 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
+            noVotingAreaError:
+                "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
         },
         errors: {
             encoding: {
