@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {LegacyRef, useEffect, useState} from "react"
+import React, {LegacyRef, useEffect, useMemo, useState} from "react"
 import {Identifier, SimpleForm, useGetList} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -17,6 +17,9 @@ import {
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {GET_CONTESTS_EXTENDED} from "@/queries/GetContestsExtended"
 import {
+    Autocomplete,
+    AutocompleteChangeDetails,
+    AutocompleteChangeReason,
     Box,
     FormControl,
     InputLabel,
@@ -49,7 +52,7 @@ interface ICandidateResultsExtended extends ICandidateResults {
 
 interface IArea {
     id: string
-    name?: Maybe<string> | undefined
+    label?: Maybe<string> | undefined
 }
 
 const numbers = /^[0-9]+$/
@@ -70,11 +73,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
 
-    const {data: areas} = useQuery(GET_CONTESTS_EXTENDED, {
-        variables: {
-            electionEventId: contest.election_event_id,
-            contestId: contest.id,
-            tenantId: contest.tenant_id,
+    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+        filter: {
+            tenant_id: contest.tenant_id,
+            election_event_id: contest.election_event_id,
         },
     })
 
@@ -131,14 +133,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     useEffect(() => {
         if (areas) {
-            const areatListTemp: IArea[] = areas?.sequent_backend_area_contest?.map(
-                (item: {area: IArea}) => {
-                    return {
-                        id: item.area.id,
-                        name: item.area.name,
-                    }
+            const areatListTemp: IArea[] = areas?.map((item) => {
+                return {
+                    id: item.id,
+                    label: item.name,
                 }
-            )
+            })
             setAreasList(areatListTemp)
         }
     }, [areas])
@@ -164,11 +164,16 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }, [candidates, tallySheet])
 
-    const handleChange = (event: SelectChangeEvent) => {
+    const handleChange = (
+        event: React.SyntheticEvent,
+        value: IArea | null,
+        reason: AutocompleteChangeReason,
+        details?: AutocompleteChangeDetails
+    ) => {
         // setArea(event.target.value as string)
         setResults((prev: IAreaContestResults) => ({
             ...prev,
-            area_id: event.target.value as string,
+            area_id: value?.id as any,
         }))
     }
 
@@ -282,20 +287,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 </PageHeaderStyles.SubTitle>
 
                 <FormControl fullWidth size="small">
-                    <InputLabel>{t("tallysheet.label.area")}</InputLabel>
-                    <Select
-                        name="area_id"
-                        value={results.area_id}
-                        label={t("tallysheet.label.area")}
-                        onChange={handleChange}
-                        required
-                    >
-                        {areasList?.map((item) => (
-                            <MenuItem key={item.id} value={item.id}>
-                                {item.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
+                    <Autocomplete
+                        sx={{width: 300}}
+                        onChange={handleChange as any}
+                        options={areasList ?? []}
+                        renderInput={(item) => <TextField {...item} label="Area" />}
+                        isOptionEqualToValue={(a, b) => a.id === b.id}
+                    />
                 </FormControl>
 
                 <FormControl fullWidth size="small">
