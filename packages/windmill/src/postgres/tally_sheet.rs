@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::TallySheet;
-use std::collections::HashMap;
+use sequent_core::types::tally_sheets::AreaContestResults;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -16,6 +16,10 @@ pub struct TallySheetWrapper(pub TallySheet);
 impl TryFrom<Row> for TallySheetWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
+        let content_val: Option<Value> = item.try_get("content")?;
+        let content: Option<AreaContestResults> = content_val
+            .map(|val| serde_json::from_value(val))
+            .transpose()?;
         Ok(TallySheetWrapper(TallySheet {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
@@ -29,7 +33,7 @@ impl TryFrom<Row> for TallySheetWrapper {
             annotations: item.try_get("annotations")?,
             published_at: item.get("published_at"),
             published_by_user_id: item.try_get("published_by_user_id")?,
-            content: item.try_get("content")?,
+            content: content,
             channel: item.try_get("channel")?,
             deleted_at: item.get("deleted_at"),
             created_by_user_id: item.try_get("created_by_user_id")?,

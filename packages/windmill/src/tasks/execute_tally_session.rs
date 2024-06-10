@@ -13,6 +13,7 @@ use crate::hasura::tally_session_execution::{
 };
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::area::get_event_areas;
+use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::services::cast_votes::find_area_ballots;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::results::populate_results_tables;
@@ -767,6 +768,9 @@ async fn map_plaintext_data(
         .map(|area: Area| (area.id.clone(), area.clone()))
         .collect();
 
+    let tally_sheet_rows =
+        get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
+            .await?;
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
         relevant_plaintexts,
