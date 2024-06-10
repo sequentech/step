@@ -120,6 +120,7 @@ public class Utils {
 
 		if (
 			mobileNumber != null &&
+			mobileNumber.trim().length() > 0 &&
 			(
 				messageCourier == MessageCourier.SMS ||
 				messageCourier == MessageCourier.BOTH
@@ -127,7 +128,7 @@ public class Utils {
 		) {
 			SmsSenderProvider smsSenderProvider = 
 				session.getProvider(SmsSenderProvider.class);
-			log.infov("sendCode(): Sending sms to={0}", mobileNumber);
+			log.infov("sendCode(): Sending sms to={0}", mobileNumber.trim());
 			List<String> smsAttributes = ImmutableList.of(
 				realmName,
 				code,
@@ -135,7 +136,7 @@ public class Utils {
 			);
 
 			smsSenderProvider.send(
-				mobileNumber,
+				mobileNumber.trim(),
 				Utils.SEND_CODE_SMS_I18N_KEY,
 				smsAttributes,
 				realm,
@@ -146,12 +147,13 @@ public class Utils {
 
 		if (
 			emailAddress != null &&
+			emailAddress.trim().length() > 0 &&
 			(
 				messageCourier == MessageCourier.EMAIL ||
 				messageCourier == MessageCourier.BOTH
 			)
 		) {
-			log.infov("sendCode(): Sending email to={0}", emailAddress);
+			log.infov("sendCode(): Sending email to={0}", emailAddress.trim());
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
 
@@ -174,7 +176,7 @@ public class Utils {
 						subjAttr,
 						Utils.SEND_CODE_EMAIL_FTL,
 						messageAttributes,
-						emailAddress
+						emailAddress.trim()
 					);
 				} else {
 					emailTemplateProvider
