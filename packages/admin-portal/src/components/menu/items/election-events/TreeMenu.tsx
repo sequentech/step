@@ -30,8 +30,10 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {translate, translateElection} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
+import {css} from '@emotion/react'
 import {colors} from '../../../../constants/colors'
 import { Box } from "@mui/material"
+import { MenuStyles } from "@/components/styles/Menu"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -94,10 +96,9 @@ function TreeLeaves({
     }, [i18n, i18n.language, data])
 
     const {canCreateElectionEvent} = useActionPermissions()
-    console.log('treeResourcesName', treeResourceNames[0]);
     return (
         <Box sx={{backgroundColor: colors.white}}>
-            <TreeLeavesContainer>
+            <MenuStyles.TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
                         return (
@@ -122,32 +123,32 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && canCreateElectionEvent && (
-                    <CreateElectionContainer
+                    <MenuStyles.CreateElectionContainer
                         style={{
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
                         }}
                     >
-                        <StyledAddIcon
+                        <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
-                        <StyledNavLink
+                        <MenuStyles.StyledNavLink
                             className={treeResourceNames[0]}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
                             style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
-                        </StyledNavLink>
-                        <StyledAddIcon
+                        </MenuStyles.StyledNavLink>
+                        <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
                             }}
                         />
-                        <StyledHiddenDiv/>
-                    </CreateElectionContainer>
+                        <MenuStyles.StyledHiddenDiv/>
+                    </MenuStyles.CreateElectionContainer>
                 )}
-            </TreeLeavesContainer>
+            </MenuStyles.TreeLeavesContainer>
         </Box>
     )
 }
@@ -216,21 +217,21 @@ function TreeMenuItem({
     let item: React.ReactNode
     if (treeResourceNames[0] === "sequent_backend_election_event") {
         item = (
-            <p className="flex items-center space-x-2">
-                <HowToVoteIcon className="text-brand-color" />
+            <MenuStyles.ItemContainer>
+                <MenuStyles.HowToVoteStyledIcon />
                 <span>{name}</span>
-            </p>
+            </MenuStyles.ItemContainer>
         )
     } else if (imageData) {
         item = (
-            <p className="flex items-center space-x-2">
+            <MenuStyles.ItemContainer>
                 <img
                     width={24}
                     height={24}
                     src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
                 <span>{name}</span>
-            </p>
+            </MenuStyles.ItemContainer>
         )
     } else {
         item = <p>{name}</p>
@@ -238,10 +239,9 @@ function TreeMenuItem({
 
     return (
         <Box sx={{backgroundColor: colors.white}}>
-
-            <TreeMenuItemContainer ref={menuItemRef}>
+            <MenuStyles.TreeMenuItemContainer ref={menuItemRef}>
                 {hasNext && canCreateElectionEvent ? (
-                    <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
+                    <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
                             <ExpandMoreIcon />
                         ) : (
@@ -254,27 +254,24 @@ function TreeMenuItem({
                                 }}
                             />
                         )}
-                    </div>
+                    </MenuStyles.TreeMenuIconContaier>
                 ) : (
                     <div className={cn("flex-none h-6", canCreateElectionEvent && "w-6")}></div>
                 )}
                 {isOpenSidebar && (
-                    <NavLink
+                    <MenuStyles.StyledSideBarNavLink
                         title={name}
                         className={({isActive}) =>
-                            cn(
-                                "grow py-1.5 text-black border-b-2 border-white hover:border-brand-color truncate cursor-pointer",
-                                isActive && "border-b-2 border-brand-color"
-                            )
+                            (isActive ? 'active' : '')
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
                         {item}
-                    </NavLink>
+                    </MenuStyles.StyledSideBarNavLink>
                 )}
-                <div
-                    className={`invisible group-hover:visible menu-actions-${treeResourceNames[0]}`}
+                <MenuStyles.MenuActionContainer
+                    className={`menu-actions-${treeResourceNames[0]}`}
                 >
                     {canCreateElectionEvent ? (
                         <MenuActions
@@ -286,8 +283,8 @@ function TreeMenuItem({
                             menuItemRef={menuItemRef}
                         ></MenuActions>
                     ) : null}
-                </div>
-            </TreeMenuItemContainer>
+                </MenuStyles.MenuActionContainer>
+            </MenuStyles.TreeMenuItemContainer>
             {open && (
                 <div className="">
                     {hasNext && (
@@ -321,19 +318,19 @@ export function TreeMenu({
         console.log('isEmpty', isEmpty);
     return (
         <>
-           <SideMenuContainer>
-            <SideMenuActiveItem onClick={() => onArchiveElectionEventsSelect(0)} isArchivedElectionEvents = {isArchivedElectionEvents}>
+           <MenuStyles.SideMenuContainer>
+            <MenuStyles.SideMenuActiveItem onClick={() => onArchiveElectionEventsSelect(0)} isArchivedElectionEvents = {isArchivedElectionEvents}>
                 {t("sideMenu.active")}
-            </SideMenuActiveItem>
-            <SideMenuArchiveItem onClick={() => onArchiveElectionEventsSelect(1)} isArchivedElectionEvents = {isArchivedElectionEvents}>
+            </MenuStyles.SideMenuActiveItem>
+            <MenuStyles.SideMenuArchiveItem onClick={() => onArchiveElectionEventsSelect(1)} isArchivedElectionEvents = {isArchivedElectionEvents}>
                 {t("sideMenu.archived")}
-            </SideMenuArchiveItem>
-            </SideMenuContainer>
+            </MenuStyles.SideMenuArchiveItem>
+            </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
-                    <EmptyStateContainer>
+                    <MenuStyles.EmptyStateContainer>
                         No Result
-                    </EmptyStateContainer>
+                    </MenuStyles.EmptyStateContainer>
                 ) : (
                     <TreeLeaves
                         data={data}
@@ -347,93 +344,5 @@ export function TreeMenu({
     )
 }
 
-const SideMenuContainer = styled.ul`
-  display: flex;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  background-color: white;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  line-height: 1.5rem;
-  & > *:not(:last-child) {
-    margin-right: 1rem;
-  }
-`;
-
-const SideMenuActiveItem = styled.li<{isArchivedElectionEvents: boolean}>`
-padding-left: 1rem;
-padding-right: 1rem;
-padding-top: 0.5rem;
-padding-bottom: 0.5rem;
-cursor: pointer;
-color: ${({isArchivedElectionEvents}) => (!isArchivedElectionEvents ? colors.brandColor : colors.secondary)};
-border-bottom: ${({ isArchivedElectionEvents }) => (!isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : 'none')};
-`
-
-const SideMenuArchiveItem = styled.li<{isArchivedElectionEvents: boolean}>`
-padding-left: 1rem;
-padding-right: 1rem;
-padding-top: 0.5rem;
-padding-bottom: 0.5rem;
-cursor: pointer;
-color: ${({isArchivedElectionEvents}) => (isArchivedElectionEvents ? colors.brandColor : colors.secondary)};
-border-bottom: ${({ isArchivedElectionEvents }) => (isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : 'none')};
-`
-
-const EmptyStateContainer = styled.div`
-  padding: 1rem;
-  background-color: white;
-`
-
-const TreeLeavesContainer = styled.div`
-    display: flex;
-    flex-direction: column;
-    margin-left: 0.75rem;
-`
-
-const CreateElectionContainer = styled.div`
-display: flex;
-align-items: center;
-color: ${colors.secondary};
-& > *:not(:last-child) {
-  margin-right: 0.5rem;
-}
-`
-
-const StyledAddIcon = styled(AddIcon)`
-flex: 0 0 auto;
-`
-
-const StyledNavLink = styled(NavLink)`
-flex-grow: 1;
-padding-top: 0.375rem;
-padding-bottom: 0.375rem;
-border-bottom-width: 2px;
-border-bottom-color: white;
-cursor: pointer;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-
-&:hover {
-  border-bottom-color: ${colors.secondary};
-}
-`
-
-const StyledHiddenDiv = styled.div`
-flex: 0 0 auto;
-width: 1.5rem;
-height: 1.5rem;
-visibility: hidden;
-`
-
-const TreeMenuItemContainer = styled.div`
-  display: flex;                   /* flex */
-  text-align: left;                /* text-left */
-  align-items: center;             /* items-center */
-  & > *:not(:last-child) {
-    margin-right: 0.5rem;          /* space-x-2 */
-  }
-`;
 
 
