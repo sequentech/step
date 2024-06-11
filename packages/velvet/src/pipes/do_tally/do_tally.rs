@@ -40,6 +40,26 @@ impl DoTally {
     }
 }
 
+pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
+    let subfolders = list_subfolders(&path);
+    let tally_sheet_folders: Vec<PathBuf> = subfolders
+        .into_iter()
+        .filter(|path| {
+            let Some(folder_name) = path
+                .components()
+                .last()
+                .map(|component| component.as_os_str().to_str())
+                .flatten()
+                .map(|component| component.to_string())
+            else {
+                return false;
+            };
+            folder_name.starts_with(PREFIX_TALLY_SHEET)
+        })
+        .collect();
+    tally_sheet_folders
+}
+
 impl Pipe for DoTally {
     #[instrument(skip_all, name = "DoTally::new")]
     fn exec(&self) -> Result<()> {
@@ -182,22 +202,8 @@ impl Pipe for DoTally {
                         Some(&area_input.id),
                     );
                     if input_tally_sheets_dir.exists() && input_tally_sheets_dir.is_dir() {
-                        let subfolders = list_subfolders(&input_tally_sheets_dir);
-                        let tally_sheet_folders: Vec<PathBuf> = subfolders
-                            .into_iter()
-                            .filter(|path| {
-                                let Some(folder_name) = path
-                                    .components()
-                                    .last()
-                                    .map(|component| component.as_os_str().to_str())
-                                    .flatten()
-                                    .map(|component| component.to_string())
-                                else {
-                                    return false;
-                                };
-                                folder_name.starts_with(PREFIX_TALLY_SHEET)
-                            })
-                            .collect();
+                        let tally_sheet_folders =
+                            list_tally_sheet_subfolders(&input_tally_sheets_dir);
                         for tally_sheet_folder in tally_sheet_folders {
                             // read tally sheet
                             let tally_sheets_file_path =
