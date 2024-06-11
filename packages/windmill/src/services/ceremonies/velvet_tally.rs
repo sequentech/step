@@ -10,7 +10,7 @@ use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::{Area, TallySheet};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -78,6 +78,7 @@ fn decode_plantexts_to_biguints(
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
+    tally_sheets: &Vec<TallySheet>,
 ) -> Result<()> {
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
@@ -398,9 +399,10 @@ pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
+    tally_sheets: &Vec<TallySheet>,
 ) -> Result<State> {
     for area_contest in area_contests {
-        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest)?;
+        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, tally_sheets)?;
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
     create_config_file(base_tally_path.clone()).await?;

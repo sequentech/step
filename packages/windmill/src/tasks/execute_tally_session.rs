@@ -52,6 +52,7 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
+use sequent_core::ballot::Candidate;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
@@ -62,6 +63,7 @@ use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::TallySheet;
 use std::collections::HashMap;
 use std::str::FromStr;
 use strand::elgamal::Ciphertext;
@@ -491,6 +493,73 @@ fn get_tally_session_created_at_timestamp_secs(
 }
 
 #[instrument(skip_all, err)]
+pub fn clean_tally_sheets(
+    tally_sheet_rows: &Vec<TallySheet>,
+    plaintexts_data: &Vec<AreaContestDataType>,
+) -> Result<Vec<TallySheet>> {
+    let areas_map: HashMap<String, AreaContestDataType> = plaintexts_data
+        .clone()
+        .into_iter()
+        .map(|area_contest| (area_contest.area.id.clone(), area_contest.clone()))
+        .collect();
+    tally_sheet_rows
+        .iter()
+        .map(|tally_sheet| -> Result<TallySheet> {
+            let Some(content) = tally_sheet.content.clone() else {
+                return Err(
+                    anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into(),
+                );
+            };
+            if tally_sheet.area_id != content.area_id {
+                return Err(
+                    anyhow!("Invalid tally sheet {:?}, area not consistent", tally_sheet).into(),
+                );
+            }
+            if tally_sheet.contest_id != content.contest_id {
+                return Err(anyhow!(
+                    "Invalid tally sheet {:?}, contest not consistent",
+                    tally_sheet
+                )
+                .into());
+            }
+            let Some(area_contest) = areas_map.get(&tally_sheet.contest_id) else {
+                return Err(
+                    anyhow!("Invalid tally sheet {:?}, can't find contest", tally_sheet).into(),
+                );
+            };
+            let contest = &area_contest.contest;
+            let candidates_map: HashMap<String, Candidate> = contest
+                .candidates
+                .clone()
+                .into_iter()
+                .map(|candidate| (candidate.id.clone(), candidate.clone()))
+                .collect();
+            for (candidate_id, candidate_data) in content.candidate_results.iter() {
+                if *candidate_id != candidate_data.candidate_id {
+                    return Err(anyhow!(
+                        "Invalid tally sheet {:?}, inconsistent candidate result {:?}, {}",
+                        tally_sheet,
+                        candidate_data,
+                        candidate_id
+                    )
+                    .into());
+                }
+                if !candidates_map.contains_key(&candidate_data.candidate_id) {
+                    return Err(anyhow!(
+                        "Invalid tally sheet {:?}, can't find candidate {:?}",
+                        tally_sheet,
+                        candidate_data
+                    )
+                    .into());
+                }
+            }
+
+            Ok(tally_sheet.clone())
+        })
+        .collect::<Result<Vec<TallySheet>>>()
+}
+
+#[instrument(skip_all, err)]
 async fn map_plaintext_data(
     auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
@@ -507,6 +576,7 @@ async fn map_plaintext_data(
         TallyCeremonyStatus,
         Option<Vec<i64>>,
         Vec<ElectionCastVotes>,
+        Vec<TallySheet>,
     )>,
 > {
     // fetch election_event
@@ -771,6 +841,7 @@ async fn map_plaintext_data(
     let tally_sheet_rows =
         get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
+
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
         relevant_plaintexts,
@@ -779,6 +850,7 @@ async fn map_plaintext_data(
         &areas_map,
     )
     .await?;
+    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(
         auth_headers.clone(),
@@ -795,6 +867,7 @@ async fn map_plaintext_data(
         new_status,
         Some(session_ids),
         cast_votes_count,
+        tally_sheets,
     )))
 }
 
@@ -857,6 +930,7 @@ pub async fn execute_tally_session_wrapped(
         new_status,
         session_ids,
         cast_votes_count,
+        tally_sheets,
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -878,6 +952,7 @@ pub async fn execute_tally_session_wrapped(
                 base_tempdir.path().to_path_buf(),
                 &plaintexts_data,
                 &cast_votes_count,
+                &tally_sheets,
             )
             .await?,
         )
