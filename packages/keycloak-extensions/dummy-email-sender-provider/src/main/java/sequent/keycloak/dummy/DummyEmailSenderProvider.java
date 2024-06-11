@@ -12,7 +12,7 @@ import java.util.Map;
 /*
  * Dummy email sender provider that just prints emails into the standard output
  * log.
- */
+ 
 @JBossLog
 public class DummyEmailSenderProvider implements EmailSenderProvider {
  
@@ -35,6 +35,47 @@ public class DummyEmailSenderProvider implements EmailSenderProvider {
             address,
             textBody,
             htmlBody
+        );
+    }
+
+    @Override
+    public void close() {
+    }
+}
+*/
+
+@JBossLog
+public class DummyEmailSenderProvider implements EmailSenderProvider {
+
+    // Temporary variable for testing purposes
+    private String temporaryValue;
+
+    public DummyEmailSenderProvider() {
+        // Initialize the temporary value to a default or null
+        this.temporaryValue = null;
+    }
+
+    // Setter method to set the temporary value
+    public void setTemporaryValue(String temporaryValue) {
+        this.temporaryValue = temporaryValue;
+    }
+
+    @Override
+    public void send(
+            Map<String, String> config,
+            String address,
+            String subject,
+            String textBody,
+            String htmlBody
+    ) throws EmailException {
+        // Use the temporary value in your method logic
+        log.infov(
+                "**Sending dummy email**:\n\t- subject={0}\n\t- address={1}\n\t- textBody={2}\n\t- htmlBody={3}\n\t- temporaryValue={4}",
+                subject,
+                address,
+                textBody,
+                htmlBody,
+                temporaryValue
         );
     }
 

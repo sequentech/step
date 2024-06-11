@@ -22,6 +22,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.11.0</maven.compiler.version>
 		<maven.shade.version>3.2.4</maven.shade.version>
+		<!-- Unit Testing JCA -->
+		<junit.version>5.8.1</junit.version>
+        <logback.version>1.2.6</logback.version>
+        <slf4j-test.version>1.2.0</slf4j-test.version>
 	</properties>
 
 	<dependencyManagement>
@@ -32,6 +36,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<version>${keycloak.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<!-- JUnit for testing JCA-->
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-api</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<!-- SLF4J and Logback for logging JCA-->
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>${logback.version}</version>
+			</dependency>
+			<!-- slf4j-test for capturing and verifying logs in tests JCA-->
+			<dependency>
+				<groupId>uk.org.lidalia</groupId>
+				<artifactId>slf4j-test</artifactId>
+				<version>${slf4j-test.version}</version>
+				<scope>test</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -87,6 +111,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven.compiler.version}</version>
+				<configuration>
+                    <source>${maven.compiler.release}</source>
+                    <target>${maven.compiler.release}</target>
+                </configuration>
+			</plugin>
+			<!-- Surefire for testing JC Ayeng-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.0.0</version>
+				<configuration>
+					<useFile>false</useFile>
+					<redirectTestOutputToFile>false</redirectTestOutputToFile>
+					<reportFormat>console</reportFormat>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
