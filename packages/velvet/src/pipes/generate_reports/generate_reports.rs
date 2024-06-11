@@ -402,7 +402,7 @@ impl Pipe for GenerateReports {
                             .chunks(PARALLEL_CHUNK_SIZE)
                             .enumerate();
                         for (index, area_list_chunk) in chunks {
-                            let _area_contest_reports: Vec<ReportData> = area_list_chunk
+                            area_list_chunk
                                 .par_iter()
                                 .map(|area_input| -> Result<ReportData> {
                                     let has_aggregate = self.has_aggregate(

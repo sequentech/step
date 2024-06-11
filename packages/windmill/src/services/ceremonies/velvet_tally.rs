@@ -12,7 +12,7 @@ use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::types::hasura::core::{Area, TallySheet};
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
@@ -74,6 +74,24 @@ fn decode_plantexts_to_biguints(
         .collect::<Vec<_>>()
 }
 
+// Returns a Map<(area_id,contest_id), Vec<tally_sheet>>
+#[instrument(skip_all)]
+fn create_tally_sheets_map(
+    tally_sheets: &Vec<TallySheet>,
+) -> HashMap<(String, String), Vec<TallySheet>> {
+    let mut area_contest_tally_sheet_map: HashMap<(String, String), Vec<TallySheet>> =
+        HashMap::new();
+    for tally_sheet in tally_sheets {
+        area_contest_tally_sheet_map
+            .entry((tally_sheet.area_id.clone(), tally_sheet.contest_id.clone()))
+            .and_modify(|tally_sheets_vec| {
+                tally_sheets_vec.push(tally_sheet.clone());
+            })
+            .or_insert_with(|| vec![tally_sheet.clone()]);
+    }
+    area_contest_tally_sheet_map
+}
+
 #[instrument(skip_all, err)]
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
@@ -83,6 +101,9 @@ pub fn prepare_tally_for_area_contest(
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
     let election_id = area_contest.contest.election_id.clone();
+
+    // map<(area_id,contest_id), tally_sheet>
+    let area_contest_tally_sheet_map = create_tally_sheets_map(tally_sheets);
 
     let biguit_ballots =
         decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
