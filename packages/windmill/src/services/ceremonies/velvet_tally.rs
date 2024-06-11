@@ -96,14 +96,15 @@ fn create_tally_sheets_map(
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
-    tally_sheets: &Vec<TallySheet>,
+    tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
 ) -> Result<()> {
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
+    let relevant_sheets = tally_sheets
+        .get(&(area_id.clone(), contest_id.clone()))
+        .map(|val| val.clone())
+        .unwrap_or(vec![]);
     let election_id = area_contest.contest.election_id.clone();
-
-    // map<(area_id,contest_id), tally_sheet>
-    let area_contest_tally_sheet_map = create_tally_sheets_map(tally_sheets);
 
     let biguit_ballots =
         decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
@@ -159,6 +160,24 @@ pub fn prepare_tally_for_area_contest(
         "{}",
         serde_json::to_string(&area_contest.contest)?
     )?;
+
+    //// create tally sheets files
+    if relevant_sheets.len() > 0 {
+        for tally_sheet in relevant_sheets {
+            let Some(content) = tally_sheet.content.clone() else {
+                continue;
+            };
+            //// create tally sheets folder
+            let tally_sheet_path: PathBuf = velvet_input_dir.join(format!(
+                "default/tally_sheets/election__{}/contest__{}/area__{}/tally_sheet__{}",
+                election_id, content.contest_id, content.area_id, tally_sheet.id
+            ));
+            fs::create_dir_all(&tally_sheet_path)?;
+            let tally_sheet_file_path: PathBuf = tally_sheet_path.join("tally-sheet.json");
+            let mut tally_sheet_file = fs::File::create(tally_sheet_file_path)?;
+            writeln!(tally_sheet_file, "{}", serde_json::to_string(&tally_sheet)?)?;
+        }
+    }
 
     Ok(())
 }
@@ -422,8 +441,10 @@ pub async fn run_velvet_tally(
     cast_votes_count: &Vec<ElectionCastVotes>,
     tally_sheets: &Vec<TallySheet>,
 ) -> Result<State> {
+    // map<(area_id,contest_id), tally_sheet>
+    let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {
-        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, tally_sheets)?;
+        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
     create_config_file(base_tally_path.clone()).await?;
