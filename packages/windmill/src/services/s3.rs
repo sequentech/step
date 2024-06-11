@@ -20,19 +20,6 @@ use tempfile::{tempfile, NamedTempFile};
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
-//This can be enhanced to more kinds of cache-policies
-#[derive(Debug)]
-pub enum CacheControlOptions {
-    MaxAge(u32),
-}
-
-impl fmt::Display for CacheControlOptions {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CacheControlOptions::MaxAge(seconds) => write!(f, "max-age={}", seconds),
-        }
-    }
-}
 
 #[instrument(err, ret)]
 pub fn get_private_bucket() -> Result<String> {
@@ -189,7 +176,7 @@ pub async fn upload_file_to_s3(
     s3_bucket: String,
     media_type: String,
     file_path: String,
-    cache_control: Option<CacheControlOptions>,
+    cache_control: Option<String>,
 ) -> Result<()> {
     let body = ByteStream::from_path(&file_path)
         .await
@@ -209,7 +196,7 @@ pub async fn upload_file_to_s3(
         .body(body);
 
     let request = if let Some(cache_control_value) = cache_control {
-        request.cache_control(cache_control_value.to_string())
+        request.cache_control(cache_control_value)
     } else {
         request
     };
