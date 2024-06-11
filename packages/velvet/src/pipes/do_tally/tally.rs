@@ -4,7 +4,7 @@
 
 use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
 use super::error::{Error, Result};
-use super::ContestResult;
+use super::{CandidateResult, ContestResult};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
@@ -69,8 +69,49 @@ impl Tally {
     }
 }
 
-pub fn process_tally_sheet(tally_sheet: &TallySheet) -> Result<ContestResult> {
-    Err("".into())
+pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<ContestResult> {
+    let Some(content) = tally_sheet.content.clone() else {
+        return Err("missing tally sheet content".into());
+    };
+    let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
+    Ok(ContestResult {
+        contest: contest.clone(),
+        census: content.census.unwrap_or(0),
+        percentage_census: 0.0,
+        total_votes: content.total_votes.unwrap_or(0),
+        percentage_total_votes: 0.0,
+        total_valid_votes: content.total_valid_votes.unwrap_or(0),
+        percentage_total_valid_votes: 0.0,
+        total_invalid_votes: invalid_votes.total_invalid.unwrap_or(0),
+        percentage_total_invalid_votes: 0.0,
+        total_blank_votes: content.total_blank_votes.unwrap_or(0),
+        percentage_total_blank_votes: 0.0,
+        invalid_votes: super::InvalidVotes {
+            explicit: invalid_votes.explicit_invalid.unwrap_or(0),
+            implicit: invalid_votes.implicit_invalid.unwrap_or(0),
+        },
+        percentage_invalid_votes_explicit: 0.0,
+        percentage_invalid_votes_implicit: 0.0,
+        candidate_result: content
+            .candidate_results
+            .values()
+            .map(|candidate| -> Result<CandidateResult> {
+                let Some(found_candidate) = contest
+                    .candidates
+                    .iter()
+                    .find(|c| candidate.candidate_id == c.id)
+                else {
+                    return Err("can't find Candidate".into());
+                };
+
+                Ok(CandidateResult {
+                    candidate: found_candidate.clone(),
+                    percentage_votes: 0.0,
+                    total_count: candidate.total_votes.unwrap_or(0),
+                })
+            })
+            .collect::<Result<Vec<CandidateResult>>>()?,
+    })
 }
 
 #[instrument(skip_all)]
