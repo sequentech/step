@@ -20,7 +20,6 @@ use tempfile::{tempfile, NamedTempFile};
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
-
 #[instrument(err, ret)]
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket =

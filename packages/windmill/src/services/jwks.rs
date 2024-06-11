@@ -33,7 +33,7 @@ fn get_jwks_secret_path() -> String {
 
 pub fn get_cache_policy() -> Result<String> {
     let cache_policy = env::var("AWS_S3_JWKS_CACHE_POLICY")
-        .map_err(|err| anyhow!("AWS_S3_JWKS_CACHE_POLICY Must be set: {}", {err}))?;
+        .map_err(|err| anyhow!("AWS_S3_JWKS_CACHE_POLICY Must be set: {}", { err }))?;
     Ok(cache_policy)
 }
 
