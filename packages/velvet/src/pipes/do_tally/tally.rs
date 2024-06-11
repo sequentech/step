@@ -4,9 +4,11 @@
 
 use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
 use super::error::{Error, Result};
+use super::ContestResult;
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
+use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::{fs, path::PathBuf};
 use tracing::instrument;
@@ -65,6 +67,10 @@ impl Tally {
             .flatten()
             .collect::<Vec<DecodedVoteContest>>())
     }
+}
+
+pub fn process_tally_sheet(tally_sheet: &TallySheet) -> Result<ContestResult> {
+    Err("".into())
 }
 
 #[instrument(skip_all)]

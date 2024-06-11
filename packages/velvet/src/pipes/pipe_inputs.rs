@@ -81,7 +81,7 @@ impl PipeInputs {
         path
     }
 
-    pub fn add_tally_sheet_path(root: &Path, tally_sheet_id: &Uuid) -> PathBuf {
+    pub fn build_tally_sheet_path(root: &Path, tally_sheet_id: &str) -> PathBuf {
         let mut path = PathBuf::new();
 
         path.push(root);
