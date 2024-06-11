@@ -18,3 +18,11 @@ pub fn list_subfolders(path: &Path) -> Vec<PathBuf> {
     }
     subfolders
 }
+
+pub fn get_folder_name(path: &Path) -> Option<String> {
+    path.components()
+        .last()
+        .map(|component| component.as_os_str().to_str())
+        .flatten()
+        .map(|component| component.to_string())
+}

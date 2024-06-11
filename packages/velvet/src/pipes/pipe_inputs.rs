@@ -10,6 +10,7 @@ use crate::{
 use sequent_core::{
     ballot::{BallotStyle, Contest},
     services::area_tree::TreeNodeArea,
+    util::path::get_folder_name,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -87,6 +88,19 @@ impl PipeInputs {
         path.push(root);
         path.push(format!("{}{}", PREFIX_TALLY_SHEET, tally_sheet_id));
         path
+    }
+
+    pub fn get_tally_sheet_id_from_path(path: &Path) -> Option<String> {
+        let Some(folder_name) = get_folder_name(path) else {
+            return None;
+        };
+        if folder_name.starts_with(PREFIX_TALLY_SHEET) {
+            folder_name
+                .strip_prefix(PREFIX_TALLY_SHEET)
+                .map(|val| val.to_string())
+        } else {
+            None
+        }
     }
 
     fn read_input_dir_config(input_dir: &Path) -> Result<Vec<InputElectionConfig>> {

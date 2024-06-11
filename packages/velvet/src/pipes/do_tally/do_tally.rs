@@ -12,8 +12,10 @@ use crate::pipes::{
 };
 use crate::utils::HasId;
 use sequent_core::{
-    ballot::Candidate, services::area_tree::TreeNodeArea, types::hasura::core::TallySheet,
-    util::path::list_subfolders,
+    ballot::Candidate,
+    services::area_tree::TreeNodeArea,
+    types::hasura::core::TallySheet,
+    util::path::{get_folder_name, list_subfolders},
 };
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
@@ -45,13 +47,7 @@ pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
     let tally_sheet_folders: Vec<PathBuf> = subfolders
         .into_iter()
         .filter(|path| {
-            let Some(folder_name) = path
-                .components()
-                .last()
-                .map(|component| component.as_os_str().to_str())
-                .flatten()
-                .map(|component| component.to_string())
-            else {
+            let Some(folder_name) = get_folder_name(path) else {
                 return false;
             };
             folder_name.starts_with(PREFIX_TALLY_SHEET)
