@@ -15,6 +15,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
+use sequent_core::types::hasura::core::AreaContest;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::env;
@@ -36,20 +37,13 @@ use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
-use crate::postgres::election_event::export_election_event;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::insert_election_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AreaContest {
-    pub id: Uuid,
-    pub area_id: Uuid,
-    pub contest_id: Uuid,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
@@ -229,7 +223,7 @@ pub async fn get_document(
     let election_event_id = original_data.election_event.id.to_string();
 
     let found_event =
-        export_election_event(hasura_transaction, &tenant_id, &election_event_id).await;
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await;
 
     let replace_id = if let Some(id_val) = id {
         if found_event.is_ok() && election_event_id != id_val {

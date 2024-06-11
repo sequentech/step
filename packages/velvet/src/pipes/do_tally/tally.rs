@@ -91,9 +91,9 @@ pub fn create_tally(
 
     let tally = Tally::new(contest, ballots_files, census)?;
 
-    let ca = match tally.id {
+    let counting_algorithm = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
     };
 
-    Ok(Box::new(ca))
+    Ok(Box::new(counting_algorithm))
 }

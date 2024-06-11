@@ -4143,6 +4143,7 @@ export type Sequent_Backend_Area = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  parent_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id: Scalars['uuid']['output'];
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -4200,6 +4201,7 @@ export type Sequent_Backend_Area_Bool_Exp = {
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
+  parent_id?: InputMaybe<Uuid_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   type?: InputMaybe<String_Comparison_Exp>;
 };
@@ -4514,6 +4516,7 @@ export type Sequent_Backend_Area_Insert_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  parent_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4527,6 +4530,7 @@ export type Sequent_Backend_Area_Max_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  parent_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -4540,6 +4544,7 @@ export type Sequent_Backend_Area_Min_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  parent_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -4577,6 +4582,7 @@ export type Sequent_Backend_Area_Order_By = {
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
+  parent_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -4613,6 +4619,8 @@ export enum Sequent_Backend_Area_Select_Column {
   /** column name */
   Name = 'name',
   /** column name */
+  ParentId = 'parent_id',
+  /** column name */
   TenantId = 'tenant_id',
   /** column name */
   Type = 'type'
@@ -4628,6 +4636,7 @@ export type Sequent_Backend_Area_Set_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  parent_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4650,6 +4659,7 @@ export type Sequent_Backend_Area_Stream_Cursor_Value_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  parent_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4672,6 +4682,8 @@ export enum Sequent_Backend_Area_Update_Column {
   LastUpdatedAt = 'last_updated_at',
   /** column name */
   Name = 'name',
+  /** column name */
+  ParentId = 'parent_id',
   /** column name */
   TenantId = 'tenant_id',
   /** column name */
