@@ -16,7 +16,7 @@ pub enum VotingChannel {
     IN_PERSON,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone, Default)]
 pub struct InvalidVotes {
     pub total_invalid: Option<u64>,
     pub implicit_invalid: Option<u64>,
