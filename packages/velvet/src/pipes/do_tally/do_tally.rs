@@ -13,6 +13,7 @@ use crate::pipes::{
 use crate::utils::HasId;
 use sequent_core::{
     ballot::Candidate, services::area_tree::TreeNodeArea, types::hasura::core::TallySheet,
+    util::path::list_subfolders,
 };
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
@@ -37,21 +38,6 @@ impl DoTally {
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
-}
-
-fn list_subfolders(path: &Path) -> Vec<PathBuf> {
-    let mut subfolders = Vec::new();
-    if let Ok(entries) = fs::read_dir(path) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    subfolders.push(path);
-                }
-            }
-        }
-    }
-    subfolders
 }
 
 impl Pipe for DoTally {
