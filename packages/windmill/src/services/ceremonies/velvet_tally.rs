@@ -10,6 +10,7 @@ use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::types::hasura::core::Area;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -33,6 +34,7 @@ pub struct AreaContestDataType {
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
+    pub area: Area,
 }
 
 #[instrument(skip_all)]
@@ -77,9 +79,6 @@ pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
 ) -> Result<()> {
-    //let (plaintexts, tally_session_contest, contest, ballot_style, census) =
-    //    area_contest_plaintext.clone();
-
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
     let election_id = area_contest.contest.election_id.clone();
@@ -88,7 +87,7 @@ pub fn prepare_tally_for_area_contest(
         decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
 
     let velvet_input_dir = base_tempdir.join("input");
-    let velvet_output_dir = base_tempdir.join("output");
+    let _velvet_output_dir = base_tempdir.join("output");
 
     //// create ballots
     let ballots_path = velvet_input_dir.join(format!(
@@ -118,6 +117,12 @@ pub fn prepare_tally_for_area_contest(
         election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
         census: area_contest.eligible_voters as u64,
+        parent_id: area_contest
+            .area
+            .parent_id
+            .clone()
+            .map(|parent_id| Uuid::parse_str(&parent_id))
+            .transpose()?,
     };
     let mut area_config_file = fs::File::create(area_config_path)?;
     writeln!(area_config_file, "{}", serde_json::to_string(&area_config)?)?;

@@ -7,7 +7,10 @@ use crate::{
     cli::{state::Stage, CliRun},
     utils::parse_file,
 };
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::{
+    ballot::{BallotStyle, Contest},
+    services::area_tree::TreeNodeArea,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -156,6 +159,7 @@ impl PipeInputs {
                     contest_id,
                     census: area_config.census,
                     path: path_area,
+                    area: area_config.clone(),
                 });
             }
         }
@@ -209,6 +213,7 @@ pub struct InputAreaConfig {
     pub contest_id: Uuid,
     pub census: u64,
     pub path: PathBuf,
+    pub area: AreaConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -222,11 +227,23 @@ pub struct ElectionConfig {
     pub ballot_styles: Vec<BallotStyle>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaConfig {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub census: u64,
+    pub parent_id: Option<Uuid>,
+}
+
+impl Into<TreeNodeArea> for &AreaConfig {
+    fn into(self) -> TreeNodeArea {
+        TreeNodeArea {
+            id: self.id.to_string(),
+            tenant_id: self.tenant_id.to_string(),
+            election_event_id: self.election_event_id.to_string(),
+            parent_id: self.parent_id.clone().map(|val| val.to_string()),
+        }
+    }
 }
