@@ -72,7 +72,7 @@ use strand::signature::StrandSignaturePk;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 /*type AreaContestDataType = (
@@ -572,10 +572,10 @@ pub fn clean_tally_sheets(
     tally_sheet_rows: &Vec<TallySheet>,
     plaintexts_data: &Vec<AreaContestDataType>,
 ) -> Result<Vec<TallySheet>> {
-    let areas_map: HashMap<String, AreaContestDataType> = plaintexts_data
+    let area_contest_by_contest_id: HashMap<String, AreaContestDataType> = plaintexts_data
         .clone()
         .into_iter()
-        .map(|area_contest| (area_contest.area.id.clone(), area_contest.clone()))
+        .map(|area_contest| (area_contest.contest.id.clone(), area_contest.clone()))
         .collect();
     tally_sheet_rows
         .iter()
@@ -598,7 +598,7 @@ pub fn clean_tally_sheets(
                 )
                 .into());
             }
-            let Some(area_contest) = areas_map.get(&tally_sheet.contest_id) else {
+            let Some(area_contest) = area_contest_by_contest_id.get(&tally_sheet.contest_id) else {
                 return Err(
                     anyhow!("Invalid tally sheet {:?}, can't find contest", tally_sheet).into(),
                 );
