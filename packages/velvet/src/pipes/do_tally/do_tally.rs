@@ -334,6 +334,7 @@ impl ContestResult {
             (self.invalid_votes.implicit as f64 * 100.0) / total_votes_base;
 
         let mut contest_result = self.clone();
+        contest_result.percentage_census = 100.0;
         contest_result.percentage_total_votes = percentage_total_votes.clamp(0.0, 100.0);
         contest_result.percentage_total_valid_votes =
             percentage_total_valid_votes.clamp(0.0, 100.0);

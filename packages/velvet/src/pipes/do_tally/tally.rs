@@ -116,36 +116,25 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         .sum();
 
     let total_votes = count_valid + count_invalid;
-    let total_votes_base = cmp::max(1, total_votes) as f64;
-
-    let census_base = cmp::max(1, content.census.unwrap_or(0)) as f64;
-    let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
-    let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
-    let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
-    let percentage_total_blank_votes = (count_blank as f64 * 100.0) / total_votes_base;
-    let percentage_invalid_votes_explicit =
-        (count_invalid_votes.explicit as f64 * 100.0) / total_votes_base;
-    let percentage_invalid_votes_implicit =
-        (count_invalid_votes.implicit as f64 * 100.0) / total_votes_base;
 
     let contest_result = ContestResult {
         contest: contest.clone(),
         census: content.census.unwrap_or(0),
         percentage_census: 100.0,
         total_votes: total_votes,
-        percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
+        percentage_total_votes: 0.0,
         total_valid_votes: count_valid,
-        percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),
+        percentage_total_valid_votes: 0.0,
         total_invalid_votes: count_invalid,
-        percentage_total_invalid_votes: percentage_total_invalid_votes.clamp(0.0, 100.0),
+        percentage_total_invalid_votes: 0.0,
         total_blank_votes: count_blank,
-        percentage_total_blank_votes: percentage_total_blank_votes.clamp(0.0, 100.0),
-        percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
-        percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
+        percentage_total_blank_votes: 0.0,
+        percentage_invalid_votes_explicit: 0.0,
+        percentage_invalid_votes_implicit: 0.0,
         invalid_votes: count_invalid_votes,
         candidate_result: candidate_results,
     };
-    Ok(contest_result)
+    Ok(contest_result.calculate_percentages())
 }
 
 #[instrument(skip_all)]
