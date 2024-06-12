@@ -53,7 +53,7 @@ pub async fn get_published_tally_sheets_by_event(
                 SELECT
                     *
                 FROM
-                    sequent_backend.tally_sheets
+                    sequent_backend.tally_sheet
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
