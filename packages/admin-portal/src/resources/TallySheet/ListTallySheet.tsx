@@ -42,7 +42,6 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 

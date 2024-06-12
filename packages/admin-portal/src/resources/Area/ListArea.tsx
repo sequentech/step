@@ -37,6 +37,7 @@ import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDa
 import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
+import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -76,7 +77,15 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const [openImportDrawer, setOpenImportDrawer] = React.useState(false)
+    const [openUpsertDrawer, setOpenUpsertDrawer] = React.useState(false)
     const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.AREA_WRITE,
+            },
+        },
+    })
+    const [upsertAreas] = useMutation<ImportAreasMutation>(UPSERT_AREAS, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.AREA_WRITE,
@@ -119,6 +128,10 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                         <Button onClick={() => setOpenImportDrawer(true)}>
                             <IconButton icon={faPlus} fontSize="24px" />
                             {t("common.label.import")}
+                        </Button>
+                        <Button onClick={() => setOpenUpsertDrawer(true)}>
+                            <IconButton icon={faPlus} fontSize="24px" />
+                            {t("electionEventScreen.importAreas.upsert")}
                         </Button>
                     </ActionsBox>
                     <Typography variant="body1" paragraph>
@@ -190,6 +203,23 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         }
     }
 
+    const handleUpsertAreas = async (documentId: string, sha256: string): Promise<void> => {
+        let {errors} = await upsertAreas({
+            variables: {
+                documentId,
+                electionEventId: record.id,
+            },
+        })
+
+        refresh()
+
+        if (!errors) {
+            notify(t("electionEventScreen.importAreas.importSuccess"), {type: "success"})
+        } else {
+            notify(t("electionEventScreen.importAreas.importError"), {type: "error"})
+        }
+    }
+
     const actions: Action[] = [
         {icon: <EditIcon />, action: editAction},
         {icon: <DeleteIcon />, action: deleteAction},
@@ -206,6 +236,11 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
+                        extraActions={[
+                            <Button onClick={() => setOpenUpsertDrawer(true)} key="upsert">
+                                {t("electionEventScreen.importAreas.upsert")}
+                            </Button>,
+                        ]}
                     />
                 }
                 empty={<Empty />}
@@ -273,6 +308,15 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 subtitle="electionEventScreen.importAreas.subtitle"
                 paragraph="electionEventScreen.importAreas.areaParagraph"
                 doImport={handleImportAreas}
+                errors={null}
+            />
+            <ImportDataDrawer
+                open={openUpsertDrawer}
+                closeDrawer={() => setOpenUpsertDrawer(false)}
+                title="electionEventScreen.importAreas.title"
+                subtitle="electionEventScreen.importAreas.subtitle"
+                paragraph="electionEventScreen.importAreas.areaParagraph"
+                doImport={handleUpsertAreas}
                 errors={null}
             />
         </>

@@ -334,8 +334,9 @@ const englishTranslation = {
                 subtitle: "Import areas data",
                 areaParagraph:
                     "Import areas using a spreadsheet file in Comma Separated Values (CSV) format.",
-                importVotersSuccess: "Areas Imported Successfully",
-                importVotersError: "Error importing Areas",
+                importSuccess: "Areas Imported Successfully",
+                importError: "Error importing Areas",
+                upsert: "Upsert Areas",
             },
             import: {
                 eetitle: "Import Election Event",

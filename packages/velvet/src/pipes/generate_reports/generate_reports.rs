@@ -35,6 +35,7 @@ pub const OUTPUT_PDF: &str = "report.pdf";
 pub const OUTPUT_RECEIPT_PDF: &str = "vote_receipts.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
+pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -390,41 +391,46 @@ impl Pipe for GenerateReports {
     fn exec(&self) -> Result<()> {
         self.pipe_inputs
             .election_list
-            .par_iter()
+            .iter()
             .try_for_each(|election_input| {
                 let contest_reports: Result<Vec<_>> = election_input
                     .contest_list
-                    .par_iter()
+                    .iter()
                     .map(|contest_input| {
-                        let _area_contest_reports: Vec<ReportData> = contest_input
+                        let chunks = contest_input
                             .area_list
-                            .par_iter()
-                            .map(|area_input| -> Result<ReportData> {
-                                let has_aggregate = self.has_aggregate(
-                                    &election_input.id,
-                                    Some(&contest_input.id),
-                                    &area_input.id,
-                                );
-                                if has_aggregate {
+                            .chunks(PARALLEL_CHUNK_SIZE)
+                            .enumerate();
+                        for (index, area_list_chunk) in chunks {
+                            area_list_chunk
+                                .par_iter()
+                                .map(|area_input| -> Result<ReportData> {
+                                    let has_aggregate = self.has_aggregate(
+                                        &election_input.id,
+                                        Some(&contest_input.id),
+                                        &area_input.id,
+                                    );
+                                    if has_aggregate {
+                                        self.make_report(
+                                            &election_input.id,
+                                            &election_input.name,
+                                            Some(&contest_input.id),
+                                            Some(&area_input.id),
+                                            contest_input.contest.clone(),
+                                            true,
+                                        )?;
+                                    }
                                     self.make_report(
                                         &election_input.id,
                                         &election_input.name,
                                         Some(&contest_input.id),
                                         Some(&area_input.id),
                                         contest_input.contest.clone(),
-                                        true,
-                                    )?;
-                                }
-                                self.make_report(
-                                    &election_input.id,
-                                    &election_input.name,
-                                    Some(&contest_input.id),
-                                    Some(&area_input.id),
-                                    contest_input.contest.clone(),
-                                    false,
-                                )
-                            })
-                            .collect::<Result<Vec<ReportData>>>()?;
+                                        false,
+                                    )
+                                })
+                                .collect::<Result<Vec<ReportData>>>()?;
+                        }
 
                         let contest_report = self.make_report(
                             &election_input.id,

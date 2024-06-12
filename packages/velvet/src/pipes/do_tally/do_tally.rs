@@ -6,20 +6,30 @@ use super::tally;
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
     error::{Error, Result},
-    pipe_inputs::PipeInputs,
+    pipe_inputs::{PipeInputs, PREFIX_TALLY_SHEET},
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
 use crate::utils::HasId;
-use sequent_core::{ballot::Candidate, services::area_tree::TreeNodeArea};
+use sequent_core::{
+    ballot::Candidate,
+    services::area_tree::TreeNodeArea,
+    types::hasura::core::TallySheet,
+    util::path::{get_folder_name, list_subfolders},
+};
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 use tracing::instrument;
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER: &str = "aggregate";
+pub const INPUT_TALLY_SHEET_FILE: &str = "tally-sheet.json";
 
 pub struct DoTally {
     pub pipe_inputs: PipeInputs,
@@ -30,6 +40,20 @@ impl DoTally {
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
+}
+
+pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
+    let subfolders = list_subfolders(&path);
+    let tally_sheet_folders: Vec<PathBuf> = subfolders
+        .into_iter()
+        .filter(|path| {
+            let Some(folder_name) = get_folder_name(path) else {
+                return false;
+            };
+            folder_name.starts_with(PREFIX_TALLY_SHEET)
+        })
+        .collect();
+    tally_sheet_folders
 }
 
 impl Pipe for DoTally {
@@ -47,6 +71,8 @@ impl Pipe for DoTally {
             .output_dir
             .as_path()
             .join(PipeNameOutputDir::DoTally.as_ref());
+
+        let tally_sheets_dir = self.pipe_inputs.root_path_tally_sheets.clone();
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
@@ -163,6 +189,43 @@ impl Pipe for DoTally {
                     contest_ballot_files.push(decoded_ballots_file);
 
                     sum_census += area_input.census;
+
+                    // tally sheets tally
+                    let input_tally_sheets_dir = PipeInputs::build_path(
+                        &tally_sheets_dir,
+                        &contest_input.election_id,
+                        Some(&contest_input.id),
+                        Some(&area_input.id),
+                    );
+                    if input_tally_sheets_dir.exists() && input_tally_sheets_dir.is_dir() {
+                        let tally_sheet_folders =
+                            list_tally_sheet_subfolders(&input_tally_sheets_dir);
+                        for tally_sheet_folder in tally_sheet_folders {
+                            // read tally sheet
+                            let tally_sheets_file_path =
+                                tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
+                            let tally_sheet_str = fs::read_to_string(&tally_sheets_file_path)
+                                .map_err(|e| {
+                                    Error::FileAccess(tally_sheets_file_path.to_path_buf(), e)
+                                })?;
+                            let tally_sheet: TallySheet = serde_json::from_str(&tally_sheet_str)?;
+                            let output_tally_sheets_folder_path =
+                                PipeInputs::build_tally_sheet_path(
+                                    &base_output_path,
+                                    &tally_sheet.id,
+                                );
+                            fs::create_dir_all(&output_tally_sheets_folder_path)?;
+                            let contest_result =
+                                tally::process_tally_sheet(&tally_sheet, &contest_input.contest)
+                                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                            let output_tally_sheets_file_path =
+                                output_tally_sheets_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                            let contest_result_file =
+                                fs::File::create(&output_tally_sheets_file_path)?;
+                            serde_json::to_writer(contest_result_file, &contest_result)?;
+                        }
+                    }
                 }
 
                 // create contest tally
