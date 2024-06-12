@@ -13,6 +13,7 @@ use std::{
 use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
+    types::tally_sheets,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -184,6 +185,7 @@ impl GenerateReports {
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<ContestResult> {
         let mut base_path = PipeInputs::build_path(
             &self
@@ -196,6 +198,9 @@ impl GenerateReports {
             contest_id,
             area_id,
         );
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
 
         if is_aggregate {
             base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
@@ -217,6 +222,7 @@ impl GenerateReports {
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<Vec<WinnerResult>> {
         let mut base_path = PipeInputs::build_path(
             &self
@@ -229,6 +235,10 @@ impl GenerateReports {
             contest_id,
             area_id,
         );
+
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
 
         if is_aggregate {
             base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
@@ -255,10 +265,16 @@ impl GenerateReports {
                     Some(&contest_input.id),
                     None,
                     false,
+                    None,
                 )?;
 
-                let winners =
-                    self.read_winners(&election_input.id, Some(&contest_input.id), None, false)?;
+                let winners = self.read_winners(
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    None,
+                    false,
+                    None,
+                )?;
 
                 reports.push(ReportData {
                     election_name: election_input.name.clone(),
@@ -274,6 +290,7 @@ impl GenerateReports {
                         Some(&contest_input.id),
                         Some(&area.id),
                         false,
+                        None,
                     )?;
 
                     let winners = self.read_winners(
@@ -281,6 +298,7 @@ impl GenerateReports {
                         Some(&contest_input.id),
                         Some(&area.id),
                         false,
+                        None,
                     )?;
 
                     reports.push(ReportData {
@@ -314,11 +332,23 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         contest: Contest,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<ReportData> {
-        let contest_result =
-            self.read_contest_result(election_id, contest_id, area_id, is_aggregate)?;
+        let contest_result = self.read_contest_result(
+            election_id,
+            contest_id,
+            area_id,
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
 
-        let winners = self.read_winners(election_id, contest_id, area_id, is_aggregate)?;
+        let winners = self.read_winners(
+            election_id,
+            contest_id,
+            area_id,
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
 
         let report = ReportData {
             election_name: election_name.to_string(),
@@ -334,6 +364,7 @@ impl GenerateReports {
             area_id,
             vec![report.clone()],
             is_aggregate,
+            tally_sheet_id.clone(),
         )?;
 
         Ok(report)
@@ -346,11 +377,16 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         reports: Vec<ReportData>,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<()> {
         let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
 
         let mut base_path =
             PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
 
         if is_aggregate {
             base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
@@ -418,6 +454,7 @@ impl Pipe for GenerateReports {
                                             Some(&area_input.id),
                                             contest_input.contest.clone(),
                                             true,
+                                            None,
                                         )?;
                                     }
                                     self.make_report(
@@ -427,6 +464,7 @@ impl Pipe for GenerateReports {
                                         Some(&area_input.id),
                                         contest_input.contest.clone(),
                                         false,
+                                        None,
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -439,6 +477,7 @@ impl Pipe for GenerateReports {
                             None,
                             contest_input.contest.clone(),
                             false,
+                            None,
                         )?;
 
                         Ok(contest_report)
@@ -446,7 +485,14 @@ impl Pipe for GenerateReports {
                     .collect();
 
                 // write report for the current election
-                self.write_report(&election_input.id, None, None, contest_reports?, false)?;
+                self.write_report(
+                    &election_input.id,
+                    None,
+                    None,
+                    contest_reports?,
+                    false,
+                    None,
+                )?;
 
                 Ok(())
             })
