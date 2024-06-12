@@ -76,6 +76,18 @@ type TDiffView<T> = {
     modify: T
 }
 
+// TODO: Make this configurable
+const MAX_DIFF_LINES = 500
+
+// Truncate the strings if they are too long
+const truncateLines = (str: string, maxLines: number) => {
+    const lines = str.split("\n")
+    if (lines.length > maxLines) {
+        return lines.slice(0, maxLines).join("\n")
+    }
+    return str
+}
+
 const DiffViewMemo = React.memo(
     <T extends {}>({current, currentTitle, modify, diffTitle, type = "modify"}: TDiffView<T>) => {
         const [diff, setDiff] = useState<any>("")
@@ -84,8 +96,12 @@ const DiffViewMemo = React.memo(
         const [newJsonString, setNewJsonString] = useState<string>("")
 
         useEffect(() => {
-            setNewJsonString(JSON.stringify(modify, null, 2))
-            setOldJsonString(JSON.stringify(current, null, 2))
+            setNewJsonString(
+                truncateLines(JSON.stringify(modify, null, 2), MAX_DIFF_LINES)
+            )
+            setOldJsonString(
+                truncateLines(JSON.stringify(current, null, 2), MAX_DIFF_LINES)
+            )
         }, [modify, current])
 
         useEffect(() => {
