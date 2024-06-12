@@ -83,7 +83,7 @@ const MAX_DIFF_LINES = 500
 const truncateLines = (str: string, maxLines: number) => {
     const lines = str.split("\n")
     if (lines.length > maxLines) {
-        return lines.slice(0, maxLines).join("\n")
+        return lines.slice(0, maxLines).join("\n") + "\n..."
     }
     return str
 }
