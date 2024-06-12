@@ -19,7 +19,7 @@ $> velvet run {stage} {optional-pipe} \
 
 See more: 
 
-https://github.com/sequentech/backend-services/blob/main/docs/design/velvet/README.md
+https://github.com/sequentech/step/blob/main/docs/design/velvet/README.md
 
 ## Development
 
