@@ -21,7 +21,10 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::pipes::{
-    do_tally::{list_tally_sheet_subfolders, ContestResult, OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE},
+    do_tally::{
+        list_tally_sheet_subfolders, ContestResult,
+        OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+    },
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
@@ -174,7 +177,7 @@ impl GenerateReports {
             contest_id,
             Some(area_id.clone()).as_ref(),
         );
-        let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+        let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         aggregate_path.exists() && aggregate_path.is_dir()
     }
 
@@ -203,7 +206,7 @@ impl GenerateReports {
         }
 
         if is_aggregate {
-            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         }
 
         let path = base_path.join(OUTPUT_CONTEST_RESULT_FILE);
@@ -241,7 +244,7 @@ impl GenerateReports {
         }
 
         if is_aggregate {
-            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         }
 
         let path = base_path.join(OUTPUT_WINNERS);
@@ -389,7 +392,7 @@ impl GenerateReports {
         }
 
         if is_aggregate {
-            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         }
 
         fs::create_dir_all(&base_path)?;
@@ -455,16 +458,20 @@ impl Pipe for GenerateReports {
                                         Some(&area_input.contest_id),
                                         Some(&area_input.id),
                                     );
-                                    let tally_sheet_paths = list_tally_sheet_subfolders(&base_tally_sheet_path);
-                                    let tally_sheet_ids = tally_sheet_paths
-                                        .iter()
-                                        .map(|tally_sheet_path|
-                                            PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_path)
-                                            .ok_or(Err(Error::UnexpectedError(
-                                                "Can't read tally sheet id from path".into(),
-                                            )))
-                                        )
-                                        .collect::<Result<Vec<String>>>()?;
+                                    let tally_sheet_paths =
+                                        list_tally_sheet_subfolders(&base_tally_sheet_path);
+                                    let tally_sheet_ids =
+                                        tally_sheet_paths
+                                            .iter()
+                                            .map(|tally_sheet_path| -> Result<String> {
+                                                PipeInputs::get_tally_sheet_id_from_path(
+                                                    &tally_sheet_path,
+                                                )
+                                                .ok_or(Error::UnexpectedError(
+                                                    "Can't read tally sheet id from path".into(),
+                                                ))
+                                            })
+                                            .collect::<Result<Vec<String>>>()?;
                                     if tally_sheet_ids.len() > 0 {
                                         for tally_sheet_id in tally_sheet_ids {
                                             self.make_report(
@@ -478,7 +485,7 @@ impl Pipe for GenerateReports {
                                             )?;
                                         }
                                     }
-                                    
+
                                     // area aggregates if it has children
                                     let has_aggregate = self.has_aggregate(
                                         &election_input.id,
