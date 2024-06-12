@@ -21,7 +21,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::pipes::{
-    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE},
+    do_tally::{list_tally_sheet_subfolders, ContestResult, OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
@@ -425,6 +425,13 @@ impl GenerateReports {
 impl Pipe for GenerateReports {
     #[instrument(skip_all, name = "GenerateReports::exec")]
     fn exec(&self) -> Result<()> {
+        let mark_winners_dir = self
+            .pipe_inputs
+            .cli
+            .output_dir
+            .as_path()
+            .join(PipeNameOutputDir::MarkWinners.as_ref());
+
         self.pipe_inputs
             .election_list
             .iter()
@@ -441,6 +448,38 @@ impl Pipe for GenerateReports {
                             area_list_chunk
                                 .par_iter()
                                 .map(|area_input| -> Result<ReportData> {
+                                    // process tally sheets
+                                    let base_tally_sheet_path = PipeInputs::build_path(
+                                        &mark_winners_dir,
+                                        &area_input.election_id,
+                                        Some(&area_input.contest_id),
+                                        Some(&area_input.id),
+                                    );
+                                    let tally_sheet_paths = list_tally_sheet_subfolders(&base_tally_sheet_path);
+                                    let tally_sheet_ids = tally_sheet_paths
+                                        .iter()
+                                        .map(|tally_sheet_path|
+                                            PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_path)
+                                            .ok_or(Err(Error::UnexpectedError(
+                                                "Can't read tally sheet id from path".into(),
+                                            )))
+                                        )
+                                        .collect::<Result<Vec<String>>>()?;
+                                    if tally_sheet_ids.len() > 0 {
+                                        for tally_sheet_id in tally_sheet_ids {
+                                            self.make_report(
+                                                &election_input.id,
+                                                &election_input.name,
+                                                Some(&contest_input.id),
+                                                Some(&area_input.id),
+                                                contest_input.contest.clone(),
+                                                true,
+                                                Some(tally_sheet_id),
+                                            )?;
+                                        }
+                                    }
+                                    
+                                    // area aggregates if it has children
                                     let has_aggregate = self.has_aggregate(
                                         &election_input.id,
                                         Some(&contest_input.id),
