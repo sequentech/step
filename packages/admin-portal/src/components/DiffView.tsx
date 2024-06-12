@@ -96,12 +96,8 @@ const DiffViewMemo = React.memo(
         const [newJsonString, setNewJsonString] = useState<string>("")
 
         useEffect(() => {
-            setNewJsonString(
-                truncateLines(JSON.stringify(modify, null, 2), MAX_DIFF_LINES)
-            )
-            setOldJsonString(
-                truncateLines(JSON.stringify(current, null, 2), MAX_DIFF_LINES)
-            )
+            setNewJsonString(truncateLines(JSON.stringify(modify, null, 2), MAX_DIFF_LINES))
+            setOldJsonString(truncateLines(JSON.stringify(current, null, 2), MAX_DIFF_LINES))
         }, [modify, current])
 
         useEffect(() => {
