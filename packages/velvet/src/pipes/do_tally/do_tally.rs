@@ -25,7 +25,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -43,6 +43,7 @@ impl DoTally {
     }
 }
 
+#[instrument]
 pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
     let subfolders = list_subfolders(&path);
     let tally_sheet_folders: Vec<PathBuf> = subfolders
@@ -272,6 +273,7 @@ pub struct InvalidVotes {
 }
 
 impl InvalidVotes {
+    #[instrument]
     pub fn aggregate(&self, other: &InvalidVotes) -> InvalidVotes {
         let mut sum = self.clone();
 
@@ -301,7 +303,11 @@ pub struct ContestResult {
 }
 
 impl ContestResult {
+    #[instrument]
     pub fn calculate_percentages(&self) -> ContestResult {
+        if self.total_valid_votes < self.total_blank_votes {
+            event!(Level::ERROR, "ERROR FF: {:?}", self);
+        }
         let valid_not_blank = self.total_valid_votes - self.total_blank_votes;
         let candidate_result: Vec<CandidateResult> = self
             .candidate_result
@@ -350,13 +356,13 @@ impl ContestResult {
         contest_result
     }
 
+    #[instrument]
     pub fn aggregate(&self, other: &ContestResult) -> ContestResult {
         let mut aggregate = self.clone();
         aggregate.census += other.census;
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;
-        aggregate.total_blank_votes += other.total_blank_votes;
         aggregate.total_blank_votes += other.total_blank_votes;
         aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes);
         let one_map: HashMap<String, CandidateResult> = self
