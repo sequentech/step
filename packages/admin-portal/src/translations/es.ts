@@ -336,8 +336,9 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Importar datos de áreas",
                 areaParagraph:
                     "Importar áreas utilizando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
-                importVotersSuccess: "Áreas Importadas Exitosamente",
-                importVotersError: "Error al importar Áreas",
+                importSuccess: "Áreas Importadas Exitosamente",
+                importError: "Error al importar Áreas",
+                upsert: "Upsert Areas",
             },
             import: {
                 eetitle: "Importar Evento Electoral",

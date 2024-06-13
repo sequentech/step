@@ -37,7 +37,11 @@ pub fn create_ballot_style(
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
 ) -> Result<ballot::BallotStyle> {
-    let mut sorted_contests = contests.clone();
+    let mut sorted_contests = contests
+        .clone()
+        .into_iter()
+        .filter(|contest| contest.election_id == election.id)
+        .collect::<Vec<hasura_types::Contest>>();
     sorted_contests.sort_by_key(|k| k.id.clone());
 
     let election_event_presentation: ElectionEventPresentation = election_event

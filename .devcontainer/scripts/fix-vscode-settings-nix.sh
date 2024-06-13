@@ -23,7 +23,7 @@ java_home=$(echo /nix/store/*-openjdk-*/lib/openjdk)
 cat << EOF > '.vscode/settings.local.json'
 {
     "rust-analyzer.server.extraEnv": {
-        // See https://github.com/sequentech/backend-services/wiki/Running-tests-without-triggering-full-rebuilds
+        // See https://github.com/sequentech/step/wiki/Running-tests-without-triggering-full-rebuilds
         "CARGO_TARGET_DIR": "rust-local-target",
 
         // which cargo

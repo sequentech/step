@@ -28,6 +28,9 @@ impl TryFrom<Row> for AreaWrapper {
             name: item.try_get("name")?,
             description: item.try_get("description")?,
             r#type: item.try_get("type")?,
+            parent_id: item
+                .try_get::<_, Option<Uuid>>("parent_id")?
+                .map(|val| val.to_string()),
         }))
     }
 }
@@ -277,7 +280,8 @@ pub async fn get_area_by_id(
                 annotations,
                 name,
                 description,
-                type
+                type,
+                parent_id
             FROM
                 sequent_backend.area
             WHERE
@@ -303,18 +307,68 @@ pub async fn get_area_by_id(
 }
 
 #[instrument(err, skip_all)]
+pub async fn upsert_area_parents(
+    hasura_transaction: &Transaction<'_>,
+    areas: &Vec<Area>,
+) -> Result<()> {
+    for area in areas {
+        let statement = hasura_transaction
+            .prepare(
+                r#"
+                UPDATE
+                    sequent_backend.area
+                SET
+                    parent_id = $1
+                WHERE
+                    id = $2 AND
+                    tenant_id = $3 AND
+                    election_event_id = $4;
+            "#,
+            )
+            .await?;
+
+        let parent_id: Option<Uuid> = area
+            .parent_id
+            .clone()
+            .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+            .flatten();
+
+        let rows: Vec<Row> = hasura_transaction
+            .query(
+                &statement,
+                &[
+                    &parent_id,
+                    &Uuid::parse_str(&area.id)?,
+                    &Uuid::parse_str(&area.tenant_id)?,
+                    &Uuid::parse_str(&area.election_event_id)?,
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error running query: {err}"))?;
+    }
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
 pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
     for area in areas {
         let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO sequent_backend.area
-                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type)
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id)
                 VALUES
-                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8);
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9);
             "#,
         )
         .await?;
+
+        let parent_id: Option<Uuid> = area
+            .parent_id
+            .clone()
+            .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+            .flatten();
 
         let rows: Vec<Row> = hasura_transaction
             .query(
@@ -328,6 +382,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
                     &area.name,
                     &area.description,
                     &area.r#type,
+                    &parent_id,
                 ],
             )
             .await
@@ -338,7 +393,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
 }
 
 #[instrument(err, skip_all)]
-pub async fn export_areas(
+pub async fn get_event_areas(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -347,7 +402,7 @@ pub async fn export_areas(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type
+                    *
                 FROM
                     sequent_backend.area
                 WHERE

@@ -14,6 +14,9 @@ use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::postgres::area::get_event_areas;
+use crate::postgres::area_contest::export_area_contests;
+use crate::postgres::contest::export_contests;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
@@ -35,12 +38,19 @@ use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::newtypes::BatchNumber;
+use deadpool_postgres::Transaction;
+use futures::try_join;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::area_tree::ContestsData;
+use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
+use sequent_core::types::hasura::core::AreaContest;
+use sequent_core::types::hasura::core::Contest;
 use serde_json::{from_value, Value};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
 use tracing::{event, instrument, Level};
@@ -192,87 +202,15 @@ fn generate_initial_tally_status(
     }
 }
 
-// get area ids that are linked to these election ids
-#[instrument(skip(auth_headers), err)]
-pub async fn get_area_ids(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    election_ids: Vec<String>,
-) -> Result<Vec<String>> {
-    let areas_data = get_election_event_areas(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        election_ids.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find election event areas")?;
-    let contest_ids = areas_data
-        .sequent_backend_contest
-        .into_iter()
-        .map(|contest| contest.id)
-        .collect::<Vec<_>>();
-    let contest_areas = areas_data
-        .sequent_backend_area_contest
-        .into_iter()
-        .filter(|contest_area| {
-            contest_area
-                .contest_id
-                .clone()
-                .map(|contest_id| contest_ids.contains(&contest_id))
-                .unwrap_or(false)
-        })
-        .collect::<Vec<_>>();
-    let area_ids = contest_areas
-        .clone()
-        .into_iter()
-        .filter(|contest_area| contest_area.area_id.is_some())
-        .map(|contest_area| contest_area.area_id.unwrap())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-
-    Ok(area_ids)
-}
-
 #[instrument(err)]
 pub async fn insert_tally_session_contests(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    election_ids: &Vec<String>,
+    relevant_area_contests: &HashSet<AreaContest>,
+    contests_map: &HashMap<String, Contest>,
 ) -> Result<()> {
-    let areas_data = get_election_event_areas(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        election_ids.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find election event areas")?;
-
-    let contest_ids = areas_data
-        .sequent_backend_contest
-        .clone()
-        .into_iter()
-        .map(|contest| contest.id)
-        .collect::<Vec<_>>();
-    let contest_areas = areas_data
-        .sequent_backend_area_contest
-        .into_iter()
-        .filter(|contest_area| {
-            contest_area
-                .contest_id
-                .clone()
-                .map(|contest_id| contest_ids.contains(&contest_id))
-                .unwrap_or(false)
-        })
-        .collect::<Vec<_>>();
-
     let mut batch: BatchNumber = get_tally_session_highest_batch(
         auth_headers.clone(),
         tenant_id.to_string(),
@@ -280,20 +218,16 @@ pub async fn insert_tally_session_contests(
     )
     .await?;
 
-    for area_contest in contest_areas.into_iter() {
-        let contest_id = area_contest.contest_id.clone().unwrap();
-        let contest = areas_data
-            .sequent_backend_contest
-            .clone()
-            .into_iter()
-            .find(|contest| contest.id == contest_id)
-            .unwrap();
-        let tally_session_contest = insert_tally_session_contest(
+    for area_contest in relevant_area_contests.iter() {
+        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+            return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
+        };
+        let _tally_session_contest = insert_tally_session_contest(
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            area_contest.area_id.clone().unwrap(),
-            contest_id.clone(),
+            area_contest.area_id.clone(),
+            area_contest.contest_id.clone(),
             batch.clone(),
             tally_session_id.to_string(),
             contest.election_id.clone(),
@@ -304,12 +238,49 @@ pub async fn insert_tally_session_contests(
     Ok(())
 }
 
+fn get_area_contests_for_election_ids(
+    contests_map: &HashMap<String, Contest>,
+    area_contests_tree: &TreeNode<ContestsData>,
+    election_ids: &Vec<String>,
+) -> HashSet<AreaContest> {
+    let contest_ids: HashSet<String> = contests_map
+        .values()
+        .filter(|contest| election_ids.contains(&contest.election_id))
+        .map(|contest| contest.id.clone())
+        .collect();
+    area_contests_tree.get_contest_matches(&contest_ids)
+}
+
 #[instrument(err)]
 pub async fn create_tally_ceremony(
+    transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
 ) -> Result<String> {
+    let (contests, areas, area_contests) = try_join!(
+        export_contests(&transaction, &tenant_id, &election_event_id),
+        get_event_areas(&transaction, &tenant_id, &election_event_id),
+        export_area_contests(&transaction, &tenant_id, &election_event_id),
+    )?;
+
+    let contests_map: HashMap<String, Contest> = contests
+        .into_iter()
+        .map(|contest| (contest.id.clone(), contest.clone()))
+        .collect();
+    let basic_areas = areas.iter().map(|area| area.into()).collect();
+    let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
+    let area_contests_tree = areas_tree.get_contests_data_tree(&area_contests);
+    let relevant_area_contests =
+        get_area_contests_for_election_ids(&contests_map, &area_contests_tree, &election_ids);
+    let area_ids: Vec<String> = relevant_area_contests
+        .iter()
+        .map(|area_contest| area_contest.area_id.clone())
+        .collect::<HashSet<String>>()
+        .iter()
+        .map(|val| val.clone())
+        .collect();
+
     let auth_headers = keycloak::get_client_credentials().await?;
     let keys_ceremony = find_keys_ceremony(
         auth_headers.clone(),
@@ -319,13 +290,6 @@ pub async fn create_tally_ceremony(
     .await?;
     let keys_ceremony_status = get_keys_ceremony_status(keys_ceremony.status)?;
     let keys_ceremony_id = keys_ceremony.id.clone();
-    let area_ids = get_area_ids(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        election_ids.clone(),
-    )
-    .await?;
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
     let _tally_session = insert_tally_session(
@@ -364,7 +328,8 @@ pub async fn create_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-        &election_ids,
+        &relevant_area_contests,
+        &contests_map,
     )
     .await?;
 
