@@ -14,7 +14,7 @@ interface BackgroundProps extends SystemProps {
     imageUrl: string | undefined
 }
 
-const Background = styled.div<BackgroundProps>(({imageUrl}) => ({
+const Background = styled(Box)<BackgroundProps>(({imageUrl}) => ({
     "position": "absolute",
     "width": "100%",
     "height": "100%",
