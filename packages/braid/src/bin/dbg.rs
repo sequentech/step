@@ -9,6 +9,7 @@ use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
+// Run with cargo run --bin dbg --release
 fn main() {
     let log_reload = init_log();
     let ctx = RistrettoCtx;

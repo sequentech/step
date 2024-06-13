@@ -118,7 +118,7 @@ impl TryFrom<&Row> for Board {
 }
 
 impl BoardClient {
-    #[instrument(skip(password))]
+    #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
         let mut client = Client::new(&server_url, username, password).await?;
         client.login().await?;
@@ -527,7 +527,7 @@ impl BoardClient {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         self.client.has_database(database_name).await
     }
@@ -598,6 +598,7 @@ impl BoardClient {
     }
 
     /// Creates the index immudb database if it doesn't exist.
+    #[instrument(skip(self))]
     pub async fn upsert_index_db(&mut self, index_dbname: &str) -> Result<()> {
         self.upsert_database(
             index_dbname,
@@ -616,6 +617,7 @@ impl BoardClient {
 
     /// Creates the requested board immudb database if it doesnt exist.
     /// Also creates the and the electoral log and braid tables.
+    #[instrument(skip(self))]
     pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
@@ -647,6 +649,7 @@ impl BoardClient {
     }
 
     /// Deletes the immudb database.
+    #[instrument(skip(self))]
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
         if self.client.has_database(database_name).await? {
             self.client.delete_database(database_name).await?;

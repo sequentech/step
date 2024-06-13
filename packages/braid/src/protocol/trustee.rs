@@ -145,6 +145,9 @@ impl<C: Ctx> Trustee<C> {
         }
 
         let cfg_hash = cfg_hash.expect("impossible");
+        // Show the latest message received
+        let last_message = messages.get(messages.len() - 1).expect("impossible");
+        info!("Update: last message is {:?}", last_message.statement.get_kind());
 
         for message in messages {
             let verified = message.verify(&configuration).map_err(|e| {
@@ -162,7 +165,7 @@ impl<C: Ctx> Trustee<C> {
 
             let stmt = verified.statement.clone();
             let _ = self.local_board.add(verified)?;
-            info!("Added message type=[{}]", stmt);
+            debug!("Added message type=[{}]", stmt);
             added += 1;
         }
 

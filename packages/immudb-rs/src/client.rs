@@ -28,7 +28,7 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 /// Represents a Immudb Client.
 /// Allows you to handle operations in an easier manner.
 impl Client {
-    #[instrument(skip(password))]
+    #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<Client> {
         let mut client = ImmuServiceClient::connect(String::from(server_url)).await?;
         client = client.max_encoding_message_size(134217728);
@@ -43,7 +43,7 @@ impl Client {
         })
     }
 
-    #[instrument]
+    #[instrument(level = "trace")]
     pub async fn login(&mut self) -> Result<()> {
         let login_request = Request::new(LoginRequest {
             user: self.username.clone().into(),
@@ -82,7 +82,7 @@ impl Client {
         Ok(database_list_response)
     }
 
-    #[instrument]
+    #[instrument(level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         let database_list_request = self.get_request(DatabaseListRequestV2 {})?;
         let database_list_response = self.client.database_list_v2(database_list_request).await?;

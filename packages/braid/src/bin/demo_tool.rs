@@ -49,6 +49,9 @@ struct Cli {
     #[arg(short, long, default_value_t = INDEXDB.to_string())]
     indexdb: String,
 
+    #[arg(short, long, default_value_t = 1)]
+    count: u32,
+
     #[arg(value_enum)]
     command: Command,
 }
@@ -74,11 +77,11 @@ currently these cannot be changed, but it would be easy to add cli options for t
 
 The sequence of steps to run a demo election are
 
-    1) Generate the election configuration data
+    1) Generate the election configuration data (at ./demo)
 
        cargo run --bin demo_tool -- gen-configs
 
-    2) Initialize the protocol with said configuration data
+    2) Initialize the protocol with said configuration data (from ./demo)
 
        cargo run --bin demo_tool -- init-protocol
 
@@ -133,12 +136,29 @@ async fn main() -> Result<()> {
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
             let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
-            create_boards(&mut board, &args.indexdb, &args.dbname).await?;
-            init(&mut board, &args.dbname, configuration).await?;
+            create_boards(&args.server_url, IMMUDB_USER, IMMUDB_PW, &args.indexdb, &args.dbname, args.count).await?; 
+            for i in 0..args.count {
+                let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
+                let name = if i == 0 {
+                    args.dbname.to_string()
+                }
+                else {
+                    format!("{}_{}", &args.dbname, i + 1)
+                };
+                init(&mut board, &name, configuration.clone()).await?;
+            }
         }
         Command::PostBallots => {
             let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
-            post_ballots(&mut board, &args.dbname, ctx).await?;
+            for i in 0..args.count {
+                let name = if i == 0 {
+                    args.dbname.to_string()
+                }
+                else {
+                    format!("{}_{}", &args.dbname, i + 1)
+                };
+                post_ballots(&mut board, &name, &ctx).await?;
+            }
         }
         Command::ListMessages => {
             let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
@@ -205,6 +225,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: &[usize]) -> Result<()> {
         threshold.len(),
         PhantomData,
     );
+    println!("Creating demo files at '{}'", DEMO_DIR);
     fs::create_dir_all(DEMO_DIR)?;
 
     let cfg_bytes = cfg.strand_serialize()?;
@@ -256,7 +277,7 @@ public key is present on the board and can be downloaded to allow the encryption
 are randomly generated.
 */
 #[instrument(skip(board))]
-async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C) -> Result<()> {
+async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: &C) -> Result<()> {
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk = sender_pk.to_der_b64_string()?;
@@ -300,7 +321,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
         let pk_bytes = dkgpk.strand_serialize()?;
         let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
         let pk_element = dkgpk.pk;
-        let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
+        let pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
 
         let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
         let ballots: Vec<Ciphertext<C>> = ps
@@ -389,13 +410,23 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
     Ok(pm)
 }
 
-#[instrument(skip(board))]
-async fn create_boards(board: &mut BoardClient, indexdb: &str, dbname: &str) -> Result<()> {
+#[instrument()]
+async fn create_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, indexdb: &str, dbname: &str, count: u32) -> Result<()> {
+    let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
     board.delete_database(indexdb).await?;
-    board.delete_database(dbname).await?;
-
     board.upsert_index_db(indexdb).await?;
-    board.create_board(indexdb, dbname).await?;
+
+    for i in 0..count {
+        let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
+        let name = if i == 0 {
+            dbname.to_string()
+        }
+        else {
+            format!("{}_{}", dbname, i + 1)
+        };
+        board.delete_database(&name).await?;    
+        board.create_board(indexdb, &name).await?;    
+    }
 
     Ok(())
 }

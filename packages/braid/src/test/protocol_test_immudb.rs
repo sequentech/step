@@ -113,6 +113,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
             .into_iter()
             .map(|s| tokio::spawn(async { s.step().await }))
             .collect();
+        
         sessions = vec![];
         for h in handles {
             let (session, result) = h.await.unwrap();
