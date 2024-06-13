@@ -189,7 +189,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                     </Icon>
                 </div>
             </Box>
-            
+
             {trusteesData.length ? (
                 <DataGrid
                     rows={trusteesData}
