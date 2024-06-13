@@ -288,15 +288,27 @@ public class DeferredRegistrationUserCreationTest {
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
 import org.keycloak.events.Errors;
 import org.keycloak.models.*;
+import org.keycloak.policy.PasswordPolicyManagerProvider;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.userprofile.UserProfile;
+import org.keycloak.userprofile.UserProfileProvider;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+
+import java.util.Collections;
 import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -328,7 +340,7 @@ public class CombinedTests {
         formAction = new DeferredRegistrationUserCreation();
     }
 
-    // Tests for DeferredRegistrationUserCreation
+    // Tests for DeferredRegistrationUserCreation.java
 
     @Test
     public void testValidate_Success() {
@@ -366,7 +378,7 @@ public class CombinedTests {
         verify(validationContext).validationError(eq(formData), any(List.class));
     }
 
-    // Tests for InetumAuthenticator
+    // Tests for InetumAuthenticator.java
 
     @Test
     public void testInetumAuthenticatorAuthenticate_Success() {
@@ -403,5 +415,72 @@ public class CombinedTests {
         // Verify that context.challenge() is called
         verify(authenticationFlowContext).challenge(any());
     }
+
+    // Tests for LookupAndUpdateUser.java
+
+    @Test
+    public void testLookupAndUpdateUser_Authenticate_Success() {
+        AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+        when(authenticationFlowContext.getAuthenticationSession()).thenReturn(authenticationSession);
+        when(authenticationFlowContext.getSession()).thenReturn(session);
+        when(authenticationFlowContext.getRealm()).thenReturn(realm);
+
+        MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+        formData.add("username", "testuser");
+        when(authenticationSession.getAuthNote(anyString())).thenReturn("testuser");
+        when(authenticationSession.getAuthNoteNames()).thenReturn(Collections.singletonList("username"));
+        when(session.users().searchForUserByUserAttributeStream(eq(realm), anyString(), anyString())).thenReturn(java.util.stream.Stream.of(userModel));
+
+        LookupAndUpdateUser lookupAndUpdateUser = new LookupAndUpdateUser();
+        lookupAndUpdateUser.authenticate(authenticationFlowContext);
+
+        verify(authenticationFlowContext).success();
+    }
+
+    // Tests for Utils.java 
+
+    @Test
+    public void testUtils_StoreUserDataInAuthSessionNotes() {
+        FormContext formContext = mock(FormContext.class);
+        MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+        formData.add("email", "test@example.com");
+        formData.add("username", "testuser");
+        when(formContext.getHttpRequest().getDecodedFormParameters()).thenReturn(formData);
+
+        AuthenticationSessionModel sessionModel = mock(AuthenticationSessionModel.class);
+        when(formContext.getAuthenticationSession()).thenReturn(sessionModel);
+
+        Utils.storeUserDataInAuthSessionNotes(formContext);
+
+        verify(sessionModel).setAuthNote(Utils.KEYS_USERDATA, Utils.serializeUserdataKeys(formData.keySet()));
+        formData.forEach((key, value) -> {
+            verify(sessionModel).setAuthNote(key, formData.getFirst(key));
+        });
+    }
+
+    @Test
+    public void testUtils_CreateUserFromAuthSessionNotes() {
+        AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+        MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+        formData.add(UserModel.EMAIL, "test@example.com");
+        formData.add(UserModel.USERNAME, "testuser");
+        when(context.getHttpRequest().getDecodedFormParameters()).thenReturn(formData);
+
+        AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+        when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+        when(context.getRealm()).thenReturn(realm);
+        UserProfileProvider profileProvider = mock(UserProfileProvider.class);
+        when(session.getProvider(UserProfileProvider.class)).thenReturn(profileProvider);
+        UserProfile profile = mock(UserProfile.class);
+        when(profileProvider.create(any())).thenReturn(profile);
+        UserModel user = mock(UserModel.class);
+        when(profile.create()).thenReturn(user);
+
+        Utils.createUserFromAuthSessionNotes(context);
+
+        verify(user).setEnabled(true);
+        verify(context).setUser(user);
+    }
+
 }
  
