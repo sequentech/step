@@ -1,11 +1,11 @@
 
 
 
-/*
+/*      BUILD SUCCESS
  * Unit Testing dummyemailsenderprovider  JC:Ayeng
  * Dummy email sender provider that just prints emails into the standard output
  * log.
-*/
+* /
 
  import org.junit.jupiter.api.BeforeEach;
  import org.junit.jupiter.api.Test;
@@ -52,6 +52,6 @@
  
      }
  }
- 
+ */
  
  

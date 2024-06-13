@@ -23,6 +23,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<maven.compiler.version>3.11.0</maven.compiler.version>
 		<maven.shade.version>3.2.4</maven.shade.version>
 		<freemarker.version>2.3.32</freemarker.version>
+		<junit.version>5.8.1</junit.version>
+	    <mockito.version>4.2.0</mockito.version>
 	</properties>
 
 	<dependencyManagement>
@@ -78,6 +80,35 @@ SPDX-License-Identifier: AGPL-3.0-only
             <artifactId>commons-lang3</artifactId>
             <version>3.12.0</version>
         </dependency>
+
+		<!-- JUnit 5 dependencies -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Mockito dependencies -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>

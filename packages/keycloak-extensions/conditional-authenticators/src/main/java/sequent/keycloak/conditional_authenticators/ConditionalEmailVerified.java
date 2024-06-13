@@ -4,6 +4,8 @@
 
 package sequent.keycloak.conditional_authenticators;
 
+
+
 import lombok.extern.jbosslog.JBossLog;
 
 import java.util.List;
@@ -27,6 +29,9 @@ import org.keycloak.authentication.authenticators.conditional.ConditionalAuthent
 /**
  * Conditional Client Authenticator that checks if the email is verified.
  */
+
+
+
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class ConditionalEmailVerified
@@ -176,3 +181,4 @@ public class ConditionalEmailVerified
         return SINGLETON;
     }
 }
+    

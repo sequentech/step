@@ -1,11 +1,11 @@
 package sequent.keycloak.authenticator;
 
-/*
+/*    BUILD SUCCESS
  * Unit Testing MFA Method Selector  JC:Ayeng  6132024
  *
  * NOTE : Commented out so dependencies are installed properly for other Unit Testing Files.
  *         UNCOMMENT IF TESTING FOR THIS FILE ONLY, or dependencies will be needed in all extensions
-*/
+* /
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -102,3 +102,4 @@ public class MessageOTPAuthenticatorTest {
     }
 }
  
+ */

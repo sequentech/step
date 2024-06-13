@@ -1,6 +1,6 @@
 package sequent.keycloak.security_question_authenticator;
 
-/*
+/*            BUILD SUCCESS
  * Unit Testing Security Question Authenticator  JC:Ayeng  6132024
  *
  * NOTE : Commented out so dependencies are installed properly for other Unit Testing Files.
