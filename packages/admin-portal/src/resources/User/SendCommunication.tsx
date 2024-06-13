@@ -505,12 +505,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.communication_method}
                             onChange={handleSelectMethodChange}
                         >
-                            {Object.values(ICommunicationMethod).filter((method)=>method !== ICommunicationMethod.DOCUMENT).map((key) => 
-                            (
-                                <MenuItem key={key} value={key}>
-                                    {t(`sendCommunication.communicationMethod.${key}`)}
-                                </MenuItem>
-                            ))}
+                            {Object.values(ICommunicationMethod)
+                                .filter((method) => method !== ICommunicationMethod.DOCUMENT)
+                                .map((key) => (
+                                    <MenuItem key={key} value={key}>
+                                        {t(`sendCommunication.communicationMethod.${key}`)}
+                                    </MenuItem>
+                                ))}
                         </FormStyles.Select>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.type")}
