@@ -120,9 +120,6 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
 
-    console.log("SendCommunication", ids, audienceSelection, electionEventId)
-    console.log("SendCommunication location", location.pathname)
-
     const [communication, setCommunication] = useState<ICommunication>({
         audience: {
             selection: audienceSelection ?? AudienceSelection.SELECTED,
@@ -508,7 +505,8 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.communication_method}
                             onChange={handleSelectMethodChange}
                         >
-                            {Object.values(ICommunicationMethod).map((key) => (
+                            {Object.values(ICommunicationMethod).filter((method)=>method !== ICommunicationMethod.DOCUMENT).map((key) => 
+                            (
                                 <MenuItem key={key} value={key}>
                                     {t(`sendCommunication.communicationMethod.${key}`)}
                                 </MenuItem>
