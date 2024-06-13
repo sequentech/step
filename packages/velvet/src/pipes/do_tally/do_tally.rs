@@ -303,11 +303,8 @@ pub struct ContestResult {
 }
 
 impl ContestResult {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn calculate_percentages(&self) -> ContestResult {
-        if self.total_valid_votes < self.total_blank_votes {
-            event!(Level::ERROR, "ERROR FF: {:?}", self);
-        }
         let valid_not_blank = self.total_valid_votes - self.total_blank_votes;
         let candidate_result: Vec<CandidateResult> = self
             .candidate_result
@@ -356,7 +353,7 @@ impl ContestResult {
         contest_result
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn aggregate(&self, other: &ContestResult) -> ContestResult {
         let mut aggregate = self.clone();
         aggregate.census += other.census;

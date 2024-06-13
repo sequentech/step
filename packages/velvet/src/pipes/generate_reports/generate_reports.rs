@@ -17,7 +17,7 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::pipes::{
@@ -41,6 +41,7 @@ pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
+#[derive(Debug)]
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
     pub input_dir: PathBuf,
@@ -327,6 +328,7 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
+    #[instrument(skip(self, contest), err)]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -357,7 +359,7 @@ impl GenerateReports {
             election_name: election_name.to_string(),
             contest,
             contest_result,
-            area_id: None,
+            area_id: area_id.clone().map(|val| val.to_string()),
             winners,
         };
 
@@ -373,6 +375,7 @@ impl GenerateReports {
         Ok(report)
     }
 
+    #[instrument(skip(self, reports), err)]
     fn write_report(
         &self,
         election_id: &Uuid,
@@ -480,7 +483,7 @@ impl Pipe for GenerateReports {
                                                 Some(&contest_input.id),
                                                 Some(&area_input.id),
                                                 contest_input.contest.clone(),
-                                                true,
+                                                false,
                                                 Some(tally_sheet_id),
                                             )?;
                                         }
