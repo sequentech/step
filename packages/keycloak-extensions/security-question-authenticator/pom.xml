@@ -22,6 +22,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.11.0</maven.compiler.version>
 		<maven.shade.version>3.2.4</maven.shade.version>
+		<!-- Unit Testing JCA -->
+		<junit.version>5.8.1</junit.version>
+        <logback.version>1.2.6</logback.version>
+        <slf4j-test.version>1.2.0</slf4j-test.version>
+		<mockito.version>3.12.4</mockito.version>
 	</properties>
 
 	<dependencyManagement>
@@ -37,6 +42,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</dependencyManagement>
 
 	<dependencies>
+		<!-- Testing Dependencies JC Ayeng 6132024 -->
+		<dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-core</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+            <version>3.4.2.Final</version>
+        </dependency>
+		<!-- END -->
 		<dependency>
 			<groupId>org.keycloak</groupId>
 			<artifactId>keycloak-server-spi</artifactId>
@@ -81,6 +122,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven.compiler.version}</version>
+				<configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
