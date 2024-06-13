@@ -5,6 +5,7 @@ import AddIcon from "@mui/icons-material/Add"
 import { NavLink } from "react-router-dom";
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
+import Box from "@mui/material/Box";
 
 export const  divContainer = css`
 flex: 0 0 auto;
@@ -14,7 +15,7 @@ height: 1.5rem;
 
 export const MenuStyles = {
 
-SideMenuContainer: styled.ul`
+SideMenuContainer: styled('ul')`
   display: flex;
   padding-left: 1rem;
   padding-right: 1rem;
@@ -27,7 +28,7 @@ SideMenuContainer: styled.ul`
   }
 `,
 
-SideMenuActiveItem: styled.li<{isArchivedElectionEvents: boolean}>`
+SideMenuActiveItem: styled('li')<{isArchivedElectionEvents: boolean}>`
 padding-left: 1rem;
 padding-right: 1rem;
 padding-top: 0.5rem;
@@ -37,7 +38,7 @@ color: ${({isArchivedElectionEvents}) => (!isArchivedElectionEvents ? colors.bra
 border-bottom: ${({ isArchivedElectionEvents }) => (!isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : 'none')};
 `,
 
-SideMenuArchiveItem: styled.li<{isArchivedElectionEvents: boolean}>`
+SideMenuArchiveItem: styled('li')<{isArchivedElectionEvents: boolean}>`
 padding-left: 1rem;
 padding-right: 1rem;
 padding-top: 0.5rem;
@@ -47,18 +48,18 @@ color: ${({isArchivedElectionEvents}) => (isArchivedElectionEvents ? colors.bran
 border-bottom: ${({ isArchivedElectionEvents }) => (isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : 'none')};
 `,
 
-EmptyStateContainer: styled.div`
+EmptyStateContainer: styled('div')`
   padding: 1rem;
   background-color: white;
 `,
 
-TreeLeavesContainer: styled.div`
+TreeLeavesContainer: styled('div')`
     display: flex;
     flex-direction: column;
     margin-left: 0.75rem;
 `,
 
-CreateElectionContainer: styled.div`
+CreateElectionContainer: styled('div')`
 display: flex;
 align-items: center;
 color: ${colors.secondary};
@@ -87,12 +88,12 @@ text-overflow: ellipsis;
 }
 `,
 
-StyledHiddenDiv: styled.div`
+StyledHiddenDiv: styled('div')`
 ${divContainer}
 visibility: hidden;
 `,
 
-TreeMenuItemContainer: styled.div`
+TreeMenuItemContainer: styled('div')`
   display: flex;
   text-align: left;
   align-items: center;
@@ -101,7 +102,7 @@ TreeMenuItemContainer: styled.div`
   }
 `,
 
-ItemContainer: styled.p`
+ItemContainer: styled('p')`
 display: flex;
 align-items: center;
 & > *:not(:last-child) {
@@ -135,19 +136,24 @@ border-bottom-color: ${colors.brandColor};
 }
 `,
 
-MenuActionContainer: styled.div`
+MenuActionContainer: styled('div')`
 visibility: hidden;
 &.group-hover-visible:hover {
 visibility: visible;
 }
 `,
-StyledIconContainer: styled.p`
+StyledIconContainer: styled('p')`
 ${divContainer}
 cursor: pointer
 `,
 
 StyledAddCircleIcon: styled(AddCircleIcon)`
 color: ${colors.brandColor}
+`,
+StyledDiv: styled(Box)<{isWidth: boolean}>`
+flex: 0 0 auto;
+height: 1.5rem;
+width: ${({ width }) => (width ? '1.5rem' : 'auto')};
 `
 }
 

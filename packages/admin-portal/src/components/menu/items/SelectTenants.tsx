@@ -6,9 +6,8 @@ import React, {useContext, useEffect} from "react"
 import {useGetList, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
-import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
+import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {Link} from "react-router-dom"
-import {cn} from "../../../lib/utils"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
@@ -81,8 +80,7 @@ const SelectTenants: React.FC = () => {
                     )}
                     {showAddTenant ? (
                         <Link to="/sequent_backend_tenant/create">
-                            <IconButton
-                                className="text-brand-color text-base"
+                            <StyledIcon
                                 icon={faPlusCircle}
                             />
                         </Link>
@@ -95,7 +93,7 @@ const SelectTenants: React.FC = () => {
 
 export default SelectTenants
 
-const Container = styled.div<{hasSingle: boolean}>`
+const Container = styled(Box)<{hasSingle: boolean}>`
 display: flex;
 align-items: center;
 padding-left: 1rem;
@@ -107,7 +105,7 @@ padding-top: ${({ hasSingle }) => (hasSingle ? '0.375rem' : '0.25rem')};
 padding-bottom: ${({ hasSingle }) => (hasSingle ? '0.375rem' : '0.25rem')};
 `;
 
-const SingleDataContainer = styled.p`
+const SingleDataContainer = styled('p')`
 flex-grow: 1;
 margin-left: 0.625rem;
 `

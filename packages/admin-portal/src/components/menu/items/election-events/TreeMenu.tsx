@@ -9,7 +9,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
-import {cn} from "@/lib/utils"
 
 import {
     mapDataChildren,
@@ -256,7 +255,7 @@ function TreeMenuItem({
                         )}
                     </MenuStyles.TreeMenuIconContaier>
                 ) : (
-                    <div className={cn("flex-none h-6", canCreateElectionEvent && "w-6")}></div>
+                    <MenuStyles.StyledDiv isWidth = {canCreateElectionEvent}/>
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink

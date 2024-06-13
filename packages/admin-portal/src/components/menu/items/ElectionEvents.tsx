@@ -22,7 +22,6 @@ import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
-import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -267,11 +266,11 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
-const Container = styled.div<{ isActive?: boolean }>`
+const Container = styled('div')<{ isActive?: boolean }>`
     background-color: ${({ isActive }) => (isActive ? colors.green.light : 'initial')}
 `
 
-const SideBarContainer = styled.div`
+const SideBarContainer = styled('div')`
   display: flex;
   align-items: center;
   background-color: white;
