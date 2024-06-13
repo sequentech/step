@@ -13,14 +13,18 @@ use std::{
 use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
+    types::tally_sheets,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::pipes::{
-    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE},
+    do_tally::{
+        list_tally_sheet_subfolders, ContestResult,
+        OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+    },
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
@@ -37,6 +41,7 @@ pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
+#[derive(Debug)]
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
     pub input_dir: PathBuf,
@@ -173,7 +178,7 @@ impl GenerateReports {
             contest_id,
             Some(area_id.clone()).as_ref(),
         );
-        let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+        let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         aggregate_path.exists() && aggregate_path.is_dir()
     }
 
@@ -184,6 +189,7 @@ impl GenerateReports {
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<ContestResult> {
         let mut base_path = PipeInputs::build_path(
             &self
@@ -196,9 +202,12 @@ impl GenerateReports {
             contest_id,
             area_id,
         );
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
 
         if is_aggregate {
-            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         }
 
         let path = base_path.join(OUTPUT_CONTEST_RESULT_FILE);
@@ -217,6 +226,7 @@ impl GenerateReports {
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<Vec<WinnerResult>> {
         let mut base_path = PipeInputs::build_path(
             &self
@@ -230,8 +240,12 @@ impl GenerateReports {
             area_id,
         );
 
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
+
         if is_aggregate {
-            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         }
 
         let path = base_path.join(OUTPUT_WINNERS);
@@ -255,10 +269,16 @@ impl GenerateReports {
                     Some(&contest_input.id),
                     None,
                     false,
+                    None,
                 )?;
 
-                let winners =
-                    self.read_winners(&election_input.id, Some(&contest_input.id), None, false)?;
+                let winners = self.read_winners(
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    None,
+                    false,
+                    None,
+                )?;
 
                 reports.push(ReportData {
                     election_name: election_input.name.clone(),
@@ -274,6 +294,7 @@ impl GenerateReports {
                         Some(&contest_input.id),
                         Some(&area.id),
                         false,
+                        None,
                     )?;
 
                     let winners = self.read_winners(
@@ -281,6 +302,7 @@ impl GenerateReports {
                         Some(&contest_input.id),
                         Some(&area.id),
                         false,
+                        None,
                     )?;
 
                     reports.push(ReportData {
@@ -306,6 +328,7 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
+    #[instrument(skip(self, contest), err)]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -314,17 +337,29 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         contest: Contest,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<ReportData> {
-        let contest_result =
-            self.read_contest_result(election_id, contest_id, area_id, is_aggregate)?;
+        let contest_result = self.read_contest_result(
+            election_id,
+            contest_id,
+            area_id,
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
 
-        let winners = self.read_winners(election_id, contest_id, area_id, is_aggregate)?;
+        let winners = self.read_winners(
+            election_id,
+            contest_id,
+            area_id,
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
 
         let report = ReportData {
             election_name: election_name.to_string(),
             contest,
             contest_result,
-            area_id: None,
+            area_id: area_id.clone().map(|val| val.to_string()),
             winners,
         };
 
@@ -334,11 +369,13 @@ impl GenerateReports {
             area_id,
             vec![report.clone()],
             is_aggregate,
+            tally_sheet_id.clone(),
         )?;
 
         Ok(report)
     }
 
+    #[instrument(skip(self, reports), err)]
     fn write_report(
         &self,
         election_id: &Uuid,
@@ -346,14 +383,19 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         reports: Vec<ReportData>,
         is_aggregate: bool,
+        tally_sheet_id: Option<String>,
     ) -> Result<()> {
         let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
 
         let mut base_path =
             PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
+
         if is_aggregate {
-            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AGGREGATE_FOLDER);
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         }
 
         fs::create_dir_all(&base_path)?;
@@ -389,6 +431,13 @@ impl GenerateReports {
 impl Pipe for GenerateReports {
     #[instrument(skip_all, name = "GenerateReports::exec")]
     fn exec(&self) -> Result<()> {
+        let mark_winners_dir = self
+            .pipe_inputs
+            .cli
+            .output_dir
+            .as_path()
+            .join(PipeNameOutputDir::MarkWinners.as_ref());
+
         self.pipe_inputs
             .election_list
             .iter()
@@ -405,6 +454,42 @@ impl Pipe for GenerateReports {
                             area_list_chunk
                                 .par_iter()
                                 .map(|area_input| -> Result<ReportData> {
+                                    // process tally sheets
+                                    let base_tally_sheet_path = PipeInputs::build_path(
+                                        &mark_winners_dir,
+                                        &area_input.election_id,
+                                        Some(&area_input.contest_id),
+                                        Some(&area_input.id),
+                                    );
+                                    let tally_sheet_paths =
+                                        list_tally_sheet_subfolders(&base_tally_sheet_path);
+                                    let tally_sheet_ids =
+                                        tally_sheet_paths
+                                            .iter()
+                                            .map(|tally_sheet_path| -> Result<String> {
+                                                PipeInputs::get_tally_sheet_id_from_path(
+                                                    &tally_sheet_path,
+                                                )
+                                                .ok_or(Error::UnexpectedError(
+                                                    "Can't read tally sheet id from path".into(),
+                                                ))
+                                            })
+                                            .collect::<Result<Vec<String>>>()?;
+                                    if tally_sheet_ids.len() > 0 {
+                                        for tally_sheet_id in tally_sheet_ids {
+                                            self.make_report(
+                                                &election_input.id,
+                                                &election_input.name,
+                                                Some(&contest_input.id),
+                                                Some(&area_input.id),
+                                                contest_input.contest.clone(),
+                                                false,
+                                                Some(tally_sheet_id),
+                                            )?;
+                                        }
+                                    }
+
+                                    // area aggregates if it has children
                                     let has_aggregate = self.has_aggregate(
                                         &election_input.id,
                                         Some(&contest_input.id),
@@ -418,6 +503,7 @@ impl Pipe for GenerateReports {
                                             Some(&area_input.id),
                                             contest_input.contest.clone(),
                                             true,
+                                            None,
                                         )?;
                                     }
                                     self.make_report(
@@ -427,6 +513,7 @@ impl Pipe for GenerateReports {
                                         Some(&area_input.id),
                                         contest_input.contest.clone(),
                                         false,
+                                        None,
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -439,6 +526,7 @@ impl Pipe for GenerateReports {
                             None,
                             contest_input.contest.clone(),
                             false,
+                            None,
                         )?;
 
                         Ok(contest_report)
@@ -446,7 +534,14 @@ impl Pipe for GenerateReports {
                     .collect();
 
                 // write report for the current election
-                self.write_report(&election_input.id, None, None, contest_reports?, false)?;
+                self.write_report(
+                    &election_input.id,
+                    None,
+                    None,
+                    contest_reports?,
+                    false,
+                    None,
+                )?;
 
                 Ok(())
             })

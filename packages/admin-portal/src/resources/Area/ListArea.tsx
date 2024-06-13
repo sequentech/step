@@ -129,10 +129,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             <IconButton icon={faPlus} fontSize="24px" />
                             {t("common.label.import")}
                         </Button>
-                        <Button onClick={() => setOpenUpsertDrawer(true)}>
-                            <IconButton icon={faPlus} fontSize="24px" />
-                            {t("electionEventScreen.importAreas.upsert")}
-                        </Button>
                     </ActionsBox>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}

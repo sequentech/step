@@ -297,6 +297,7 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
         event!(Level::INFO, "Exec {}", stage_name);
         state.exec_next()?;
     }
+
     Ok(state)
 }
 
