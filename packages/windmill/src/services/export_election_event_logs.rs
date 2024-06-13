@@ -56,9 +56,15 @@ pub async fn process_export(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-    
 
-    write_export_document(&hasura_transaction, data, document_id, tenant_id, election_event_id).await?;
+    write_export_document(
+        &hasura_transaction,
+        data,
+        document_id,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
 
     let _commit = hasura_transaction
         .commit()

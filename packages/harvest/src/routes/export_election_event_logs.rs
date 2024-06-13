@@ -10,7 +10,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{ instrument, Level};
+use tracing::{instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::export_election_event_logs;
@@ -41,14 +41,16 @@ pub async fn export_election_event_logs_route(
     )?;
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let election_event_logs =  list_electoral_log(GetElectoralLogBody{
+    let election_event_logs = list_electoral_log(GetElectoralLogBody {
         tenant_id: claims.hasura_claims.tenant_id.clone(),
         election_event_id: body.election_event_id.clone(),
         limit: None,
         offset: None,
         filter: None,
         order_by: None,
-    }).await.map_err(|e| {
+    })
+    .await
+    .map_err(|e| {
         (
             Status::InternalServerError,
             format!("Error fetching electoral logs: {:?}", e),
@@ -65,7 +67,7 @@ pub async fn export_election_event_logs_route(
             claims.hasura_claims.tenant_id.clone(),
             body.election_event_id.clone(),
             document_id.clone(),
-            data
+            data,
         ))
         .await
         .map_err(|error| {

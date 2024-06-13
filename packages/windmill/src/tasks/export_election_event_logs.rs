@@ -14,7 +14,7 @@ pub async fn export_election_event_logs(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-    log_data:String
+    log_data: String,
 ) -> Result<()> {
     let data = process_export(&tenant_id, &election_event_id, &document_id, &log_data).await?;
 
