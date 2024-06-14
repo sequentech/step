@@ -676,6 +676,12 @@ impl BoardClient {
     }
 }
 
+/*impl Drop for BoardClient {
+    fn drop(&mut self) {
+        self.client.logou
+    }
+} */
+
 // Run ignored tests with
 // cargo test <test_name> -- --include-ignored
 #[cfg(test)]

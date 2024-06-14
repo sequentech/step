@@ -63,6 +63,7 @@ enum Command {
     PostBallots,
     ListMessages,
     ListBoards,
+    DeleteBoards,
 }
 
 /*
@@ -138,7 +139,6 @@ async fn main() -> Result<()> {
             let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
             create_boards(&args.server_url, IMMUDB_USER, IMMUDB_PW, &args.indexdb, &args.dbname, args.count).await?; 
             for i in 0..args.count {
-                let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
                 let name = if i == 0 {
                     args.dbname.to_string()
                 }
@@ -167,6 +167,9 @@ async fn main() -> Result<()> {
         Command::ListBoards => {
             let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
             list_boards(&mut board, &args.indexdb).await?;
+        }
+        Command::DeleteBoards => {
+            delete_boards(&args.server_url, IMMUDB_USER, IMMUDB_PW, &args.indexdb, &args.dbname, args.count).await?; 
         }
     }
 
@@ -417,7 +420,6 @@ async fn create_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, ind
     board.upsert_index_db(indexdb).await?;
 
     for i in 0..count {
-        let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
         let name = if i == 0 {
             dbname.to_string()
         }
@@ -425,7 +427,25 @@ async fn create_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, ind
             format!("{}_{}", dbname, i + 1)
         };
         board.delete_database(&name).await?;    
-        board.create_board(indexdb, &name).await?;    
+        board.create_board(indexdb, &name).await?;
+    }
+
+    Ok(())
+}
+
+#[instrument()]
+async fn delete_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, indexdb: &str, dbname: &str, count: u32) -> Result<()> {
+    let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
+    board.delete_database(indexdb).await?;
+
+    for i in 0..count {
+        let name = if i == 0 {
+            dbname.to_string()
+        }
+        else {
+            format!("{}_{}", dbname, i + 1)
+        };
+        board.delete_database(&name).await?;
     }
 
     Ok(())

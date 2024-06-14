@@ -43,7 +43,7 @@ impl Client {
         })
     }
 
-    #[instrument(level = "trace")]
+    #[instrument(level = "debug")]
     pub async fn login(&mut self) -> Result<()> {
         let login_request = Request::new(LoginRequest {
             user: self.username.clone().into(),
@@ -52,6 +52,15 @@ impl Client {
         let response = self.client.login(login_request).await?;
         debug!("grpc-login-response={:?}", response);
         self.auth_token = Some(format!("Bearer {}", response.get_ref().token));
+        Ok(())
+    }
+
+    #[instrument(level = "debug")]
+    pub async fn logout(&mut self) -> Result<()> {
+        let request = self.get_request(())?;
+        let response = self.client.logout(request).await?;
+        debug!("grpc-login-response={:?}", response);
+        self.auth_token = None;
         Ok(())
     }
 

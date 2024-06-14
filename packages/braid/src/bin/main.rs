@@ -74,6 +74,7 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
 
+    let name = args.trustee_config.to_str().expect("impossible").to_string();
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
 
@@ -119,8 +120,10 @@ async fn main() -> Result<()> {
             }
 
             info!("Connecting to board '{}'..", board_name.clone());
+            
+            
             let trustee: Trustee<RistrettoCtx> =
-                Trustee::new("Self".to_string(), sk.clone(), ek.clone());
+                Trustee::new(name.clone(), sk.clone(), ek.clone());
             let board = BoardParams::new(
                 &args.server_url,
                 &args.user,
