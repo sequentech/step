@@ -10,6 +10,9 @@ use crate::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 
+const IMMUDB_DEFAULT_LIMIT: usize = 2500;
+const IMMUDB_DEFAULT_OFFSET: usize = 0;
+
 enum Table {
     BraidMessages,
     ElectoralLogMessages,
@@ -132,7 +135,31 @@ impl BoardClient {
         board_db: &str,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
-        self.get(board_db, Table::BraidMessages, last_id).await
+        let mut offset: usize = 0;
+        let mut last_batch = self
+            .get(
+                board_db,
+                Table::BraidMessages,
+                last_id,
+                Some(IMMUDB_DEFAULT_LIMIT),
+                Some(offset),
+            )
+            .await?;
+        let mut messages = last_batch.clone();
+        while IMMUDB_DEFAULT_LIMIT == last_batch.len() {
+            offset += last_batch.len();
+            last_batch = self
+                .get(
+                    board_db,
+                    Table::BraidMessages,
+                    last_id,
+                    Some(IMMUDB_DEFAULT_LIMIT),
+                    Some(offset),
+                )
+                .await?;
+            messages.extend(last_batch.clone());
+        }
+        Ok(messages)
     }
 
     /// Get one braid messages matching id
@@ -149,7 +176,31 @@ impl BoardClient {
         &mut self,
         board_db: &str,
     ) -> Result<Vec<BoardMessage>> {
-        self.get(board_db, Table::ElectoralLogMessages, 0).await
+        let mut offset: usize = 0;
+        let mut last_batch = self
+            .get(
+                board_db,
+                Table::ElectoralLogMessages,
+                0,
+                Some(IMMUDB_DEFAULT_LIMIT),
+                Some(offset),
+            )
+            .await?;
+        let mut messages = last_batch.clone();
+        while IMMUDB_DEFAULT_LIMIT == last_batch.len() {
+            offset += last_batch.len();
+            last_batch = self
+                .get(
+                    board_db,
+                    Table::BraidMessages,
+                    0,
+                    Some(IMMUDB_DEFAULT_LIMIT),
+                    Some(offset),
+                )
+                .await?;
+            messages.extend(last_batch.clone());
+        }
+        Ok(messages)
     }
 
     /// Get all messages whose id is bigger than `last_id`
@@ -158,6 +209,8 @@ impl BoardClient {
         board_db: &str,
         table: Table,
         last_id: i64,
+        limit: Option<usize>,
+        offset: Option<usize>,
     ) -> Result<Vec<BoardMessage>> {
         self.client.use_database(board_db).await?;
         let sql = format!(
@@ -172,9 +225,13 @@ impl BoardClient {
             version
         FROM {}
         WHERE id > @last_id
-        ORDER BY id;
+        ORDER BY id
+        LIMIT {}
+        OFFSET {};
         "#,
-            table.as_str()
+            table.as_str(),
+            limit.unwrap_or(IMMUDB_DEFAULT_LIMIT),
+            offset.unwrap_or(IMMUDB_DEFAULT_OFFSET),
         );
 
         let params = vec![NamedParam {
