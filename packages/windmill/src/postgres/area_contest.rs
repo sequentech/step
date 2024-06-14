@@ -45,7 +45,7 @@ pub async fn insert_area_contests(
             .query(
                 &statement,
                 &[
-                    &area_contest.id,
+                    &Uuid::parse_str(&area_contest.id)?,
                     &Uuid::parse_str(tenant_id)?,
                     &Uuid::parse_str(election_event_id)?,
                     &Uuid::parse_str(&area_contest.contest_id)?,
