@@ -359,7 +359,9 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
         .map(|area| (area.id.clone(), area.clone()))
         .collect();
     for area_node in areas_tree.iter() {
-        let area_tree_node = area_node.area.clone().ok_or(anyhow!("Can'd find area"))?;
+        let Some(area_tree_node) = area_node.area.clone() else {
+            continue;
+        };
         let area = areas_map
             .get(&area_tree_node.id)
             .ok_or(anyhow!("Can'd find area"))?;
