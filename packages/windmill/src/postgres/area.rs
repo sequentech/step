@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::import_election_event::ImportElectionEventSchema;
-use anyhow::anyhow;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
@@ -352,7 +352,18 @@ pub async fn upsert_area_parents(
 
 #[instrument(err, skip_all)]
 pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
-    for area in areas {
+    let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+    let areas_tree = TreeNode::<()>::from_areas(tree_node_areas)?;
+    let areas_map: HashMap<String, Area> = areas
+        .iter()
+        .map(|area| (area.id.clone(), area.clone()))
+        .collect();
+    for area_node in areas_tree.iter() {
+        let area_tree_node = area_node.area.clone().ok_or(anyhow!("Can'd find area"))?;
+        let area = areas_map
+            .get(&area_tree_node.id)
+            .ok_or(anyhow!("Can'd find area"))?;
+
         let statement = hasura_transaction
         .prepare(
             r#"
@@ -370,7 +381,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
             .map(|parent_id| Uuid::parse_str(&parent_id).ok())
             .flatten();
 
-        let rows: Vec<Row> = hasura_transaction
+        let _rows: Vec<Row> = hasura_transaction
             .query(
                 &statement,
                 &[
