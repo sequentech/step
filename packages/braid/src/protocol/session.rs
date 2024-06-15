@@ -13,26 +13,17 @@ use crate::protocol::trustee::Trustee;
 use crate::util::ProtocolError;
 
 pub struct Session<C: Ctx + 'static> {
+    pub name: String,
     trustee: Trustee<C>,
     board: BoardParams,
-    dry_run: bool,
     last_message_id: Option<i64>,
 }
 impl<C: Ctx> Session<C> {
-    pub fn new(trustee: Trustee<C>, board: BoardParams) -> Session<C> {
+    pub fn new(name: &str, trustee: Trustee<C>, board: BoardParams) -> Session<C> {
         Session {
+            name: name.to_string(),
             trustee,
             board,
-            dry_run: false,
-            last_message_id: None,
-        }
-    }
-
-    pub fn new_dry(trustee: Trustee<C>, board: BoardParams) -> Session<C> {
-        Session {
-            trustee,
-            board,
-            dry_run: true,
             last_message_id: None,
         }
     }
@@ -62,7 +53,7 @@ impl<C: Ctx> Session<C> {
         let messages = messages.expect("impossible");
 
         if 0 == messages.len() {
-            info!("No messages in board, no action taken");
+            info!("No new messages retrieved, no action taken");
             return (self, Ok(()));
         }
 
@@ -71,23 +62,18 @@ impl<C: Ctx> Session<C> {
         if let Err(err) = step_result {
             return (self, Err(err));
         }
-        let (send_messages, _actions) = step_result.expect("impossible");
+        let (send_messages, _actions, last_id) = step_result.expect("impossible");
 
-        if !self.dry_run {
-            let result = board
-                .insert_messages(send_messages)
-                .await
-                .map_err(|e| ProtocolError::BoardError(e.to_string()));
-            return (self, result);
-            /* match result {
-                Ok(_) => (),
-                Err(err) => {
-                    warn!("Insert messages returns error {:?}", err)
-                }
-            }*/
-        }
-
-        (self, Ok(()))
+        
+        let result = board
+            .insert_messages(send_messages)
+            .await
+            .map_err(|e| ProtocolError::BoardError(e.to_string()));
+        
+        info!("Setting last_id = {}", last_id);
+        self.last_message_id = Some(last_id);
+        
+        (self, result)
     }
 }
 

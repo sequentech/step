@@ -33,14 +33,14 @@ Persistence implementation:
 // #[derive(Clone)]
 pub struct VectorBoard {
     session_id: u128,
-    pub(crate) messages: Vec<Message>,
+    pub(crate) messages: Vec<(Message, i64)>,
 }
 
 impl Clone for VectorBoard {
     fn clone(&self) -> Self {
         let mut ms = vec![];
-        for m in &self.messages {
-            ms.push(m.try_clone().unwrap());
+        for (m, id) in &self.messages {
+            ms.push((m.try_clone().unwrap(), id.clone()));
         }
         VectorBoard {
             session_id: self.session_id,
@@ -60,16 +60,17 @@ impl VectorBoard {
     }
 
     pub fn add(&mut self, message: Message) {
-        self.messages.push(message);
+        let last_id: i64= self.messages.len() as i64;
+        self.messages.push((message, last_id + 1));
     }
 
-    pub fn get(&self, last_message: i64) -> Vec<Message> {
+    pub fn get(&self, last_message: i64) -> Vec<(Message, i64)> {
         let next: usize = (last_message + 1) as usize;
 
         let mut ret = vec![];
         let slice = &self.messages[next..self.messages.len()];
-        for m in slice {
-            ret.push(m.try_clone().unwrap());
+        for (m, id) in slice {
+            ret.push((m.try_clone().unwrap(), id.clone()));
         }
 
         ret
@@ -87,7 +88,7 @@ impl std::fmt::Debug for VectorBoard {
         let types: Vec<(StatementType, bool)> = self
             .messages
             .iter()
-            .map(|m| (m.statement.get_kind(), m.artifact.is_some()))
+            .map(|m| (m.0.statement.get_kind(), m.0.artifact.is_some()))
             .collect();
         write!(
             f,

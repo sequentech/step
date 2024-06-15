@@ -9,7 +9,7 @@ use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
-use tracing::warn;
+use tracing::{warn,info};
 
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,
@@ -36,7 +36,7 @@ impl ImmudbBoard {
     // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
     // If a store is used only the messages not previously received will be requested.
     // If a store is not used, messages will be retrieved from immudb using consecutive requests.
-    pub async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<Message>> {
+    pub async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
         let messages = if self.store_root.is_some() {
             // When using a store, only the messages not previously received will be requested
             self.store_and_get_messages(last_id).await?
@@ -50,8 +50,12 @@ impl ImmudbBoard {
 
             messages
                 .iter()
-                .map(|m| Message::strand_deserialize(&m.message).unwrap())
-                .collect::<Vec<Message>>()
+                .map(|m| {
+                    let message = Message::strand_deserialize(&m.message)?;
+                    let id = m.id;
+                    Ok((message, id))
+                })
+                .collect::<Result<Vec<(Message, i64)>>>()?
         };
 
         Ok(messages)
@@ -124,7 +128,7 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-    async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<Message>> {
+    async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
         let connection = self.get_store()?;
 
         let external_last_id =
@@ -150,14 +154,15 @@ impl ImmudbBoard {
             .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
             .await?;
 
-        // FIXME verify message signatures before inserting in local store
+        info!("Retrieved {} messages remotely, storing locally", messages.len());
 
+        // FIXME verify message signatures before inserting in local store
+        let mut statement = connection.prepare("INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)")?;
+        connection.execute("BEGIN TRANSACTION", [])?;
         for message in messages {
-            connection.execute(
-                "INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)",
-                params![message.id, message.message],
-            )?;
+            statement.execute(params![message.id, message.message])?;
         }
+        connection.execute("END TRANSACTION", [])?;
 
         let mut stmt =
             connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
@@ -169,8 +174,14 @@ impl ImmudbBoard {
             })
         })?;
 
-        let messages: Result<Vec<Message>> = rows
-            .map(|mr| Ok(Message::strand_deserialize(&mr?.message)?))
+        info!("Deserializing rows into Message structs..");
+        let messages: Result<Vec<(Message, i64)>> = rows
+            .map(|mr| {
+                let row = mr?;
+                let id = row._id;
+                let message = Message::strand_deserialize(&row.message)?;
+                Ok((message, id))
+            })
             .collect();
 
         messages
@@ -207,6 +218,6 @@ impl ImmudbBoardIndex {
 }
 
 struct MessageRow {
-    _id: u64,
+    _id: i64,
     message: Vec<u8>,
 }

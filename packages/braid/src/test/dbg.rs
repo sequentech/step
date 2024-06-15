@@ -217,7 +217,7 @@ impl<C: Ctx> Status<C> {
             .set_header("batch")
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
-        for m in self.remote.messages.iter() {
+        for (m, id) in self.remote.messages.iter() {
             let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
@@ -482,7 +482,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         let t = value.parse::<u8>()?;
         let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
-            let (messages, actions) = trustee.step(context.remote.get(-1)).unwrap();
+            let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
             send(&messages, &mut context.remote);
             context.last_messages = messages;
             context.last_actions = actions;
@@ -496,7 +496,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
                 "====================== Running trustee {} ======================",
                 position.unwrap()
             );
-            let (mut messages, actions) = t.step(context.remote.get(-1)).unwrap();
+            let (mut messages, actions, _last_id) = t.step(context.remote.get(-1)).unwrap();
             send(&messages, &mut context.remote);
             context.last_messages.append(&mut messages);
             context.last_actions.extend(&actions);

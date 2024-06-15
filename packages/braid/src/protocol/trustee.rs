@@ -85,9 +85,9 @@ impl<C: Ctx> Trustee<C> {
     #[instrument(name = "Trustee::step", skip(messages, self))]
     pub(crate) fn step(
         &mut self,
-        messages: Vec<Message>,
-    ) -> Result<(Vec<Message>, HashSet<Action>), ProtocolError> {
-        let added_messages = self.update_local_board(messages)?;
+        messages: Vec<(Message, i64)>,
+    ) -> Result<(Vec<Message>, HashSet<Action>, i64), ProtocolError> {
+        let (added_messages, last_id) = self.update_local_board(messages)?;
 
         info!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
@@ -105,7 +105,7 @@ impl<C: Ctx> Trustee<C> {
             );
         }
 
-        Ok((messages, actions))
+        Ok((messages, actions, last_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -113,7 +113,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
-    fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32, ProtocolError> {
+    fn update_local_board(&mut self, messages: Vec<(Message, i64)>) -> Result<(i32, i64), ProtocolError> {
         trace!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
@@ -131,10 +131,11 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
     fn update(
         &mut self,
-        messages: Vec<Message>,
+        messages: Vec<(Message, i64)>,
         configuration: Configuration<C>,
-    ) -> Result<i32, ProtocolError> {
+    ) -> Result<(i32, i64), ProtocolError> {
         let mut added = 0;
+        let mut last_added_id: i64 = -1;
 
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
@@ -146,10 +147,10 @@ impl<C: Ctx> Trustee<C> {
 
         let cfg_hash = cfg_hash.expect("impossible");
         // Show the latest message received
-        let last_message = messages.get(messages.len() - 1).expect("impossible");
-        info!("Update: last message is {:?}", last_message.statement.get_kind());
+        let (last_message, id) = messages.get(messages.len() - 1).expect("impossible");
+        info!("Update: last message is {:?} ({})", last_message.statement.get_kind(), id);
 
-        for message in messages {
+        for (message, id) in messages {
             let verified = message.verify(&configuration).map_err(|e| {
                 ProtocolError::VerificationError(format!(
                     "Message failed verification: {:?}, cfg: {:?}",
@@ -167,9 +168,12 @@ impl<C: Ctx> Trustee<C> {
             let _ = self.local_board.add(verified)?;
             debug!("Added message type=[{}]", stmt);
             added += 1;
+            if id > last_added_id {
+                last_added_id = id;
+            }
         }
 
-        Ok(added)
+        Ok((added, last_added_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -178,8 +182,9 @@ impl<C: Ctx> Trustee<C> {
     // There is no configuration. We retrieve message zero, check that it's the
     // configuration and add it to the local board.
     ///////////////////////////////////////////////////////////////////////////
-    fn update_bootstrap(&mut self, mut messages: Vec<Message>) -> Result<i32, ProtocolError> {
+    fn update_bootstrap(&mut self, mut messages: Vec<(Message, i64)>) -> Result<(i32, i64), ProtocolError> {
         let mut added = 0;
+        let mut last_added_id: i64 = -1;
 
         trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
@@ -187,7 +192,7 @@ impl<C: Ctx> Trustee<C> {
                 "Zero messages received, cannot retrieve configuration"
             )));
         }
-        let zero = messages.remove(0);
+        let (zero, last_id) = messages.remove(0);
 
         if zero.statement.get_kind() != StatementType::Configuration {
             return Err(ProtocolError::BootstrapError(format!(
@@ -225,15 +230,16 @@ impl<C: Ctx> Trustee<C> {
         let added_ = self.local_board.add(verified);
         if added_.is_ok() {
             added += 1;
+            last_added_id = last_id;
         } else {
-            return added_.map(|()| 0);
+            return added_.map(|()| (0, last_added_id));
         }
         // Process the rest of the messages
         if !messages.is_empty() {
             return self.update(messages, configuration);
         }
 
-        Ok(added)
+        Ok((added, last_added_id))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -341,7 +347,7 @@ impl<C: Ctx> Trustee<C> {
     // Trustee verifying mode
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn verify(&mut self, messages: Vec<Message>) -> Result<Vec<Message>> {
+    pub(crate) fn verify(&mut self, messages: Vec<(Message, i64)>) -> Result<Vec<Message>> {
         self.update_local_board(messages)?;
 
         let predicates = self.derive_predicates(true)?;

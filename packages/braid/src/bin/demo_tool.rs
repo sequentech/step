@@ -52,6 +52,9 @@ struct Cli {
     #[arg(short, long, default_value_t = 1)]
     count: u32,
 
+    #[arg(short, long, default_value_t = 1)]
+    batches: u32,
+
     #[arg(value_enum)]
     command: Command,
 }
@@ -157,7 +160,7 @@ async fn main() -> Result<()> {
                 else {
                     format!("{}_{}", &args.dbname, i + 1)
                 };
-                post_ballots(&mut board, &name, &ctx).await?;
+                post_ballots(&mut board, &name, args.batches, &ctx).await?;
             }
         }
         Command::ListMessages => {
@@ -280,7 +283,7 @@ public key is present on the board and can be downloaded to allow the encryption
 are randomly generated.
 */
 #[instrument(skip(board))]
-async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: &C) -> Result<()> {
+async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, batches: u32, ctx: &C) -> Result<()> {
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk = sender_pk.to_der_b64_string()?;
@@ -344,18 +347,22 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: &C
 
         let ballot_batch = board_messages::braid::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
-        let message = board_messages::braid::message::Message::ballots_msg(
-            &configuration,
-            2,
-            &ballot_batch,
-            selected_trustees,
-            PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
-            &pm,
-        )?;
-
-        info!("Adding ballots to the board..");
-        let bm: BoardMessage = message.try_into()?;
-        board.insert_messages(board_name, &vec![bm]).await?;
+        
+        for i in 0..batches {
+            let message = board_messages::braid::message::Message::ballots_msg(
+                &configuration,
+                i as usize,
+                &ballot_batch,
+                selected_trustees,
+                PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
+                &pm,
+            )?;
+    
+            info!("Adding ballots to the board..");
+            let bm: BoardMessage = message.try_into()?;
+            board.insert_messages(board_name, &vec![bm]).await?;
+        }
+        
     } else {
         return Err(anyhow!(
             "Could not find public key or configuration artifact(s)"

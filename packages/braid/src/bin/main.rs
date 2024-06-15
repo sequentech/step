@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
@@ -43,6 +44,9 @@ struct Cli {
 
     #[arg(long, default_value_t = false)]
     strict: bool,
+
+    #[arg(long, default_value_t = 100)]
+    session_reset_period: u32,
 }
 
 fn get_ignored_boards() -> Vec<String> {
@@ -91,8 +95,11 @@ async fn main() -> Result<()> {
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
+
+    let mut session_map: HashMap<String, Session<RistrettoCtx>> = HashMap::new();
+    let mut loop_count = 0;
     loop {
-        info!(">");
+        info!("{}>", loop_count);
 
         let mut board_index: ImmudbBoardIndex = ImmudbBoardIndex::new(
             &args.server_url,
@@ -118,10 +125,15 @@ async fn main() -> Result<()> {
                 info!("Ignoring board '{}'..", board_name);
                 continue;
             }
+            if loop_count % args.session_reset_period == 0 {
+                info!("Session memory reset");
+                session_map = HashMap::new();
+            }
+            if session_map.contains_key(&board_name) {
+                continue;
+            }
 
-            info!("Connecting to board '{}'..", board_name.clone());
-            
-            
+            info!("Creating new session created for board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> =
                 Trustee::new(name.clone(), sk.clone(), ek.clone());
             let board = BoardParams::new(
@@ -146,9 +158,15 @@ async fn main() -> Result<()> {
                 }
             };
 
-            let session = Session::new(trustee, board);
+            let session = Session::new(&board_name, trustee, board);
+            session_map.insert(board_name.clone(), session);
+        }
+        
+        let mut session_map_next = HashMap::new();
+        for s in session_map.into_values() {
+            let board_name = s.name.clone();
             info!("Running trustee for board '{}'..", board_name);
-            let (session, result) = session.step().await;
+            let (session, result) = s.step().await;
             match result {
                 Ok(_) => (),
                 Err(error) => {
@@ -166,10 +184,15 @@ async fn main() -> Result<()> {
                     }
                 }
             };
+            session_map_next.insert(session.name.clone(), session);
         }
+        session_map = session_map_next;
+        
+
         if args.strict && step_error {
             break;
         }
+        loop_count += 1;
         sleep(Duration::from_millis(1000)).await;
     }
 

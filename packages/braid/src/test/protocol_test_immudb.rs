@@ -92,7 +92,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
 
     for t in test.trustees.into_iter() {
         let board = BoardParams::new(SERVER_URL, IMMUDB_USER, IMMUDB_PW, BOARD_DB, None);
-        sessions.push(Session::new(t, board));
+        sessions.push(Session::new(BOARD_DB, t, board));
     }
 
     let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")

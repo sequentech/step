@@ -41,7 +41,7 @@ impl<C: Ctx> VectorSession<C> {
         let count = messages.len() as i64;
         let result = self.trustee.step(messages);
         self.last_message += count;
-        if let Ok((send_messages, _actions)) = result {
+        if let Ok((send_messages, _actions, _last_id)) = result {
             let mut remote = self.remote.lock().unwrap();
             send(send_messages, &mut remote);
         } else {

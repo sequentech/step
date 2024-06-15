@@ -134,10 +134,13 @@ impl<C: Ctx> Verifier<C> {
         );
 
         let messages = self.board.get_messages(None).await?;
+        // discard ids here
+        // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
 
         let cfg_message: Vec<&Message> = messages
             .iter()
-            .filter(|m| m.statement.get_kind() == StatementType::Configuration)
+            .filter(|m| m.0.statement.get_kind() == StatementType::Configuration)
+            .map(|m| &m.0)
             .collect();
 
         assert_eq!(cfg_message.len(), 1);
@@ -163,13 +166,13 @@ impl<C: Ctx> Verifier<C> {
 
         info!("Verifying signatures for {} messages..", messages.len());
         let vmessages: Result<Vec<VerifiedMessage>> =
-            messages.iter().map(|m| m.verify(&cfg)).collect();
+            messages.iter().map(|m| m.0.verify(&cfg)).collect();
         let vmessages = vmessages?;
         vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         let correct_cfg = messages
             .iter()
-            .filter(|m| m.statement.get_cfg_h() == cfg_h)
+            .filter(|m| m.0.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
             Check::MESSAGES_CFG_VALID,
