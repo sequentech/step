@@ -350,7 +350,12 @@ async fn insert_ballots_messages(
         deserialized_trustee_pks.len()
     );
 
-    for tally_session_contest in tally_session_contests.iter() {
+    for (idx,tally_session_contest) in tally_session_contests.iter().enumerate() {
+        event!(
+            Level::INFO,
+            "Num {idx} of {}",
+            tally_session_contests.len(),
+        );
         event!(
             Level::INFO,
             "Inserting Ballots message for contest {}, area {} and batch num {}",
