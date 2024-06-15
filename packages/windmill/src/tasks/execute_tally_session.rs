@@ -57,6 +57,8 @@ use sequent_core::ballot::Candidate;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::area_tree::TreeNode;
+use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
@@ -67,6 +69,7 @@ use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::TallySheet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::str::FromStr;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
@@ -110,8 +113,17 @@ async fn process_plaintexts(
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
-    areas_map: &HashMap<String, Area>,
+    areas: &Vec<Area>,
 ) -> Result<Vec<AreaContestDataType>> {
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
+    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
+
     let almost_vec: Vec<AreaContestDataType> = tally_session_data
         .sequent_backend_tally_session_contest
         .iter()
@@ -136,7 +148,7 @@ async fn process_plaintexts(
                     return None;
                 };
 
-            let batch_num = session_contest.session_id;
+            let batch_num: i64 = session_contest.session_id;
             let Some(plaintexts) = relevant_plaintexts
                 .iter()
                 .find(|plaintexts_message|
@@ -172,6 +184,26 @@ async fn process_plaintexts(
         })
         .collect();
 
+    // set<area_id, contest_id>
+    let found_area_contests: HashSet<(String, String)> = almost_vec
+        .iter()
+        .map(|val| (val.area.id.clone(), val.contest.id.clone()))
+        .collect();
+
+    let filtered_area_contests: Vec<AreaContestDataType> = almost_vec
+        .clone()
+        .into_iter()
+        .filter(|area_contest| {
+            let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
+                return false;
+            };
+            tree_path.iter().all(|tree_node| {
+                found_area_contests
+                    .contains(&(tree_node.id.clone(), area_contest.contest.id.clone()))
+            })
+        })
+        .collect();
+
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -194,7 +226,7 @@ async fn process_plaintexts(
     let mut data: Vec<AreaContestDataType> = vec![];
 
     // fill in the eligible voters data
-    for almost in almost_vec {
+    for almost in filtered_area_contests {
         let mut area_contest = almost.clone();
         let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
@@ -787,11 +819,6 @@ async fn map_plaintext_data(
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
     let areas = get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
-    let areas_map: HashMap<String, Area> = areas
-        .clone()
-        .into_iter()
-        .map(|area: Area| (area.id.clone(), area.clone()))
-        .collect();
 
     let tally_sheet_rows =
         get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
@@ -802,7 +829,7 @@ async fn map_plaintext_data(
         relevant_plaintexts,
         ballot_styles,
         tally_session_data,
-        &areas_map,
+        &areas,
     )
     .await?;
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
