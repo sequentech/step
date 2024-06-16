@@ -11,6 +11,7 @@ use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 
 const IMMUDB_DEFAULT_LIMIT: usize = 2500;
+const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 
 enum Table {
@@ -421,7 +422,12 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
-        self.insert(board_db, Table::BraidMessages, messages).await
+        for chunk in messages.chunks(IMMUDB_DEFAULT_ENTRIES_TX_LIMIT) {
+            let chunk_vec: Vec<BoardMessage> = chunk.to_vec();
+            self.insert(board_db, Table::BraidMessages, &chunk_vec)
+                .await?;
+        }
+        Ok(())
     }
 
     pub async fn insert_electoral_log_messages(
