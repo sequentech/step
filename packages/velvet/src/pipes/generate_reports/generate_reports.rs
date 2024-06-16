@@ -41,6 +41,11 @@ pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct PipeConfigGenerateReports {
+    pub disable_pdfs: bool,
+}
+
 #[derive(Debug)]
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -67,6 +72,18 @@ impl GenerateReports {
             input_dir,
             output_dir,
         }
+    }
+    #[instrument(skip_all)]
+    pub fn get_config(&self) -> Result<PipeConfigGenerateReports> {
+        let pipe_config: PipeConfigGenerateReports = self
+            .pipe_inputs
+            .stage
+            .pipe_config(self.pipe_inputs.stage.current_pipe)
+            .and_then(|pc| pc.config)
+            .map(|value| serde_json::from_value(value))
+            .transpose()?
+            .unwrap_or_default();
+        Ok(pipe_config)
     }
 
     #[instrument(skip_all)]
