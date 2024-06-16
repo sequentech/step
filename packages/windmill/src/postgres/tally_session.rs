@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::hasura::core::TallySession;
+use sequent_core::types::{ceremonies::TallyExecutionStatus, hasura::core::TallySession};
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -46,4 +46,76 @@ impl TryFrom<Row> for TallySessionWrapper {
             threshold: item.try_get("threshold")?,
         }))
     }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_tally_session(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: Vec<String>,
+    area_ids: Vec<String>,
+    tally_session_id: &str,
+    keys_ceremony_id: &str,
+    execution_status: TallyExecutionStatus,
+    threshold: i64,
+) -> Result<TallySession> {
+    let election_uuids: Vec<Uuid> = election_ids
+        .iter()
+        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+    let area_uuids: Vec<Uuid> = area_ids
+        .iter()
+        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.tally_session
+                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8
+                )
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &election_uuids,
+                &area_uuids,
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(keys_ceremony_id)?,
+                &Some(execution_status.to_string()),
+                &threshold,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+
+    let values: Vec<TallySession> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySession> {
+            row.try_into()
+                .map(|res: TallySessionWrapper| -> TallySession { res.0 })
+        })
+        .collect::<Result<Vec<TallySession>>>()?;
+
+    let Some(value) = values.first() else {
+        return Err(anyhow!("Error inserting row"));
+    };
+    Ok(value.clone())
 }
