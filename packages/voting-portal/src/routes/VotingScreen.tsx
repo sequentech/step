@@ -335,16 +335,14 @@ const VotingScreen: React.FC = () => {
                 </Typography>
             ) : null}
             {contests.map((contest, index) => (
-                <>
-                    <Question
-                        ballotStyle={ballotStyle}
-                        question={contest}
-                        key={index}
-                        isReview={false}
-                        setDisableNext={onSetDisableNext(contest.id)}
-                        setDecodedContests={onSetDecodedContests(contest.id)}
-                    />
-                </>
+                <Question
+                    ballotStyle={ballotStyle}
+                    question={contest}
+                    key={index}
+                    isReview={false}
+                    setDisableNext={onSetDisableNext(contest.id)}
+                    setDecodedContests={onSetDecodedContests(contest.id)}
+                />
             ))}
             <ActionButtons handleNext={encryptAndReview} />
 
