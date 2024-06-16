@@ -227,6 +227,8 @@ const spanishTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento Electoral.",
+                showMore: "Mostrar más",
+                showLess: "Mostrar menos",
             },
             edit: {
                 general: "General",

@@ -227,6 +227,8 @@ const catalanTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
+                showMore: "Mostra'n més",
+                showLess: "Mostra'n menys",
             },
             edit: {
                 general: "General",

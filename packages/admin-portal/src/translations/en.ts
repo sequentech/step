@@ -225,6 +225,8 @@ const englishTranslation = {
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",
+                showMore: "Show More",
+                showLess: "Show Less",
             },
             edit: {
                 general: "General",
