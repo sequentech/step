@@ -92,3 +92,47 @@ pub async fn insert_tally_session_contest(
     };
     Ok(value.clone())
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_tally_session_highest_batch(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<BatchNumber> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, session_id
+                FROM
+                    sequent_backend.tally_session_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+
+    let values: Vec<BatchNumber> = rows
+        .into_iter()
+        .map(|row| -> Result<BatchNumber> {
+            let session_id: i64 = row.try_get("session_id")?;
+            Ok(session_id as BatchNumber)
+        })
+        .collect::<Result<Vec<BatchNumber>>>()?;
+
+    let Some(value) = values.first() else {
+        return Ok(0);
+    };
+    Ok(value + 1)
+}

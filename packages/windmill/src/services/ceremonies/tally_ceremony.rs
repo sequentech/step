@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
-use crate::hasura::tally_session::get_tally_session_highest_batch;
 use crate::hasura::tally_session::{get_tally_session_by_id, update_tally_session_status};
-use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution,
     insert_tally_session_execution as insert_tally_session_execution_hasura,
@@ -16,6 +14,9 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::tally_session::insert_tally_session;
+use crate::postgres::tally_session_contest::{
+    get_tally_session_highest_batch, insert_tally_session_contest,
+};
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
@@ -190,33 +191,29 @@ fn generate_initial_tally_status(
 
 #[instrument(err)]
 pub async fn insert_tally_session_contests(
-    auth_headers: &connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
     relevant_area_contests: &HashSet<AreaContest>,
     contests_map: &HashMap<String, Contest>,
 ) -> Result<()> {
-    let mut batch: BatchNumber = get_tally_session_highest_batch(
-        auth_headers.clone(),
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-    )
-    .await?;
+    let mut batch: BatchNumber =
+        get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
     for area_contest in relevant_area_contests.iter() {
         let Some(contest) = contests_map.get(&area_contest.contest_id) else {
             return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
         };
         let _tally_session_contest = insert_tally_session_contest(
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            area_contest.area_id.clone(),
-            area_contest.contest_id.clone(),
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &area_contest.area_id,
+            &area_contest.contest_id,
             batch.clone(),
-            tally_session_id.to_string(),
-            contest.election_id.clone(),
+            &tally_session_id,
+            &contest.election_id,
         )
         .await?;
         batch = batch + 1;
@@ -267,7 +264,6 @@ pub async fn create_tally_ceremony(
         .map(|val| val.clone())
         .collect();
 
-    let auth_headers = keycloak::get_client_credentials().await?;
     let keys_ceremony =
         find_keys_ceremony(transaction, tenant_id.clone(), election_event_id.clone()).await?;
     let keys_ceremony_status = get_keys_ceremony_status(keys_ceremony.status)?;
@@ -300,7 +296,7 @@ pub async fn create_tally_ceremony(
     .await?;
 
     insert_tally_session_contests(
-        &auth_headers,
+        transaction,
         &tenant_id,
         &election_event_id,
         &tally_session_id,
