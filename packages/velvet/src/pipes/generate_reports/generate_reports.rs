@@ -43,7 +43,7 @@ pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PipeConfigGenerateReports {
-    pub disable_pdfs: bool,
+    pub enable_pdfs: bool,
 }
 
 #[derive(Debug)]
@@ -51,6 +51,12 @@ pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
     pub input_dir: PathBuf,
     pub output_dir: PathBuf,
+}
+
+pub struct GeneratedReportsBytes {
+    bytes_pdf: Option<Vec<u8>>,
+    bytes_html: Vec<u8>,
+    bytes_json: Vec<u8>,
 }
 
 impl GenerateReports {
@@ -133,7 +139,11 @@ impl GenerateReports {
     }
 
     #[instrument(skip_all)]
-    pub fn generate_report(&self, reports: Vec<ReportData>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+    pub fn generate_report(
+        &self,
+        reports: Vec<ReportData>,
+        enable_pdfs: bool,
+    ) -> Result<GeneratedReportsBytes> {
         let reports = self.compute_reports(reports)?;
         let reports = serde_json::to_value(reports)?;
 
@@ -158,23 +168,28 @@ impl GenerateReports {
                     ))
                 })?;
 
-        let render_pdf =
-            reports::render_template("report_base_pdf", template_map, map).map_err(|e| {
-                Error::UnexpectedError(format!(
-                    "Error during render_template_text from report.hbs template file: {}",
-                    e
-                ))
+        let bytes_pdf = if enable_pdfs {
+            let render_pdf = reports::render_template("report_base_pdf", template_map, map)
+                .map_err(|e| {
+                    Error::UnexpectedError(format!(
+                        "Error during render_template_text from report.hbs template file: {}",
+                        e
+                    ))
+                })?;
+
+            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone()).map_err(|e| {
+                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?;
+            Some(bytes_pdf)
+        } else {
+            None
+        };
 
-        let bytes_pdf = pdf::html_to_pdf(render_pdf.clone()).map_err(|e| {
-            Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-        })?;
-
-        Ok((
-            bytes_pdf,
-            render_html.as_bytes().to_vec(),
-            reports.to_string().as_bytes().to_vec(),
-        ))
+        Ok(GeneratedReportsBytes {
+            bytes_pdf: bytes_pdf,
+            bytes_html: render_html.as_bytes().to_vec(),
+            bytes_json: reports.to_string().as_bytes().to_vec(),
+        })
     }
 
     #[instrument(skip(self))]
@@ -355,6 +370,7 @@ impl GenerateReports {
         contest: Contest,
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
+        enable_pdfs: bool,
     ) -> Result<ReportData> {
         let contest_result = self.read_contest_result(
             election_id,
@@ -387,6 +403,7 @@ impl GenerateReports {
             vec![report.clone()],
             is_aggregate,
             tally_sheet_id.clone(),
+            enable_pdfs,
         )?;
 
         Ok(report)
@@ -401,8 +418,9 @@ impl GenerateReports {
         reports: Vec<ReportData>,
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
+        enable_pdfs: bool,
     ) -> Result<()> {
-        let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
+        let reports = self.generate_report(reports, enable_pdfs)?;
 
         let mut base_path =
             PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
@@ -417,13 +435,15 @@ impl GenerateReports {
 
         fs::create_dir_all(&base_path)?;
 
-        let pdf_path = base_path.join(OUTPUT_PDF);
-        let mut pdf_file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(pdf_path)?;
-        pdf_file.write_all(&bytes_pdf)?;
+        if let Some(bytes_pdf) = reports.bytes_pdf.clone() {
+            let pdf_path = base_path.join(OUTPUT_PDF);
+            let mut pdf_file = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(pdf_path)?;
+            pdf_file.write_all(&bytes_pdf)?;
+        };
 
         let html_path = base_path.join(OUTPUT_HTML);
         let mut html_file = OpenOptions::new()
@@ -431,7 +451,7 @@ impl GenerateReports {
             .truncate(true)
             .create(true)
             .open(html_path)?;
-        html_file.write_all(&bytes_html)?;
+        html_file.write_all(&reports.bytes_html)?;
 
         let json_path = base_path.join(OUTPUT_JSON);
         let mut json_file = OpenOptions::new()
@@ -439,7 +459,7 @@ impl GenerateReports {
             .truncate(true)
             .create(true)
             .open(json_path)?;
-        json_file.write_all(&bytes_json)?;
+        json_file.write_all(&reports.bytes_json)?;
 
         Ok(())
     }
@@ -454,6 +474,8 @@ impl Pipe for GenerateReports {
             .output_dir
             .as_path()
             .join(PipeNameOutputDir::MarkWinners.as_ref());
+
+        let config = self.get_config()?;
 
         self.pipe_inputs
             .election_list
@@ -502,6 +524,7 @@ impl Pipe for GenerateReports {
                                                 contest_input.contest.clone(),
                                                 false,
                                                 Some(tally_sheet_id),
+                                                config.enable_pdfs,
                                             )?;
                                         }
                                     }
@@ -521,6 +544,7 @@ impl Pipe for GenerateReports {
                                             contest_input.contest.clone(),
                                             true,
                                             None,
+                                            config.enable_pdfs,
                                         )?;
                                     }
                                     self.make_report(
@@ -531,6 +555,7 @@ impl Pipe for GenerateReports {
                                         contest_input.contest.clone(),
                                         false,
                                         None,
+                                        config.enable_pdfs,
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -544,6 +569,7 @@ impl Pipe for GenerateReports {
                             contest_input.contest.clone(),
                             false,
                             None,
+                            config.enable_pdfs,
                         )?;
 
                         Ok(contest_report)
@@ -558,6 +584,7 @@ impl Pipe for GenerateReports {
                     contest_reports?,
                     false,
                     None,
+                    config.enable_pdfs,
                 )?;
 
                 Ok(())

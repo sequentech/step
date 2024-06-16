@@ -217,10 +217,26 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             "output/velvet-generate-reports/election__{}",
             self.election_id
         ));
+        let json_path = folder_path.join(OUTPUT_JSON);
+        let pdf_path = folder_path.join(OUTPUT_PDF);
+        let html_path = folder_path.join(OUTPUT_HTML);
+
         ResultDocumentPaths {
-            json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
-            pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
-            html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
+            json: if json_path.is_file() {
+                Some(json_path.display().to_string())
+            } else {
+                None
+            },
+            pdf: if pdf_path.is_file() {
+                Some(pdf_path.display().to_string())
+            } else {
+                None
+            },
+            html: if html_path.is_file() {
+                Some(html_path.display().to_string())
+            } else {
+                None
+            },
             tar_gz: None,
             vote_receipts_pdf: None,
         }
@@ -286,14 +302,35 @@ impl GenerateResultDocuments for ReportDataComputed {
                     self.contest.election_id, self.contest.id, area_id_str
                 ));
 
-                Some(path.join(OUTPUT_RECEIPT_PDF).display().to_string())
+                if path.is_file() {
+                    Some(path.join(OUTPUT_RECEIPT_PDF).display().to_string())
+                } else {
+                    None
+                }
             }
             None => None,
         };
+
+        let json_path = folder_path.join(OUTPUT_JSON);
+        let pdf_path = folder_path.join(OUTPUT_PDF);
+        let html_path = folder_path.join(OUTPUT_HTML);
+
         ResultDocumentPaths {
-            json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
-            pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
-            html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
+            json: if json_path.is_file() {
+                Some(json_path.display().to_string())
+            } else {
+                None
+            },
+            pdf: if pdf_path.is_file() {
+                Some(pdf_path.display().to_string())
+            } else {
+                None
+            },
+            html: if html_path.is_file() {
+                Some(html_path.display().to_string())
+            } else {
+                None
+            },
             tar_gz: None,
             vote_receipts_pdf: vote_receipts_pdf,
         }

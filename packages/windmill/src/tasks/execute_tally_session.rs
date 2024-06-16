@@ -101,7 +101,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn process_plaintexts(
     auth_headers: AuthHeaders,
     relevant_plaintexts: Vec<&Message>,
@@ -917,10 +917,6 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
-    // get credentials
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = if plaintexts_data.len() > 0 {
         Some(
@@ -935,6 +931,9 @@ pub async fn execute_tally_session_wrapped(
     } else {
         None
     };
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id = populate_results_tables(
         auth_headers.clone(),
