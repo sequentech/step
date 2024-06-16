@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::hasura::core::TallySessionExecution;
+use sequent_core::types::{ceremonies::TallyCeremonyStatus, hasura::core::TallySessionExecution};
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -31,4 +31,73 @@ impl TryFrom<Row> for TallySessionExecutionWrapper {
                 .map(|val| val.to_string()),
         }))
     }
+}
+
+#[instrument(skip(hasura_transaction, status), err)]
+pub async fn insert_tally_session_execution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    current_message_id: i64,
+    tally_session_id: &str,
+    status: Option<TallyCeremonyStatus>,
+    results_event_id: Option<String>,
+    session_ids: Option<Vec<i64>>,
+) -> Result<TallySessionExecution> {
+    let json_status = match status {
+        Some(value) => Some(serde_json::to_value(value)?),
+        None => None,
+    };
+    let results_event_uuid = match results_event_id {
+        Some(value) => Some(Uuid::parse_str(&value)?),
+        None => None,
+    };
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.tally_session_execution
+                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7
+                )
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &current_message_id,
+                &Uuid::parse_str(tally_session_id)?,
+                &json_status,
+                &results_event_uuid,
+                &session_ids,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+
+    let values: Vec<TallySessionExecution> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySessionExecution> {
+            row.try_into()
+                .map(|res: TallySessionExecutionWrapper| -> TallySessionExecution { res.0 })
+        })
+        .collect::<Result<Vec<TallySessionExecution>>>()?;
+
+    let Some(value) = values.first() else {
+        return Err(anyhow!("Error inserting row"));
+    };
+    Ok(value.clone())
 }

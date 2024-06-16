@@ -4,18 +4,19 @@
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
 use crate::hasura::tally_session::get_tally_session_highest_batch;
-use crate::hasura::tally_session::{
-    get_tally_session_by_id, insert_tally_session, update_tally_session_status,
-};
+use crate::hasura::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
+    get_last_tally_session_execution,
+    insert_tally_session_execution as insert_tally_session_execution_hasura,
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
+use crate::postgres::tally_session::insert_tally_session;
+use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::serialize_logs::{
@@ -274,30 +275,24 @@ pub async fn create_tally_ceremony(
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
     let _tally_session = insert_tally_session(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+        transaction,
+        &tenant_id,
+        &election_event_id,
         election_ids.clone(),
         area_ids.clone(),
-        tally_session_id.clone(),
-        keys_ceremony_id.clone(),
+        &tally_session_id,
+        &keys_ceremony_id,
         TallyExecutionStatus::STARTED,
         keys_ceremony.threshold,
     )
-    .await?
-    .data
-    .with_context(|| "can't find tally session")?
-    .insert_sequent_backend_tally_session
-    .ok_or(anyhow!("can't find tally session"))?
-    .returning[0]
-        .clone();
+    .await?;
 
     let _tally_session_execution = insert_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+        transaction,
+        &tenant_id,
+        &election_event_id,
         -1,
-        tally_session_id.clone(),
+        &tally_session_id,
         Some(initial_status),
         None,
         None,
@@ -545,7 +540,7 @@ pub async fn set_private_key(
             }
         })
         .collect();
-    insert_tally_session_execution(
+    insert_tally_session_execution_hasura(
         auth_headers.clone(),
         tenant_id.to_string(),
         election_event_id.to_string(),
