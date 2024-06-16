@@ -11,6 +11,7 @@ import {
     SaveButton,
     SelectField,
     AutocompleteInput,
+    ReferenceInput,
     SimpleForm,
     TextInput,
     useGetList,
@@ -36,6 +37,8 @@ interface EditAreaProps {
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
     const [areasList, setAreasList] = useState<Array<Sequent_Backend_Area>>([])
+    const areaFilterToQuery =
+        (searchText: string) => ({ name: { _ilike:`%${searchText}%` } })
 
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
     const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
@@ -253,11 +256,22 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                             />
                                         ) : null}
 
-                                        <AutocompleteInput
+                                        <ReferenceInput
                                             fullWidth={true}
+                                            reference="sequent_backend_area"
                                             source="parent_id"
-                                            choices={areasList}
-                                        />
+                                            filter={{
+                                                tenant_id: tenantId,
+                                                election_event_id: electionEventId,
+                                            }}
+                                            enableGetChoices={({ q }) => q && q.length >= 3}
+                                        >
+                                            <AutocompleteInput
+                                                fullWidth={true}
+                                                optionText={area => area.name}
+                                                filterToQuery={areaFilterToQuery}
+                                            />
+                                        </ReferenceInput>
                                     </>
                                 </SimpleForm>
                             )
