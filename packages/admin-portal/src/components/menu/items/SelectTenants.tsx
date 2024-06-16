@@ -14,7 +14,7 @@ import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
-import { colors } from "@/constants/colors"
+import {colors} from "@/constants/colors"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
@@ -48,8 +48,6 @@ const SelectTenants: React.FC = () => {
         refresh()
     }
 
-
-
     return (
         <Container hasSingle={hasSingle}>
             <AccountCircleIcon />
@@ -64,25 +62,22 @@ const SelectTenants: React.FC = () => {
                             {data[0].slug}
                         </SingleDataContainer>
                     ) : (
-                        <Select
+                        <StyledSelect
                             labelId="tenant-select-label"
                             id="tenant-select"
                             value={tenantId}
                             onChange={handleChange}
-                            className="grow mx-0 !-my-0"
                         >
                             {data?.map((tenant) => (
                                 <MenuItem key={tenant.id} value={tenant.id}>
                                     {tenant.slug}
                                 </MenuItem>
                             ))}
-                        </Select>
+                        </StyledSelect>
                     )}
                     {showAddTenant ? (
                         <Link to="/sequent_backend_tenant/create">
-                            <StyledIcon
-                                icon={faPlusCircle}
-                            />
+                            <StyledIcon icon={faPlusCircle} />
                         </Link>
                     ) : null}
                 </>
@@ -94,23 +89,30 @@ const SelectTenants: React.FC = () => {
 export default SelectTenants
 
 const Container = styled(Box)<{hasSingle: boolean}>`
-display: flex;
-align-items: center;
-padding-left: 1rem;
-padding-right: 1rem;
-& > *:not(:last-child) {
-  margin-right: 1rem;
-}
-padding-top: ${({ hasSingle }) => (hasSingle ? '0.375rem' : '0.25rem')};
-padding-bottom: ${({ hasSingle }) => (hasSingle ? '0.375rem' : '0.25rem')};
-`;
+    display: flex;
+    align-items: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    & > *:not(:last-child) {
+        margin-right: 1rem;
+    }
+    padding-top: ${({hasSingle}) => (hasSingle ? "0.375rem" : "0.25rem")};
+    padding-bottom: ${({hasSingle}) => (hasSingle ? "0.375rem" : "0.25rem")};
+`
 
-const SingleDataContainer = styled('p')`
-flex-grow: 1;
-margin-left: 0.625rem;
+const SingleDataContainer = styled("p")`
+    flex-grow: 1;
+    margin-left: 0.625rem;
 `
 
 const StyledIcon = styled(IconButton)`
 color: ${colors.brandColor}
 font-size: 1rem
+`
+const StyledSelect = styled(Select)`
+    flex-grow: 1;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 `

@@ -30,7 +30,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
-import {colors} from '../../../constants/colors'
+import {colors} from "../../../constants/colors"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -266,17 +266,17 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
-const Container = styled('div')<{ isActive?: boolean }>`
-    background-color: ${({ isActive }) => (isActive ? colors.green.light : 'initial')}
+const Container = styled("div")<{isActive?: boolean}>`
+    background-color: ${({isActive}) => (isActive ? colors.green.light : "initial")};
 `
 
-const SideBarContainer = styled('div')`
-  display: flex;
-  align-items: center;
-  background-color: white;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  & > *:not(:last-child) {
-    margin-right: 1rem; 
-  }
-`;
+const SideBarContainer = styled("div")`
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    & > *:not(:last-child) {
+        margin-right: 1rem;
+    }
+`

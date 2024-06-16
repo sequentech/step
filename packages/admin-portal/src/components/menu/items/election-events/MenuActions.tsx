@@ -16,8 +16,8 @@ import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
-import { divContainer } from "@/components/styles/Menu"
-import { colors } from "@/constants/colors"
+import {divContainer} from "@/components/styles/Menu"
+import {colors} from "@/constants/colors"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -194,12 +194,12 @@ export default function MenuAction({
     const idActionMenu = openActionMenu ? "action-menu" : undefined
 
     const StyledIconContainer = styled.p`
-    ${divContainer}
-    cursor: pointer
+        ${divContainer}
+        cursor: pointer
     `
 
     const StyledAddCircleIcon = styled(AddCircleIcon)`
-    color: ${colors.brandColor}
+        color: ${colors.brandColor};
     `
 
     return (
@@ -231,7 +231,7 @@ export default function MenuAction({
                             }
                         >
                             <ListItemIcon>
-                                <StyledAddCircleIcon/>
+                                <StyledAddCircleIcon />
                             </ListItemIcon>
                             {t(mapAddResource[resourceType])}
                         </MenuItem>

@@ -29,10 +29,10 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {translate, translateElection} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
-import {css} from '@emotion/react'
-import {colors} from '../../../../constants/colors'
-import { Box } from "@mui/material"
-import { MenuStyles } from "@/components/styles/Menu"
+import {css} from "@emotion/react"
+import {colors} from "../../../../constants/colors"
+import {Box} from "@mui/material"
+import {MenuStyles} from "@/components/styles/Menu"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -144,7 +144,7 @@ function TreeLeaves({
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
                             }}
                         />
-                        <MenuStyles.StyledHiddenDiv/>
+                        <MenuStyles.StyledHiddenDiv />
                     </MenuStyles.CreateElectionContainer>
                 )}
             </MenuStyles.TreeLeavesContainer>
@@ -255,23 +255,19 @@ function TreeMenuItem({
                         )}
                     </MenuStyles.TreeMenuIconContaier>
                 ) : (
-                    <MenuStyles.StyledDiv isWidth = {canCreateElectionEvent}/>
+                    <MenuStyles.StyledDiv isWidth={canCreateElectionEvent} />
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
                         title={name}
-                        className={({isActive}) =>
-                            (isActive ? 'active' : '')
-                        }
+                        className={({isActive}) => (isActive ? "active" : "")}
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
                         {item}
                     </MenuStyles.StyledSideBarNavLink>
                 )}
-                <MenuStyles.MenuActionContainer
-                    className={`menu-actions-${treeResourceNames[0]}`}
-                >
+                <MenuStyles.MenuActionContainer className={`menu-actions-${treeResourceNames[0]}`}>
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
@@ -314,22 +310,26 @@ export function TreeMenu({
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
-        console.log('isEmpty', isEmpty);
+    console.log("isEmpty", isEmpty)
     return (
         <>
-           <MenuStyles.SideMenuContainer>
-            <MenuStyles.SideMenuActiveItem onClick={() => onArchiveElectionEventsSelect(0)} isArchivedElectionEvents = {isArchivedElectionEvents}>
-                {t("sideMenu.active")}
-            </MenuStyles.SideMenuActiveItem>
-            <MenuStyles.SideMenuArchiveItem onClick={() => onArchiveElectionEventsSelect(1)} isArchivedElectionEvents = {isArchivedElectionEvents}>
-                {t("sideMenu.archived")}
-            </MenuStyles.SideMenuArchiveItem>
+            <MenuStyles.SideMenuContainer>
+                <MenuStyles.SideMenuActiveItem
+                    onClick={() => onArchiveElectionEventsSelect(0)}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
+                >
+                    {t("sideMenu.active")}
+                </MenuStyles.SideMenuActiveItem>
+                <MenuStyles.SideMenuArchiveItem
+                    onClick={() => onArchiveElectionEventsSelect(1)}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
+                >
+                    {t("sideMenu.archived")}
+                </MenuStyles.SideMenuArchiveItem>
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
-                    <MenuStyles.EmptyStateContainer>
-                        No Result
-                    </MenuStyles.EmptyStateContainer>
+                    <MenuStyles.EmptyStateContainer>No Result</MenuStyles.EmptyStateContainer>
                 ) : (
                     <TreeLeaves
                         data={data}
@@ -342,6 +342,3 @@ export function TreeMenu({
         </>
     )
 }
-
-
-
