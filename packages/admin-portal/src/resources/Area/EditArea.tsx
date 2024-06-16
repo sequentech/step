@@ -47,7 +47,9 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             name: {_ilike: `%${searchText}%`},
 
             // FIXME: The idea is filter out of the search the current area. it
-            // should not be selectable
+            // should not be selectable. But it's generating a query like below,
+            // which doesn't work:
+            // {id: {_eq: {_neq: "9e8bbb13-e984-4fad-835e-46c1c1fb3373"}}}
             id: {_neq: id},
         }
     }
