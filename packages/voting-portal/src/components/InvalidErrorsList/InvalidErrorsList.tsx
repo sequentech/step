@@ -62,16 +62,19 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         )
     }, [contestSelection])
 
-    const filteredContestSelection = useMemo(()=>{
-       // Create a deep copy of decodedContestSelection
-        return decodedContestSelection ? JSON.parse(JSON.stringify(decodedContestSelection)) as IDecodedVoteContest  : undefined;
-    },[decodedContestSelection])
+    const filteredContestSelection = useMemo(() => {
+        // Create a deep copy of decodedContestSelection
+        return decodedContestSelection
+            ? (JSON.parse(JSON.stringify(decodedContestSelection)) as IDecodedVoteContest)
+            : undefined
+    }, [decodedContestSelection])
 
     useEffect(() => {
         if (!isReview && !isTouched && filteredContestSelection) {
-            filteredContestSelection.invalid_errors = filteredContestSelection?.invalid_errors.filter(
-                (error) => error.message !== "errors.implicit.selectedMin"
-            )
+            filteredContestSelection.invalid_errors =
+                filteredContestSelection?.invalid_errors.filter(
+                    (error) => error.message !== "errors.implicit.selectedMin"
+                )
         }
     }, [isReview, isTouched, decodedContestSelection])
 

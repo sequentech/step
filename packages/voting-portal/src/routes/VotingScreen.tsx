@@ -190,40 +190,34 @@ const VotingScreen: React.FC = () => {
     // that doesn't allow to continue and forces the user to fix the issues
     const disableNextButton = (): boolean => {
         return (
-            ballotStyle?.ballot_eml.contests
-                .some((contest) => {
-                    let policy =
-                        contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
-                    let invalidErrors = decodedContests[contest.id]?.invalid_errors ?? []
-                    let explicitError = invalidErrors.find((error) =>
-                        [
-                            EInvalidPlaintextErrorType.Explicit,
-                            EInvalidPlaintextErrorType.EncodingError,
-                        ].includes(error.error_type as any)
-                    )
-                    return (
-                        explicitError ||
-                        ((invalidErrors?.length ?? 0) > 0 &&
-                            EInvalidVotePolicy.NOT_ALLOWED === policy)
-                    )
-                })
-                ?? false
+            ballotStyle?.ballot_eml.contests.some((contest) => {
+                let policy = contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
+                let invalidErrors = decodedContests[contest.id]?.invalid_errors ?? []
+                let explicitError = invalidErrors.find((error) =>
+                    [
+                        EInvalidPlaintextErrorType.Explicit,
+                        EInvalidPlaintextErrorType.EncodingError,
+                    ].includes(error.error_type as any)
+                )
+                return (
+                    explicitError ||
+                    ((invalidErrors?.length ?? 0) > 0 && EInvalidVotePolicy.NOT_ALLOWED === policy)
+                )
+            }) ?? false
         )
     }
-    
+
     const showNextDialog = () => {
         return (
-            ballotStyle?.ballot_eml.contests
-                .some((contest) => {
-                    let policy =
-                        contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
-                    return (
-                        (EInvalidVotePolicy.ALLOWED !== policy &&
-                            (decodedContests[contest.id]?.invalid_errors?.length ?? 0) > 0) ||
-                        (EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT === policy &&
-                            decodedContests[contest.id]?.is_explicit_invalid)
-                    )
-                }) ?? false
+            ballotStyle?.ballot_eml.contests.some((contest) => {
+                let policy = contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
+                return (
+                    (EInvalidVotePolicy.ALLOWED !== policy &&
+                        (decodedContests[contest.id]?.invalid_errors?.length ?? 0) > 0) ||
+                    (EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT === policy &&
+                        decodedContests[contest.id]?.is_explicit_invalid)
+                )
+            }) ?? false
         )
     }
 
@@ -342,15 +336,14 @@ const VotingScreen: React.FC = () => {
             ) : null}
             {contests.map((contest, index) => (
                 <>
-                <Question
-                    ballotStyle={ballotStyle}
-                    question={contest}
-                    key={index}
-                    isReview={false}
-                    setDisableNext={onSetDisableNext(contest.id)}
-                    setDecodedContests={onSetDecodedContests(contest.id)}
+                    <Question
+                        ballotStyle={ballotStyle}
+                        question={contest}
+                        key={index}
+                        isReview={false}
+                        setDisableNext={onSetDisableNext(contest.id)}
+                        setDecodedContests={onSetDecodedContests(contest.id)}
                     />
-
                 </>
             ))}
             <ActionButtons handleNext={encryptAndReview} />
