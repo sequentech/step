@@ -9,8 +9,6 @@ import {
     Identifier,
     RecordContext,
     SaveButton,
-    SelectField,
-    AutocompleteInput,
     ReferenceInput,
     SimpleForm,
     TextInput,
@@ -27,6 +25,7 @@ import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
 import {keyBy} from "@sequentech/ui-essentials"
+import { Autocomplete, TextField } from "@mui/material"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -37,13 +36,7 @@ interface EditAreaProps {
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
     const [areasList, setAreasList] = useState<Array<Sequent_Backend_Area>>([])
-    const areaFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {}
-        }
-        return {name: {_ilike: "%${searchText}%"}}
-    }
-
+    const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null);
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
     const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
         refetchQueries: [
@@ -68,10 +61,15 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         filter: {election_event_id: electionEventId},
     })
 
-    const {data: allAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+    const {data: allAreas,refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
             tenant_id: tenantId,
             election_event_id: electionEventId,
+            name: areaNameFilter? areaNameFilter : ""
+        },
+        pagination:{
+            perPage: 100, // Setting initial larger records size of areas
+            page:1
         },
     })
 
@@ -221,6 +219,16 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         }
     }
 
+    let timeoutId : NodeJS.Timeout;
+    const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>)=>{
+        const { value } = event.target;
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(()=>{
+            setAreaNameFilter(value?  value.trim() : null);
+            refetch()
+        },500) //TODO: Make this an env variable
+    }
+
     if (renderUI) {
         return (
             <EditBase
@@ -270,10 +278,18 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                             }}
                                             enableGetChoices={({q}) => q && q.length >= 3}
                                         >
-                                            <AutocompleteInput
-                                                fullWidth={true}
-                                                optionText={(area) => area.name}
-                                                filterToQuery={areaFilterToQuery}
+                                            <Autocomplete
+                                                fullWidth
+                                                options={areasList ?? []}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                    {...params}
+                                                    label="Parent Area"
+                                                    onChange={debouncedSearchArea}
+                                                    value={areaNameFilter}
+                                                    />
+                                                )}
+                                                isOptionEqualToValue={(a, b) => a.id === b.id}
                                             />
                                         </ReferenceInput>
                                     </>
