@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
+use board_messages::braid::newtypes::BatchNumber;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::TallySessionContest;
 use tokio_postgres::row::Row;
@@ -29,4 +30,65 @@ impl TryFrom<Row> for TallySessionContestWrapper {
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
         }))
     }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_tally_session_contest(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    contest_id: &str,
+    session_id: BatchNumber,
+    tally_session_id: &str,
+    election_id: &str,
+) -> Result<TallySessionContest> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.tally_session_contest
+                (tenant_id, election_event_id, area_id, contest_id, session_id, tally_session_id, election_id)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7
+                )
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(area_id)?,
+                &Uuid::parse_str(contest_id)?,
+                &(session_id as i64),
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+
+    let values: Vec<TallySessionContest> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySessionContest> {
+            row.try_into()
+                .map(|res: TallySessionContestWrapper| -> TallySessionContest { res.0 })
+        })
+        .collect::<Result<Vec<TallySessionContest>>>()?;
+
+    let Some(value) = values.first() else {
+        return Err(anyhow!("Error inserting row"));
+    };
+    Ok(value.clone())
 }
