@@ -62,9 +62,13 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         )
     }, [contestSelection])
 
+    const filteredContestSelection = useMemo(()=>{
+        return decodedContestSelection
+    },[decodedContestSelection])
+
     useEffect(() => {
-        if (!isReview && !isTouched && decodedContestSelection) {
-            decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
+        if (!isReview && !isTouched && filteredContestSelection) {
+            filteredContestSelection.invalid_errors = filteredContestSelection?.invalid_errors.filter(
                 (error) => error.message !== "errors.implicit.selectedMin"
             )
         }
@@ -96,12 +100,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     })}
                 </WarnBox>
             ) : null}
-            {decodedContestSelection?.invalid_errors.map((error, index) => (
+            {filteredContestSelection?.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
-            {decodedContestSelection?.invalid_alerts.map((error, index) => (
+            {filteredContestSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox variant="info" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>

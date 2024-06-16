@@ -191,7 +191,7 @@ const VotingScreen: React.FC = () => {
     const disableNextButton = (): boolean => {
         return (
             ballotStyle?.ballot_eml.contests
-                .map((contest) => {
+                .some((contest) => {
                     let policy =
                         contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
                     let invalidErrors = decodedContests[contest.id]?.invalid_errors ?? []
@@ -207,14 +207,16 @@ const VotingScreen: React.FC = () => {
                             EInvalidVotePolicy.NOT_ALLOWED === policy)
                     )
                 })
-                .includes(true) ?? false
+                ?? false
         )
     }
-
+    
     const showNextDialog = () => {
+        console.log({test:ballotStyle?.ballot_eml.contests})
         return (
             ballotStyle?.ballot_eml.contests
-                .map((contest) => {
+                .some((contest) => {
+                    console.log({errors:decodedContests[contest.id]?.invalid_errors })
                     let policy =
                         contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
                     return (
@@ -223,19 +225,19 @@ const VotingScreen: React.FC = () => {
                         (EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT === policy &&
                             decodedContests[contest.id]?.is_explicit_invalid)
                     )
-                })
-                .includes(true) ?? false
+                }) ?? false
         )
     }
 
     const encryptAndReview = () => {
-        if (isUndefined(selectionState) || !ballotStyle) {
-            return
-        } else if (showNextDialog()) {
-            setOpenNonVoted(true)
-        } else {
-            finallyEncryptAndReview()
-        }
+        console.log(showNextDialog())
+        // if (isUndefined(selectionState) || !ballotStyle) {
+        //     return
+        // } else if (showNextDialog()) {
+        //     setOpenNonVoted(true)
+        // } else {
+        //     finallyEncryptAndReview()
+        // }
     }
 
     const finallyEncryptAndReview = () => {
@@ -342,6 +344,7 @@ const VotingScreen: React.FC = () => {
                 </Typography>
             ) : null}
             {contests.map((contest, index) => (
+                <>
                 <Question
                     ballotStyle={ballotStyle}
                     question={contest}
@@ -349,7 +352,9 @@ const VotingScreen: React.FC = () => {
                     isReview={false}
                     setDisableNext={onSetDisableNext(contest.id)}
                     setDecodedContests={onSetDecodedContests(contest.id)}
-                />
+                    />
+
+                </>
             ))}
             <ActionButtons handleNext={encryptAndReview} />
 
