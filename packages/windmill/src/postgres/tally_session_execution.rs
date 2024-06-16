@@ -38,11 +38,11 @@ pub async fn insert_tally_session_execution(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    current_message_id: i64,
+    current_message_id: i32,
     tally_session_id: &str,
     status: Option<TallyCeremonyStatus>,
     results_event_id: Option<String>,
-    session_ids: Option<Vec<i64>>,
+    session_ids: Option<Vec<i32>>,
 ) -> Result<TallySessionExecution> {
     let json_status = match status {
         Some(value) => Some(serde_json::to_value(value)?),

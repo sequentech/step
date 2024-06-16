@@ -279,7 +279,7 @@ pub async fn create_tally_ceremony(
         &tally_session_id,
         &keys_ceremony_id,
         TallyExecutionStatus::STARTED,
-        keys_ceremony.threshold,
+        keys_ceremony.threshold as i32,
     )
     .await?;
 

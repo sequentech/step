@@ -71,7 +71,7 @@ pub async fn insert_tally_session_contest(
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(area_id)?,
                 &Uuid::parse_str(contest_id)?,
-                &(session_id as i64),
+                &(session_id as i32),
                 &Uuid::parse_str(tally_session_id)?,
                 &Uuid::parse_str(election_id)?,
             ],
@@ -126,7 +126,7 @@ pub async fn get_tally_session_highest_batch(
     let values: Vec<BatchNumber> = rows
         .into_iter()
         .map(|row| -> Result<BatchNumber> {
-            let session_id: i64 = row.try_get("session_id")?;
+            let session_id: i32 = row.try_get("session_id")?;
             Ok(session_id as BatchNumber)
         })
         .collect::<Result<Vec<BatchNumber>>>()?;

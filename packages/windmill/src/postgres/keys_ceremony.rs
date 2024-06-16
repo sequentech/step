@@ -26,10 +26,10 @@ impl TryFrom<Row> for KeysCeremonyWrapper {
                 .map(|uuid| uuid.to_string())
                 .collect(),
             status: item.try_get("status")?,
-            execution_status: item.try_get("description")?,
+            execution_status: item.try_get("execution_status")?,
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            threshold: item.try_get("threshold")?,
+            threshold: item.try_get::<_, i32>("threshold")? as i64,
         }))
     }
 }

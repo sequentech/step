@@ -41,9 +41,9 @@ impl TryFrom<Row> for TallySessionWrapper {
                         .collect()
                 }),
             is_execution_completed: item.try_get("is_execution_completed")?,
-            keys_ceremony_id: item.try_get("keys_ceremony_id")?,
+            keys_ceremony_id: item.try_get::<_, Uuid>("keys_ceremony_id")?.to_string(),
             execution_status: item.try_get("execution_status")?,
-            threshold: item.try_get("threshold")?,
+            threshold: item.try_get::<_, i32>("threshold")? as i64,
         }))
     }
 }
@@ -58,7 +58,7 @@ pub async fn insert_tally_session(
     tally_session_id: &str,
     keys_ceremony_id: &str,
     execution_status: TallyExecutionStatus,
-    threshold: i64,
+    threshold: i32,
 ) -> Result<TallySession> {
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
