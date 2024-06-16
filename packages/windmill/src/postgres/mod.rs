@@ -21,4 +21,7 @@ pub mod results_contest;
 pub mod results_election;
 pub mod results_event;
 pub mod scheduled_event;
+pub mod tally_session;
+pub mod tally_session_contest;
+pub mod tally_session_execution;
 pub mod tally_sheet;

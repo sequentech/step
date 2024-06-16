@@ -33,3 +33,44 @@ impl TryFrom<Row> for KeysCeremonyWrapper {
         }))
     }
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_keys_ceremonies(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<KeysCeremony>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.keys_ceremony
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let keys_ceremonies: Vec<KeysCeremony> = rows
+        .into_iter()
+        .map(|row| -> Result<KeysCeremony> {
+            row.try_into()
+                .map(|res: KeysCeremonyWrapper| -> KeysCeremony { res.0 })
+        })
+        .collect::<Result<Vec<KeysCeremony>>>()?;
+
+    Ok(keys_ceremonies)
+}
