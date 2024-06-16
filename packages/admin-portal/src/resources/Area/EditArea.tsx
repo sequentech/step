@@ -41,7 +41,15 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         if (!searchText || searchText.length == 0) {
             return {}
         }
-        return {name: {_ilike: "%${searchText}%"}}
+        return {
+            // FIXME: this seems to be generating a '%[object Object]%' in the
+            // actual graphql query
+            name: {_ilike: `%${searchText}%`},
+
+            // FIXME: The idea is filter out of the search the current area. it
+            // should not be selectable
+            id: {_neq: id},
+        }
     }
 
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
