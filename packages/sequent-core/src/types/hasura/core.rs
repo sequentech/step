@@ -246,3 +246,18 @@ pub struct TallySheet {
     pub deleted_at: Option<DateTime<Local>>,
     pub created_by_user_id: String,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct KeysCeremony {
+    pub id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub trustee_ids: Vec<String>,
+    pub status: Option<Value>,
+    pub execution_status: Option<String>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub threshold: i64,
+}

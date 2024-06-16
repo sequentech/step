@@ -14,6 +14,7 @@ pub mod document;
 pub mod election;
 pub mod election_event;
 pub mod keycloak_realm;
+pub mod keys_ceremony;
 pub mod lock;
 pub mod results_area_contest;
 pub mod results_contest;
