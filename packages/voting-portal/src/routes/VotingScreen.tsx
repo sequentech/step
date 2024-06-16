@@ -212,11 +212,9 @@ const VotingScreen: React.FC = () => {
     }
     
     const showNextDialog = () => {
-        console.log({test:ballotStyle?.ballot_eml.contests})
         return (
             ballotStyle?.ballot_eml.contests
                 .some((contest) => {
-                    console.log({errors:decodedContests[contest.id]?.invalid_errors })
                     let policy =
                         contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
                     return (
@@ -230,14 +228,13 @@ const VotingScreen: React.FC = () => {
     }
 
     const encryptAndReview = () => {
-        console.log(showNextDialog())
-        // if (isUndefined(selectionState) || !ballotStyle) {
-        //     return
-        // } else if (showNextDialog()) {
-        //     setOpenNonVoted(true)
-        // } else {
-        //     finallyEncryptAndReview()
-        // }
+        if (isUndefined(selectionState) || !ballotStyle) {
+            return
+        } else if (showNextDialog() || disableNextButton()) {
+            setOpenNonVoted(true)
+        } else {
+            finallyEncryptAndReview()
+        }
     }
 
     const finallyEncryptAndReview = () => {

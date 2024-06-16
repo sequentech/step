@@ -63,7 +63,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection])
 
     const filteredContestSelection = useMemo(()=>{
-        return decodedContestSelection
+       // Create a deep copy of decodedContestSelection
+        return decodedContestSelection ? JSON.parse(JSON.stringify(decodedContestSelection)) as IDecodedVoteContest  : undefined;
     },[decodedContestSelection])
 
     useEffect(() => {
