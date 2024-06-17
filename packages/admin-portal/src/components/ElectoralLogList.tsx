@@ -39,7 +39,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
     const [exportElectionEvent] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
+                "x-hasura-role": IPermissions.LOGS_READ,
             },
         },
     })
