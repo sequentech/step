@@ -17,6 +17,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use std::path::{Path, PathBuf};
+use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
@@ -149,6 +150,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             vote_receipts_pdf: None,
         }
     }
+
+    #[instrument(skip_all, err)]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -157,9 +160,18 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         results_event_id: &str,
     ) -> Result<ResultDocuments> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
-            let path = Path::new(&tar_gz_path);
             // compressed file with the tally
-            let (_tarfile_temp_path, tarfile_path, tarfile_size) = compress_folder(path)?;
+
+            // Spawn the task
+            let handle = tokio::task::spawn_blocking(move || {
+                let path = Path::new(&tar_gz_path);
+                compress_folder(path)
+            });
+
+            // Await the result
+            let result = handle.await??;
+
+            let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
             let contest = &self[0].reports[0].contest;
 
