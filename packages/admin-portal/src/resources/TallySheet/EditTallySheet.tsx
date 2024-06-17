@@ -72,17 +72,17 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     })
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
-    const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null);
+    const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
 
-    const {data: areas,refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+    const {data: areas, refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
-            name: areaNameFilter? areaNameFilter : ""
+            name: areaNameFilter ? areaNameFilter : "",
         },
-        pagination:{
+        pagination: {
             perPage: 100, // Setting initial larger records size of areas
-            page:1
+            page: 1,
         },
     })
 
@@ -94,7 +94,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         },
     })
 
- 
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
 
@@ -248,14 +247,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
-    let timeoutId : NodeJS.Timeout;
-    const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>)=>{
-        const { value } = event.target;
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(()=>{
-            setAreaNameFilter(value?  value.trim() : null);
+    let timeoutId: NodeJS.Timeout
+    const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = event.target
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+            setAreaNameFilter(value ? value.trim() : null)
             refetch()
-        },350) //TODO: Make this an env variable
+        }, 350)
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
@@ -310,12 +309,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         options={areasList ?? []}
                         renderInput={(params) => (
                             <TextField
-                              {...params}
-                              label="Search Area"
-                              onChange={debouncedSearchArea}
-                              value={areaNameFilter}
+                                {...params}
+                                label="Search Area"
+                                onChange={debouncedSearchArea}
+                                value={areaNameFilter}
                             />
-                          )}
+                        )}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                     />
                 </FormControl>

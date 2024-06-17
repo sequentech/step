@@ -58,7 +58,6 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: electionEventId},
     })
-  
 
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
@@ -73,35 +72,6 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         }
         return {name: searchText.trim()}
     }
-
-    // useEffect(() => {
-    //     let allAreasDefault = allAreas ?? []
-    //     let areasMap = keyBy(allAreasDefault, "id")
-
-    //     const isCyclical = (
-    //         childId: Identifier | undefined,
-    //         parent: Sequent_Backend_Area,
-    //         map: Record<string, Sequent_Backend_Area>
-    //     ): boolean => {
-    //         let parents: Array<Identifier> = []
-    //         if (childId) {
-    //             parents.push(childId)
-    //         }
-    //         let current: Sequent_Backend_Area | undefined = parent
-    //         while (current) {
-    //             if (parents.includes(current.id)) {
-    //                 return true
-    //             }
-    //             parents.push(current.id)
-    //             current = current.parent_id ? map[current.parent_id] : undefined
-    //         }
-    //         return false
-    //     }
-
-    //     let nonCyclicalAreas = allAreasDefault.filter((area) => !isCyclical(id, area, areasMap))
-    //     console.log({nonCyclicalAreas})
-    //     setAreasList(nonCyclicalAreas)
-    // }, [allAreas, id])
 
     useEffect(() => {
         if (contests && areas) {
@@ -213,7 +183,6 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         }
     }
 
-
     if (renderUI) {
         return (
             <EditBase
@@ -260,10 +229,10 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 tenant_id: tenantId,
                                                 election_event_id: electionEventId,
                                             }}
-                                            perPage={100 } // // Setting initial larger records size of areas
+                                            perPage={100} // // Setting initial larger records size of areas
                                             enableGetChoices={({q}) => q && q.length >= 3}
                                         >
-                                             <AutocompleteInput
+                                            <AutocompleteInput
                                                 fullWidth={true}
                                                 optionText={(area) => area.name}
                                                 filterToQuery={areaFilterToQuery}
