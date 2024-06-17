@@ -3,8 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod ballot_publication;
-pub mod ballot_style;
+pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;

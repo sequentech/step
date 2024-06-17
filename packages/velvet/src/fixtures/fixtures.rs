@@ -125,9 +125,15 @@ impl TestFixture {
         election_id: &Uuid,
         contest_id: &Uuid,
         census: u64,
+        parent_id: Option<Uuid>,
     ) -> Result<AreaConfig> {
-        let area_config =
-            super::areas::get_area_config(tenant_id, election_event_id, election_id, census);
+        let area_config = super::areas::get_area_config(
+            tenant_id,
+            election_event_id,
+            election_id,
+            census,
+            parent_id,
+        );
 
         let dir_configs = self
             .input_dir_configs
