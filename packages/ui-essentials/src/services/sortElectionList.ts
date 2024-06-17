@@ -6,7 +6,7 @@ import {cloneDeep} from "lodash"
 import {IElection} from "../types/CoreTypes"
 
 export const sortElectionList = (elections: Array<IElection>): Array<IElection> => {
-    console.log(`calling sortContestList`)
+    console.log(`calling sortElectionList`)
     elections = cloneDeep(elections)
 
     // Sort by alias or else by name

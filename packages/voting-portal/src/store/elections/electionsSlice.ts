@@ -17,6 +17,7 @@ export interface IElection {
     labels?: string | null
     last_updated_at?: string | null
     name?: string | null
+    alias?: string | null
     num_allowed_revotes?: number | null
     presentation?: string | null
     spoil_ballot_option?: boolean | null
