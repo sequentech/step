@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(feature = "reports")]
+pub mod area_tree;
 #[cfg(feature = "keycloak")]
 pub mod connection;
 #[cfg(feature = "keycloak")]

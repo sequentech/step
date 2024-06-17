@@ -51,7 +51,7 @@ const documents = {
     "\n    query TrusteeNames($trustees: [uuid!]!) {\n        sequent_backend_trustee(where: {id: {_in: $trustees}}) {\n            name\n        }\n    }\n": types.TrusteeNamesDocument,
     "\n    mutation GetUploadUrl(\n        $name: String!\n        $media_type: String!\n        $size: Int!\n        $is_public: Boolean! = true\n        $election_event_id: String\n    ) {\n        get_upload_url(\n            name: $name\n            media_type: $media_type\n            size: $size\n            is_public: $is_public\n            election_event_id: $election_event_id\n        ) {\n            url\n            document_id\n        }\n    }\n": types.GetUploadUrlDocument,
     "\n    mutation ImportAreas($electionEventId: String!, $documentId: String!) {\n        import_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n": types.ImportAreasDocument,
-    "\n    mutation ImportCandidates($documentId: String!, $electionEventId: String!) {\n        import_candidates(\n            election_event_id: $electionEventId\n            document_id: $documentId\n        ) {\n            id\n        }\n    }\n": types.ImportCandidatesDocument,
+    "\n    mutation ImportCandidates($documentId: String!, $electionEventId: String!) {\n        import_candidates(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n": types.ImportCandidatesDocument,
     "\n    mutation ImportElectionEvent($tenantId: String!, $documentId: String!, $checkOnly: Boolean) {\n        import_election_event(\n            tenant_id: $tenantId\n            document_id: $documentId\n            check_only: $checkOnly\n        ) {\n            id\n            message\n            error\n        }\n    }\n": types.ImportElectionEventDocument,
     "\n    mutation ImportUsers($tenantId: String!, $electionEventId: String, $documentId: String!) {\n        import_users(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            document_id: $documentId\n        ) {\n            id\n        }\n    }\n": types.ImportUsersDocument,
     "\n    mutation insert_area_contests($areas: [sequent_backend_area_contest_insert_input!]!) {\n        insert_sequent_backend_area_contest(objects: $areas) {\n            returning {\n                id\n            }\n        }\n    }\n": types.Insert_Area_ContestsDocument,
@@ -73,6 +73,7 @@ const documents = {
     "\n    mutation UpdateElectionVotingStatus(\n        $electionId: uuid!\n        $electionEventId: uuid!\n        $status: String!\n    ) {\n        update_election_voting_status(\n            election_id: $electionId\n            voting_status: $status\n            election_event_id: $electionEventId\n        ) {\n            election_id\n        }\n    }\n": types.UpdateElectionVotingStatusDocument,
     "\n    mutation UpdateEventVotingStatus($electionEventId: uuid!, $status: String!) {\n        update_event_voting_status(election_event_id: $electionEventId, voting_status: $status) {\n            election_event_id\n        }\n    }\n": types.UpdateEventVotingStatusDocument,
     "\n    mutation UpdateTallyCeremony(\n        $election_event_id: uuid!\n        $tally_session_id: uuid!\n        $status: String!\n    ) {\n        update_tally_ceremony(\n            election_event_id: $election_event_id\n            tally_session_id: $tally_session_id\n            status: $status\n        ) {\n            tally_session_id\n        }\n    }\n": types.UpdateTallyCeremonyDocument,
+    "\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n": types.UpsertAreasDocument,
 };
 
 /**
@@ -244,7 +245,7 @@ export function graphql(source: "\n    mutation ImportAreas($electionEventId: St
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    mutation ImportCandidates($documentId: String!, $electionEventId: String!) {\n        import_candidates(\n            election_event_id: $electionEventId\n            document_id: $documentId\n        ) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation ImportCandidates($documentId: String!, $electionEventId: String!) {\n        import_candidates(\n            election_event_id: $electionEventId\n            document_id: $documentId\n        ) {\n            id\n        }\n    }\n"];
+export function graphql(source: "\n    mutation ImportCandidates($documentId: String!, $electionEventId: String!) {\n        import_candidates(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation ImportCandidates($documentId: String!, $electionEventId: String!) {\n        import_candidates(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -329,6 +330,10 @@ export function graphql(source: "\n    mutation UpdateEventVotingStatus($electio
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation UpdateTallyCeremony(\n        $election_event_id: uuid!\n        $tally_session_id: uuid!\n        $status: String!\n    ) {\n        update_tally_ceremony(\n            election_event_id: $election_event_id\n            tally_session_id: $tally_session_id\n            status: $status\n        ) {\n            tally_session_id\n        }\n    }\n"): (typeof documents)["\n    mutation UpdateTallyCeremony(\n        $election_event_id: uuid!\n        $tally_session_id: uuid!\n        $status: String!\n    ) {\n        update_tally_ceremony(\n            election_event_id: $election_event_id\n            tally_session_id: $tally_session_id\n            status: $status\n        ) {\n            tally_session_id\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

@@ -344,7 +344,7 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
-#[instrument(skip(auth_headers, results, hasura_transaction), err)]
+#[instrument(skip(auth_headers, hasura_transaction), err)]
 pub async fn save_result_documents(
     auth_headers: &connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,

@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: backend-services
+Upstream-Name: step
 Upstream-Contact: Eduardo Robles <edu@sequentech.io>
 Source: https://github.com/sequentech
 

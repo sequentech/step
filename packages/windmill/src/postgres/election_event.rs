@@ -96,7 +96,7 @@ pub async fn insert_election_event(
 }
 
 #[instrument(err, skip_all)]
-pub async fn export_election_event(
+pub async fn get_election_event_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
