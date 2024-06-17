@@ -4,18 +4,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    CheckboxGroupInput,
     EditBase,
     Identifier,
     RecordContext,
     SaveButton,
-    SelectField,
     AutocompleteInput,
+    ReferenceInput,
     SimpleForm,
     TextInput,
     useGetList,
     useNotify,
     useRefresh,
+    AutocompleteArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -36,6 +36,12 @@ interface EditAreaProps {
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
     const [areasList, setAreasList] = useState<Array<Sequent_Backend_Area>>([])
+    const areaFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {}
+        }
+        return {name: {_ilike: "%${searchText}%"}}
+    }
 
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
     const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
@@ -243,21 +249,32 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         <TextInput source="description" />
 
                                         {contests ? (
-                                            <CheckboxGroupInput
+                                            <AutocompleteArrayInput
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
                                                 optionText="name"
                                                 optionValue="id"
-                                                row={false}
+                                                fullWidth
                                             />
                                         ) : null}
 
-                                        <AutocompleteInput
+                                        <ReferenceInput
                                             fullWidth={true}
+                                            reference="sequent_backend_area"
                                             source="parent_id"
-                                            choices={areasList}
-                                        />
+                                            filter={{
+                                                tenant_id: tenantId,
+                                                election_event_id: electionEventId,
+                                            }}
+                                            enableGetChoices={({q}) => q && q.length >= 3}
+                                        >
+                                            <AutocompleteInput
+                                                fullWidth={true}
+                                                optionText={(area) => area.name}
+                                                filterToQuery={areaFilterToQuery}
+                                            />
+                                        </ReferenceInput>
                                     </>
                                 </SimpleForm>
                             )
