@@ -402,6 +402,7 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template,
         extra_data: serde_json::to_value(extra_data)?,
+        enable_pdfs: false,
     };
 
     let stages_def = {

@@ -24,7 +24,7 @@ use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub const OUTPUT_FILE: &str = "vote_receipts.pdf";
+pub const OUTPUT_FILE_PDF: &str = "vote_receipts.pdf";
 pub const OUTPUT_FILE_HTML: &str = "vote_receipts.html";
 
 pub struct VoteReceipts {
@@ -36,30 +36,17 @@ impl VoteReceipts {
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
-}
 
-impl VoteReceipts {
     #[instrument(skip_all, err)]
     fn print_vote_receipts(
         &self,
         path: &Path,
         contest: &Contest,
         election_input: &InputElectionConfig,
-    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        pipe_config: &PipeConfigVoteReceipts,
+    ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0, vec![])
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-
-        let pipe_config = self
-            .pipe_inputs
-            .stage
-            .pipe_config(self.pipe_inputs.stage.current_pipe)
-            .and_then(|pc| pc.config)
-            .ok_or(Error::UnexpectedError(
-                "Pipe config for VoteReceipts not found".to_string(),
-            ))?;
-
-        let pipe_config: PipeConfigVoteReceipts = serde_json::from_value(pipe_config)?;
-        let template = pipe_config.template;
 
         let data = TemplateData {
             contest: tally.contest.clone(),
@@ -76,18 +63,36 @@ impl VoteReceipts {
             serde_json::to_value(&pipe_config.extra_data)?,
         );
 
-        let bytes_html = reports::render_template_text(&template, map).map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during render_template_text from report.hbs template file: {}",
-                e
-            ))
-        })?;
+        let bytes_html =
+            reports::render_template_text(&pipe_config.template, map).map_err(|e| {
+                Error::UnexpectedError(format!(
+                    "Error during render_template_text from report.hbs template file: {}",
+                    e
+                ))
+            })?;
 
-        let bytes_pdf = pdf::html_to_pdf(bytes_html.clone()).map_err(|e| {
-            Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-        })?;
+        let bytes_pdf = if pipe_config.enable_pdfs {
+            Some(pdf::html_to_pdf(bytes_html.clone()).map_err(|e| {
+                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+            })?)
+        } else {
+            None
+        };
 
         Ok((bytes_pdf, bytes_html.into_bytes()))
+    }
+
+    #[instrument(skip_all)]
+    pub fn get_config(&self) -> Result<PipeConfigVoteReceipts> {
+        let pipe_config: PipeConfigVoteReceipts = self
+            .pipe_inputs
+            .stage
+            .pipe_config(self.pipe_inputs.stage.current_pipe)
+            .and_then(|pc| pc.config)
+            .map(|value| serde_json::from_value(value))
+            .transpose()?
+            .unwrap_or_default();
+        Ok(pipe_config)
     }
 }
 
@@ -100,6 +105,8 @@ impl Pipe for VoteReceipts {
             .output_dir
             .as_path()
             .join(PipeNameOutputDir::DecodeBallots.as_ref());
+
+        let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
@@ -117,6 +124,7 @@ impl Pipe for VoteReceipts {
                             decoded_ballots_file.as_path(),
                             &contest_input.contest,
                             &election_input,
+                            &pipe_config,
                         )?;
 
                         let path = PipeInputs::build_path(
@@ -133,13 +141,15 @@ impl Pipe for VoteReceipts {
 
                         fs::create_dir_all(&path)?;
 
-                        let file = path.join(OUTPUT_FILE);
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .truncate(true)
-                            .create(true)
-                            .open(file)?;
-                        file.write_all(&bytes_pdf)?;
+                        if let Some(ref some_bytes_pdf) = bytes_pdf {
+                            let file = path.join(OUTPUT_FILE_PDF);
+                            let mut file = OpenOptions::new()
+                                .write(true)
+                                .truncate(true)
+                                .create(true)
+                                .open(file)?;
+                            file.write_all(&some_bytes_pdf)?;
+                        }
 
                         let file = path.join(OUTPUT_FILE_HTML);
                         let mut file = OpenOptions::new()
