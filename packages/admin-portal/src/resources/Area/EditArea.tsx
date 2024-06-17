@@ -4,12 +4,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    CheckboxGroupInput,
     EditBase,
     Identifier,
     RecordContext,
     SaveButton,
-    SelectField,
     AutocompleteInput,
     ReferenceInput,
     SimpleForm,
@@ -17,6 +15,7 @@ import {
     useGetList,
     useNotify,
     useRefresh,
+    AutocompleteArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -250,13 +249,13 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         <TextInput source="description" />
 
                                         {contests ? (
-                                            <CheckboxGroupInput
+                                            <AutocompleteArrayInput
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
                                                 optionText="name"
                                                 optionValue="id"
-                                                row={false}
+                                                fullWidth
                                             />
                                         ) : null}
 
