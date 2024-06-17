@@ -58,6 +58,10 @@ const CandidateListsWrapper = styled(Box)`
 
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         flex-direction: column;
+
+        .candidates-list {
+            width: initial;
+        }
     }
 `
 
