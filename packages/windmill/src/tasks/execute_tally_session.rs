@@ -11,10 +11,8 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::Re
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
-use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
-use crate::services::cast_votes::find_area_ballots;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::insert_ballots_messages;
 use crate::services::ceremonies::results::populate_results_tables;
@@ -32,9 +30,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
-use crate::services::protocol_manager::add_ballots_to_board;
-use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -43,7 +38,6 @@ use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use board_messages::braid::newtypes::BatchNumber;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
@@ -107,7 +101,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn process_plaintexts(
     auth_headers: AuthHeaders,
     relevant_plaintexts: Vec<&Message>,
@@ -923,10 +917,6 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
-    // get credentials
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = if plaintexts_data.len() > 0 {
         Some(
@@ -941,9 +931,11 @@ pub async fn execute_tally_session_wrapped(
     } else {
         None
     };
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id = populate_results_tables(
-        auth_headers.clone(),
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
         status,
@@ -953,6 +945,9 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
     )
     .await?;
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     // insert tally_session_execution
     insert_tally_session_execution(

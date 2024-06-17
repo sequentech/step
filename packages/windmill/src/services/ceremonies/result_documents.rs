@@ -14,14 +14,14 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::services::connection;
+use sequent_core::services::keycloak;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use std::path::{Path, PathBuf};
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
-    OUTPUT_RECEIPT_PDF,
 };
+use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -217,10 +217,26 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             "output/velvet-generate-reports/election__{}",
             self.election_id
         ));
+        let json_path = folder_path.join(OUTPUT_JSON);
+        let pdf_path = folder_path.join(OUTPUT_PDF);
+        let html_path = folder_path.join(OUTPUT_HTML);
+
         ResultDocumentPaths {
-            json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
-            pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
-            html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
+            json: if json_path.is_file() {
+                Some(json_path.display().to_string())
+            } else {
+                None
+            },
+            pdf: if pdf_path.is_file() {
+                Some(pdf_path.display().to_string())
+            } else {
+                None
+            },
+            html: if html_path.is_file() {
+                Some(html_path.display().to_string())
+            } else {
+                None
+            },
             tar_gz: None,
             vote_receipts_pdf: None,
         }
@@ -286,14 +302,35 @@ impl GenerateResultDocuments for ReportDataComputed {
                     self.contest.election_id, self.contest.id, area_id_str
                 ));
 
-                Some(path.join(OUTPUT_RECEIPT_PDF).display().to_string())
+                if path.is_file() {
+                    Some(path.join(OUTPUT_RECEIPT_PDF).display().to_string())
+                } else {
+                    None
+                }
             }
             None => None,
         };
+
+        let json_path = folder_path.join(OUTPUT_JSON);
+        let pdf_path = folder_path.join(OUTPUT_PDF);
+        let html_path = folder_path.join(OUTPUT_HTML);
+
         ResultDocumentPaths {
-            json: Some(folder_path.join(OUTPUT_JSON).display().to_string()),
-            pdf: Some(folder_path.join(OUTPUT_PDF).display().to_string()),
-            html: Some(folder_path.join(OUTPUT_HTML).display().to_string()),
+            json: if json_path.is_file() {
+                Some(json_path.display().to_string())
+            } else {
+                None
+            },
+            pdf: if pdf_path.is_file() {
+                Some(pdf_path.display().to_string())
+            } else {
+                None
+            },
+            html: if html_path.is_file() {
+                Some(html_path.display().to_string())
+            } else {
+                None
+            },
             tar_gz: None,
             vote_receipts_pdf: vote_receipts_pdf,
         }
@@ -344,9 +381,8 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
-#[instrument(skip(auth_headers, hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, results), err)]
 pub async fn save_result_documents(
-    auth_headers: &connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
@@ -354,10 +390,12 @@ pub async fn save_result_documents(
     results_event_id: &str,
     base_tally_path: &PathBuf,
 ) -> Result<()> {
+    let mut auth_headers = keycloak::get_client_credentials().await?;
+    let mut idx: usize = 0;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(
-            auth_headers,
+            &auth_headers,
             hasura_transaction,
             &event_document_paths,
             results_event_id,
@@ -367,9 +405,13 @@ pub async fn save_result_documents(
     for election_report in results {
         let document_paths =
             election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);
+        idx += 1;
+        if idx % 200 == 0 {
+            auth_headers = keycloak::get_client_credentials().await?;
+        }
         election_report
             .save_documents(
-                auth_headers,
+                &auth_headers,
                 hasura_transaction,
                 &document_paths,
                 results_event_id,
@@ -378,9 +420,13 @@ pub async fn save_result_documents(
         for contest_report in election_report.reports {
             let contest_document_paths =
                 contest_report.get_document_paths(contest_report.area_id.clone(), base_tally_path);
+            idx += 1;
+            if idx % 200 == 0 {
+                auth_headers = keycloak::get_client_credentials().await?;
+            }
             contest_report
                 .save_documents(
-                    auth_headers,
+                    &auth_headers,
                     hasura_transaction,
                     &contest_document_paths,
                     results_event_id,
