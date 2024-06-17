@@ -10,6 +10,7 @@ use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::services::area_tree::TreeNode;
 use sequent_core::types::hasura::core::{Area, TallySheet};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -434,7 +435,8 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
 
     Ok(())
 }
-
+// 7debe9fc-a341-4d93-bdf3-234eba0accd1 7e44e88c-f1c7-4160-8739-ed13d1b9d663
+// 9298d7cc-b9b9-4455-97ea-7d950b34c01e
 #[instrument(skip(area_contests), err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
