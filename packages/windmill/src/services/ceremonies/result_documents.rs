@@ -14,7 +14,7 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::services::connection;
+use sequent_core::services::keycloak;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use std::path::{Path, PathBuf};
 use tracing::instrument;
@@ -381,9 +381,8 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
-#[instrument(skip(auth_headers, hasura_transaction), err)]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn save_result_documents(
-    auth_headers: &connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
@@ -391,10 +390,12 @@ pub async fn save_result_documents(
     results_event_id: &str,
     base_tally_path: &PathBuf,
 ) -> Result<()> {
+    let mut auth_headers = keycloak::get_client_credentials().await?;
+    let mut idx: usize = 0;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(
-            auth_headers,
+            &auth_headers,
             hasura_transaction,
             &event_document_paths,
             results_event_id,
@@ -404,9 +405,13 @@ pub async fn save_result_documents(
     for election_report in results {
         let document_paths =
             election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);
+        idx += 1;
+        if idx % 200 == 0 {
+            auth_headers = keycloak::get_client_credentials().await?;
+        }
         election_report
             .save_documents(
-                auth_headers,
+                &auth_headers,
                 hasura_transaction,
                 &document_paths,
                 results_event_id,
@@ -415,9 +420,13 @@ pub async fn save_result_documents(
         for contest_report in election_report.reports {
             let contest_document_paths =
                 contest_report.get_document_paths(contest_report.area_id.clone(), base_tally_path);
+            idx += 1;
+            if idx % 200 == 0 {
+                auth_headers = keycloak::get_client_credentials().await?;
+            }
             contest_report
                 .save_documents(
-                    auth_headers,
+                    &auth_headers,
                     hasura_transaction,
                     &contest_document_paths,
                     results_event_id,

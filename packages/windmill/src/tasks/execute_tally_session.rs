@@ -936,7 +936,6 @@ pub async fn execute_tally_session_wrapped(
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id = populate_results_tables(
-        auth_headers.clone(),
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
         status,
@@ -946,6 +945,9 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
     )
     .await?;
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     // insert tally_session_execution
     insert_tally_session_execution(
