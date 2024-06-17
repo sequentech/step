@@ -381,7 +381,7 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, results), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,
