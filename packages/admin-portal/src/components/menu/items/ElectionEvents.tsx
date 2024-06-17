@@ -14,6 +14,7 @@ import {
     IContestPresentation,
     IElectionEventPresentation,
     sortCandidatesInContest,
+    sortContestList,
     IContest,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
@@ -126,22 +127,6 @@ function filterTree(tree: any, filterName: string): any {
     return null
 }
 
-function sortContests(contestsArr: any[]): any {
-    return contestsArr.sort((a, b) => {
-        const dateA = new Date(a.created_at)
-        const dateB = new Date(b.created_at)
-
-        if (dateA < dateB) {
-            return -1
-        }
-        if (dateA > dateB) {
-            return 1
-        }
-
-        return 0
-    })
-}
-
 export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
@@ -185,7 +170,7 @@ export default function ElectionEvents() {
                     elections: electionEvent.elections.map((election) => {
                         return {
                             ...election,
-                            contests: sortContests(election.contests).map((contest: any) => {
+                            contests: sortContestList(election.contests).map((contest: any) => {
                                 let orderType = contest.presentation?.candidates_order
 
                                 contest.candidates = sortCandidatesInContest(
