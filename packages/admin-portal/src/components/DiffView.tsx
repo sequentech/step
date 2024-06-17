@@ -11,6 +11,7 @@ import {CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {convertToNumber} from "@/lib/helpers"
 import {Button} from "react-admin"
+import {Dialog} from "@sequentech/ui-essentials"
 
 const DiffViewStyled = {
     Header: styled.span`
@@ -35,11 +36,12 @@ const DiffViewStyled = {
     `,
     Block: styled.div`
         display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
         background-color: #f5f5f5;
         padding: 16px;
         height: 100%;
         width: 100%;
-        overflow-x: scroll;
         max-height: 500px;
     `,
     Json: styled.div`
@@ -100,6 +102,7 @@ const DiffViewMemo = React.memo(
         const {t} = useTranslation()
         const [oldJsonString, setOldJsonString] = useState<string>("")
         const [newJsonString, setNewJsonString] = useState<string>("")
+        const [showDialog, setShowDialog] = useState<boolean>(false)
         const [truncationState, setTruncationState] = useState<TRUNCATION_STATE>(
             TRUNCATION_STATE.NOT_NEEDED
         )
@@ -162,6 +165,31 @@ const DiffViewMemo = React.memo(
                                     ) : null
                                 )}
                             </DiffViewStyled.Json>
+                            {truncationState !== TRUNCATION_STATE.NOT_NEEDED && (
+                                <Button
+                                    onClick={() => {
+                                        if (truncationState === TRUNCATION_STATE.UNTRUNCATED) {
+                                            setTruncationState(TRUNCATION_STATE.TRUNCATED)
+                                        } else {
+                                            setShowDialog(true)
+                                        }
+                                    }}
+                                    label={
+                                        truncationState === TRUNCATION_STATE.TRUNCATED
+                                            ? t("electionEventScreen.common.showMore")
+                                            : t("electionEventScreen.common.showLess")
+                                    }
+                                    style={{
+                                        color: "#fff",
+                                        width: "fit-content",
+                                        minHeight: "unset",
+                                        fontSize: "0.8rem",
+                                        marginLeft: "auto",
+                                    }}
+                                    aria-expanded={truncationState !== TRUNCATION_STATE.TRUNCATED}
+                                    aria-controls="diff-content"
+                                />
+                            )}
                         </DiffViewStyled.Block>
                     </DiffViewStyled.Content>
 
@@ -186,34 +214,58 @@ const DiffViewMemo = React.memo(
                                         ) : null
                                     )}
                                 </DiffViewStyled.Json>
+                                {truncationState !== TRUNCATION_STATE.NOT_NEEDED && (
+                                    <Button
+                                        onClick={() => {
+                                            if (truncationState === TRUNCATION_STATE.UNTRUNCATED) {
+                                                setTruncationState(TRUNCATION_STATE.TRUNCATED)
+                                            } else {
+                                                setShowDialog(true)
+                                            }
+                                        }}
+                                        label={
+                                            truncationState === TRUNCATION_STATE.TRUNCATED
+                                                ? t("electionEventScreen.common.showMore")
+                                                : t("electionEventScreen.common.showLess")
+                                        }
+                                        style={{
+                                            color: "#fff",
+                                            width: "fit-content",
+                                            minHeight: "unset",
+                                            fontSize: "0.8rem",
+                                            marginLeft: "auto",
+                                        }}
+                                        aria-expanded={
+                                            truncationState !== TRUNCATION_STATE.TRUNCATED
+                                        }
+                                        aria-controls="diff-content"
+                                    />
+                                )}
                             </DiffViewStyled.Block>
                         </DiffViewStyled.Content>
                     )}
                 </DiffViewStyled.Container>
-                {truncationState !== TRUNCATION_STATE.NOT_NEEDED && (
-                    <Button
-                        onClick={() => {
+                <Dialog
+                    variant="warning"
+                    open={showDialog}
+                    ok={t("publish.dialog.ok")}
+                    cancel={t("publish.dialog.ko")}
+                    title={t("publish.dialog.title")}
+                    handleClose={(result: boolean) => {
+                        if (result) {
                             setTruncationState((prev) => {
                                 if (prev === TRUNCATION_STATE.TRUNCATED) {
                                     return TRUNCATION_STATE.UNTRUNCATED
                                 }
                                 return TRUNCATION_STATE.TRUNCATED
                             })
-                        }}
-                        label={
-                            truncationState === TRUNCATION_STATE.TRUNCATED
-                                ? t("electionEventScreen.common.showMore")
-                                : t("electionEventScreen.common.showLess")
                         }
-                        style={{
-                            color: "#fff",
-                            width: "fit-content",
-                            marginInline: "auto",
-                        }}
-                        aria-expanded={truncationState !== TRUNCATION_STATE.TRUNCATED}
-                        aria-controls="diff-content"
-                    />
-                )}
+
+                        setShowDialog(false)
+                    }}
+                >
+                    {t("publish.dialog.diff")}
+                </Dialog>
             </>
         )
     }
