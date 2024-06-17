@@ -39,6 +39,7 @@ impl VoteReceipts {
 }
 
 impl VoteReceipts {
+    #[instrument(skip_all, err)]
     fn print_vote_receipts(
         &self,
         path: &Path,

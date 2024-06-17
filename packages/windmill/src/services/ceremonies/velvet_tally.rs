@@ -225,15 +225,17 @@ pub async fn create_election_configs(
         .map(|election| (election.id.clone(), election.clone()))
         .collect();
 
-    for area_contest in area_contests {
+    for (idx, area_contest) in area_contests.iter().enumerate() {
         let election_id = area_contest.contest.election_id.clone();
-        crate::postgres::election::get_election_by_id(
-            &hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &election_id,
-        )
-        .await?;
+        if idx % 100 == 0 {
+            crate::postgres::election::get_election_by_id(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &election_id,
+            )
+            .await?;
+        }
 
         let election_name_opt = elections_single_map
             .get(&election_id)
