@@ -4,12 +4,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
+    AutocompleteInput,
     CheckboxGroupInput,
     EditBase,
     Identifier,
     RecordContext,
-    SaveButton,
     ReferenceInput,
+    SaveButton,
     SimpleForm,
     TextInput,
     useGetList,
@@ -25,7 +26,6 @@ import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {Sequent_Backend_Area} from "@/gql/graphql"
 import {keyBy} from "@sequentech/ui-essentials"
-import { Autocomplete, TextField } from "@mui/material"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -35,8 +35,6 @@ interface EditAreaProps {
 
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
-    const [areasList, setAreasList] = useState<Array<Sequent_Backend_Area>>([])
-    const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null);
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
     const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
         refetchQueries: [
@@ -60,18 +58,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: electionEventId},
     })
-
-    const {data: allAreas,refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
-        filter: {
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-            name: areaNameFilter? areaNameFilter : ""
-        },
-        pagination:{
-            perPage: 100, // Setting initial larger records size of areas
-            page:1
-        },
-    })
+  
 
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
@@ -80,34 +67,41 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         },
     })
 
-    useEffect(() => {
-        let allAreasDefault = allAreas ?? []
-        let areasMap = keyBy(allAreasDefault, "id")
-
-        const isCyclical = (
-            childId: Identifier | undefined,
-            parent: Sequent_Backend_Area,
-            map: Record<string, Sequent_Backend_Area>
-        ): boolean => {
-            let parents: Array<Identifier> = []
-            if (childId) {
-                parents.push(childId)
-            }
-            let current: Sequent_Backend_Area | undefined = parent
-            while (current) {
-                if (parents.includes(current.id)) {
-                    return true
-                }
-                parents.push(current.id)
-                current = current.parent_id ? map[current.parent_id] : undefined
-            }
-            return false
+    const areaFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
         }
+        return {name: searchText.trim()}
+    }
 
-        let nonCyclicalAreas = allAreasDefault.filter((area) => !isCyclical(id, area, areasMap))
+    // useEffect(() => {
+    //     let allAreasDefault = allAreas ?? []
+    //     let areasMap = keyBy(allAreasDefault, "id")
 
-        setAreasList(nonCyclicalAreas)
-    }, [allAreas, id])
+    //     const isCyclical = (
+    //         childId: Identifier | undefined,
+    //         parent: Sequent_Backend_Area,
+    //         map: Record<string, Sequent_Backend_Area>
+    //     ): boolean => {
+    //         let parents: Array<Identifier> = []
+    //         if (childId) {
+    //             parents.push(childId)
+    //         }
+    //         let current: Sequent_Backend_Area | undefined = parent
+    //         while (current) {
+    //             if (parents.includes(current.id)) {
+    //                 return true
+    //             }
+    //             parents.push(current.id)
+    //             current = current.parent_id ? map[current.parent_id] : undefined
+    //         }
+    //         return false
+    //     }
+
+    //     let nonCyclicalAreas = allAreasDefault.filter((area) => !isCyclical(id, area, areasMap))
+    //     console.log({nonCyclicalAreas})
+    //     setAreasList(nonCyclicalAreas)
+    // }, [allAreas, id])
 
     useEffect(() => {
         if (contests && areas) {
@@ -219,15 +213,6 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         }
     }
 
-    let timeoutId : NodeJS.Timeout;
-    const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>)=>{
-        const { value } = event.target;
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(()=>{
-            setAreaNameFilter(value?  value.trim() : null);
-            refetch()
-        },500) //TODO: Make this an env variable
-    }
 
     if (renderUI) {
         return (
@@ -267,7 +252,6 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 row={false}
                                             />
                                         ) : null}
-
                                         <ReferenceInput
                                             fullWidth={true}
                                             reference="sequent_backend_area"
@@ -276,20 +260,14 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                                 tenant_id: tenantId,
                                                 election_event_id: electionEventId,
                                             }}
+                                            perPage={100 } // // Setting initial larger records size of areas
                                             enableGetChoices={({q}) => q && q.length >= 3}
                                         >
-                                            <Autocomplete
-                                                fullWidth
-                                                options={areasList ?? []}
-                                                renderInput={(params) => (
-                                                    <TextField
-                                                    {...params}
-                                                    label="Parent Area"
-                                                    onChange={debouncedSearchArea}
-                                                    value={areaNameFilter}
-                                                    />
-                                                )}
-                                                isOptionEqualToValue={(a, b) => a.id === b.id}
+                                             <AutocompleteInput
+                                                fullWidth={true}
+                                                optionText={(area) => area.name}
+                                                filterToQuery={areaFilterToQuery}
+                                                debounce={100}
                                             />
                                         </ReferenceInput>
                                     </>

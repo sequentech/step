@@ -255,7 +255,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         timeoutId = setTimeout(()=>{
             setAreaNameFilter(value?  value.trim() : null);
             refetch()
-        },500) //TODO: Make this an env variable
+        },350) //TODO: Make this an env variable
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
