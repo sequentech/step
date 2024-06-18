@@ -43,7 +43,8 @@ pub fn create_ballot_style(
         .filter(|contest| contest.election_id == election.id)
         .collect::<Vec<hasura_types::Contest>>();
     sorted_contests.sort_by_key(|k| k.id.clone());
-    let demo_public_key_env = env::var("DEMO_PUBLIC_KEY").with_context(|| "DEMO_PUBLIC_KEY env var not found")?;
+    let demo_public_key_env = env::var("DEMO_PUBLIC_KEY")
+        .with_context(|| "DEMO_PUBLIC_KEY env var not found")?;
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
