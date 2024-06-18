@@ -380,7 +380,9 @@ pub async fn update_tally_ceremony(
         .collect::<Vec<_>>()
         .len();
 
-    if tally_session.threshold > num_connected_trustees as i64 {
+    if tally_session.threshold > num_connected_trustees as i64
+        && new_execution_status != TallyExecutionStatus::CANCELLED
+    {
         return Err(anyhow!(
             "Insufficient number of connected trustees {}. Required threshold {}.",
             num_connected_trustees,
