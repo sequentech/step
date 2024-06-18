@@ -12,7 +12,7 @@
     
     </testcase>
   
-    <testcase name="Github search for nightwatch repository" classname="nightwatch.github" time="6.213" assertions="1">  <failure message="Timed out while waiting for element &lt;.header-search-button&gt; to be visible for 5000 milliseconds. - expected &#34;visible&#34; but got: &#34;not visible&#34; (5367ms)">    at Object.Github search for nightwatch repository (/home/enric/Developer/backend-services/packages/admin-portal/nightwatch/github.ts:20:8)</failure>
+    <testcase name="Github search for nightwatch repository" classname="nightwatch.github" time="6.213" assertions="1">  <failure message="Timed out while waiting for element &lt;.header-search-button&gt; to be visible for 5000 milliseconds. - expected &#34;visible&#34; but got: &#34;not visible&#34; (5367ms)">    at Object.Github search for nightwatch repository (/home/enric/Developer/step/packages/admin-portal/nightwatch/github.ts:20:8)</failure>
 
     
     </testcase>
