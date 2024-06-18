@@ -9,7 +9,7 @@ import {NavLink} from "react-router-dom"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import Box from "@mui/material/Box"
-import { adminTheme } from "@sequentech/ui-essentials"
+import {adminTheme} from "@sequentech/ui-essentials"
 
 export const divContainer = css`
     flex: 0 0 auto;
@@ -38,7 +38,9 @@ export const MenuStyles = {
         padding-bottom: 0.5rem;
         cursor: pointer;
         color: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
+            !isArchivedElectionEvents
+                ? adminTheme.palette.brandColor
+                : adminTheme.palette.secondary.main};
         border-bottom: ${({isArchivedElectionEvents}) =>
             !isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
@@ -50,7 +52,9 @@ export const MenuStyles = {
         padding-bottom: 0.5rem;
         cursor: pointer;
         color: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
+            isArchivedElectionEvents
+                ? adminTheme.palette.brandColor
+                : adminTheme.palette.secondary.main};
         border-bottom: ${({isArchivedElectionEvents}) =>
             isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
