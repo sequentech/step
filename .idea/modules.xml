@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/backend-services.iml" filepath="$PROJECT_DIR$/.idea/backend-services.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/step.iml" filepath="$PROJECT_DIR$/.idea/step.iml" />
     </modules>
   </component>
 </project>

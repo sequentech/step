@@ -45,7 +45,7 @@ impl VoteReceipts {
         contest: &Contest,
         election_input: &InputElectionConfig,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
-        let tally = Tally::new(contest, vec![path.to_path_buf()], 0)
+        let tally = Tally::new(contest, vec![path.to_path_buf()], 0, vec![])
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
         let pipe_config = self

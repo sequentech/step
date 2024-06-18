@@ -16,20 +16,20 @@ pub enum VotingChannel {
     IN_PERSON,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone, Default)]
 pub struct InvalidVotes {
     pub total_invalid: Option<u64>,
     pub implicit_invalid: Option<u64>,
     pub explicit_invalid: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
 pub struct CandidateResults {
     pub candidate_id: String,
     pub total_votes: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
 pub struct AreaContestResults {
     pub area_id: String,
     pub contest_id: String,
