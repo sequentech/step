@@ -143,6 +143,8 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "No hay elecciones por ahora.",
+            noVotingAreaError:
+                "Área de votación no asignada al votante. Por favor, contacte con su administrador para obtener asistencia.",
         },
         errors: {
             encoding: {

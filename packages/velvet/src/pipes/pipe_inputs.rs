@@ -10,6 +10,7 @@ use crate::{
 use sequent_core::{
     ballot::{BallotStyle, Contest},
     services::area_tree::TreeNodeArea,
+    util::path::get_folder_name,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -21,9 +22,11 @@ use uuid::Uuid;
 pub const PREFIX_ELECTION: &str = "election__";
 pub const PREFIX_CONTEST: &str = "contest__";
 pub const PREFIX_AREA: &str = "area__";
+pub const PREFIX_TALLY_SHEET: &str = "tally_sheet__";
 
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
+pub const DEFAULT_DIR_TALLY_SHEETS: &str = "default/tally_sheets";
 
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
@@ -35,6 +38,7 @@ pub struct PipeInputs {
     pub cli: CliRun,
     pub root_path_config: PathBuf,
     pub root_path_ballots: PathBuf,
+    pub root_path_tally_sheets: PathBuf,
     pub stage: Stage,
     pub election_list: Vec<InputElectionConfig>,
 }
@@ -43,12 +47,14 @@ impl PipeInputs {
     pub fn new(cli: CliRun, stage: Stage) -> Result<Self> {
         let root_path_config = &cli.input_dir.join(DEFAULT_DIR_CONFIGS);
         let root_path_ballots = &cli.input_dir.join(DEFAULT_DIR_BALLOTS);
+        let root_path_tally_sheets = &cli.input_dir.join(DEFAULT_DIR_TALLY_SHEETS);
         let election_list = Self::read_input_dir_config(root_path_config.as_path())?;
 
         Ok(Self {
             cli,
             root_path_config: root_path_config.to_path_buf(),
             root_path_ballots: root_path_ballots.to_path_buf(),
+            root_path_tally_sheets: root_path_tally_sheets.to_path_buf(),
             stage,
             election_list,
         })
@@ -74,6 +80,27 @@ impl PipeInputs {
         }
 
         path
+    }
+
+    pub fn build_tally_sheet_path(root: &Path, tally_sheet_id: &str) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_TALLY_SHEET, tally_sheet_id));
+        path
+    }
+
+    pub fn get_tally_sheet_id_from_path(path: &Path) -> Option<String> {
+        let Some(folder_name) = get_folder_name(path) else {
+            return None;
+        };
+        if folder_name.starts_with(PREFIX_TALLY_SHEET) {
+            folder_name
+                .strip_prefix(PREFIX_TALLY_SHEET)
+                .map(|val| val.to_string())
+        } else {
+            None
+        }
     }
 
     fn read_input_dir_config(input_dir: &Path) -> Result<Vec<InputElectionConfig>> {

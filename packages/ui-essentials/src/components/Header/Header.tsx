@@ -10,7 +10,7 @@ import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
 import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
-import {Box, IconButton, Menu, MenuItem} from "@mui/material"
+import {Box, Button, IconButton, Menu, MenuItem} from "@mui/material"
 import Version from "../Version/Version"
 import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
@@ -45,6 +45,20 @@ const StyledImage = styled(Image)`
     }
 `
 
+const StyledButton = styled(Button)`
+    color: ${({theme}) => theme.palette.brandColor} !important;
+    background: none;
+    border: none;
+
+    &:hover,
+    &:focus,
+    &:active {
+        color: ${({theme}) => theme.palette.white} !important;
+        background: ${({theme}) => theme.palette.brandColor} !important;
+        boxshadow: none !important;
+    }
+`
+
 type ApplicationVersion = {
     main: string
 }
@@ -55,6 +69,11 @@ type UserProfile = {
     openLink?: Function
 }
 
+export enum HeaderErrorVariant {
+    HIDE_PROFILE = "hide profile",
+    SHOW_PROFILE = "show profile",
+}
+
 export interface HeaderProps {
     logoutFn?: () => void
     appVersion?: ApplicationVersion
@@ -62,6 +81,7 @@ export interface HeaderProps {
     userProfile?: UserProfile
     logoUrl?: string
     languagesList?: Array<string>
+    errorVariant?: HeaderErrorVariant
 }
 
 export default function Header({
@@ -71,6 +91,7 @@ export default function Header({
     logoLink,
     logoUrl,
     languagesList,
+    errorVariant,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -106,78 +127,95 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
-                            {userProfile && (
+                            {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
                                 <Box>
-                                    <IconButton
-                                        className="profile-menu-button"
-                                        size="large"
-                                        aria-label="account of current user"
-                                        aria-controls="menu-appbar"
-                                        aria-haspopup="true"
-                                        onClick={handleMenu}
-                                        color="inherit"
-                                    >
-                                        <AccountCircle sx={{fontSize: 40}} />
-                                    </IconButton>
-
-                                    <Menu
-                                        id="menu-appbar"
-                                        anchorEl={anchorEl}
-                                        anchorOrigin={{
-                                            vertical: "bottom",
-                                            horizontal: "right",
+                                    <StyledButton
+                                        className="logout-button"
+                                        aria-label="log out button"
+                                        onClick={() => {
+                                            setOpenModal(true)
                                         }}
-                                        keepMounted
-                                        transformOrigin={{
-                                            vertical: "top",
-                                            horizontal: "right",
-                                        }}
-                                        sx={{maxWidth: 220}}
-                                        open={Boolean(anchorEl)}
-                                        onClose={handleClose}
                                     >
-                                        <MenuItem>
-                                            <Box
-                                                sx={{
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                }}
-                                            >
-                                                <span title={userProfile?.username}>
-                                                    {userProfile?.username}
-                                                </span>
-                                                <br />
-                                                <Span title={userProfile?.email}>
-                                                    {userProfile?.email}
-                                                </Span>
-                                            </Box>
-                                        </MenuItem>
-                                        {userProfile?.openLink && (
-                                            <MenuItem
-                                                onClick={() => {
-                                                    handleClose()
-                                                    userProfile?.openLink?.()
-                                                }}
-                                            >
-                                                <AccountCircle sx={{marginRight: "14px"}} />
-                                                {t("header.profile")}
-                                            </MenuItem>
-                                        )}
-                                        {logoutFn && (
-                                            <MenuItem
-                                                className="logout-button"
-                                                onClick={() => {
-                                                    setOpenModal(true)
-                                                    handleClose()
-                                                }}
-                                            >
-                                                <LogoutIcon sx={{marginRight: "14px"}} />
-                                                {t("logout.buttonText")}
-                                            </MenuItem>
-                                        )}
-                                    </Menu>
+                                        <LogoutIcon />
+                                        <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                            {t("logout.buttonText")}
+                                        </Box>
+                                    </StyledButton>
                                 </Box>
+                            ) : (
+                                userProfile && (
+                                    <Box>
+                                        <IconButton
+                                            className="profile-menu-button"
+                                            size="large"
+                                            aria-label="account of current user"
+                                            aria-controls="menu-appbar"
+                                            aria-haspopup="true"
+                                            onClick={handleMenu}
+                                            color="inherit"
+                                        >
+                                            <AccountCircle sx={{fontSize: 40}} />
+                                        </IconButton>
+
+                                        <Menu
+                                            id="menu-appbar"
+                                            anchorEl={anchorEl}
+                                            anchorOrigin={{
+                                                vertical: "bottom",
+                                                horizontal: "right",
+                                            }}
+                                            keepMounted
+                                            transformOrigin={{
+                                                vertical: "top",
+                                                horizontal: "right",
+                                            }}
+                                            sx={{maxWidth: 220}}
+                                            open={Boolean(anchorEl)}
+                                            onClose={handleClose}
+                                        >
+                                            <MenuItem>
+                                                <Box
+                                                    sx={{
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        overflow: "hidden",
+                                                    }}
+                                                >
+                                                    <span title={userProfile?.username}>
+                                                        {userProfile?.username}
+                                                    </span>
+                                                    <br />
+                                                    <Span title={userProfile?.email}>
+                                                        {userProfile?.email}
+                                                    </Span>
+                                                </Box>
+                                            </MenuItem>
+                                            {userProfile?.openLink && (
+                                                <MenuItem
+                                                    onClick={() => {
+                                                        handleClose()
+                                                        userProfile?.openLink?.()
+                                                    }}
+                                                >
+                                                    <AccountCircle sx={{marginRight: "14px"}} />
+                                                    {t("header.profile")}
+                                                </MenuItem>
+                                            )}
+                                            {logoutFn && (
+                                                <MenuItem
+                                                    className="logout-button"
+                                                    onClick={() => {
+                                                        setOpenModal(true)
+                                                        handleClose()
+                                                    }}
+                                                >
+                                                    <LogoutIcon sx={{marginRight: "14px"}} />
+                                                    {t("logout.buttonText")}
+                                                </MenuItem>
+                                            )}
+                                        </Menu>
+                                    </Box>
+                                )
                             )}
                         </Box>
                     </PageBanner>

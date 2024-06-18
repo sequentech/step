@@ -14,10 +14,13 @@ use tracing::instrument;
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
-        self.attributes.as_ref().and_then(|attributes| {
-            let mobile_phone = attributes.get(MOBILE_PHONE_ATTR_NAME)?.clone();
-            serde_json::from_value(mobile_phone.into()).ok()?
-        })
+        Some(
+            self.attributes
+                .as_ref()?
+                .get(MOBILE_PHONE_ATTR_NAME)?
+                .get(0)?
+                .to_string(),
+        )
     }
 
     pub fn get_area_id(&self) -> Option<String> {

@@ -336,8 +336,9 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Importar dades d'àrees",
                 areaParagraph:
                     "Importar àrees utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
-                importVotersSuccess: "Àrees Importades amb Èxit",
-                importVotersError: "Error en importar Àrees",
+                importSuccess: "Àrees Importades amb Èxit",
+                importError: "Error en importar Àrees",
+                upsert: "Upsert Areas",
             },
             import: {
                 eetitle: "Importar Esdeveniment Electoral",

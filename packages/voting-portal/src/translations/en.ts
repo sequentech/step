@@ -141,6 +141,8 @@ const englishTranslation = {
                 ok: "OK",
             },
             noResults: "No ballots for now.",
+            noVotingAreaError:
+                "Election Area not assigned to voter. Kindly contact your administrator for assistance",
         },
         errors: {
             encoding: {
