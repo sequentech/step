@@ -32,7 +32,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data: tallyData} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallyId,
@@ -51,15 +51,17 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     useEffect(() => {
         if (elections) {
-            const temp: Array<Sequent_Backend_Election_Extended> = (elections || []).map(
-                (election, index) => ({
+            const temp: Array<Sequent_Backend_Election_Extended> = (elections || [])
+                .map((election, index) => ({
                     ...election,
                     rowId: index,
                     id: election.id || "",
                     name: election.name,
                     active: false,
-                })
-            )
+                }))
+                .filter((election) =>
+                    tallyData ? (tallyData.election_ids || []).includes(election.id) : true
+                )
             setElectionsData(temp)
         }
     }, [elections])
@@ -87,7 +89,6 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             width: 100,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox
-                // TODO: Checkbox is checked if disabled should only be checked if the election is part of the tally process.
                     checked={disabled ? true : props.value}
                     disabled={disabled}
                     onChange={() => handleConfirmChange(props.row)}
