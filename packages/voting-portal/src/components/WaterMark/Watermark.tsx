@@ -14,33 +14,32 @@ interface BackgroundProps extends SystemProps {
     imageUrl: string | undefined
 }
 
-const Background = styled(Box)<BackgroundProps>(({imageUrl}) => ({
-    "position": "absolute",
-    "width": "100%",
-    "height": "100%",
-    "overflow": "hidden",
-    "z-index": "-1",
-    "&::before": {
-        content: '""',
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundImage: `url(${imageUrl})`,
-        backgroundRepeat: "repeat",
-        backgroundPosition: "center",
-        backgroundSize: "100px 100px",
-        opacity: 0.1,
-    },
-}))
+const Background = styled(Box)<{imageUrl: string | undefined}>`
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+    &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: ${({imageUrl}) => (imageUrl ? `url(${imageUrl})` : "none")};
+        background-repeat: repeat;
+        background-position: center;
+        background-size: 100px 100px;
+        opacity: 0.3;
+    }
+`
 
 const WatermarkBackground: React.FC = () => {
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const isDemo = useMemo(() => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
-
     const imageUrlPath = useCallback(() => {
         if (isDemo) {
             return "/demo-banner.png"
