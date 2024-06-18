@@ -142,6 +142,8 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",
+            noVotingAreaError:
+                "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
         },
         errors: {
             encoding: {
