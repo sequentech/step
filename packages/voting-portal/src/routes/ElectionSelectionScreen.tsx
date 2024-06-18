@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     Dialog,
@@ -219,11 +219,6 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
-    const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
-    const isDemo = useMemo(() => {
-        return oneBallotStyle?.ballot_eml.public_key?.is_demo
-    }, [oneBallotStyle])
-    const bypassChooser = useAppSelector(selectBypassChooser())
 
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -336,12 +331,6 @@ export const ElectionSelectionScreen: React.FC = () => {
         oneBallotStyle,
     ])
 
-    useEffect(() => {
-        if (isDemo && openDemoModal === undefined) {
-            setOpenDemoModal(true)
-        }
-    }, [isDemo])
-
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
             <Box marginTop="48px">
@@ -373,15 +362,6 @@ export const ElectionSelectionScreen: React.FC = () => {
                             variant="info"
                         >
                             {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                        </Dialog>
-                        <Dialog
-                            handleClose={() => setOpenDemoModal(false)}
-                            open={openDemoModal ? openDemoModal : false}
-                            title={t("electionSelectionScreen.demoDialog.title")}
-                            ok={t("electionSelectionScreen.demoDialog.ok")}
-                            variant="warning"
-                        >
-                            {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
