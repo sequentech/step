@@ -224,9 +224,11 @@ export const ElectionSelectionScreen: React.FC = () => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
     const bypassChooser = useAppSelector(selectBypassChooser())
-
-    const {error: errorBallotStyles, data: dataBallotStyles} =
-        useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {
+        error: errorBallotStyles,
+        data: dataBallotStyles,
+        networkStatus,
+    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
     const [hasLoadElections, setHasLoadElections] = useState<boolean>(false)
     const {
@@ -258,7 +260,9 @@ export const ElectionSelectionScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        if (errorBallotStyles || errorElections || errorElectionEvent) {
+        if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
+            throw new Error(t("electionSelectionScreen.noVotingAreaError"))
+        } else if (errorElections || errorElectionEvent || errorBallotStyles) {
             throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
         }
     }, [errorElections, errorBallotStyles, errorElectionEvent])

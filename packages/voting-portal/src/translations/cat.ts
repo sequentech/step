@@ -149,6 +149,8 @@ const catalanTranslation: TranslationType = {
                     "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
                 ok: "Accepto que el meu vot NO serà comptabilitzat",
             },
+            noVotingAreaError:
+                "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
         },
         errors: {
             encoding: {

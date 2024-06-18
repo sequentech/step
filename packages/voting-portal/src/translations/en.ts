@@ -147,6 +147,8 @@ const englishTranslation = {
                     "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
                 ok: "I accept my vote will Not be cast",
             },
+            noVotingAreaError:
+                "Election Area not assigned to voter. Kindly contact your administrator for assistance",
         },
         errors: {
             encoding: {

@@ -149,6 +149,8 @@ const spanishTranslation: TranslationType = {
                     "Está entrando en una cabina de votación de demostración. <strong>Su voto NO será registrado.</strong> Esta cabina de votación es solo para fines de demostración.",
                 ok: "Acepto que mi voto NO será registrado",
             },
+            noVotingAreaError:
+                "Área de votación no asignada al votante. Por favor, contacte con su administrador para obtener asistencia.",
         },
         errors: {
             encoding: {

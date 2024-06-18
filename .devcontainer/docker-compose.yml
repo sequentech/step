@@ -687,6 +687,7 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+      AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
