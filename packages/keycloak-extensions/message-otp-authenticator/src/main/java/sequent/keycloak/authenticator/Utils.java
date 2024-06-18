@@ -97,8 +97,8 @@ public class Utils {
 			mobileNumber = Utils.getMobile(config, user);
 			emailAddress = user.getEmail();
 		}
-		log.info("sendCode(): mobileNumber = " + mobileNumber);
-		log.info("sendCode(): emailAddress = " + emailAddress);
+		log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
+		log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
 		int length = Integer.parseInt(
 			config.getConfig().get(Utils.CODE_LENGTH)
@@ -128,7 +128,7 @@ public class Utils {
 		) {
 			SmsSenderProvider smsSenderProvider = 
 				session.getProvider(SmsSenderProvider.class);
-			log.infov("sendCode(): Sending sms to={0}", mobileNumber.trim());
+			log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
 			List<String> smsAttributes = ImmutableList.of(
 				realmName,
 				code,
@@ -143,6 +143,8 @@ public class Utils {
 				user,
 				session
 			);
+		} else {
+			log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
 		}
 
 		if (
@@ -153,7 +155,7 @@ public class Utils {
 				messageCourier == MessageCourier.BOTH
 			)
 		) {
-			log.infov("sendCode(): Sending email to={0}", emailAddress.trim());
+			log.infov("sendCode(): Sending email to=`{0}`", emailAddress.trim());
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
 
@@ -194,6 +196,8 @@ public class Utils {
 				log.debug("sendCode(): Exception sending email", error);
 				throw error;
 			}
+		} else {
+			log.infov("sendCode(): NOT Sending meail to=`{0}`", emailAddress);
 		}
 	}
 
