@@ -136,24 +136,32 @@ export default function Header({
                                         open={Boolean(anchorEl)}
                                         onClose={handleClose}
                                     >
-                                        <MenuItem>
-                                            <Box
-                                                sx={{
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                }}
-                                            >
-                                                <span title={userProfile?.username}>
-                                                    {userProfile?.username}
-                                                </span>
-                                                <br />
-                                                <Span title={userProfile?.email}>
-                                                    {userProfile?.email}
-                                                </Span>
-                                            </Box>
-                                        </MenuItem>
-                                        {userProfile?.openLink && (
+                                        {(!!userProfile.username || !!userProfile.email) && (
+                                            <MenuItem>
+                                                <Box
+                                                    sx={{
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        overflow: "hidden",
+                                                    }}
+                                                >
+                                                    {!!userProfile.username && (
+                                                        <>
+                                                            <span title={userProfile.username}>
+                                                                {userProfile.username}
+                                                            </span>
+                                                            <br />
+                                                        </>
+                                                    )}
+                                                    {!!userProfile.email && (
+                                                        <Span title={userProfile.email}>
+                                                            {userProfile.email}
+                                                        </Span>
+                                                    )}
+                                                </Box>
+                                            </MenuItem>
+                                        )}
+                                        {userProfile.openLink && (
                                             <MenuItem
                                                 onClick={() => {
                                                     handleClose()
