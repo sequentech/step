@@ -57,7 +57,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                     rowId: index,
                     id: election.id || "",
                     name: election.name,
-                    active: false,
+                    active: true,
                 }))
                 .filter((election) =>
                     tallyData ? (tallyData.election_ids || []).includes(election.id) : true
@@ -89,7 +89,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             width: 100,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox
-                    checked={disabled ? true : props.value}
+                    checked={props.value}
                     disabled={disabled}
                     onChange={() => handleConfirmChange(props.row)}
                 />
