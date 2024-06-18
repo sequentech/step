@@ -219,7 +219,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
-
+    const bypassChooser = useAppSelector(selectBypassChooser())
     const {error: errorBallotStyles, data: dataBallotStyles} =
         useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
