@@ -6,12 +6,7 @@
 import React, {useEffect, useContext} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {
-    Footer,
-    Header,
-    IElectionEventPresentation,
-    PageBanner,
-} from "@sequentech/ui-essentials"
+import {Footer, Header, IElectionEventPresentation, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
