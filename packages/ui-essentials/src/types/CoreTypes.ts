@@ -59,6 +59,19 @@ export interface IContest {
     created_at?: string
 }
 
+export interface IElection {
+    id: string
+    election_event_id: string
+    name?: string
+    name_i18n?: TranslationDict
+    description?: string
+    description_i18n?: TranslationDict
+    alias?: string
+    alias_i18n?: TranslationDict
+    image_document_id: string
+    contests: Array<IContest>
+}
+
 export interface ICandidate {
     id: string
     tenant_id: string

@@ -18,7 +18,7 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
-    sortContestByCreationDate,
+    sortContestList,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -290,7 +290,7 @@ export const ReviewScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
+    const contests = sortContestList(ballotStyle.ballot_eml.contests)
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">

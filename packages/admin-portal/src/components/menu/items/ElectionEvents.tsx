@@ -14,6 +14,8 @@ import {
     IContestPresentation,
     IElectionEventPresentation,
     sortCandidatesInContest,
+    sortContestList,
+    sortElectionList,
     IContest,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
@@ -165,10 +167,10 @@ export default function ElectionEvents() {
             (electionEvent: ElectionEventType) => {
                 return {
                     ...electionEvent,
-                    elections: electionEvent.elections.map((election) => {
+                    elections: sortElectionList(electionEvent.elections).map((election: any) => {
                         return {
                             ...election,
-                            contests: election.contests.map((contest) => {
+                            contests: sortContestList(election.contests).map((contest: any) => {
                                 let orderType = contest.presentation?.candidates_order
 
                                 contest.candidates = sortCandidatesInContest(

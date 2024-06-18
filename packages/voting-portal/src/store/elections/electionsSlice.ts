@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
+import {sortElectionList} from "@sequentech/ui-essentials"
 
 export interface IElection {
     id: string
@@ -16,6 +17,7 @@ export interface IElection {
     labels?: string | null
     last_updated_at?: string | null
     name?: string | null
+    alias?: string | null
     num_allowed_revotes?: number | null
     presentation?: string | null
     spoil_ballot_option?: boolean | null
@@ -42,7 +44,9 @@ export const electionsSlice = createSlice({
 
 export const {setElection} = electionsSlice.actions
 
-export const selectElectionIds = (state: RootState) => Object.keys(state.elections)
+export const selectElectionIds = (state: RootState) => {
+    return sortElectionList(Object.values(state.elections) as any).map((election) => election.id)
+}
 
 export const selectElectionById = (electionId: string) => (state: RootState) =>
     state.elections[electionId]

@@ -17,8 +17,14 @@ export const sortCandidatesInContest = (
     switch (order) {
         case CandidatesOrder.ALPHABETICAL:
             res.sort((a, b) => {
-                const nameA = a.alias?.toLowerCase() ?? a.name?.toLowerCase() ?? ""
-                const nameB = b.alias?.toLowerCase() ?? b.name?.toLowerCase() ?? ""
+                const nameA =
+                    (a.alias ? a.alias?.toLowerCase() : null) ??
+                    (a.name ? a.name?.toLowerCase() : null) ??
+                    ""
+                const nameB =
+                    (b.alias ? b.alias?.toLowerCase() : null) ??
+                    (b.name ? b.name?.toLowerCase() : null) ??
+                    ""
 
                 if (nameA < nameB) {
                     return -1
