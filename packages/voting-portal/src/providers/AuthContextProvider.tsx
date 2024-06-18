@@ -281,8 +281,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const logout = (redirectUrl?: string) => {
         if (!keycloak) {
+            // If no keycloak object initailized manually clear cookies and redirect user
+            clearAllCookies()
             if (redirectUrl) {
                 window.location.href = redirectUrl
+            } else {
+                const currentPath = window.location.pathname
+                const pathSegments = currentPath.split("/")
+                while (pathSegments.length > 5) {
+                    pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
+                }
+                const newPath = pathSegments.join("/")
+                window.location.href = newPath
             }
             return
         }
@@ -292,6 +302,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         })
     }
 
+    const clearAllCookies = () => {
+        document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=")
+            const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT"
+        })
+    }
     /**
      * Check if the user has the given role
      * @param role to be checked
