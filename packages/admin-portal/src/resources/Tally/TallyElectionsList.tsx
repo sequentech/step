@@ -83,7 +83,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         {
             field: "active",
             headerName: t("tally.table.selected"),
-            editable: true,
+            editable: false,
             width: 100,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox

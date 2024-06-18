@@ -79,12 +79,6 @@ impl<C: Ctx> Session<C> {
                 .await
                 .map_err(|e| ProtocolError::BoardError(e.to_string()));
             return (self, result);
-            /* match result {
-                Ok(_) => (),
-                Err(err) => {
-                    warn!("Insert messages returns error {:?}", err)
-                }
-            }*/
         }
 
         (self, Ok(()))
