@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-/* */ 
+/*  
 package sequent.keycloak.conditional_authenticators;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +85,6 @@ public class ManualVerificationProviderTest {
         Response response = manualVerificationProvider.generateLink(userId, redirectUri);
     }
 
-}
+} */
 
  

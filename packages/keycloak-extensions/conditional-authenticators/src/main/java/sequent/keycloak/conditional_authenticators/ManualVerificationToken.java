@@ -38,7 +38,7 @@ public class ManualVerificationToken extends DefaultActionToken {
         setRedirectUri(redirectUri);
     }
 
-    private ManualVerificationToken() {
+    ManualVerificationToken() {
         // Required to deserialize from JWT
         super();
         log.info("ManualVerificationToken private");
