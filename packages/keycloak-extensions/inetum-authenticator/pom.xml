@@ -121,7 +121,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>3.0.0</version>
 		</dependency>
 
-	</dependencies>
+	
+   <dependency>
+     <groupId>org.keycloak</groupId>
+     <artifactId>keycloak-server-spi</artifactId>
+     <version>3.2.1.Final</version>
+   </dependency>
+ </dependencies>
 
 	<build>
 		<finalName>${project.groupId}.${project.artifactId}</finalName>

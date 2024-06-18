@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package sequent.keycloak.conditional_authenticators;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +13,10 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import sequent.keycloak.conditional_authenticators.ConditionalClientAuthenticator;
+import sequent.keycloak.conditional_authenticators.ConditionalClientAuthenticatorFactory;
+import software.amazon.awssdk.utils.ImmutableMap;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

@@ -5,6 +5,9 @@
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.email.EmailException;
+
+import sequent.keycloak.dummy.DummyEmailSenderProvider;
+
 import java.util.HashMap;
 import java.util.Map;
 

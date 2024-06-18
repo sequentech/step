@@ -2,22 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package sequent.keycloak.inetum_authenticator;
+
 
 import static org.mockito.Mockito.*;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import sequent.keycloak.inetum_authenticator.DeferredRegistrationUserCreation;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowException;
 import org.keycloak.authentication.ValidationContext;
+import org.keycloak.authentication.forms.RegistrationPage;
+import org.keycloak.events.Errors;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
+import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
