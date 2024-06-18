@@ -1,0 +1,15 @@
+introspection:
+  url: "http://graphql-engine:8080/v1/graphql"
+  headers:
+    x-hasura-admin-secret: "admin"
+
+output:
+  folder: "docs"
+
+template:
+  name: "spectaql"
+
+info:
+  title: "Your API Documentation"
+  description: "Detailed description of your API"
+  version: "1.0.0"
