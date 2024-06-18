@@ -4,13 +4,16 @@
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
+use crate::postgres::election::export_elections;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::types::hasura::core::{Area, TallySheet};
+use sequent_core::services::area_tree::TreeNode;
+use sequent_core::types::hasura::core::{Area, Election, TallySheet};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
@@ -197,6 +200,14 @@ pub async fn create_election_configs(
         area_contests.len()
     );
 
+    let Some(first_area_contest) = area_contests.first() else {
+        return Ok(());
+    };
+    let tenant_id = &first_area_contest.contest.tenant_id;
+    let election_event_id = &first_area_contest.contest.election_event_id;
+
+    // Note: for some reason this is needed, if we reuse the existing transaction, we get:
+    // AMQP error "IO error: Connection reset by peer (os error 104)"
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -207,19 +218,28 @@ pub async fn create_election_configs(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    for area_contest in area_contests {
-        let tenant_id = &area_contest.contest.tenant_id;
-        let election_event_id = &area_contest.contest.election_event_id;
-        let election_id = area_contest.contest.election_id.clone();
+    let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
 
-        let election_name_opt = crate::postgres::election::get_election_by_id(
-            &hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &election_id,
-        )
-        .await?
-        .and_then(|e| Some(e.name));
+    let elections_single_map: HashMap<String, Election> = elections
+        .iter()
+        .map(|election| (election.id.clone(), election.clone()))
+        .collect();
+
+    for (idx, area_contest) in area_contests.iter().enumerate() {
+        let election_id = area_contest.contest.election_id.clone();
+        if idx % 100 == 0 {
+            crate::postgres::election::get_election_by_id(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &election_id,
+            )
+            .await?;
+        }
+
+        let election_name_opt = elections_single_map
+            .get(&election_id)
+            .map(|election| election.name.clone());
 
         let election_cast_votes_count = cast_votes_count
             .iter()
@@ -250,7 +270,7 @@ pub async fn create_election_configs(
     }
 
     // deduplicate the ballot styles
-    event!(Level::WARN, "elections_map len {}", elections_map.len());
+    event!(Level::INFO, "elections_map len {}", elections_map.len());
     for (key, value) in &elections_map {
         let mut velvet_election: ElectionConfig = value.clone();
         velvet_election
@@ -262,6 +282,11 @@ pub async fn create_election_configs(
     }
 
     // write the election configs
+    event!(
+        Level::INFO,
+        "writing election configs for n elements {}",
+        elections_map.len()
+    );
     for (election_id, election) in &elections_map {
         let election_config_path: PathBuf = base_tempdir.join(format!(
             "input/default/configs/election__{election_id}/election-config.json"
@@ -273,6 +298,7 @@ pub async fn create_election_configs(
             serde_json::to_string(&election)?
         )?;
     }
+    event!(Level::INFO, "Finished writing election configs");
 
     Ok(())
 }
@@ -341,6 +367,7 @@ struct VelvetTemplateData {
     pub file_qrcode_lib: String,
 }
 
+#[instrument(skip_all, err)]
 pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
@@ -375,6 +402,7 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template,
         extra_data: serde_json::to_value(extra_data)?,
+        enable_pdfs: false,
     };
 
     let stages_def = {
@@ -434,7 +462,8 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
 
     Ok(())
 }
-
+// 7debe9fc-a341-4d93-bdf3-234eba0accd1 7e44e88c-f1c7-4160-8739-ed13d1b9d663
+// 9298d7cc-b9b9-4455-97ea-7d950b34c01e
 #[instrument(skip(area_contests), err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,

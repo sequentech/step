@@ -97,8 +97,8 @@ public class Utils {
 			mobileNumber = Utils.getMobile(config, user);
 			emailAddress = user.getEmail();
 		}
-		log.info("sendCode(): mobileNumber = " + mobileNumber);
-		log.info("sendCode(): emailAddress = " + emailAddress);
+		log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
+		log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
 		int length = Integer.parseInt(
 			config.getConfig().get(Utils.CODE_LENGTH)
@@ -120,6 +120,7 @@ public class Utils {
 
 		if (
 			mobileNumber != null &&
+			mobileNumber.trim().length() > 0 &&
 			(
 				messageCourier == MessageCourier.SMS ||
 				messageCourier == MessageCourier.BOTH
@@ -127,7 +128,7 @@ public class Utils {
 		) {
 			SmsSenderProvider smsSenderProvider = 
 				session.getProvider(SmsSenderProvider.class);
-			log.infov("sendCode(): Sending sms to={0}", mobileNumber);
+			log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
 			List<String> smsAttributes = ImmutableList.of(
 				realmName,
 				code,
@@ -135,23 +136,26 @@ public class Utils {
 			);
 
 			smsSenderProvider.send(
-				mobileNumber,
+				mobileNumber.trim(),
 				Utils.SEND_CODE_SMS_I18N_KEY,
 				smsAttributes,
 				realm,
 				user,
 				session
 			);
+		} else {
+			log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
 		}
 
 		if (
 			emailAddress != null &&
+			emailAddress.trim().length() > 0 &&
 			(
 				messageCourier == MessageCourier.EMAIL ||
 				messageCourier == MessageCourier.BOTH
 			)
 		) {
-			log.infov("sendCode(): Sending email to={0}", emailAddress);
+			log.infov("sendCode(): Sending email to=`{0}`", emailAddress.trim());
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
 
@@ -174,7 +178,7 @@ public class Utils {
 						subjAttr,
 						Utils.SEND_CODE_EMAIL_FTL,
 						messageAttributes,
-						emailAddress
+						emailAddress.trim()
 					);
 				} else {
 					emailTemplateProvider
@@ -192,6 +196,8 @@ public class Utils {
 				log.debug("sendCode(): Exception sending email", error);
 				throw error;
 			}
+		} else {
+			log.infov("sendCode(): NOT Sending meail to=`{0}`", emailAddress);
 		}
 	}
 

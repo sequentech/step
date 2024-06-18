@@ -11,11 +11,10 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::Re
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
-use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
-use crate::services::cast_votes::find_area_ballots;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::ceremonies::insert_ballots::insert_ballots_messages;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::print_messages;
@@ -31,9 +30,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
-use crate::services::protocol_manager::add_ballots_to_board;
-use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -42,7 +38,6 @@ use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use board_messages::braid::newtypes::BatchNumber;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
@@ -56,6 +51,8 @@ use sequent_core::ballot::Candidate;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::area_tree::TreeNode;
+use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
@@ -66,6 +63,7 @@ use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::TallySheet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::str::FromStr;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
@@ -103,14 +101,23 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn process_plaintexts(
     auth_headers: AuthHeaders,
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
-    areas_map: &HashMap<String, Area>,
+    areas: &Vec<Area>,
 ) -> Result<Vec<AreaContestDataType>> {
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
+    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
+
     let almost_vec: Vec<AreaContestDataType> = tally_session_data
         .sequent_backend_tally_session_contest
         .iter()
@@ -135,7 +142,7 @@ async fn process_plaintexts(
                     return None;
                 };
 
-            let batch_num = session_contest.session_id;
+            let batch_num: i64 = session_contest.session_id;
             let Some(plaintexts) = relevant_plaintexts
                 .iter()
                 .find(|plaintexts_message|
@@ -171,6 +178,26 @@ async fn process_plaintexts(
         })
         .collect();
 
+    // set<area_id, contest_id>
+    let found_area_contests: HashSet<(String, String)> = almost_vec
+        .iter()
+        .map(|val| (val.area.id.clone(), val.contest.id.clone()))
+        .collect();
+
+    let filtered_area_contests: Vec<AreaContestDataType> = almost_vec
+        .clone()
+        .into_iter()
+        .filter(|area_contest| {
+            let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
+                return false;
+            };
+            tree_path.iter().all(|tree_node| {
+                found_area_contests
+                    .contains(&(tree_node.id.clone(), area_contest.contest.id.clone()))
+            })
+        })
+        .collect();
+
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -193,7 +220,7 @@ async fn process_plaintexts(
     let mut data: Vec<AreaContestDataType> = vec![];
 
     // fill in the eligible voters data
-    for almost in almost_vec {
+    for almost in filtered_area_contests {
         let mut area_contest = almost.clone();
         let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
@@ -316,108 +343,6 @@ pub async fn get_eligible_voters(
     )
     .await?;
     Ok(census as u64)
-}
-
-#[instrument(skip_all, err)]
-async fn insert_ballots_messages(
-    auth_headers: &AuthHeaders,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    board_name: &str,
-    trustee_names: Vec<String>,
-    tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
-) -> Result<()> {
-    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
-        .await?
-        .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee;
-
-    event!(Level::INFO, "trustees len: {:?}", trustees.len());
-
-    // 4. create trustees keys from input strings
-    let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
-        .clone()
-        .into_iter()
-        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
-        .collect();
-
-    event!(
-        Level::INFO,
-        "deserialized_trustee_pks len: {:?}",
-        deserialized_trustee_pks.len()
-    );
-
-    for tally_session_contest in tally_session_contests.iter() {
-        event!(
-            Level::INFO,
-            "Inserting Ballots message for contest {}, area {} and batch num {}",
-            tally_session_contest.contest_id,
-            tally_session_contest.area_id,
-            tally_session_contest.session_id,
-        );
-        let ballots_list = find_area_ballots(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session_contest.area_id,
-        )
-        .await?;
-
-        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
-
-        let realm = get_event_realm(&tenant_id, &election_event_id);
-        let users_map = list_keycloak_enabled_users_by_area_id(
-            keycloak_transaction,
-            &realm,
-            &tally_session_contest.area_id,
-        )
-        .await?;
-
-        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
-            .iter()
-            .filter(|ballot| {
-                let Some(voter_id) = ballot.voter_id_string.clone() else {
-                    return false;
-                };
-                users_map.contains(&voter_id)
-            })
-            .map(|ballot| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                Ok(ballot
-                    .content
-                    .clone()
-                    .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
-
-                        let hashable_ballot: HashableBallot = serde_json::from_str(&ballot_str)?;
-                        let contests = hashable_ballot
-                            .deserialize_contests()
-                            .map_err(|err| anyhow!("{:?}", err))?;
-                        Ok(contests
-                            .iter()
-                            .find(|contest| contest.contest_id == tally_session_contest.contest_id)
-                            .map(|contest| contest.ciphertext.clone()))
-                    })
-                    .transpose()?
-                    .flatten())
-            })
-            .collect::<Result<Vec<_>>>()?
-            .iter()
-            .filter_map(|ballot_opt| ballot_opt.clone())
-            .collect();
-
-        let batch = tally_session_contest.session_id.clone() as BatchNumber;
-        add_ballots_to_board(
-            board_name,
-            insertable_ballots,
-            batch,
-            deserialized_trustee_pks.clone(),
-        )
-        .await?;
-    }
-    Ok(())
 }
 
 #[instrument(skip_all, err)]
@@ -888,11 +813,6 @@ async fn map_plaintext_data(
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
     let areas = get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
-    let areas_map: HashMap<String, Area> = areas
-        .clone()
-        .into_iter()
-        .map(|area: Area| (area.id.clone(), area.clone()))
-        .collect();
 
     let tally_sheet_rows =
         get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
@@ -903,7 +823,7 @@ async fn map_plaintext_data(
         relevant_plaintexts,
         ballot_styles,
         tally_session_data,
-        &areas_map,
+        &areas,
     )
     .await?;
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
@@ -997,10 +917,6 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
-    // get credentials
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = if plaintexts_data.len() > 0 {
         Some(
@@ -1015,9 +931,11 @@ pub async fn execute_tally_session_wrapped(
     } else {
         None
     };
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id = populate_results_tables(
-        auth_headers.clone(),
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
         status,
@@ -1027,6 +945,9 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
     )
     .await?;
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     // insert tally_session_execution
     insert_tally_session_execution(

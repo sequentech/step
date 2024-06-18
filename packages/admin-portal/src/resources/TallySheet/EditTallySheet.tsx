@@ -72,11 +72,17 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     })
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
+    const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
 
-    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+    const {data: areas, refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
+            name: areaNameFilter ? areaNameFilter : "",
+        },
+        pagination: {
+            perPage: 100, // Setting initial larger records size of areas
+            page: 1,
         },
     })
 
@@ -241,6 +247,16 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
+    let timeoutId: NodeJS.Timeout
+    const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = event.target
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+            setAreaNameFilter(value ? value.trim() : null)
+            refetch()
+        }, 350)
+    }
+
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
@@ -291,7 +307,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         sx={{width: 300}}
                         onChange={handleChange as any}
                         options={areasList ?? []}
-                        renderInput={(item) => <TextField {...item} label="Area" />}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Search Area"
+                                onChange={debouncedSearchArea}
+                                value={areaNameFilter}
+                            />
+                        )}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                     />
                 </FormControl>
