@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {colors} from "@/constants/colors"
 import {css} from "@emotion/react"
 import styled from "@emotion/styled"
 import AddIcon from "@mui/icons-material/Add"
@@ -10,6 +9,7 @@ import {NavLink} from "react-router-dom"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import Box from "@mui/material/Box"
+import { adminTheme } from "@sequentech/ui-essentials"
 
 export const divContainer = css`
     flex: 0 0 auto;
@@ -38,9 +38,9 @@ export const MenuStyles = {
         padding-bottom: 0.5rem;
         cursor: pointer;
         color: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents ? colors.brandColor : colors.secondary};
+            !isArchivedElectionEvents ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
         border-bottom: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : "none"};
+            !isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
 
     SideMenuArchiveItem: styled("li")<{isArchivedElectionEvents: boolean}>`
@@ -50,9 +50,9 @@ export const MenuStyles = {
         padding-bottom: 0.5rem;
         cursor: pointer;
         color: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents ? colors.brandColor : colors.secondary};
+            isArchivedElectionEvents ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
         border-bottom: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents ? `2px solid ${colors.brandSuccess}` : "none"};
+            isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
 
     EmptyStateContainer: styled("div")`
@@ -69,7 +69,7 @@ export const MenuStyles = {
     CreateElectionContainer: styled("div")`
         display: flex;
         align-items: center;
-        color: ${colors.secondary};
+        color: ${adminTheme.palette.secondary.main};
         & > *:not(:last-child) {
             margin-right: 0.5rem;
         }
@@ -91,7 +91,7 @@ export const MenuStyles = {
         text-overflow: ellipsis;
 
         &:hover {
-            border-bottom-color: ${colors.secondary};
+            border-bottom-color: ${adminTheme.palette.secondary.main};
         }
     `,
 
@@ -117,7 +117,7 @@ export const MenuStyles = {
         }
     `,
     HowToVoteStyledIcon: styled(HowToVoteIcon)`
-        color: ${colors.brandColor};
+        color: ${adminTheme.palette.brandColor};
     `,
     TreeMenuIconContaier: styled.div`
         ${divContainer}
@@ -136,10 +136,10 @@ export const MenuStyles = {
         overflow: hidden;
         text-overflow: ellipsis;
         &:hover {
-            border-bottom-color: ${colors.brandColor};
+            border-bottom-color: ${adminTheme.palette.brandColor};
         }
         &.active {
-            border-bottom-color: ${colors.brandColor};
+            border-bottom-color: ${adminTheme.palette.brandColor};
         }
     `,
 
@@ -155,7 +155,7 @@ export const MenuStyles = {
     `,
 
     StyledAddCircleIcon: styled(AddCircleIcon)`
-        color: ${colors.brandColor};
+        color: ${adminTheme.palette.brandColor};
     `,
     StyledDiv: styled(Box)<{isWidth: boolean}>`
         flex: 0 0 auto;

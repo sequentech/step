@@ -30,7 +30,6 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
-import {colors} from "../../../constants/colors"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -267,7 +266,7 @@ const StyledIconButton = styled(IconButton)`
 `
 
 const Container = styled("div")<{isActive?: boolean}>`
-    background-color: ${({isActive}) => (isActive ? colors.green.light : "initial")};
+    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
 `
 
 const SideBarContainer = styled("div")`

@@ -26,11 +26,8 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {translate, translateElection} from "@sequentech/ui-essentials"
+import {adminTheme, translate, translateElection} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import styled from "@emotion/styled"
-import {css} from "@emotion/react"
-import {colors} from "../../../../constants/colors"
 import {Box} from "@mui/material"
 import {MenuStyles} from "@/components/styles/Menu"
 
@@ -96,7 +93,7 @@ function TreeLeaves({
 
     const {canCreateElectionEvent} = useActionPermissions()
     return (
-        <Box sx={{backgroundColor: colors.white}}>
+        <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
@@ -237,7 +234,7 @@ function TreeMenuItem({
     }
 
     return (
-        <Box sx={{backgroundColor: colors.white}}>
+        <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeMenuItemContainer ref={menuItemRef}>
                 {hasNext && canCreateElectionEvent ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>

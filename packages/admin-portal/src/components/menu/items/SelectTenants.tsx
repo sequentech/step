@@ -5,7 +5,7 @@
 import React, {useContext, useEffect} from "react"
 import {useGetList, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import {IconButton} from "@sequentech/ui-essentials"
+import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {Link} from "react-router-dom"
 import {AuthContext} from "../../../providers/AuthContextProvider"
@@ -14,7 +14,6 @@ import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
-import {colors} from "@/constants/colors"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
@@ -106,7 +105,7 @@ const SingleDataContainer = styled("p")`
 `
 
 const StyledIcon = styled(IconButton)`
-color: ${colors.brandColor}
+color: ${adminTheme.palette.brandColor}
 font-size: 1rem
 `
 const StyledSelect = styled(Select)`
