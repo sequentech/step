@@ -199,7 +199,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
     }
 }
 
-export const ElectionSelectionScreen: React.FC = () => {
+const ElectionSelectionScreen: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
 
@@ -399,3 +399,5 @@ export const ElectionSelectionScreen: React.FC = () => {
         </PageLimit>
     )
 }
+
+export default ElectionSelectionScreen
