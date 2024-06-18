@@ -219,16 +219,23 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const getPublishChanges = useCallback(async () => {
-            const {
-                data: {get_ballot_publication_changes: data},
-            } = (await getBallotPublicationChanges({
-                variables: {
-                    electionEventId,
-                    ballotPublicationId,
-                },
-            })) as any
-
-            setGenerateData(data)
+            try {
+                const {
+                    data: {get_ballot_publication_changes: data},
+                } = (await getBallotPublicationChanges({
+                    variables: {
+                        electionEventId,
+                        ballotPublicationId,
+                    },
+                })) as any
+                setGenerateData(data)
+            } catch (error) {
+                setViewMode(ViewMode.List)
+                handleSetPublishStatus(PublishStatus.Void)
+                notify(t("publish.dialog.error"), {
+                    type: "error",
+                })
+            }
         }, [ballotPublicationId, electionEventId, getBallotPublicationChanges])
 
         const handleSetPublishStatus = useCallback(
@@ -244,6 +251,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
                 getPublishChanges()
             }
+            if (ballotPublication?.is_generated === false) {
+                setViewMode(ViewMode.List)
+                handleSetPublishStatus(PublishStatus.Void)
+                notify(t("publish.dialog.error"), {
+                    type: "error",
+                })
+            }
         }, [
             ballotPublicationId,
             ballotPublication?.is_generated,
@@ -253,10 +267,15 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             console.log("PUBLISH :: BALLOT PUBLICATION ID", ballotPublicationId)
+            let timer: NodeJS.Timeout
             if (ballotPublicationId) {
-                setTimeout(() => {
+                timer = setTimeout(() => {
                     refetch()
                 }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }
+
+            return () => {
+                clearTimeout(timer)
             }
         }, [refetch, ballotPublicationId])
 
@@ -324,7 +343,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         onBack={() => {
                             refetch()
                             setViewMode(ViewMode.List)
-                            setBallotPublicationId(null)
                             handleSetPublishStatus(PublishStatus.Generated)
                         }}
                         electionEventId={electionEventId}

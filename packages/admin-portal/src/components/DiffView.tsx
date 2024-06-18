@@ -106,8 +106,14 @@ const DiffViewMemo = React.memo(
         const [truncationState, setTruncationState] = useState<TRUNCATION_STATE>(
             TRUNCATION_STATE.NOT_NEEDED
         )
-        const memoizedModify = useMemo(() => JSON.stringify(modify, null, 2), [modify])
-        const memoizedCurrent = useMemo(() => JSON.stringify(current, null, 2), [current])
+        const memoizedModify = useMemo(
+            () => (modify ? JSON.stringify(modify, null, 2) : ""),
+            [modify]
+        )
+        const memoizedCurrent = useMemo(
+            () => (current ? JSON.stringify(current, null, 2) : ""),
+            [current]
+        )
 
         // Check initially if truncation is needed - if so truncate the strings
         useEffect(() => {
