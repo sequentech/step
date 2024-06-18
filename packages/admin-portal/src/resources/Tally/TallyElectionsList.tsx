@@ -87,6 +87,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             width: 100,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox
+                // TODO: Checkbox is checked if disabled should only be checked if the election is part of the tally process.
                     checked={disabled ? true : props.value}
                     disabled={disabled}
                     onChange={() => handleConfirmChange(props.row)}
