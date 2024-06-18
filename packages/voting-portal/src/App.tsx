@@ -20,7 +20,6 @@ import {
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
-import WatermarkBackground from "./components/WaterMark/Watermark"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -98,7 +97,6 @@ const App = () => {
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                 <PageBanner marginBottom="auto">
-                    <WatermarkBackground />
                     <Outlet />
                 </PageBanner>
             </ApolloWrapper>

@@ -310,7 +310,6 @@ export function TreeMenu({
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
-    console.log("isEmpty", isEmpty)
     return (
         <>
             <MenuStyles.SideMenuContainer>
