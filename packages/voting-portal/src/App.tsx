@@ -9,7 +9,6 @@ import {styled} from "@mui/material/styles"
 import {
     Footer,
     Header,
-    HeaderErrorVariant,
     IElectionEventPresentation,
     PageBanner,
 } from "@sequentech/ui-essentials"
@@ -53,11 +52,6 @@ const HeaderWithContext: React.FC = () => {
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
             }}
-            errorVariant={
-                !authContext.email && !authContext.username
-                    ? HeaderErrorVariant.HIDE_PROFILE
-                    : undefined
-            } // If no keycloak user information was retrieved then just show logout button
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl={presentation?.logo_url}
