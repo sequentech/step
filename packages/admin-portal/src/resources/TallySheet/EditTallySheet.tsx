@@ -202,6 +202,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
         newResults.total_valid_votes = totalValidVotes
         newResults.total_votes = totalVotes
+        let currentTotalVotes = newResults.total_votes ?? 0
+        newResults.census = Math.max(newResults.census ?? 0, currentTotalVotes)
         if (JSON.stringify(newResults) !== JSON.stringify(results)) {
             setResults(newResults)
         }
