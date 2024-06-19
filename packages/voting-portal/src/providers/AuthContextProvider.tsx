@@ -248,19 +248,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
-
-                if (profile.id) {
-                    setUserProfile((val) => ({...val, userId: profile.id}))
-                }
-                if (profile.email) {
-                    setUserProfile((val) => ({...val, email: profile.email}))
-                }
-                if (profile.firstName) {
-                    setUserProfile((val) => ({...val, firstName: profile.firstName}))
-                }
-                if (profile.username) {
-                    setUserProfile((val) => ({...val, username: profile.username}))
-                }
+                setUserProfile((val) => ({
+                    ...val,
+                    userId: profile?.id || val?.userId,
+                    email: profile?.email || val?.email,
+                    firstName: profile?.firstName || val?.firstName,
+                    username: profile?.username || val?.username,
+                }))
 
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"
@@ -287,8 +281,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const logout = (redirectUrl?: string) => {
         if (!keycloak) {
+            // If no keycloak object initailized manually clear cookies and redirect user
+            clearAllCookies()
             if (redirectUrl) {
                 window.location.href = redirectUrl
+            } else {
+                const currentPath = window.location.pathname
+                const pathSegments = currentPath.split("/")
+                while (pathSegments.length > 5) {
+                    pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
+                }
+                const newPath = pathSegments.join("/")
+                window.location.href = newPath
             }
             return
         }
@@ -298,6 +302,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         })
     }
 
+    const clearAllCookies = () => {
+        document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=")
+            const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT"
+        })
+    }
     /**
      * Check if the user has the given role
      * @param role to be checked
