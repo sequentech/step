@@ -29,7 +29,7 @@ web-sys = { version = "0.3.4", features = ['Performance'], optional = true}
 cfg-if = "1.0"
 # signatures
 ed25519-dalek = {version = "=2.1.1", features = ["serde"]}
-curve25519-dalek = { version = "=4.1.1", features = [] }
+curve25519-dalek = { version = "=4.1.2", features = [] }
 
 # time
 chrono = { version = "0.4", features = ["serde"] }
