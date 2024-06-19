@@ -15,7 +15,7 @@ import {
     isUndefined,
     Dialog,
     translateElection,
-    sortContestByCreationDate,
+    sortContestList,
     IContest,
     EInvalidVotePolicy,
     EInvalidPlaintextErrorType,
@@ -295,7 +295,7 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
+    const contests = sortContestList(ballotStyle.ballot_eml.contests)
 
     const warnAllowContinue = (value: boolean) => {
         setOpenNonVoted(false)

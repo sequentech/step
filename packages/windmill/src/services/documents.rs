@@ -73,6 +73,7 @@ pub async fn upload_and_return_document(
         /* s3_bucket */ bucket,
         /* media_type */ media_type,
         /* file_path */ file_path,
+        /* cache_control_policy */ None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;
@@ -144,6 +145,7 @@ pub async fn upload_and_return_document_postgres(
         /* s3_bucket */ bucket,
         /* media_type */ media_type.to_string(),
         /* file_path */ file_path.to_string(),
+        /* cache_control_policy */ None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;

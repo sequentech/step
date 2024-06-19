@@ -24,9 +24,11 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
                 contests {
                     id
                     name
+                    alias
                     presentation
                     election_event_id
                     election_id
+                    created_at
                     candidates {
                         id
                         name

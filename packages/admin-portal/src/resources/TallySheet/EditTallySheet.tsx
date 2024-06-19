@@ -31,6 +31,11 @@ import {
 import TextField from "@mui/material/TextField"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
+import {
+    EEnableCheckableLists,
+    ICandidatePresentation,
+    IContestPresentation,
+} from "@sequentech/ui-essentials"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -72,11 +77,17 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     })
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
+    const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
 
-    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+    const {data: areas, refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
+            name: areaNameFilter ? areaNameFilter : "",
+        },
+        pagination: {
+            perPage: 100, // Setting initial larger records size of areas
+            page: 1,
         },
     })
 
@@ -87,6 +98,28 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             election_event_id: contest.election_event_id,
         },
     })
+
+    const checkableLists = useMemo(() => {
+        let presentation = contest.presentation as IContestPresentation | undefined
+        return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
+    }, [contest.presentation])
+
+    const filterCandidateByCheckableLists = (
+        isCandidateACheckableList: boolean,
+        contestCheckableLists: EEnableCheckableLists
+    ): boolean => {
+        if (isCandidateACheckableList) {
+            return [
+                EEnableCheckableLists.CANDIDATES_AND_LISTS,
+                EEnableCheckableLists.LISTS_ONLY,
+            ].includes(contestCheckableLists)
+        } else {
+            return [
+                EEnableCheckableLists.CANDIDATES_AND_LISTS,
+                EEnableCheckableLists.CANDIDATES_ONLY,
+            ].includes(contestCheckableLists)
+        }
+    }
 
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
@@ -102,6 +135,16 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 if (contentTemp.candidate_results) {
                     let candidatesResultsTemp: ICandidateResultsExtended[] = []
                     for (const candidate of candidates) {
+                        let candidatePresentation = candidate.presentation as
+                            | ICandidatePresentation
+                            | undefined
+                        let isValid = filterCandidateByCheckableLists(
+                            candidatePresentation?.is_category_list ?? false,
+                            checkableLists
+                        )
+                        if (!isValid) {
+                            continue
+                        }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
                             name: candidate.name as string,
@@ -153,6 +196,16 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (!(tallySheet || tallySaved) && candidates) {
             const candidatesTemp = []
             for (const candidate of candidates) {
+                let candidatePresentation = candidate.presentation as
+                    | ICandidatePresentation
+                    | undefined
+                let isValid = filterCandidateByCheckableLists(
+                    candidatePresentation?.is_category_list ?? false,
+                    checkableLists
+                )
+                if (!isValid) {
+                    continue
+                }
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
                     name: candidate.name as string,
@@ -241,6 +294,16 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
+    let timeoutId: NodeJS.Timeout
+    const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = event.target
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+            setAreaNameFilter(value ? value.trim() : null)
+            refetch()
+        }, 350)
+    }
+
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
@@ -291,7 +354,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         sx={{width: 300}}
                         onChange={handleChange as any}
                         options={areasList ?? []}
-                        renderInput={(item) => <TextField {...item} label="Area" />}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Search Area"
+                                onChange={debouncedSearchArea}
+                                value={areaNameFilter}
+                            />
+                        )}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                     />
                 </FormControl>
