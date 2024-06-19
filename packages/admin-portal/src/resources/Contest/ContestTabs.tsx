@@ -62,6 +62,7 @@ export const ContestTabs: React.FC = () => {
                         />
                     ) : action === WizardSteps.View ? (
                         <TallySheetWizard
+                            tallySheetId={tallySheetId}
                             contest={record}
                             action={action}
                             doAction={handleAction}
