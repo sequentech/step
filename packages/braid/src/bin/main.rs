@@ -119,8 +119,11 @@ async fn main() -> Result<()> {
             }
 
             info!("Connecting to board '{}'..", board_name.clone());
-            let trustee: Trustee<RistrettoCtx> =
-                Trustee::new(std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()), sk.clone(), ek.clone());
+            let trustee: Trustee<RistrettoCtx> = Trustee::new(
+                std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
+                sk.clone(),
+                ek.clone(),
+            );
             let board = BoardParams::new(
                 &args.server_url,
                 &args.user,
