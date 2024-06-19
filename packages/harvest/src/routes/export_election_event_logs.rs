@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -41,33 +40,11 @@ pub async fn export_election_event_logs_route(
     )?;
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let election_event_logs = list_electoral_log(GetElectoralLogBody {
-        tenant_id: claims.hasura_claims.tenant_id.clone(),
-        election_event_id: body.election_event_id.clone(),
-        limit: None,
-        offset: None,
-        filter: None,
-        order_by: None,
-    })
-    .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error fetching electoral logs: {:?}", e),
-        )
-    });
-    let data = serde_json::to_string(&election_event_logs).map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error serializing electoral logs: {:?}", e),
-        )
-    })?;
     let task = celery_app
         .send_task(export_election_event_logs::export_election_event_logs::new(
             claims.hasura_claims.tenant_id.clone(),
             body.election_event_id.clone(),
             document_id.clone(),
-            data,
         ))
         .await
         .map_err(|error| {
