@@ -164,13 +164,13 @@ const frenchTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax:
-                    "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
+                    "Survote: Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
                 selectedMin:
                     "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
                 maxSelectionsPerType:
                     "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
                 underVote:
-                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
+                    "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
             },
             explicit: {
                 notAllowed:
