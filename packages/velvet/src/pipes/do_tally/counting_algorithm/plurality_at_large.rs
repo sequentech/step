@@ -148,6 +148,12 @@ impl CountingAlgorithm for PluralityAtLarge {
             candidate_result: result,
         };
 
-        Ok(contest_result)
+        let aggregate = self
+            .tally
+            .tally_sheet_results
+            .iter()
+            .fold(contest_result, |acc, x| acc.aggregate(x));
+
+        Ok(aggregate)
     }
 }

@@ -7,3 +7,5 @@ pub mod normalize_vote;
 
 #[cfg(feature = "log")]
 pub mod init_log;
+#[cfg(feature = "reports")]
+pub mod path;

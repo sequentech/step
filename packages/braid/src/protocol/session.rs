@@ -63,7 +63,6 @@ impl<C: Ctx> Session<C> {
             return (self, Err(err));
         }
         let (send_messages, _actions, last_id) = step_result.expect("impossible");
-
         
         let result = board
             .insert_messages(send_messages)

@@ -237,6 +237,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
         /* s3_bucket */ s3::get_private_bucket()?,
         /* media_type */ media_type.clone(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
+        /* cache_control_policy */ None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;

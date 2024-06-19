@@ -142,6 +142,14 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",
+            demoDialog: {
+                title: "Bureau de vote de démonstration",
+                content:
+                    "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera PAS compté.</strong> Ce bureau de vote est uniquement destiné à des fins de démonstration.",
+                ok: "J'accepte que mon vote ne sera pas compté",
+            },
+            noVotingAreaError:
+                "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
         },
         errors: {
             encoding: {

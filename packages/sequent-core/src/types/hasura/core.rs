@@ -7,6 +7,8 @@ use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
+use crate::types::tally_sheets::AreaContestResults;
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {
     pub id: String,
@@ -223,4 +225,88 @@ pub struct AreaContest {
     pub id: String,
     pub area_id: String,
     pub contest_id: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySheet {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
+    pub area_id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub published_at: Option<DateTime<Local>>,
+    pub published_by_user_id: Option<String>,
+    pub content: Option<AreaContestResults>,
+    pub channel: Option<String>,
+    pub deleted_at: Option<DateTime<Local>>,
+    pub created_by_user_id: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct KeysCeremony {
+    pub id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub trustee_ids: Vec<String>,
+    pub status: Option<Value>,
+    pub execution_status: Option<String>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub threshold: i64,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySession {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub election_ids: Option<Vec<String>>,
+    pub area_ids: Option<Vec<String>>,
+    pub is_execution_completed: bool,
+    pub keys_ceremony_id: String,
+    pub execution_status: Option<String>,
+    pub threshold: i64,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionContest {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub area_id: String,
+    pub contest_id: String,
+    pub session_id: i32,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub tally_session_id: String,
+    pub election_id: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionExecution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub current_message_id: i32,
+    pub tally_session_id: String,
+    pub session_ids: Option<Vec<i32>>,
+    pub status: Option<Value>,
+    pub results_event_id: Option<String>,
 }

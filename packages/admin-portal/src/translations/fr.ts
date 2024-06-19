@@ -336,8 +336,9 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Importer des données de zones",
                 areaParagraph:
                     "Importer des zones en utilisant un fichier tableur au format Valeurs Séparées par des Virgules (CSV).",
-                importVotersSuccess: "Zones Importées avec Succès",
-                importVotersError: "Erreur lors de l'importation des Zones",
+                importSuccess: "Zones Importées avec Succès",
+                importError: "Erreur lors de l'importation des Zones",
+                upsert: "Upsert Areas",
             },
             import: {
                 eetitle: "Importer un Événement Électoral",
