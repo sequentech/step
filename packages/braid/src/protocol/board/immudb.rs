@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 use tracing::{warn,info};
 
+/// A bulletin board implemented on immudb
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,
     pub(crate) board_dbname: String,
@@ -35,7 +36,6 @@ impl ImmudbBoard {
 
     // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
     // If a store is used only the messages not previously received will be requested.
-    // If a store is not used, messages will be retrieved from immudb using consecutive requests.
     pub async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
         let messages = if self.store_root.is_some() {
             // When using a store, only the messages not previously received will be requested
@@ -69,7 +69,7 @@ impl ImmudbBoard {
     // https://docs.immudb.io/1.1.0/reference/sql.html?
     // The type of an AUTO_INCREMENT column must be INTEGER. Internally immudb will assign
     // sequentially increasing values for new rows ensuring this value is unique within a single table
-    pub async fn get_remote_messages_consecutively(
+    async fn get_remote_messages_consecutively(
         &mut self,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
@@ -91,7 +91,7 @@ impl ImmudbBoard {
         Ok(ret)
     }
 
-    pub async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
+    pub(crate) async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         if messages.len() > 0 {
             let bm: Result<Vec<BoardMessage>> =
                 messages.into_iter().map(|m| m.try_into()).collect();
@@ -169,7 +169,7 @@ impl ImmudbBoard {
         // When querying for all messages in the store we use -1 as a lower limit
         let rows = stmt.query_map([last_id.unwrap_or(-1)], |row| {
             Ok(MessageRow {
-                _id: row.get(0)?,
+                id: row.get(0)?,
                 message: row.get(1)?,
             })
         })?;
@@ -178,7 +178,7 @@ impl ImmudbBoard {
         let messages: Result<Vec<(Message, i64)>> = rows
             .map(|mr| {
                 let row = mr?;
-                let id = row._id;
+                let id = row.id;
                 let message = Message::strand_deserialize(&row.message)?;
                 Ok((message, id))
             })
@@ -188,6 +188,7 @@ impl ImmudbBoard {
     }
 }
 
+/// A bulletin board index implemented on immudb
 pub struct ImmudbBoardIndex {
     board_client: BoardClient,
     index_dbname: String,
@@ -218,6 +219,6 @@ impl ImmudbBoardIndex {
 }
 
 struct MessageRow {
-    _id: i64,
+    id: i64,
     message: Vec<u8>,
 }
