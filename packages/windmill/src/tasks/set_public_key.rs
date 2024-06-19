@@ -18,7 +18,7 @@ use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::sort_logs;
-use crate::services::date::get_now_utc_unix_ms;
+use crate::services::date::{get_now_utc_unix_ms, ISO8601};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
@@ -161,8 +161,11 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         return Err("trustee_names don't correspond to trustees_by_name".into());
     }
 
+    // Timestamp since last update.
+    let next_timestamp = ISO8601::to_date(&keys_ceremony.last_updated_at)?.timestamp() as u64;
+
     let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
-    let mut new_logs = generate_logs(&messages, 0, &vec![0])?;
+    let mut new_logs = generate_logs(&messages, next_timestamp, &vec![0])?;
     let mut logs = current_status.logs.clone();
     logs.append(&mut new_logs);
 
