@@ -8,7 +8,7 @@ import {useNavigate, useParams} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 
-export const LoginScreen: React.FC = () => {
+const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const navigate = useNavigate()
@@ -31,3 +31,5 @@ export const LoginScreen: React.FC = () => {
         </Box>
     )
 }
+
+export default LoginScreen

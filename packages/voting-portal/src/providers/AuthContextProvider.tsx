@@ -248,19 +248,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
-
-                if (profile.id) {
-                    setUserProfile((val) => ({...val, userId: profile.id}))
-                }
-                if (profile.email) {
-                    setUserProfile((val) => ({...val, email: profile.email}))
-                }
-                if (profile.firstName) {
-                    setUserProfile((val) => ({...val, firstName: profile.firstName}))
-                }
-                if (profile.username) {
-                    setUserProfile((val) => ({...val, username: profile.username}))
-                }
+                setUserProfile((val) => ({
+                    ...val,
+                    userId: profile?.id || val?.userId,
+                    email: profile?.email || val?.email,
+                    firstName: profile?.firstName || val?.firstName,
+                    username: profile?.username || val?.username,
+                }))
 
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"

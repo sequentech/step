@@ -100,7 +100,7 @@ const ActionButtons: React.FC = () => {
     )
 }
 
-export const AuditScreen: React.FC = () => {
+const AuditScreen: React.FC = () => {
     const {tenantId, eventId, electionId} = useParams<{
         tenantId?: string
         eventId: string
@@ -246,3 +246,5 @@ export const AuditScreen: React.FC = () => {
         </PageLimit>
     )
 }
+
+export default AuditScreen
