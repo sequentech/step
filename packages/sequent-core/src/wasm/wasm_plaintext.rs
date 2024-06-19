@@ -40,6 +40,7 @@ interface IDecodedVoteContest {
     contest_id: string;
     is_explicit_invalid: boolean;
     invalid_errors: Array<IInvalidPlaintextError>;
+    invalid_alerts: Array<IInvalidPlaintextError>;
     choices: Array<IDecodedVoteChoice>;
 }
 "#;

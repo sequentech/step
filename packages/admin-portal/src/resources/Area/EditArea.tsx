@@ -1,18 +1,21 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    CheckboxGroupInput,
     EditBase,
     Identifier,
     RecordContext,
     SaveButton,
+    AutocompleteInput,
+    ReferenceInput,
     SimpleForm,
     TextInput,
     useGetList,
     useNotify,
     useRefresh,
+    AutocompleteArrayInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -21,6 +24,8 @@ import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
+import {Sequent_Backend_Area} from "@/gql/graphql"
+import {keyBy} from "@sequentech/ui-essentials"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -30,7 +35,6 @@ interface EditAreaProps {
 
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close, electionEventId} = props
-
     const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
     const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
         refetchQueries: [
@@ -61,6 +65,13 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             areaId: id,
         },
     })
+
+    const areaFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {name: searchText.trim()}
+    }
 
     useEffect(() => {
         if (contests && areas) {
@@ -201,15 +212,33 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         <TextInput source="description" />
 
                                         {contests ? (
-                                            <CheckboxGroupInput
+                                            <AutocompleteArrayInput
                                                 label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
                                                 optionText="name"
                                                 optionValue="id"
-                                                row={false}
+                                                fullWidth
                                             />
                                         ) : null}
+                                        <ReferenceInput
+                                            fullWidth={true}
+                                            reference="sequent_backend_area"
+                                            source="parent_id"
+                                            filter={{
+                                                tenant_id: tenantId,
+                                                election_event_id: electionEventId,
+                                            }}
+                                            perPage={100} // // Setting initial larger records size of areas
+                                            enableGetChoices={({q}) => q && q.length >= 3}
+                                        >
+                                            <AutocompleteInput
+                                                fullWidth={true}
+                                                optionText={(area) => area.name}
+                                                filterToQuery={areaFilterToQuery}
+                                                debounce={100}
+                                            />
+                                        </ReferenceInput>
                                     </>
                                 </SimpleForm>
                             )

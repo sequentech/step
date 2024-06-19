@@ -10,7 +10,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
-use windmill::services::ballot_publication::{
+use windmill::services::ballot_styles::ballot_publication::{
     add_ballot_publication, get_ballot_publication_diff, update_publish_ballot,
     PublicationDiff,
 };

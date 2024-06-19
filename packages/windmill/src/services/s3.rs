@@ -12,6 +12,7 @@ use aws_sdk_s3 as s3;
 use aws_smithy_types::byte_stream::ByteStream;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
+use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::{env, error::Error};
@@ -174,6 +175,7 @@ pub async fn upload_file_to_s3(
     s3_bucket: String,
     media_type: String,
     file_path: String,
+    cache_control: Option<String>,
 ) -> Result<()> {
     let body = ByteStream::from_path(&file_path)
         .await
@@ -185,15 +187,20 @@ pub async fn upload_file_to_s3(
         .await
         .with_context(|| "Error getting s3 client")?;
 
-    client
+    let request = client
         .put_object()
         .bucket(s3_bucket)
         .key(key)
         .content_type(media_type)
-        .body(body)
-        .send()
-        .await
-        .context("Error uploading file to S3")?;
+        .body(body);
+
+    let request = if let Some(cache_control_value) = cache_control {
+        request.cache_control(cache_control_value)
+    } else {
+        request
+    };
+
+    request.send().await.context("Error uploading file to S3")?;
 
     Ok(())
 }

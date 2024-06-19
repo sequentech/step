@@ -4,10 +4,13 @@
 
 use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
 use super::error::{Error, Result};
+use super::{CandidateResult, ContestResult, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
+use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
+use std::cmp;
 use std::{fs, path::PathBuf};
 use tracing::instrument;
 
@@ -20,11 +23,17 @@ pub struct Tally {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
     pub census: u64,
+    pub tally_sheet_results: Vec<ContestResult>,
 }
 
 impl Tally {
     #[instrument(skip(contest))]
-    pub fn new(contest: &Contest, ballots_files: Vec<PathBuf>, census: u64) -> Result<Self> {
+    pub fn new(
+        contest: &Contest,
+        ballots_files: Vec<PathBuf>,
+        census: u64,
+        tally_sheet_results: Vec<ContestResult>,
+    ) -> Result<Self> {
         let contest = contest.clone();
         let ballots = Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
@@ -34,6 +43,7 @@ impl Tally {
             contest,
             ballots,
             census,
+            tally_sheet_results,
         })
     }
 
@@ -67,11 +77,72 @@ impl Tally {
     }
 }
 
+pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<ContestResult> {
+    let Some(content) = tally_sheet.content.clone() else {
+        return Err("missing tally sheet content".into());
+    };
+    let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
+
+    let count_invalid_votes = InvalidVotes {
+        explicit: invalid_votes.explicit_invalid.unwrap_or(0),
+        implicit: invalid_votes.implicit_invalid.unwrap_or(0),
+    };
+    let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
+    let count_blank: u64 = content.total_blank_votes.unwrap_or(0);
+
+    let candidate_results = content
+        .candidate_results
+        .values()
+        .map(|candidate| -> Result<CandidateResult> {
+            let Some(found_candidate) = contest
+                .candidates
+                .iter()
+                .find(|c| candidate.candidate_id == c.id)
+            else {
+                return Err("can't find Candidate".into());
+            };
+
+            Ok(CandidateResult {
+                candidate: found_candidate.clone(),
+                percentage_votes: 0.0,
+                total_count: candidate.total_votes.unwrap_or(0),
+            })
+        })
+        .collect::<Result<Vec<CandidateResult>>>()?;
+
+    let count_valid: u64 = candidate_results
+        .iter()
+        .map(|candidate_result| candidate_result.total_count)
+        .sum();
+
+    let total_votes = count_valid + count_invalid;
+
+    let contest_result = ContestResult {
+        contest: contest.clone(),
+        census: content.census.unwrap_or(0),
+        percentage_census: 100.0,
+        total_votes: total_votes,
+        percentage_total_votes: 0.0,
+        total_valid_votes: count_valid,
+        percentage_total_valid_votes: 0.0,
+        total_invalid_votes: count_invalid,
+        percentage_total_invalid_votes: 0.0,
+        total_blank_votes: count_blank,
+        percentage_total_blank_votes: 0.0,
+        percentage_invalid_votes_explicit: 0.0,
+        percentage_invalid_votes_implicit: 0.0,
+        invalid_votes: count_invalid_votes,
+        candidate_result: candidate_results,
+    };
+    Ok(contest_result.calculate_percentages())
+}
+
 #[instrument(skip_all)]
 pub fn create_tally(
     contest: &Contest,
     ballots_files: Vec<PathBuf>,
     census: u64,
+    tally_sheet_results: Vec<ContestResult>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
     let ballots_files = ballots_files
         .iter()
@@ -89,11 +160,11 @@ pub fn create_tally(
         .map(|p| PathBuf::from(p.as_path()))
         .collect();
 
-    let tally = Tally::new(contest, ballots_files, census)?;
+    let tally = Tally::new(contest, ballots_files, census, tally_sheet_results)?;
 
-    let ca = match tally.id {
+    let counting_algorithm = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
     };
 
-    Ok(Box::new(ca))
+    Ok(Box::new(counting_algorithm))
 }

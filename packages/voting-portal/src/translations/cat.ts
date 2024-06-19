@@ -143,6 +143,8 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
+            noVotingAreaError:
+                "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
         },
         errors: {
             encoding: {
@@ -162,6 +164,8 @@ const catalanTranslation: TranslationType = {
                     "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
                 maxSelectionsPerType:
                     "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
+                underVote:
+                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",

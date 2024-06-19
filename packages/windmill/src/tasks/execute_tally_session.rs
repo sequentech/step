@@ -11,9 +11,10 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::Re
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
-use crate::hasura::trustee::get_trustees_by_name;
-use crate::services::cast_votes::find_area_ballots;
+use crate::postgres::area::get_event_areas;
+use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::ceremonies::insert_ballots::insert_ballots_messages;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::print_messages;
@@ -29,9 +30,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
-use crate::services::protocol_manager::add_ballots_to_board;
-use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -40,7 +38,6 @@ use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use board_messages::braid::newtypes::BatchNumber;
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::Duration;
@@ -50,8 +47,12 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
+use sequent_core::ballot::Candidate;
+use sequent_core::ballot::Contest;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::area_tree::TreeNode;
+use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak;
@@ -59,13 +60,17 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
+use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::TallySheet;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::str::FromStr;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 /*type AreaContestDataType = (
@@ -96,13 +101,23 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn process_plaintexts(
     auth_headers: AuthHeaders,
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
+    areas: &Vec<Area>,
 ) -> Result<Vec<AreaContestDataType>> {
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
+    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
+
     let almost_vec: Vec<AreaContestDataType> = tally_session_data
         .sequent_backend_tally_session_contest
         .iter()
@@ -127,7 +142,7 @@ async fn process_plaintexts(
                     return None;
                 };
 
-            let batch_num = session_contest.session_id;
+            let batch_num: i64 = session_contest.session_id;
             let Some(plaintexts) = relevant_plaintexts
                 .iter()
                 .find(|plaintexts_message|
@@ -144,9 +159,13 @@ async fn process_plaintexts(
                         .flatten()
                 })
                 .flatten() else {
-                    event!(Level::INFO, "Expected: Plantexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
+                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
                     return None;
                 };
+            let Some(area) = areas_map.get(&ballot_style.area_id) else {
+                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+                return None;
+            };
 
             Some(AreaContestDataType {
                 plaintexts,
@@ -154,6 +173,27 @@ async fn process_plaintexts(
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
                 eligible_voters: 0,
+                area: area.clone(),
+            })
+        })
+        .collect();
+
+    // set<area_id, contest_id>
+    let found_area_contests: HashSet<(String, String)> = almost_vec
+        .iter()
+        .map(|val| (val.area.id.clone(), val.contest.id.clone()))
+        .collect();
+
+    let filtered_area_contests: Vec<AreaContestDataType> = almost_vec
+        .clone()
+        .into_iter()
+        .filter(|area_contest| {
+            let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
+                return false;
+            };
+            tree_path.iter().all(|tree_node| {
+                found_area_contests
+                    .contains(&(tree_node.id.clone(), area_contest.contest.id.clone()))
             })
         })
         .collect();
@@ -180,7 +220,7 @@ async fn process_plaintexts(
     let mut data: Vec<AreaContestDataType> = vec![];
 
     // fill in the eligible voters data
-    for almost in almost_vec {
+    for almost in filtered_area_contests {
         let mut area_contest = almost.clone();
         let eligible_voters = get_eligible_voters(
             auth_headers.clone(),
@@ -306,105 +346,6 @@ pub async fn get_eligible_voters(
 }
 
 #[instrument(skip_all, err)]
-async fn insert_ballots_messages(
-    auth_headers: &AuthHeaders,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    board_name: &str,
-    trustee_names: Vec<String>,
-    tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
-) -> Result<()> {
-    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
-        .await?
-        .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee;
-
-    event!(Level::INFO, "trustees len: {:?}", trustees.len());
-
-    // 4. create trustees keys from input strings
-    let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
-        .clone()
-        .into_iter()
-        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
-        .collect();
-
-    event!(
-        Level::INFO,
-        "deserialized_trustee_pks len: {:?}",
-        deserialized_trustee_pks.len()
-    );
-
-    for tally_session_contest in tally_session_contests.iter() {
-        event!(
-            Level::INFO,
-            "Inserting Ballots message for contest {}, area {} and batch num {}",
-            tally_session_contest.contest_id,
-            tally_session_contest.area_id,
-            tally_session_contest.session_id,
-        );
-        let ballots_list = find_area_ballots(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session_contest.area_id,
-        )
-        .await?;
-
-        event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
-
-        let realm = get_event_realm(&tenant_id, &election_event_id);
-        let users_map = list_keycloak_enabled_users_by_area_id(
-            keycloak_transaction,
-            &realm,
-            &tally_session_contest.area_id,
-        )
-        .await?;
-
-        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
-            .iter()
-            .filter(|ballot| {
-                let Some(voter_id) = ballot.voter_id_string.clone() else {
-                    return false;
-                };
-                users_map.contains(&voter_id)
-            })
-            .map(|ballot| {
-                ballot
-                    .content
-                    .clone()
-                    .map(|ballot_str| {
-                        event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
-
-                        let hashable_ballot: HashableBallot =
-                            serde_json::from_str(&ballot_str).unwrap();
-                        let contests = hashable_ballot.deserialize_contests().unwrap();
-                        contests
-                            .iter()
-                            .find(|contest| contest.contest_id == tally_session_contest.contest_id)
-                            .map(|contest| contest.ciphertext.clone())
-                    })
-                    .flatten()
-            })
-            .filter(|ballot| ballot.is_some())
-            .map(|ballot| ballot.clone().unwrap())
-            .collect();
-
-        let batch = tally_session_contest.session_id.clone() as BatchNumber;
-        add_ballots_to_board(
-            board_name,
-            insertable_ballots,
-            batch,
-            deserialized_trustee_pks.clone(),
-        )
-        .await?;
-    }
-    Ok(())
-}
-
-#[instrument(skip_all, err)]
 pub async fn upsert_ballots_messages(
     auth_headers: &AuthHeaders,
     hasura_transaction: &Transaction<'_>,
@@ -478,6 +419,128 @@ fn get_tally_session_created_at_timestamp_secs(
 }
 
 #[instrument(skip_all, err)]
+pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<()> {
+    let Some(content) = tally_sheet.content.clone() else {
+        return Err(anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into());
+    };
+    if content.total_votes > content.census {
+        return Err(anyhow!(
+            "Invalid tally sheet {:?}, total_votes higher than census",
+            tally_sheet
+        )
+        .into());
+    }
+    let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
+    let total_invalid_votes_calculated =
+        invalid_votes.explicit_invalid.unwrap_or(0) + invalid_votes.implicit_invalid.unwrap_or(0);
+    let total_invalid_votes = invalid_votes.total_invalid.unwrap_or(0);
+    if total_invalid_votes != total_invalid_votes_calculated {
+        return Err(anyhow!(
+            "Invalid tally sheet {:?}, inconsistent total invalid votes",
+            tally_sheet
+        )
+        .into());
+    }
+    let total_votes = content.total_votes.unwrap_or(0);
+    let total_valid_votes = content.total_valid_votes.unwrap_or(0);
+    let total_blank_votes = content.total_blank_votes.unwrap_or(0);
+    if total_invalid_votes + total_valid_votes != total_votes {
+        return Err(anyhow!(
+            "Invalid tally sheet {:?}, inconsistent total votes",
+            tally_sheet
+        )
+        .into());
+    }
+    let total_valid_votes_calc: u64 = content
+        .candidate_results
+        .values()
+        .map(|candidate_result| -> u64 { candidate_result.total_votes.clone().unwrap_or(0) })
+        .sum();
+
+    if total_valid_votes != total_valid_votes_calc + total_blank_votes {
+        return Err(anyhow!(
+            "Invalid tally sheet {:?}, inconsistent total valid votes",
+            tally_sheet
+        )
+        .into());
+    }
+    let candidates_map: HashMap<String, Candidate> = contest
+        .candidates
+        .clone()
+        .into_iter()
+        .map(|candidate| (candidate.id.clone(), candidate.clone()))
+        .collect();
+    for (candidate_id, candidate_data) in content.candidate_results.iter() {
+        if *candidate_id != candidate_data.candidate_id {
+            return Err(anyhow!(
+                "Invalid tally sheet {:?}, inconsistent candidate result {:?}, {}",
+                tally_sheet,
+                candidate_data,
+                candidate_id
+            )
+            .into());
+        }
+        if !candidates_map.contains_key(&candidate_data.candidate_id) {
+            return Err(anyhow!(
+                "Invalid tally sheet {:?}, can't find candidate {:?}",
+                tally_sheet,
+                candidate_data
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub fn clean_tally_sheets(
+    tally_sheet_rows: &Vec<TallySheet>,
+    plaintexts_data: &Vec<AreaContestDataType>,
+) -> Result<Vec<TallySheet>> {
+    let contests_map: HashMap<String, Contest> = plaintexts_data
+        .clone()
+        .into_iter()
+        .map(|area_contest| {
+            (
+                area_contest.contest.id.clone(),
+                area_contest.contest.clone(),
+            )
+        })
+        .collect();
+    tally_sheet_rows
+        .iter()
+        .map(|tally_sheet| -> Result<TallySheet> {
+            let Some(content) = tally_sheet.content.clone() else {
+                return Err(
+                    anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into(),
+                );
+            };
+
+            if tally_sheet.area_id != content.area_id {
+                return Err(
+                    anyhow!("Invalid tally sheet {:?}, area not consistent", tally_sheet).into(),
+                );
+            }
+            if tally_sheet.contest_id != content.contest_id {
+                return Err(anyhow!(
+                    "Invalid tally sheet {:?}, contest not consistent",
+                    tally_sheet
+                )
+                .into());
+            }
+            let Some(contest) = contests_map.get(&tally_sheet.contest_id) else {
+                return Err(
+                    anyhow!("Invalid tally sheet {:?}, can't find contest", tally_sheet).into(),
+                );
+            };
+            validate_tally_sheet(tally_sheet, &contest)?;
+
+            Ok(tally_sheet.clone())
+        })
+        .collect::<Result<Vec<TallySheet>>>()
+}
+
+#[instrument(skip_all, err)]
 async fn map_plaintext_data(
     auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
@@ -494,6 +557,7 @@ async fn map_plaintext_data(
         TallyCeremonyStatus,
         Option<Vec<i64>>,
         Vec<ElectionCastVotes>,
+        Vec<TallySheet>,
     )>,
 > {
     // fetch election_event
@@ -748,13 +812,21 @@ async fn map_plaintext_data(
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
+    let areas = get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
+    let tally_sheet_rows =
+        get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
+            .await?;
+
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
         relevant_plaintexts,
         ballot_styles,
         tally_session_data,
+        &areas,
     )
     .await?;
+    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(
         auth_headers.clone(),
@@ -771,6 +843,7 @@ async fn map_plaintext_data(
         new_status,
         Some(session_ids),
         cast_votes_count,
+        tally_sheets,
     )))
 }
 
@@ -833,6 +906,7 @@ pub async fn execute_tally_session_wrapped(
         new_status,
         session_ids,
         cast_votes_count,
+        tally_sheets,
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -843,10 +917,6 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
-    // get credentials
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let status = if plaintexts_data.len() > 0 {
         Some(
@@ -854,15 +924,18 @@ pub async fn execute_tally_session_wrapped(
                 base_tempdir.path().to_path_buf(),
                 &plaintexts_data,
                 &cast_votes_count,
+                &tally_sheets,
             )
             .await?,
         )
     } else {
         None
     };
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id = populate_results_tables(
-        auth_headers.clone(),
         hasura_transaction,
         &base_tempdir.path().to_path_buf(),
         status,
@@ -872,6 +945,9 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
     )
     .await?;
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     // insert tally_session_execution
     insert_tally_session_execution(

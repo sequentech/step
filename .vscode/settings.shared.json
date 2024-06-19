@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 {
     "rust-analyzer.linkedProjects": [
-        "/workspaces/backend-services/packages/Cargo.toml",
+        "/workspaces/step/packages/Cargo.toml",
         "./packages/sequent-core/Cargo.toml"
     ],
     "java.compile.nullAnalysis.mode": "automatic",

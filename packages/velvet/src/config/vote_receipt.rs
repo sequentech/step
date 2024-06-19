@@ -10,6 +10,7 @@ use std::collections::HashMap;
 pub struct PipeConfigVoteReceipts {
     pub template: String,
     pub extra_data: Value,
+    pub enable_pdfs: bool,
 }
 
 impl PipeConfigVoteReceipts {
@@ -25,6 +26,7 @@ impl Default for PipeConfigVoteReceipts {
         Self {
             template: html.to_string(),
             extra_data: json!("{}"),
+            enable_pdfs: false,
         }
     }
 }

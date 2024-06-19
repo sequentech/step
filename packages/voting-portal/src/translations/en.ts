@@ -141,6 +141,8 @@ const englishTranslation = {
                 ok: "OK",
             },
             noResults: "No ballots for now.",
+            noVotingAreaError:
+                "Election Area not assigned to voter. Kindly contact your administrator for assistance",
         },
         errors: {
             encoding: {
@@ -160,6 +162,8 @@ const englishTranslation = {
                     "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
                 maxSelectionsPerType:
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                underVote:
+                    "Number of selected choices {{numSelected}} is less than the maximun {{max}}",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

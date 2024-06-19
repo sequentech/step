@@ -142,6 +142,8 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",
+            noVotingAreaError:
+                "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
         },
         errors: {
             encoding: {
@@ -161,6 +163,8 @@ const frenchTranslation: TranslationType = {
                     "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
                 maxSelectionsPerType:
                     "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
+                underVote:
+                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
             },
             explicit: {
                 notAllowed:
