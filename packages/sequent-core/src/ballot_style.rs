@@ -9,7 +9,6 @@ use crate::ballot::{
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Context, Result};
 use std::env;
-use tracing::info;
 
 fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
