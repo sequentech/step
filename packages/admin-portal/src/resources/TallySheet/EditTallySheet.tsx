@@ -352,6 +352,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
+    let currentArea = useMemo(
+        () => areasList.find((area) => area.id === results?.area_id) || null,
+        [results?.area_id, areasList]
+    )
+
     return (
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
@@ -373,6 +378,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                                 value={areaNameFilter}
                             />
                         )}
+                        value={currentArea}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                     />
                 </FormControl>
