@@ -322,6 +322,8 @@ export const ContestDataForm: React.FC = () => {
         },
     })
 
+	console.log('contest info', {candidates, election})
+
     useEffect(() => {
         if (election) {
             let langConf = (election.presentation as IElectionPresentation | undefined)
@@ -378,6 +380,7 @@ export const ContestDataForm: React.FC = () => {
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
+			// console.log('parsed Incoming', {incoming})
             if (!electionEvent) {
                 return incoming
             }
@@ -543,6 +546,7 @@ export const ContestDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
+				console.log({parsedValue, sortedCandidates, value, incoming})
 
                 return (
                     <SimpleForm
@@ -631,6 +635,7 @@ export const ContestDataForm: React.FC = () => {
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
+										// console.log({formData})
                                         return (
                                             formData?.presentation as
                                                 | IContestPresentation
@@ -650,7 +655,7 @@ export const ContestDataForm: React.FC = () => {
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
                                                 <CandidatesInput source="candidatesOrder" />
-                                                <Box sx={{width: "100%", height: "180px"}}></Box>
+                                                <Box sx={{width: "100%", height: "180px", border: '1px dashed black'}}></Box>
                                             </CandidateRows>
                                         ) : null
                                     }}

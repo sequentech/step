@@ -22,8 +22,10 @@ import {
     RecordContext,
     NumberInput,
     useGetList,
+	FormDataConsumer,
+	required,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box, Typography} from "@mui/material"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Communication_Template,
@@ -42,6 +44,7 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
+	ContestsOrder,
     DropFile,
     IContestPresentation,
     IElectionEventPresentation,
@@ -56,9 +59,27 @@ import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
 import {OrderContests} from "@/components/election/OrderContests"
+import ContestsInput from "@/components/contest/custom-order-contests/ContestsInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
+`
+const ContestRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
+
+const ListWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    border-radius: 4px;
+    border: 1px solid #777;
+    padding: 8px;
+    margin-bottom: 4px;
 `
 
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
@@ -85,6 +106,7 @@ export const ElectionDataForm: React.FC = () => {
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
     })
+
 
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
         id: record.tenant_id || tenantId,
@@ -115,6 +137,12 @@ export const ElectionDataForm: React.FC = () => {
             },
         }
     )
+
+	console.log({data, record, tenantData,
+contests,
+imageData,
+receipts})
+
 
     const [updateImage] = useUpdate()
 
@@ -196,6 +224,9 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
 
+			temp.presentation.contests_order =
+                temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
+
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
             // set english first lang always
@@ -243,6 +274,7 @@ export const ElectionDataForm: React.FC = () => {
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
+			console.log({temp})
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -402,12 +434,25 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     const sortedContests = (contests ?? []).sort((a, b) => {
+		console.log({contests})
         let presentationA = a.presentation as IContestPresentation | undefined
         let presentationB = b.presentation as IContestPresentation | undefined
-        let sortOrderA = presentationA?.sort_order ?? -1
-        let sortOrderB = presentationB?.sort_order ?? -1
-        return sortOrderA - sortOrderB
+        let sortOrderA = a.name ?? -1
+        let sortOrderB = b.name ?? -1
+        return (sortOrderA as any) - (sortOrderB as any)
     })
+
+	interface EnumChoice<T> {
+    id: T
+    name: string
+}
+
+	const orderAnswerChoices = (): Array<EnumChoice<ContestsOrder>> => {
+        return Object.values(ContestsOrder).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     return data ? (
         <RecordContext.Consumer>
@@ -445,6 +490,8 @@ export const ElectionDataForm: React.FC = () => {
                     })
                 }
 
+				console.log({parsedValue})
+
                 return (
                     <SimpleForm
                         defaultValues={{contestsOrder: sortedContests}}
@@ -475,7 +522,7 @@ export const ElectionDataForm: React.FC = () => {
                                     {renderTabs(parsedValue)}
                                 </Tabs>
                                 {renderTabContent(parsedValue)}
-                                <OrderContests source="contestsOrder" />
+                                {/* <OrderContests source="contestsOrder" /> */}
                             </AccordionDetails>
                         </Accordion>
 
@@ -569,6 +616,87 @@ export const ElectionDataForm: React.FC = () => {
                                         {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
+                            </AccordionDetails>
+                        </Accordion>
+
+						<Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "contest-data-design"}
+                            onChange={() => setExpanded("contest-data-design")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="contest-data-design" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("contestScreen.edit.design")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                {/* <BooleanInput source="is_acclaimed" /> */}
+                                {/* <NumberInput source="min_votes" min={0} /> */}
+                                {/* <NumberInput source="max_votes" min={0} /> */}
+                                {/* <NumberInput source="winning_candidates_num" min={0} /> */}
+                                <SelectInput
+                                    source="presentation.contests_order"
+                                    choices={orderAnswerChoices()}
+                                    validate={required()}
+                                />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => {
+										console.log({formData})
+                                        return (
+                                            formData?.presentation as any
+                                                // | IElectionPresentation
+                                                | undefined
+                                        )?.contests_order === ContestsOrder.CUSTOM ? (
+                                            <ContestRows>
+                                                <Typography
+                                                    variant="body1"
+                                                    component="span"
+                                                    sx={{
+                                                        padding: "0.5rem 1rem",
+                                                        fontWeight: "bold",
+                                                        margin: 0,
+                                                        display: {xs: "none", sm: "block"},
+                                                    }}
+                                                >
+                                                    {t("contestScreen.edit.reorder")}
+                                                </Typography>
+                                                <ContestsInput source="contestsOrder" />
+                                                <Box sx={{width: "100%", height: "180px"}}></Box>
+                                            </ContestRows>
+                                        ) : null
+                                    }}
+                                </FormDataConsumer>
+                                {/* <FormDataConsumer>
+                                    {({formData, ...rest}) => (
+                                        <ListsPresentationEditor
+                                            formData={formData}
+                                            candidates={candidates}
+                                            languageConf={languageConf}
+                                        />
+                                    )}
+                                </FormDataConsumer> */}
+
+                                {/* <SelectInput
+                                    source="presentation.invalid_vote_policy"
+                                    choices={invalidVotePolicyChoices()}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source="presentation.enable_checkable_lists"
+                                    choices={checkableListChoices()}
+                                    validate={required()}
+                                />
+
+                                <NumberInput
+                                    source="presentation.max_selections_per_type"
+                                    min={0}
+                                    isRequired={false}
+                                /> */}
                             </AccordionDetails>
                         </Accordion>
 

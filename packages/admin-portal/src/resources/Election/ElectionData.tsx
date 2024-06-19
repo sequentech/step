@@ -19,10 +19,16 @@ export const EditElectionData: React.FC = () => {
             if (electionPresentation?.contests_order === ContestsOrder.CUSTOM) {
                 let contestPresentation = (contest.presentation ?? {}) as IContestPresentation
                 contestPresentation.sort_order = index
+				console.log({contestPresentation})
                 return update("sequent_backend_contest", {
                     id: contest.id,
                     data: {
-                        presentation: contestPresentation,
+                        presentation: {
+							...contestPresentation,
+							sort_order: index,
+							x: 'test'
+
+						},
                     },
                     previousData: contest,
                 })

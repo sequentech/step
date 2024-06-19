@@ -3,32 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {Sequent_Backend_Candidate} from "@/gql/graphql"
+import {Sequent_Backend_Contest} from "@/gql/graphql"
 import {useInput} from "react-admin"
 import {Box} from "@mui/material"
 import DraggableElement from "@/components/DraggableElement"
 import {isArray} from "@sequentech/ui-essentials"
 
-export interface CandidatesInputProps {
+export interface ContestsInputProps {
     source: string
 }
 
-const CandidatesInput: React.FC<CandidatesInputProps> = ({source}) => {
+const ContestsInput: React.FC<ContestsInputProps> = ({source}) => {
     const {
         field: {onChange, value},
     } = useInput({source})
 
-	console.log('candidates input', {value, source, onChange})
+	console.log('contests input', {value, source, onChange})
 
-    const [candidates, setCandidates] = useState<Array<Sequent_Backend_Candidate>>(value ?? [])
+    const [contests, setContests] = useState<Array<Sequent_Backend_Contest>>(value ?? [])
     const [dragIndex, setDragIndex] = useState<number>(-1)
     const [overIndex, setOverIndex] = useState<number | null>(null)
 
     useEffect(() => {
-        if (isArray(value) && value.length > 0 && value.length !== candidates.length) {
-            setCandidates(value)
+        if (isArray(value) && value.length > 0 && value.length !== contests.length) {
+            setContests(value)
         }
-    }, [value, candidates, setCandidates, isArray])
+    }, [value, contests, setContests, isArray])
 
     const onDragStart = (_event: React.DragEvent<HTMLDivElement>, index: number) => {
         setDragIndex(index)
@@ -46,35 +46,43 @@ const CandidatesInput: React.FC<CandidatesInputProps> = ({source}) => {
     }
 
     const onDrop = (event: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+		console.log('reorder items')
         event.preventDefault()
-
-		console.log('OnDrop')
 
         if (dragIndex === -1 || dragIndex === dropIndex) {
             return
         }
 
-        const reorderedItems = [...candidates]
+        const reorderedItems = [...contests]
         const [reorderedItem] = reorderedItems.splice(dragIndex, 1)
         reorderedItems.splice(dropIndex, 0, reorderedItem)
 		console.log({reorderedItems})
 
-        setCandidates(reorderedItems)
-        onChange(reorderedItems) // update the form value
+        setContests(reorderedItems)
+        onChange(reorderedItems.map((v, i)=>{
+			console.log({v})
+			return {
+				...v,
+				presentation: {
+					...v.presentation,
+					x: i
+				}
+			}
+		})) // update the form value
 
         onDragEnd()
     }
 
     return (
         <Box>
-            {candidates?.map((candidate: Sequent_Backend_Candidate, index: number) => {
+            {contests?.map((contest: Sequent_Backend_Contest, index: number) => {
                 return (
-                    candidate && (
+                    contest && (
                         <DraggableElement
-                            key={candidate.id}
+                            key={contest.id}
                             index={index}
-                            id={candidate.id}
-                            name={candidate.name ?? ""}
+                            id={contest.id}
+                            name={contest.name ?? ""}
                             onDragStart={onDragStart}
                             onDragOver={onDragOver}
                             onDrop={onDrop}
@@ -87,4 +95,4 @@ const CandidatesInput: React.FC<CandidatesInputProps> = ({source}) => {
     )
 }
 
-export default CandidatesInput
+export default ContestsInput
