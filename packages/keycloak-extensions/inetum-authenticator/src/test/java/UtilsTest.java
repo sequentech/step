@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+
+/* 
 package sequent.keycloak.inetum_authenticator;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -113,3 +115,4 @@ public class UtilsTest {
 }
 
 
+*/

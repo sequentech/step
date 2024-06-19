@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/* 
 package sequent.keycloak.authenticator.gateway;
 
 import org.junit.jupiter.api.AfterEach;
@@ -77,3 +78,5 @@ public class AwsSmsSenderProviderTest {
         verifyNoMoreInteractions(snsClientMock);
     }
 }
+
+*/

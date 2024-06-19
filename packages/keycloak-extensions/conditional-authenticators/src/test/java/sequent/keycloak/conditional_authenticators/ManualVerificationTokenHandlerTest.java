@@ -1,5 +1,5 @@
 package sequent.keycloak.conditional_authenticators;
-/* 
+/*
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.actiontoken.ActionTokenContext;
@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class ManualVerificationTokenHandlerTest {
 
@@ -47,6 +48,7 @@ public class ManualVerificationTokenHandlerTest {
         // Example: 
         // when(tokenContext.getSession()).thenReturn(session);
         when(tokenContext.getEvent()).thenReturn(eventBuilder);
+        
     
         tokenHandler = new ManualVerificationTokenHandler();
     }
@@ -85,4 +87,6 @@ public class ManualVerificationTokenHandlerTest {
         assertEquals("https://example.com", response.getLocation().toString());
     }
 }
+ 
+
 */

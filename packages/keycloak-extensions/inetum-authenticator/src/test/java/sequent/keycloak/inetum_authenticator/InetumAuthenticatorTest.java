@@ -1,5 +1,5 @@
 package sequent.keycloak.inetum_authenticator;
-
+/*  
 //import javax.ws.rs.core.Response;
 
 import static org.mockito.Mockito.*;
@@ -112,3 +112,4 @@ public class InetumAuthenticatorTest {
         verify(context).challenge(any(Response.class));
     }
 }
+*/

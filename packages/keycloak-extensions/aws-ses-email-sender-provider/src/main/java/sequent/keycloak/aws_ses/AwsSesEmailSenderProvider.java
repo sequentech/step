@@ -27,11 +27,21 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
 
     private final SesClient sesClient;
 
+    /*
+    // Uncomment if to send email directly using AWS 
     public AwsSesEmailSenderProvider()
     {
         // Initialize the SES Client with a specific AWS region
         this.sesClient = SesClient.create();
+    } */
+
+    //This is for Mock email sending
+    //Comment to send email using AWS
+    public AwsSesEmailSenderProvider(SesClient sesClient) {
+        this.sesClient = sesClient;
     }
+
+
 
     @Override
     public void send(
@@ -138,6 +148,7 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
         return new InternetAddress(email, displayName, "UTF-8");
     }
 
+    
     @Override
     public void close() {
         // Properly close the SES client

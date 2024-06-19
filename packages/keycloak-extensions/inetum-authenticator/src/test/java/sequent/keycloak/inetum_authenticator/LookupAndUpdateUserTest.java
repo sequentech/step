@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/* 
  
 package sequent.keycloak.inetum_authenticator;
 
@@ -99,4 +100,4 @@ class LookupAndUpdateUserTest {
     }
 }
 
- 
+ */

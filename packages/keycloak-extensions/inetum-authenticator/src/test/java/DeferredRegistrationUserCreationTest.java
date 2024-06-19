@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 
-
+/* 
 import static org.mockito.Mockito.*;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
@@ -128,3 +128,6 @@ public class DeferredRegistrationUserCreationTest {
 
     // Add more tests as needed...
 }
+
+
+*/

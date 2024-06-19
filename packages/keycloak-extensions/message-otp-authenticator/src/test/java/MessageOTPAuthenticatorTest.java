@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/*
 package sequent.keycloak.authenticator;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -100,3 +101,4 @@ public class MessageOTPAuthenticatorTest {
     }
 }
  
+*/

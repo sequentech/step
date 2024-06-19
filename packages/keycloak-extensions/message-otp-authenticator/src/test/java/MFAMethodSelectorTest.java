@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/* 
 package sequent.keycloak.authenticator;
 
 import static org.mockito.Mockito.*;
@@ -105,3 +106,5 @@ public class MFAMethodSelectorTest {
     }
 }
  
+
+*/

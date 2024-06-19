@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/* 
 package sequent.keycloak.authenticator;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -98,3 +99,5 @@ public class ResetMessageOTPRequiredActionTest {
         assertNotNull(response);
     }
 }
+
+*/

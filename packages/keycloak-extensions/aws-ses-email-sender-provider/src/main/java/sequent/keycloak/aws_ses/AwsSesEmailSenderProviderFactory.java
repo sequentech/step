@@ -4,7 +4,9 @@
 
 package sequent.keycloak.aws_ses;
 
-import sequent.keycloak.aws_ses.AwsSesEmailSenderProvider;
+import sequent.keycloak.aws_ses.AwsSesEmailSenderProvider; // sending email using AWS
+import software.amazon.awssdk.services.ses.SesClient;      // sending Mock email  
+
 import org.keycloak.email.EmailSenderProviderFactory;
 import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.Config;
@@ -22,7 +24,13 @@ public class AwsSesEmailSenderProviderFactory
 
     @Override
     public EmailSenderProvider create(KeycloakSession session) {
+        /* 
+        // Uncomment for emailing directly using AWS
         return new AwsSesEmailSenderProvider();
+        */
+        // For Mock Ses email sending test, Comment if to send email directly using AWS
+        SesClient sesClient = SesClient.builder().build();
+        return new AwsSesEmailSenderProvider(sesClient);
     }
 
     @Override

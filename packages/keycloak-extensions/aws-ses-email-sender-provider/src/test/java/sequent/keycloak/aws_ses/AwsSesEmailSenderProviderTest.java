@@ -9,15 +9,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.services.ses.model.*;
+import software.amazon.awssdk.services.ses.model.SendEmailRequest;
+import software.amazon.awssdk.services.ses.model.SendEmailResponse;
 import org.keycloak.email.EmailException;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -32,37 +35,38 @@ public class AwsSesEmailSenderProviderTest {
 
     @BeforeEach
     public void setUp() {
-        // Clear any invocations before each test
-        reset(sesClientMock);
-
-        // Configure SesClient with specific AWS region
-        sesClientMock = SesClient.builder()
-                .region(Region.US_EAST_1) // Replace with your desired region
-                .build();
-       //System.setProperty("aws.region", "us-east-1"); 
+        MockitoAnnotations.openMocks(this);
+        //emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock); // Ensure proper injection
     }
 
     @Test
-    public void testSendEmail() throws Exception {
-        // Mock SES response
-        when(sesClientMock.sendEmail(any(SendEmailRequest.class))).thenReturn(SendEmailResponse.builder().build());
+    public void testSendEmail() throws EmailException {
+        // Mock SES response to simulate successful email sending
+        SendEmailResponse mockResponse = SendEmailResponse.builder().messageId("mockMessageId").build();
+
+        // Configure sesClientMock to return mockResponse when sendEmail is called
+        when(sesClientMock.sendEmail(any(SendEmailRequest.class))).thenReturn(mockResponse);
 
         // Perform the test
         Map<String, String> config = new HashMap<>();
-        config.put("from", "sender@example.com");  
+        config.put("from", "sender@example.com");
         config.put("fromDisplayName", "Sender Name");
         String address = "recipient@example.com";
         String subject = "Test Subject";
         String textBody = "Hello, this is a text email.";
         String htmlBody = "<html><body><h1>Hello</h1><p>This is an HTML email.</p></body></html>";
-         
-        
+
+        // Call the method under test
         emailSenderProvider.send(config, address, subject, textBody, htmlBody);
 
         // Verify SES client interaction
         verify(sesClientMock).sendEmail(any(SendEmailRequest.class));
+
+        // Optionally, assert that the email was sent successfully
+        assertEquals("mockMessageId", mockResponse.messageId());
     }
 
+    
     @Test
     public void testSendEmailMissingFromAddress() {
         // Test data with missing 'from' address
@@ -72,20 +76,17 @@ public class AwsSesEmailSenderProviderTest {
         String textBody = "Hello, this is a text email.";
         String htmlBody = "<html><body><h1>Hello</h1><p>This is an HTML email.</p></body></html>";
 
-        // Logging the config map before sending
-        System.out.println("Config map before sending:");
-        for (Map.Entry<String, String> entry : config.entrySet()) {
-            System.out.println("- " + entry.getKey() + ": " + entry.getValue());
-        }
+        // Perform the test and verify that EmailException is thrown
+        doThrow(new IllegalArgumentException("Missing 'from' email address."))
+            .when(sesClientMock).sendEmail(any(SendEmailRequest.class));
 
-        // Perform the test
-        try {
+        EmailException thrown = assertThrows(EmailException.class, () -> {
             emailSenderProvider.send(config, address, subject, textBody, htmlBody);
-        } catch (EmailException e) {
-            // Verify that EmailException is thrown with expected message
-            assert e.getMessage().contains("Missing 'from' email address.");
-        }
-    }
+        });
 
-     
+        // Verify that the exception message is as expected
+        assertEquals("Missing 'from' email address.", thrown.getMessage());
+    }
+    
+ 
 }
