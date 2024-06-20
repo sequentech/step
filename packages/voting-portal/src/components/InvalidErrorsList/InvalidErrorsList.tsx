@@ -71,6 +71,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 
     useEffect(() => {
         if (!isReview && !isTouched && filteredContestSelection) {
+            // Filter min selection error in case where no user interaction was yet made
             filteredContestSelection.invalid_errors =
                 filteredContestSelection?.invalid_errors.filter(
                     (error) => error.message !== "errors.implicit.selectedMin"
