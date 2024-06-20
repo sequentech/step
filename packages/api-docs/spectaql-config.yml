@@ -1,5 +1,5 @@
 spectaql:
-  targetDir: './docs'
+  targetDir: './graphql/docs'
 
 introspection:
   url: "http://graphql-engine:8080/v1/graphql"
