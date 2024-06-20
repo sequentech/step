@@ -105,8 +105,11 @@ const SingleDataContainer = styled("p")`
 `
 
 const StyledIcon = styled(IconButton)`
-color: ${adminTheme.palette.brandColor}
-font-size: 1rem
+    &:hover {
+        padding: unset !important;
+    }
+    font-size: 1rem;
+    line-height: 1.5rem;
 `
 const StyledSelect = styled(Select)`
     flex-grow: 1;

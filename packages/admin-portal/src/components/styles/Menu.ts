@@ -9,7 +9,7 @@ import {NavLink} from "react-router-dom"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import Box from "@mui/material/Box"
-import { adminTheme } from "@sequentech/ui-essentials"
+import {adminTheme} from "@sequentech/ui-essentials"
 
 export const divContainer = css`
     flex: 0 0 auto;
@@ -38,7 +38,9 @@ export const MenuStyles = {
         padding-bottom: 0.5rem;
         cursor: pointer;
         color: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
+            !isArchivedElectionEvents
+                ? adminTheme.palette.brandColor
+                : adminTheme.palette.secondary.main};
         border-bottom: ${({isArchivedElectionEvents}) =>
             !isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
@@ -50,7 +52,9 @@ export const MenuStyles = {
         padding-bottom: 0.5rem;
         cursor: pointer;
         color: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents ? adminTheme.palette.brandColor : adminTheme.palette.secondary.main};
+            isArchivedElectionEvents
+                ? adminTheme.palette.brandColor
+                : adminTheme.palette.secondary.main};
         border-bottom: ${({isArchivedElectionEvents}) =>
             isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
     `,
@@ -129,15 +133,16 @@ export const MenuStyles = {
         padding-top: 0.375rem;
         padding-bottom: 0.375rem;
         color: black;
-        border-bottom-width: 2px;
-        border-bottom-color: white;
+        border-bottom: 2px solid white;
         cursor: pointer;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+
         &:hover {
             border-bottom-color: ${adminTheme.palette.brandColor};
         }
+
         &.active {
             border-bottom-color: ${adminTheme.palette.brandColor};
         }
@@ -160,6 +165,6 @@ export const MenuStyles = {
     StyledDiv: styled(Box)<{isWidth: boolean}>`
         flex: 0 0 auto;
         height: 1.5rem;
-        width: ${({width}) => (width ? "1.5rem" : "auto")};
+        width: ${({isWidth}) => (isWidth ? "1.5rem" : "auto")};
     `,
 }
