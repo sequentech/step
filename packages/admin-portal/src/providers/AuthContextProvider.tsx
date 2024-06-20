@@ -126,7 +126,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const sleepSecs = 50
     const bufferSecs = 10
 
-    const params= useParams()
+    const params = useParams()
 
     const createKeycloak = () => {
         if (keycloak) {

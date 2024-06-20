@@ -11,7 +11,7 @@ export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const navigate = useNavigate()
 
-    const params= useParams()
+    const params = useParams()
 
     console.log("Login Screen")
     console.log("Tenant ID: " + params.tenantId)
@@ -20,7 +20,7 @@ export const LoginScreen: React.FC = () => {
         if (authContext.isAuthenticated) {
             // navigate(`/test`)
             if (authContext.tenantId != params.tenandId) {
-                authContext.logout();
+                authContext.logout()
             }
         }
     }, [authContext.isAuthenticated, navigate])
