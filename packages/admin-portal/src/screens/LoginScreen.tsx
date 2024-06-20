@@ -4,16 +4,24 @@
 import {Box} from "@mui/system"
 import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useNavigate} from "react-router"
+import {useNavigate, useParams} from "react-router"
 import {CircularProgress} from "@mui/material"
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const navigate = useNavigate()
 
+    const params= useParams()
+
+    console.log("Login Screen")
+    console.log("Tenant ID: " + params.tenantId)
+
     useEffect(() => {
         if (authContext.isAuthenticated) {
-            navigate(`/test`)
+            // navigate(`/test`)
+            if (authContext.tenantId != params.tenandId) {
+                authContext.logout();
+            }
         }
     }, [authContext.isAuthenticated, navigate])
 

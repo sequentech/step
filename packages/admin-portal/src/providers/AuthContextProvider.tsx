@@ -9,6 +9,8 @@ import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
 
+import {useParams} from "react-router"
+
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
@@ -123,6 +125,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
     const bufferSecs = 10
+
+    const params= useParams()
 
     const createKeycloak = () => {
         if (keycloak) {
