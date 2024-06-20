@@ -1,0 +1,5 @@
+# graphql api docs - generated with github actions
+/graphql/docs/
+
+# dependencies
+/node_modules
