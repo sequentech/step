@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+
 package sequent.keycloak.aws_ses;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -15,10 +16,9 @@ import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 import software.amazon.awssdk.services.ses.model.SendEmailResponse;
 import org.keycloak.email.EmailException;
-
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import java.util.HashMap;
 import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +36,8 @@ public class AwsSesEmailSenderProviderTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        //emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock); // Ensure proper injection
+        // Reinitialize emailSenderProvider with the mock
+        emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
     }
 
     @Test
@@ -60,33 +61,31 @@ public class AwsSesEmailSenderProviderTest {
         emailSenderProvider.send(config, address, subject, textBody, htmlBody);
 
         // Verify SES client interaction
-        verify(sesClientMock).sendEmail(any(SendEmailRequest.class));
-
-        // Optionally, assert that the email was sent successfully
-        assertEquals("mockMessageId", mockResponse.messageId());
+        verify(sesClientMock, times(1)).sendEmail(any(SendEmailRequest.class));
     }
 
-    
+
+ 
     @Test
-    public void testSendEmailMissingFromAddress() {
-        // Test data with missing 'from' address
+    public void testSendEmailGeneralException() {
+        // Test data
         Map<String, String> config = new HashMap<>();
+        config.put("from", "sender@example.com");
+        config.put("fromDisplayName", "Sender Name");
         String address = "recipient@example.com";
         String subject = "Test Subject";
         String textBody = "Hello, this is a text email.";
         String htmlBody = "<html><body><h1>Hello</h1><p>This is an HTML email.</p></body></html>";
 
-        // Perform the test and verify that EmailException is thrown
-        doThrow(new IllegalArgumentException("Missing 'from' email address."))
-            .when(sesClientMock).sendEmail(any(SendEmailRequest.class));
+        // Configure sesClientMock to throw a general Exception
+        doThrow(new RuntimeException("General error")).when(sesClientMock).sendEmail(any(SendEmailRequest.class));
 
+        // Perform the test and verify that EmailException is thrown
         EmailException thrown = assertThrows(EmailException.class, () -> {
             emailSenderProvider.send(config, address, subject, textBody, htmlBody);
         });
 
         // Verify that the exception message is as expected
-        assertEquals("Missing 'from' email address.", thrown.getMessage());
+        assertEquals("Exception: Failed to send email via AWS SES", thrown.getMessage());
     }
-    
- 
 }
