@@ -1,10 +1,10 @@
+spectaql:
+  targetDir: './docs'
+
 introspection:
   url: "http://graphql-engine:8080/v1/graphql"
   headers:
     x-hasura-admin-secret: "admin"
-
-output:
-  folder: "docs"
 
 template:
   name: "spectaql"

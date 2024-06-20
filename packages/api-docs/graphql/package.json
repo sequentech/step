@@ -1,0 +1,12 @@
+{
+  "name": "graphql",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "spectaql": "^2.3.1"
+  },
+  "scripts": {
+    "generate-docs": "npx spectaql spectaql-config.yml"
+  }
+}
