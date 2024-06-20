@@ -73,7 +73,6 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
 
     if election_event.public_key.is_some() {
         event!(Level::INFO, "Public key already set");
-        return Ok(());
     }
 
     let bulletin_board_reference = election_event.bulletin_board_reference.clone();
