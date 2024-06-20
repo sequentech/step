@@ -19,6 +19,7 @@ extern crate console_error_panic_hook;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
+use std::collections::HashMap;
 use std::panic;
 
 trait IntoResult<T> {
@@ -351,31 +352,45 @@ pub fn check_is_blank_js(
 }
 
 #[wasm_bindgen]
-pub fn check_voting_allowed_next(
+pub fn check_voting_not_allowed_next(
     contests: JsValue,
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
     let all_contests: Vec<Contest> = serde_wasm_bindgen::from_value(contests)
-    .map_err(|err| JsValue::from_str(&format!("Error parsing contests: {}", err)))?;
-    let all_decoded_contests: Vec<DecodedVoteContest> = serde_wasm_bindgen::from_value(decoded_contests)
-    .map_err(|err| JsValue::from_str(&format!("Error parsing decoded contests: {}", err)))?;
+        .map_err(|err| {
+        JsValue::from_str(&format!("Error parsing contests: {}", err))
+    })?;
+    let all_decoded_contests: HashMap<String, DecodedVoteContest> =
+        serde_wasm_bindgen::from_value(decoded_contests).map_err(|err| {
+            JsValue::from_str(&format!(
+                "Error parsing decoded contests: {}",
+                err
+            ))
+        })?;
 
-    let voting_allowed = all_contests.iter().any(|contest| {
-        let policy = contest.presentation.as_ref()
+    let voting_not_allowed = all_contests.iter().any(|contest| {
+        let policy = contest
+            .presentation
+            .as_ref()
             .and_then(|p| p.invalid_vote_policy.as_ref())
             .unwrap_or(&InvalidVotePolicy::ALLOWED);
-        
-            let invalid_errors: Vec<InvalidPlaintextError> = all_decoded_contests.iter()
-            .find(|dc| dc.id == contest.id)
-            .and_then(|dc| dc.invalid_errors.as_ref())
-            .unwrap_or(&vec![]).clone();
-
+        if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
+            let invalid_errors: Vec<InvalidPlaintextError> =
+                decoded_contest.invalid_errors.clone();
             invalid_errors.iter().any(|error| {
-                matches!(error.error_type, InvalidPlaintextErrorType::Implicit | InvalidPlaintextErrorType::EncodingError)
-            }) || (invalid_errors.len() > 0 && *policy == InvalidVotePolicy::NOT_ALLOWED)
+                matches!(
+                    error.error_type,
+                    InvalidPlaintextErrorType::Explicit
+                        | InvalidPlaintextErrorType::EncodingError
+                )
+            }) || (invalid_errors.len() > 0
+                && *policy == InvalidVotePolicy::NOT_ALLOWED)
+        } else {
+            false
+        }
     });
 
-    Ok(JsValue::from_bool(voting_allowed))
+    Ok(JsValue::from_bool(voting_not_allowed))
 }
 
 #[wasm_bindgen]
@@ -384,26 +399,34 @@ pub fn check_voting_error_dialog(
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
     let all_contests: Vec<Contest> = serde_wasm_bindgen::from_value(contests)
-    .map_err(|err| JsValue::from_str(&format!("Error parsing contests: {}", err)))?;
-    let all_decoded_contests: Vec<DecodedVoteContest> = serde_wasm_bindgen::from_value(decoded_contests)
-    .map_err(|err| JsValue::from_str(&format!("Error parsing decoded contests: {}", err)))?;
+        .map_err(|err| {
+        JsValue::from_str(&format!("Error parsing contests: {}", err))
+    })?;
+    let all_decoded_contests: HashMap<String, DecodedVoteContest> =
+        serde_wasm_bindgen::from_value(decoded_contests).map_err(|err| {
+            JsValue::from_str(&format!(
+                "Error parsing decoded contests: {}",
+                err
+            ))
+        })?;
 
     let show_voting_alert = all_contests.iter().any(|contest| {
-        let policy = contest.presentation.as_ref()
+        let policy = contest
+            .presentation
+            .as_ref()
             .and_then(|p| p.invalid_vote_policy.as_ref())
             .unwrap_or(&InvalidVotePolicy::ALLOWED);
-        
-            let invalid_errors: Vec<InvalidPlaintextError> = all_decoded_contests.iter()
-            .find(|dc| dc.id == contest.id)
-            .and_then(|dc| dc.invalid_errors.as_ref())
-            .unwrap_or(&vec![]).clone();
-
-            let explcit_invalid = all_decoded_contests.iter()
-            .find(|dc| dc.id == contest.id)
-            .and_then(|dc| dc.is_explicit_invalid)
-            .unwrap_or(false);
-           
-            (invalid_errors.len() > 0 && * policy != InvalidVotePolicy::ALLOWED) || (*policy == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT && explcit_invalid)
+        if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
+            let invalid_errors: Vec<InvalidPlaintextError> =
+                decoded_contest.invalid_errors.clone();
+            let explicit_invalid = decoded_contest.is_explicit_invalid;
+            (invalid_errors.len() > 0 && *policy != InvalidVotePolicy::ALLOWED)
+                || (*policy
+                    == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
+                    && explicit_invalid)
+        } else {
+            false
+        }
     });
 
     Ok(JsValue::from_bool(show_voting_alert))
