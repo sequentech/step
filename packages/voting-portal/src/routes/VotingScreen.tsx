@@ -185,10 +185,10 @@ const VotingScreen: React.FC = () => {
         })
     }
     const onSetDecodedContests = (id: string) => (value: IDecodedVoteContest) => {
-        setDecodedContests({
-            ...decodedContests,
+        setDecodedContests((prev) => ({
+            ...prev,
             [id]: value,
-        })
+        }))
     }
 
     // if true, when the user clicks next, there will be a dialog
@@ -198,6 +198,7 @@ const VotingScreen: React.FC = () => {
     }
 
     const showNextDialog = () => {
+        console.log({decodedContests, contests: ballotStyle?.ballot_eml.contests})
         return check_voting_error_dialog(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
