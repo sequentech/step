@@ -174,6 +174,55 @@ pub fn decode_auditable_ballot_js(
         .into_json()
 }
 
+// before: map_to_decoded_ballot
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn order_contests_js(
+  contests: JsValue,
+  election_presentation: Option<ElectionPresentation>,
+) -> Result<Vec<Contest>> {
+    let contest_arr: Vec<Contest> =
+        serde_wasm_bindgen::from_value(contests)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })?;
+            // .into_json()?;
+    let election_presentation_val: Option<ElectionPresentation> =
+        serde_wasm_bindgen::from_value(election_presentation)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })?;
+            // .into_json()?;
+
+			//sort contests depending on election_presentation specification
+
+			match election_presentation_val.as_ref().and_then(|ep| ep.contests_order.clone()) {
+    Some("alphabetical") => contest_arr.sort_by(|a, b| a.name.cmp(&b.name)),
+    Some("custom") => contest_arr.sort_by(|a, b| a.presentation.sort_order.cmp(&b.sort_order)),
+    Some("random") => contest_arr.shuffle(&mut thread_rng()),
+    _ => {}
+  }
+
+			//convert back to js compatible code and return
+
+    // let plaintext = map_to_decoded_contest::<RistrettoCtx>(&auditable_ballot)
+    //     .into_json()?;
+    // // https://crates.io/crates/serde-wasm-bindgen
+    // let serializer = Serializer::json_compatible();
+    // plaintext
+    //     .serialize(&serializer)
+    //     .map_err(|err| {
+    //         format!("Error converting decoded ballot to json {:?}", err)
+    //     })
+    //     .into_json()
+}
+
 #[wasm_bindgen]
 pub fn get_layout_properties_from_contest_js(
     val: JsValue,
