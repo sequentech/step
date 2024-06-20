@@ -85,13 +85,17 @@ public class ConditionalEmailVerified
             return false;
         }
         boolean emailVerified = user.isEmailVerified();
-        boolean result = (emailVerified != negateOutput);
+        boolean result = (emailVerified != negateOutput);        
+      
+        log.info("matchCondition(): emailVerified = " + emailVerified);
+        log.info("matchCondition(): negateOutput = " + negateOutput);
+        log.info("matchCondition(): result = " + result);
+
         log.infov(
             "matchCondition(): emailVerified={0}, negateOutput[{1}], result={1}",
             emailVerified,
             negateOutput,
             result
-
         );
         return result;
     }
