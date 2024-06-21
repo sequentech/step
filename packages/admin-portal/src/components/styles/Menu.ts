@@ -112,7 +112,7 @@ export const MenuStyles = {
             margin-right: 0.5rem;
         }
         &:hover :last-child {
-            visibility: visible
+            visibility: visible;
         }
     `,
 
