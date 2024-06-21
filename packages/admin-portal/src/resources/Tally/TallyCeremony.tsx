@@ -71,6 +71,7 @@ export const TallyCeremony: React.FC = () => {
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+    const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
 
@@ -211,6 +212,7 @@ export const TallyCeremony: React.FC = () => {
     const confirmStartAction = async () => {
         try {
             setIsButtonDisabled(true)
+            setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
                     tenant_id: record?.tenant_id,
@@ -301,6 +303,7 @@ export const TallyCeremony: React.FC = () => {
 
                         <TallyElectionsList
                             update={(elections) => setSelectedElections(elections)}
+                            disabled={isTallyElectionListDisabled}
                             electionEventId={record?.id}
                         />
                     </>

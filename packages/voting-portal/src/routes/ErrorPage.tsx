@@ -7,11 +7,12 @@ import {Box} from "@mui/system"
 import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {Button, Typography} from "@mui/material"
-import {Header} from "@sequentech/ui-essentials"
+import {Header, HeaderErrorVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -32,6 +33,7 @@ export function ErrorPage() {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {globalSettings} = useContext(SettingsContext)
+    const authContext = useContext(AuthContext)
 
     const isErrorType = error instanceof Error || error instanceof VotingPortalError
 
@@ -80,7 +82,11 @@ export function ErrorPage() {
 
     return (
         <Box sx={{minHeight: "100vh"}} className="error-screen screen">
-            <Header appVersion={{main: globalSettings.APP_VERSION}} />
+            <Header
+                appVersion={{main: globalSettings.APP_VERSION}}
+                errorVariant={HeaderErrorVariant.HIDE_PROFILE}
+                logoutFn={authContext.logout}
+            />
             <Box
                 id="error-page"
                 sx={{
