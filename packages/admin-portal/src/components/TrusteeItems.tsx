@@ -37,9 +37,9 @@ const StyledChip = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 4px;
+    border-radius: 14px;
     background: #ebebeb;
-    padding: 1px 7px;
+    padding: 7px;
 `
 
 const StyledChipLabel = styled.div`
