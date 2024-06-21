@@ -21,6 +21,7 @@ jobs:
       with:
         java-version: '11'
         distribution: 'adopt'
+        
     - name: Build and Test with Maven
       run: mvn -B clean verify --file packages/keycloak-extensions/pom.xml
 
