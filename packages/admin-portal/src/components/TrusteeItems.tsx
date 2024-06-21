@@ -38,12 +38,11 @@ const StyledChip = styled.div`
     justify-content: center;
     align-items: center;
     border-radius: 4px;
-    background: #d32f2f;
+    background: #ebebeb;
     padding: 1px 7px;
 `
 
 const StyledChipLabel = styled.div`
-    color: #fff;
     font-family: Roboto;
     font-size: 12px;
     font-style: normal;
