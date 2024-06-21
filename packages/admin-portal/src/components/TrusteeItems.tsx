@@ -55,7 +55,7 @@ export const TrusteeItems: React.FC<TrusteeItemsProps> = (props) => {
     const {record} = props
     const {data} = useQuery(GET_TRUSTEES_NAMES, {
         variables: {
-            trustees: record.trustee_ids,
+            tenantId: record.tenant_id,
         },
     })
 
