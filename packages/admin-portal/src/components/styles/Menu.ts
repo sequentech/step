@@ -111,6 +111,9 @@ export const MenuStyles = {
         & > *:not(:last-child) {
             margin-right: 0.5rem;
         }
+        &:hover :last-child {
+            visibility: visible;
+        }
     `,
 
     ItemContainer: styled("p")`
@@ -150,9 +153,6 @@ export const MenuStyles = {
 
     MenuActionContainer: styled("div")`
         visibility: hidden;
-        &.group-hover-visible:hover {
-            visibility: visible;
-        }
     `,
     StyledIconContainer: styled("p")`
         ${divContainer}
