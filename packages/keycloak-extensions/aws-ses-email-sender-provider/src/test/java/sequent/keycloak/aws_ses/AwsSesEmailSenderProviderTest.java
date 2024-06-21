@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-
+  
 package sequent.keycloak.aws_ses;
 
 import org.junit.jupiter.api.BeforeEach;
