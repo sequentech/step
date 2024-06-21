@@ -22,21 +22,26 @@ import java.util.Map;
 /*
  * AwsSes email sender provider that uses AWS Simple Email Service to send emails.
  */
+
+/* Testing Notes 
+   line 38 - 47
+      public AwsSesEmailSenderProvider() - from AWS.
+      public AwsSesEmailSenderProvider(SesClient sesClient) - from testing.
+*/ 
+
+
 @JBossLog
 public class AwsSesEmailSenderProvider implements EmailSenderProvider {
 
     private final SesClient sesClient;
-
-    /*
-    // Uncomment if to send email directly using AWS 
-    public AwsSesEmailSenderProvider()
-    {
+    
+// Uncomment if to send email directly using AWS 
+    //public AwsSesEmailSenderProvider()
+    //{
         // Initialize the SES Client with a specific AWS region
-        this.sesClient = SesClient.create();
-    } */
-
-    //This is for Mock email sending
-    //Comment to send email using AWS
+    //    this.sesClient = SesClient.create();
+    //} 
+ // Uncomment to send email using Mock SesClient
     public AwsSesEmailSenderProvider(SesClient sesClient) {
         this.sesClient = sesClient;
     }

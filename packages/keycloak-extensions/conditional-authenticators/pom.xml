@@ -16,6 +16,7 @@
         <maven.shade.version>3.2.4</maven.shade.version>
         <junit.version>5.8.1</junit.version>
         <mockito.version>4.0.0</mockito.version>
+        <jackson.version>2.13.2</jackson.version>
     </properties>
 
     <dependencyManagement>
@@ -119,12 +120,11 @@
             <artifactId>powermock-module-junit4</artifactId>
             <version>2.0.9</version>
             <scope>test</scope>
-        </dependency>
+        </dependency> 
         <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-api-mockito2</artifactId>
-            <version>2.0.9</version>
-            <scope>test</scope>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
 

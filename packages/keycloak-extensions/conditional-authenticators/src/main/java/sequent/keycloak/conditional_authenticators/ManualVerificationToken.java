@@ -10,6 +10,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.extern.jbosslog.JBossLog;
 
+import java.time.Instant;
+
 /*
  * A token used to manually verify an user 
  */
@@ -53,4 +55,5 @@ public class ManualVerificationToken extends DefaultActionToken {
         log.info("setRedirectUri() = " + redirectUri);
         this.redirectUri = redirectUri;
     }
+    
 }

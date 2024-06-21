@@ -12,7 +12,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
-//import org.keycloak.authentication.AuthenticatorConfigModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import static org.mockito.Mockito.mock;
@@ -62,8 +61,7 @@ public class ConditionalEmailVerifiedTest {
 
         // Test the method
         boolean result = conditionalEmailVerified.matchCondition(context);
-
-        System.out.println("Before assertion: result = " + result);
+        
         assertTrue(result, "Condition should match when email is verified");        
     }
     
