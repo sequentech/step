@@ -127,11 +127,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven.compiler.version}</version>
-				<configuration>
-					<source>17</source>
-					<target>17</target>
-				</configuration>
+				<version>${maven.compiler.version}</version>				
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

@@ -16,7 +16,6 @@ import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 import software.amazon.awssdk.services.ses.model.SendEmailResponse;
 import org.keycloak.email.EmailException;
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import java.util.HashMap;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
