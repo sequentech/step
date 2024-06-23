@@ -15,7 +15,8 @@ pub fn message_to_log(message: &Message) -> Log {
     Log {
         created_date: ISO8601::to_string(&datetime),
         log_text: format!(
-            "Added message {} for batch {}",
+            "{}: Added message {} for batch {}",
+            &message.sender.name,
             message.statement.get_kind().to_string(),
             batch_number
         ),
