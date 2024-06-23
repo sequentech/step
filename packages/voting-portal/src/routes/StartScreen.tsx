@@ -6,7 +6,7 @@ import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme, stringToHtml, translateElection} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
+import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
 import {useAppSelector} from "../store/hooks"
 import {IElection, selectElectionById} from "../store/elections/electionsSlice"
@@ -67,11 +67,12 @@ interface ActionButtonsProps {
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const location = useLocation()
 
     return (
         <ActionsContainer>
             <StyledLink
-                to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote`}
+                to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
                 sx={{margin: "auto 0", width: "100%"}}
             >
                 <StyledButton className="start-voting-button" sx={{width: "100%"}}>
@@ -86,19 +87,8 @@ const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-
-    useEffect(() => {
-        const language = getLanguageFromURL()
-        if (!language) {
-            let defaultLangCode =
-                ballotStyle?.ballot_eml?.election_presentation?.language_conf
-                    ?.default_language_code ?? "en"
-            i18n.changeLanguage(defaultLangCode)
-        }
-    }, [ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code])
 
     useEffect(() => {
         if (!election) {

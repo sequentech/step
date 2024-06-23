@@ -16,7 +16,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {Link, useNavigate, useParams} from "react-router-dom"
+import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
 import {GetBallotStylesQuery, GetCastVoteQuery} from "../gql/graphql"
@@ -88,6 +88,7 @@ const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
+    const location = useLocation()
     const {t, i18n} = useTranslation()
 
     const [inputBallotId, setInputBallotId] = useState<string>("")
@@ -112,16 +113,6 @@ const BallotLocator: React.FC = () => {
         }
     }, [dataBallotStyles, dispatch])
 
-    useEffect(() => {
-        const language = getLanguageFromURL()
-        if (!language) {
-            let defaultLangCode =
-                ballotStyle?.ballot_eml?.election_presentation?.language_conf
-                    ?.default_language_code ?? "en"
-            i18n.changeLanguage(defaultLangCode)
-        }
-    }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
-
     const validatedBallotId = isHex(inputBallotId ?? "")
 
     const ballotContent =
@@ -133,7 +124,9 @@ const BallotLocator: React.FC = () => {
 
         setInputBallotId("")
 
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
+        navigate(
+            `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}${location.search}`
+        )
     }
 
     const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
@@ -185,7 +178,9 @@ const BallotLocator: React.FC = () => {
                         </Typography>
                     </Box>
                     <Box sx={{marginTop: "20px"}}>
-                        <StyledLink to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
+                        <StyledLink
+                            to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                        >
                             <Button variant="secondary" className="secondary">
                                 <Icon icon={faAngleLeft} size="sm" />
                                 <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>

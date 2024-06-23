@@ -33,7 +33,7 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
-import {useNavigate, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
@@ -89,6 +89,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     canVoteTest,
 }) => {
     const navigate = useNavigate()
+    const location = useLocation()
     const {i18n} = useTranslation()
 
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -116,11 +117,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         if (!canVote()) {
             return
         }
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
+        navigate(
+            `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
+        )
     }
 
     const handleClickBallotLocator = () => {
-        navigate(`../election/${electionId}/ballot-locator`)
+        navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
     const formatDate = (input: string): string => {
@@ -145,16 +148,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote()
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
-
-    useEffect(() => {
-        const language = getLanguageFromURL()
-        if (!language) {
-            let defaultLangCode =
-                ballotStyle?.ballot_eml?.election_presentation?.language_conf
-                    ?.default_language_code ?? "en"
-            i18n.changeLanguage(defaultLangCode)
-        }
-    }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
 
     const dates = ballotStyle?.ballot_eml?.election_presentation?.dates
 
@@ -206,6 +199,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 const ElectionSelectionScreen: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
+    const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
@@ -260,7 +254,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const hasNoResults = hasLoadElections && electionIds.length === 0
 
     const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
     useEffect(() => {
