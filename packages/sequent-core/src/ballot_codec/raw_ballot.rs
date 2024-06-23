@@ -311,35 +311,43 @@ impl RawBallotCodec for Contest {
             .iter()
             .filter(|choice| choice.selected > -1)
             .count();
+        let max_votes = match usize::try_from(self.max_votes) {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        };
 
-        if num_selected_candidates > usize::try_from(self.max_votes).unwrap() {
-            invalid_errors.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Implicit,
-                candidate_id: None,
-                message: Some("errors.implicit.selectedMax".to_string()),
-                message_map: HashMap::from([
-                    (
-                        "numSelected".to_string(),
-                        num_selected_candidates.to_string(),
-                    ),
-                    ("max".to_string(), self.max_votes.to_string()),
-                ]),
-            });
-        } else if num_selected_candidates
-            < usize::try_from(self.min_votes).unwrap()
-        {
-            invalid_errors.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Implicit,
-                candidate_id: None,
-                message: Some("errors.implicit.selectedMin".to_string()),
-                message_map: HashMap::from([
-                    (
-                        "numSelected".to_string(),
-                        num_selected_candidates.to_string(),
-                    ),
-                    ("min".to_string(), self.min_votes.to_string()),
-                ]),
-            });
+        let min_votes = match usize::try_from(self.min_votes) {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        };
+        if let (Some(max_votes), Some(min_votes)) = (max_votes, min_votes) {
+            if num_selected_candidates > max_votes {
+                invalid_errors.push(InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::Implicit,
+                    candidate_id: None,
+                    message: Some("errors.implicit.selectedMax".to_string()),
+                    message_map: HashMap::from([
+                        (
+                            "numSelected".to_string(),
+                            num_selected_candidates.to_string(),
+                        ),
+                        ("max".to_string(), self.max_votes.to_string()),
+                    ]),
+                });
+            } else if num_selected_candidates < min_votes {
+                invalid_errors.push(InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::Implicit,
+                    candidate_id: None,
+                    message: Some("errors.implicit.selectedMin".to_string()),
+                    message_map: HashMap::from([
+                        (
+                            "numSelected".to_string(),
+                            num_selected_candidates.to_string(),
+                        ),
+                        ("min".to_string(), self.min_votes.to_string()),
+                    ]),
+                });
+            }
         }
 
         let mut invalid_alerts = vec![];
@@ -348,30 +356,38 @@ impl RawBallotCodec for Contest {
                 presentation.under_vote_alert
             {
                 if should_show_under_vote_alert {
-                    if num_selected_candidates
-                        < usize::try_from(self.max_votes).unwrap()
-                        && num_selected_candidates
-                            >= usize::try_from(self.min_votes).unwrap()
+                    if let (Some(max_votes), Some(min_votes)) =
+                        (max_votes, min_votes)
                     {
-                        invalid_alerts.push(InvalidPlaintextError {
-                            error_type: InvalidPlaintextErrorType::Implicit,
-                            candidate_id: None,
-                            message: Some(
-                                "errors.implicit.underVote".to_string(),
-                            ),
-                            message_map: [
-                                ("type".to_string(), "alert".to_string()),
-                                (
-                                    "numSelected".to_string(),
-                                    num_selected_candidates.to_string(),
+                        if num_selected_candidates < max_votes
+                            && num_selected_candidates >= min_votes
+                        {
+                            invalid_alerts.push(InvalidPlaintextError {
+                                error_type: InvalidPlaintextErrorType::Implicit,
+                                candidate_id: None,
+                                message: Some(
+                                    "errors.implicit.underVote".to_string(),
                                 ),
-                                ("min".to_string(), self.min_votes.to_string()),
-                                ("max".to_string(), self.max_votes.to_string()),
-                            ]
-                            .iter()
-                            .cloned()
-                            .collect(),
-                        });
+                                message_map: [
+                                    ("type".to_string(), "alert".to_string()),
+                                    (
+                                        "numSelected".to_string(),
+                                        num_selected_candidates.to_string(),
+                                    ),
+                                    (
+                                        "min".to_string(),
+                                        self.min_votes.to_string(),
+                                    ),
+                                    (
+                                        "max".to_string(),
+                                        self.max_votes.to_string(),
+                                    ),
+                                ]
+                                .iter()
+                                .cloned()
+                                .collect(),
+                            });
+                        }
                     }
                 }
             }
@@ -491,6 +507,65 @@ mod tests {
                             decoded_ballot.choices[idx].selected,
                             fixture.plaintext.choices[idx].selected
                         );
+                    }
+                }
+
+                let num_selected_candidates = decoded_ballot
+                    .choices
+                    .iter()
+                    .filter(|choice| choice.selected > -1)
+                    .count();
+                let max_votes = match usize::try_from(fixture.contest.max_votes)
+                {
+                    Ok(val) => Some(val),
+                    Err(_) => None,
+                };
+                let min_votes = match usize::try_from(fixture.contest.min_votes)
+                {
+                    Ok(val) => Some(val),
+                    Err(_) => None,
+                };
+
+                if let (Some(max_votes), Some(min_votes)) =
+                    (max_votes, min_votes)
+                {
+                    // Test for undervote
+                    if let Some(presentation) = fixture.contest.presentation {
+                        if let Some(under_vote_alert_enabled) =
+                            presentation.under_vote_alert
+                        {
+                            if num_selected_candidates < max_votes
+                                && num_selected_candidates >= min_votes
+                                && under_vote_alert_enabled
+                            {
+                                let has_under_vote_alert = decoded_ballot
+                                    .invalid_alerts
+                                    .iter()
+                                    .any(|alert| {
+                                        alert.message
+                                            == Some(
+                                                "errors.implicit.underVote"
+                                                    .to_string(),
+                                            )
+                                    });
+                                assert!(
+                                has_under_vote_alert,
+                                "Expected undervote alert not found in invalid_alerts"
+                            );
+                            }
+                        }
+                    }
+                    // Test for overvote
+                    if num_selected_candidates > max_votes {
+                        let has_max_vote_error =
+                            decoded_ballot.invalid_errors.iter().any(|err| {
+                                err.message
+                                    == Some(
+                                        "errors.implicit.selectedMax"
+                                            .to_string(),
+                                    )
+                            });
+                        assert!(has_max_vote_error, "Expected selected max overvote error not found in invalid_errors");
                     }
                 }
             }

@@ -36,6 +36,7 @@ import {
     ICandidatePresentation,
     IContestPresentation,
 } from "@sequentech/ui-essentials"
+import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -83,7 +84,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         filter: {
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
-            name: areaNameFilter ? areaNameFilter : "",
+            name: areaNameFilter ?? "",
+            parent_id: {
+                format: "hasura-raw-query",
+                value: {_is_null: true},
+            },
         },
         pagination: {
             perPage: 100, // Setting initial larger records size of areas
@@ -104,23 +109,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
     }, [contest.presentation])
 
-    const filterCandidateByCheckableLists = (
-        isCandidateACheckableList: boolean,
-        contestCheckableLists: EEnableCheckableLists
-    ): boolean => {
-        if (isCandidateACheckableList) {
-            return [
-                EEnableCheckableLists.CANDIDATES_AND_LISTS,
-                EEnableCheckableLists.LISTS_ONLY,
-            ].includes(contestCheckableLists)
-        } else {
-            return [
-                EEnableCheckableLists.CANDIDATES_AND_LISTS,
-                EEnableCheckableLists.CANDIDATES_ONLY,
-            ].includes(contestCheckableLists)
-        }
-    }
-
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
 
@@ -135,13 +123,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 if (contentTemp.candidate_results) {
                     let candidatesResultsTemp: ICandidateResultsExtended[] = []
                     for (const candidate of candidates) {
-                        let candidatePresentation = candidate.presentation as
-                            | ICandidatePresentation
-                            | undefined
-                        let isValid = filterCandidateByCheckableLists(
-                            candidatePresentation?.is_category_list ?? false,
-                            checkableLists
-                        )
+                        let isValid = filterCandidateByCheckableLists(candidate, checkableLists)
                         if (!isValid) {
                             continue
                         }
@@ -196,13 +178,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (!(tallySheet || tallySaved) && candidates) {
             const candidatesTemp = []
             for (const candidate of candidates) {
-                let candidatePresentation = candidate.presentation as
-                    | ICandidatePresentation
-                    | undefined
-                let isValid = filterCandidateByCheckableLists(
-                    candidatePresentation?.is_category_list ?? false,
-                    checkableLists
-                )
+                let isValid = filterCandidateByCheckableLists(candidate, checkableLists)
                 if (!isValid) {
                     continue
                 }
@@ -216,6 +192,31 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             setCandidatesResults(candidatesTemp)
         }
     }, [candidates, tallySheet])
+
+    const recalculateTotals = () => {
+        let newResults = {...results}
+        let totalCandidateVotes = candidatesResults
+            .map((candidate) => candidate.total_votes ?? 0)
+            .reduce((acc, curr) => acc + curr, 0)
+        let totalValidVotes = totalCandidateVotes + (newResults.total_blank_votes ?? 0)
+        let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
+        newResults.total_valid_votes = totalValidVotes
+        newResults.total_votes = totalVotes
+        let currentTotalVotes = newResults.total_votes ?? 0
+        newResults.census = Math.max(newResults.census ?? 0, currentTotalVotes)
+        if (JSON.stringify(newResults) !== JSON.stringify(results)) {
+            setResults(newResults)
+        }
+    }
+
+    useEffect(recalculateTotals, [
+        results,
+        candidatesResults,
+        results.total_blank_votes,
+        results.total_valid_votes,
+        invalids?.total_invalid,
+        invalids,
+    ])
 
     const handleChange = (
         event: React.SyntheticEvent,
@@ -254,20 +255,30 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             }
         }
     }
+    const handleCensusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        let census = 0
+        if (event.target.value.match(numbers)) {
+            census = Number(event.target.value)
+        }
+        let currentTotalVotes = results.total_votes ?? 0
+        census = Math.max(census, currentTotalVotes)
+        setResults({
+            ...results,
+            census,
+        })
+    }
 
     const handleInvalidChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        let newInvalid = {...invalids}
+        let key: "explicit_invalid" | "implicit_invalid" = event.target.name as any
         if (event.target.value === "") {
-            setInvalids((prev: IInvalidVotes) => ({...prev, [event.target.name as string]: ""}))
-        } else if (event.target.value === "0") {
-            setInvalids((prev: IInvalidVotes) => ({...prev, [event.target.name as string]: 0}))
-        } else {
-            if (event.target.value.match(numbers)) {
-                setInvalids((prev: IInvalidVotes) => ({
-                    ...prev,
-                    [event.target.name as string]: +event.target.value,
-                }))
-            }
+            newInvalid[key] = 0
+        } else if (event.target.value.match(numbers)) {
+            newInvalid[key] = Number(event.target.value)
         }
+        newInvalid.total_invalid =
+            (newInvalid.explicit_invalid ?? 0) + (newInvalid.implicit_invalid ?? 0)
+        setInvalids(newInvalid)
     }
 
     const handleCandidateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,6 +352,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
+    let currentArea = useMemo(
+        () => areasList.find((area) => area.id === results?.area_id) || null,
+        [results?.area_id, areasList]
+    )
+
     return (
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
@@ -362,6 +378,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                                 value={areaNameFilter}
                             />
                         )}
+                        value={currentArea}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                     />
                 </FormControl>
@@ -404,6 +421,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleNumberChange}
                     size="small"
                     required
+                    disabled
                 />
                 <TextField
                     label={t("tallysheet.label.total_valid_votes")}
@@ -416,6 +434,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleNumberChange}
                     size="small"
                     required
+                    disabled
                 />
 
                 <Box
@@ -437,6 +456,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         onChange={handleInvalidChange}
                         size="small"
                         required
+                        disabled
                     />
                     <TextField
                         label={t("tallysheet.label.implicit_invalid")}
@@ -480,7 +500,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     label={t("tallysheet.label.census")}
                     name="census"
                     value={typeof results.census === "number" ? results.census : ""}
-                    onChange={handleNumberChange}
+                    onChange={handleCensusChange}
                     size="small"
                     required
                 />
