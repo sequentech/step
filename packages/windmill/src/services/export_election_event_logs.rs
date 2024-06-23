@@ -7,14 +7,20 @@ use super::{
 };
 use crate::services::database::{get_hasura_pool, PgConfig};
 use anyhow::{anyhow, Result};
+use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
+use sequent_core::types::hasura::core::Document;
+use tempfile::NamedTempFile;
+use tokio::fs::read;
 
-pub async fn read_export_data(tenant_id: &str, election_event_id: &str) -> Result<String> {
+pub async fn read_export_data(tenant_id: &str, election_event_id: &str) -> Result<Vec<u8>> {
     let mut offset = 0;
     let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
-    let mut all_items = Vec::new();
+
+    // Create a temporary file to write CSV data
+    let mut temp_file = NamedTempFile::new()?;
+    let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+
     loop {
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
             tenant_id: String::from(tenant_id),
@@ -26,34 +32,39 @@ pub async fn read_export_data(tenant_id: &str, election_event_id: &str) -> Resul
         })
         .await?;
 
-        let items = electoral_logs.items;
-        let total = electoral_logs.total.aggregate.count as usize;
-        all_items.extend(items);
+        for item in &electoral_logs.items {
+            csv_writer.serialize(item)?; // Serialize each item to CSV
+        }
 
-        if all_items.len() >= total {
+        let total = electoral_logs.total.aggregate.count;
+
+        if electoral_logs.items.is_empty() || offset >= total {
             break;
         }
 
         offset += limit;
     }
-    let data = serde_json::to_string(&all_items)?;
-    Ok(data)
+
+    // Flush and finish writing to the temporary file
+    csv_writer.flush()?;
+    drop(csv_writer);
+
+    let contents = read(temp_file).await?;
+
+    Ok(contents)
 }
 
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
-    data: &str,
+    contents: Vec<u8>,
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Document> {
-    let data_str = data.to_string();
-    let data_bytes = data_str.into_bytes();
-
     let name = format!("export-election-event-logs-{}", election_event_id);
 
     let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".csv")?;
+        write_into_named_temp_file(&contents, &name, ".csv")?;
 
     upload_and_return_document_postgres(
         transaction,
@@ -89,7 +100,7 @@ pub async fn process_export(
 
     write_export_document(
         &hasura_transaction,
-        data.as_str(),
+        data,
         document_id,
         tenant_id,
         election_event_id,
