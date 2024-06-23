@@ -198,7 +198,6 @@ const VotingScreen: React.FC = () => {
     }
 
     const showNextDialog = () => {
-        console.log({decodedContests, contests: ballotStyle?.ballot_eml.contests})
         return check_voting_error_dialog(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
