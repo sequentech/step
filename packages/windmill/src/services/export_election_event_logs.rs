@@ -5,7 +5,7 @@ use super::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use super::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
-use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_hasura_pool, PgConfig};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -13,9 +13,8 @@ use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Doc
 
 pub async fn read_export_data(tenant_id: &str, election_event_id: &str) -> Result<String> {
     let mut offset = 0;
-    let limit = 500;
+    let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
     let mut all_items = Vec::new();
-
     loop {
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
             tenant_id: String::from(tenant_id),
@@ -54,13 +53,13 @@ pub async fn write_export_document(
     let name = format!("export-election-event-logs-{}", election_event_id);
 
     let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".json")?;
+        write_into_named_temp_file(&data_bytes, &name, ".csv")?;
 
     upload_and_return_document_postgres(
         transaction,
         &temp_path_string,
         file_size,
-        "application/json",
+        "text/csv",
         tenant_id,
         election_event_id,
         &name,
