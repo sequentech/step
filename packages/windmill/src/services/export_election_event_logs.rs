@@ -1,24 +1,28 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::documents::upload_and_return_document_postgres;
 use super::electoral_log::{list_electoral_log, GetElectoralLogBody};
-use super::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
+use super::temp_path::{generate_temp_file, get_file_size};
 use crate::services::database::{get_hasura_pool, PgConfig};
+use anyhow::Context;
 use anyhow::{anyhow, Result};
 use csv::WriterBuilder;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::Document;
 use tempfile::NamedTempFile;
-use tokio::fs::read;
 
-pub async fn read_export_data(tenant_id: &str, election_event_id: &str) -> Result<Vec<u8>> {
+pub async fn read_export_data(
+    tenant_id: &str,
+    election_event_id: &str,
+    name: &str,
+) -> Result<NamedTempFile> {
     let mut offset = 0;
     let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
 
     // Create a temporary file to write CSV data
-    let mut temp_file = NamedTempFile::new()?;
+    let mut temp_file =
+        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
     let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
     loop {
@@ -49,22 +53,21 @@ pub async fn read_export_data(tenant_id: &str, election_event_id: &str) -> Resul
     csv_writer.flush()?;
     drop(csv_writer);
 
-    let contents = read(temp_file).await?;
-
-    Ok(contents)
+    Ok(temp_file)
 }
 
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
-    contents: Vec<u8>,
+    temp_file: NamedTempFile,
+    name: &str,
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Document> {
-    let name = format!("export-election-event-logs-{}", election_event_id);
-
-    let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&contents, &name, ".csv")?;
+    let temp_path = temp_file.into_temp_path();
+    let temp_path_string = temp_path.to_string_lossy().to_string();
+    let file_size =
+        get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
 
     upload_and_return_document_postgres(
         transaction,
@@ -96,11 +99,13 @@ pub async fn process_export(
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
-    let data = read_export_data(tenant_id, election_event_id).await?;
+    let name = format!("export-election-event-logs-{}", election_event_id);
+    let temp_file = read_export_data(tenant_id, election_event_id, &name).await?;
 
     write_export_document(
         &hasura_transaction,
-        data,
+        temp_file,
+        &name,
         document_id,
         tenant_id,
         election_event_id,
