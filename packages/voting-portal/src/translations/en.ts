@@ -141,6 +141,12 @@ const englishTranslation = {
                 ok: "OK",
             },
             noResults: "No ballots for now.",
+            demoDialog: {
+                title: "Demo voting booth",
+                content:
+                    "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
+                ok: "I accept my vote will Not be cast",
+            },
             noVotingAreaError:
                 "Election Area not assigned to voter. Kindly contact your administrator for assistance",
         },
@@ -157,13 +163,13 @@ const englishTranslation = {
             },
             implicit: {
                 selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
                 selectedMin:
                     "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
                 maxSelectionsPerType:
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
                 underVote:
-                    "Number of selected choices {{numSelected}} is less than the maximun {{max}}",
+                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

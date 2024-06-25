@@ -7653,6 +7653,7 @@ dependencies = [
  "handlebars 4.5.0",
  "headless_chrome",
  "immu-board",
+ "immudb-rs",
  "keycloak",
  "lazy_static",
  "lettre",

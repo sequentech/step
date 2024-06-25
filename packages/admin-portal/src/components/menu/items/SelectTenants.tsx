@@ -5,15 +5,15 @@
 import React, {useContext, useEffect} from "react"
 import {useGetList, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import {IconButton} from "@sequentech/ui-essentials"
-import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
+import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {Link} from "react-router-dom"
-import {cn} from "../../../lib/utils"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
+import styled from "@emotion/styled"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
@@ -48,46 +48,73 @@ const SelectTenants: React.FC = () => {
     }
 
     return (
-        <div className={cn("flex items-center px-4 space-x-4", hasSingle ? "py-1.5" : "py-1")}>
+        <Container hasSingle={hasSingle}>
             <AccountCircleIcon />
             {isOpenSidebar && !!data && (
                 <>
                     {hasSingle ? (
-                        <p
-                            className="grow ml-2.5"
+                        <SingleDataContainer
                             style={{
                                 textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
                             }}
                         >
                             {data[0].slug}
-                        </p>
+                        </SingleDataContainer>
                     ) : (
-                        <Select
+                        <StyledSelect
                             labelId="tenant-select-label"
                             id="tenant-select"
                             value={tenantId}
                             onChange={handleChange}
-                            className="grow mx-0 !-my-0"
                         >
                             {data?.map((tenant) => (
                                 <MenuItem key={tenant.id} value={tenant.id}>
                                     {tenant.slug}
                                 </MenuItem>
                             ))}
-                        </Select>
+                        </StyledSelect>
                     )}
                     {showAddTenant ? (
                         <Link to="/sequent_backend_tenant/create">
-                            <IconButton
-                                className="text-brand-color text-base"
-                                icon={faPlusCircle}
-                            />
+                            <StyledIcon icon={faPlusCircle} />
                         </Link>
                     ) : null}
                 </>
             )}
-        </div>
+        </Container>
     )
 }
 
 export default SelectTenants
+
+const Container = styled(Box)<{hasSingle: boolean}>`
+    display: flex;
+    align-items: center;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    & > *:not(:last-child) {
+        margin-right: 1rem;
+    }
+    padding-top: ${({hasSingle}) => (hasSingle ? "0.375rem" : "0.25rem")};
+    padding-bottom: ${({hasSingle}) => (hasSingle ? "0.375rem" : "0.25rem")};
+`
+
+const SingleDataContainer = styled("p")`
+    flex-grow: 1;
+    margin-left: 0.625rem;
+`
+
+const StyledIcon = styled(IconButton)`
+    &:hover {
+        padding: unset !important;
+    }
+    font-size: 1rem;
+    line-height: 1.5rem;
+`
+const StyledSelect = styled(Select)`
+    flex-grow: 1;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+`

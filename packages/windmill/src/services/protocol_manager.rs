@@ -25,6 +25,7 @@ use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
 use immu_board::{BoardClient, BoardMessage};
+use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
@@ -316,4 +317,23 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
+}
+
+#[instrument(err)]
+pub async fn get_immudb_client() -> Result<Client> {
+    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+    let mut client = Client::new(&server_url, &username, &password).await?;
+    client.login().await?;
+
+    Ok(client)
+}
+
+pub fn create_named_param(name: String, value: Value) -> NamedParam {
+    NamedParam {
+        name,
+        value: Some(SqlValue { value: Some(value) }),
+    }
 }

@@ -20,6 +20,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
+use tokio::task;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
@@ -186,56 +187,15 @@ pub fn prepare_tally_for_area_contest(
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_election_configs(
+pub fn create_election_configs_blocking(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
+    elections_single_map: HashMap<String, Election>,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
-
-    // aggregate all ballot styles for each election
-    event!(
-        Level::WARN,
-        "area_contest_plaintexts len {}",
-        area_contests.len()
-    );
-
-    let Some(first_area_contest) = area_contests.first() else {
-        return Ok(());
-    };
-    let tenant_id = &first_area_contest.contest.tenant_id;
-    let election_event_id = &first_area_contest.contest.election_event_id;
-
-    // Note: for some reason this is needed, if we reuse the existing transaction, we get:
-    // AMQP error "IO error: Connection reset by peer (os error 104)"
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring hasura connection pool")?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring hasura transaction")?;
-
-    let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
-
-    let elections_single_map: HashMap<String, Election> = elections
-        .iter()
-        .map(|election| (election.id.clone(), election.clone()))
-        .collect();
-
-    for (idx, area_contest) in area_contests.iter().enumerate() {
+    for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
-        if idx % 100 == 0 {
-            crate::postgres::election::get_election_by_id(
-                &hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &election_id,
-            )
-            .await?;
-        }
 
         let election_name_opt = elections_single_map
             .get(&election_id)
@@ -301,6 +261,60 @@ pub async fn create_election_configs(
     event!(Level::INFO, "Finished writing election configs");
 
     Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub async fn create_election_configs(
+    base_tempdir: PathBuf,
+    area_contests: &Vec<AreaContestDataType>,
+    cast_votes_count: &Vec<ElectionCastVotes>,
+) -> Result<()> {
+    // aggregate all ballot styles for each election
+    event!(
+        Level::WARN,
+        "area_contest_plaintexts len {}",
+        area_contests.len()
+    );
+
+    let Some(first_area_contest) = area_contests.first() else {
+        return Ok(());
+    };
+    let tenant_id = &first_area_contest.contest.tenant_id;
+    let election_event_id = &first_area_contest.contest.election_event_id;
+
+    // Note: for some reason this is needed, if we reuse the existing transaction, we get:
+    // AMQP error "IO error: Connection reset by peer (os error 104)"
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
+    let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
+
+    let elections_single_map: HashMap<String, Election> = elections
+        .iter()
+        .map(|election| (election.id.clone(), election.clone()))
+        .collect();
+    let area_contests_r = area_contests.clone();
+    let cast_votes_count_r = cast_votes_count.clone();
+
+    // Spawn the task
+    let handle = tokio::task::spawn_blocking(move || {
+        create_election_configs_blocking(
+            base_tempdir.clone(),
+            &area_contests_r,
+            &cast_votes_count_r,
+            elections_single_map.clone(),
+        )
+    });
+
+    // Await the result
+    handle.await?
 }
 
 #[instrument(err)]

@@ -143,6 +143,12 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
+            demoDialog: {
+                title: "Cabina de votació de demostració",
+                content:
+                    "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
+                ok: "Accepto que el meu vot NO serà comptabilitzat",
+            },
             noVotingAreaError:
                 "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
         },
@@ -159,13 +165,13 @@ const catalanTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax:
-                    "El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
+                    "Sobrevot: El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
                 selectedMin:
                     "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
                 maxSelectionsPerType:
                     "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
                 underVote:
-                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
+                    "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",

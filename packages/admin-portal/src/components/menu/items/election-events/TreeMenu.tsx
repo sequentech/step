@@ -9,7 +9,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
-import {cn} from "@/lib/utils"
 
 import {
     mapDataChildren,
@@ -27,8 +26,10 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {translate, translateElection} from "@sequentech/ui-essentials"
+import {adminTheme, translate, translateElection} from "@sequentech/ui-essentials"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {Box} from "@mui/material"
+import {MenuStyles} from "@/components/styles/Menu"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -91,10 +92,9 @@ function TreeLeaves({
     }, [i18n, i18n.language, data])
 
     const {canCreateElectionEvent} = useActionPermissions()
-
     return (
-        <div className="bg-white">
-            <div className="flex flex-col ml-3">
+        <Box sx={{backgroundColor: adminTheme.palette.white}}>
+            <MenuStyles.TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
                         return (
@@ -119,36 +119,33 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && canCreateElectionEvent && (
-                    <div
-                        className="flex items-center space-x-2 text-secondary"
+                    <MenuStyles.CreateElectionContainer
                         style={{
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
                         }}
                     >
-                        <AddIcon
-                            className="flex-none"
+                        <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
-                        <NavLink
-                            className={`grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer ${treeResourceNames[0]}`}
+                        <MenuStyles.StyledNavLink
+                            className={treeResourceNames[0]}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
                             style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
-                        </NavLink>
-                        <AddIcon
-                            className="flex-none"
+                        </MenuStyles.StyledNavLink>
+                        <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
                             }}
                         />
-                        <div className="flex-none w-6 h-6 invisible"></div>
-                    </div>
+                        <MenuStyles.StyledHiddenDiv />
+                    </MenuStyles.CreateElectionContainer>
                 )}
-            </div>
-        </div>
+            </MenuStyles.TreeLeavesContainer>
+        </Box>
     )
 }
 
@@ -216,31 +213,31 @@ function TreeMenuItem({
     let item: React.ReactNode
     if (treeResourceNames[0] === "sequent_backend_election_event") {
         item = (
-            <p className="flex items-center space-x-2">
-                <HowToVoteIcon className="text-brand-color" />
+            <MenuStyles.ItemContainer>
+                <MenuStyles.HowToVoteStyledIcon />
                 <span>{name}</span>
-            </p>
+            </MenuStyles.ItemContainer>
         )
     } else if (imageData) {
         item = (
-            <p className="flex items-center space-x-2">
+            <MenuStyles.ItemContainer>
                 <img
                     width={24}
                     height={24}
                     src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
                 />
                 <span>{name}</span>
-            </p>
+            </MenuStyles.ItemContainer>
         )
     } else {
         item = <p>{name}</p>
     }
 
     return (
-        <div className="bg-white">
-            <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
+        <Box sx={{backgroundColor: adminTheme.palette.white}}>
+            <MenuStyles.TreeMenuItemContainer ref={menuItemRef}>
                 {hasNext && canCreateElectionEvent ? (
-                    <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
+                    <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
                             <ExpandMoreIcon />
                         ) : (
@@ -253,28 +250,21 @@ function TreeMenuItem({
                                 }}
                             />
                         )}
-                    </div>
+                    </MenuStyles.TreeMenuIconContaier>
                 ) : (
-                    <div className={cn("flex-none h-6", canCreateElectionEvent && "w-6")}></div>
+                    <MenuStyles.StyledDiv isWidth={canCreateElectionEvent} />
                 )}
                 {isOpenSidebar && (
-                    <NavLink
+                    <MenuStyles.StyledSideBarNavLink
                         title={name}
-                        className={({isActive}) =>
-                            cn(
-                                "grow py-1.5 text-black border-b-2 border-white hover:border-brand-color truncate cursor-pointer",
-                                isActive && "border-b-2 border-brand-color"
-                            )
-                        }
+                        className={({isActive}) => (isActive ? "active" : "")}
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
                     >
                         {item}
-                    </NavLink>
+                    </MenuStyles.StyledSideBarNavLink>
                 )}
-                <div
-                    className={`invisible group-hover:visible menu-actions-${treeResourceNames[0]}`}
-                >
+                <MenuStyles.MenuActionContainer className={`menu-actions-${treeResourceNames[0]}`}>
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
@@ -285,8 +275,8 @@ function TreeMenuItem({
                             menuItemRef={menuItemRef}
                         ></MenuActions>
                     ) : null}
-                </div>
-            </div>
+                </MenuStyles.MenuActionContainer>
+            </MenuStyles.TreeMenuItemContainer>
             {open && (
                 <div className="">
                     {hasNext && (
@@ -299,7 +289,7 @@ function TreeMenuItem({
                     )}
                 </div>
             )}
-        </div>
+        </Box>
     )
 }
 
@@ -317,36 +307,25 @@ export function TreeMenu({
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
-
     return (
         <>
-            <ul className="flex px-4 space-x-4 bg-white uppercase text-xs leading-6">
-                <li
-                    className={cn(
-                        "px-4 py-1 cursor-pointer",
-                        !isArchivedElectionEvents
-                            ? "text-brand-color border-b-2 border-brand-success"
-                            : "text-secondary"
-                    )}
+            <MenuStyles.SideMenuContainer>
+                <MenuStyles.SideMenuActiveItem
                     onClick={() => onArchiveElectionEventsSelect(0)}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
                 >
                     {t("sideMenu.active")}
-                </li>
-                <li
-                    className={cn(
-                        "px-4 py-1 cursor-pointer",
-                        isArchivedElectionEvents
-                            ? "text-brand-color border-b-2 border-brand-success"
-                            : "text-secondary"
-                    )}
+                </MenuStyles.SideMenuActiveItem>
+                <MenuStyles.SideMenuArchiveItem
                     onClick={() => onArchiveElectionEventsSelect(1)}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
                 >
                     {t("sideMenu.archived")}
-                </li>
-            </ul>
-            <div className="py-2">
+                </MenuStyles.SideMenuArchiveItem>
+            </MenuStyles.SideMenuContainer>
+            <Box sx={{paddingY: 1}}>
                 {isEmpty ? (
-                    <div className="p-4 bg-white">No result</div>
+                    <MenuStyles.EmptyStateContainer>No Result</MenuStyles.EmptyStateContainer>
                 ) : (
                     <TreeLeaves
                         data={data}
@@ -355,7 +334,7 @@ export function TreeMenu({
                         isArchivedElectionEvents={isArchivedElectionEvents}
                     />
                 )}
-            </div>
+            </Box>
         </>
     )
 }
