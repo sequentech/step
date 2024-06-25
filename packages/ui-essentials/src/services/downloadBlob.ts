@@ -10,8 +10,15 @@ export const downloadBlob = async (blob: Blob, name: string) => {
 }
 
 export const downloadUrl = async (url: string, name: string) => {
+    // Fetch the file data
+    const response = await fetch(url)
+    const blob = await response.blob()
+
+    // Create a blob URL
+    const blobUrl = URL.createObjectURL(blob)
+
     const link = document.createElement("a")
-    link.href = url
+    link.href = blobUrl
     link.target = "_blank"
     link.download = name
 
