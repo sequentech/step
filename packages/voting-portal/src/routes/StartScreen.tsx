@@ -15,7 +15,7 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import {getLanguageFromURL} from "../utils/queryParams"
+import useLanguage from "../hooks/useLanguage"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -87,8 +87,10 @@ const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    useLanguage({ballotStyle})
 
     useEffect(() => {
         if (!election) {

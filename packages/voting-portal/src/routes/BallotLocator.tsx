@@ -26,6 +26,7 @@ import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {getLanguageFromURL} from "../utils/queryParams"
+import useLanguage from "../hooks/useLanguage"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -97,6 +98,7 @@ const BallotLocator: React.FC = () => {
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    useLanguage({ballotStyle})
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
