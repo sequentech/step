@@ -234,7 +234,7 @@ function TreeMenuItem({
     }
 
     return (
-        <Box sx={{backgroundColor: adminTheme.palette.white, border: "1px dashed red"}}>
+        <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeMenuItemContainer ref={menuItemRef}>
                 {hasNext && canCreateElectionEvent ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
@@ -265,7 +265,7 @@ function TreeMenuItem({
                     </MenuStyles.StyledSideBarNavLink>
                 )}
                 <MenuStyles.MenuActionContainer
-                    className={`menu-actions-${treeResourceNames[0]} menu-action-button`}
+                    className={`menu-actions-${treeResourceNames[0]}`}
                 >
                     {canCreateElectionEvent ? (
                         <MenuActions
@@ -306,6 +306,7 @@ export function TreeMenu({
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
+    // console.log({data, treeResourceNames})
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents

@@ -4,7 +4,7 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation, ImportElectionEventMutation} from "@/gql/graphql"
+import {CreateElectionEventMutation, ImportElectionEventMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -37,7 +37,6 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
-import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 
 const Hidden = styled(Box)`
@@ -77,23 +76,13 @@ export const CreateElectionList: React.FC = () => {
 
     const postDefaultValues = () => ({id: v4()})
 
-    // const {
-    //     data: newElectionEvent,
-    //     isLoading: isOneLoading,
-    //     error,
-    // } = useGetOne(
-    //     "sequent_backend_election_event",
-    //     {id: newId},
-    //     {
-    //         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    //     }
-    // )
-
     const {
         data: newElectionEvent,
         isLoading: isOneLoading,
         error,
-    } = useGetList("sequent_backend_election_event", {filter: {id: newId}})
+    } = useGetList<Sequent_Backend_Election_Event>("sequent_backend_election_event", {filter: {id: newId}}, {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        })
 
     console.log("electionEventScreenLogs", {
         error,
@@ -120,7 +109,6 @@ export const CreateElectionList: React.FC = () => {
         if (isNull(newId)) {
             return
         }
-        console.log("effect", {error, isLoading, isOneLoading})
 
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
@@ -133,19 +121,17 @@ export const CreateElectionList: React.FC = () => {
             isLoading &&
             !error &&
             !isOneLoading &&
-            (newElectionEvent as Sequent_Backend_Election_Event_Extended[]).length
+            newElectionEvent!.length
         ) {
             console.warn("success")
-
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
             refresh()
-            // navigate(`/sequent_backend_election_event/${newId}`)
+            navigate(`/sequent_backend_election_event/${newId}`)
         }
-    }, [isLoading, newElectionEvent, isOneLoading, error])
+    }, [isLoading, newElectionEvent, isOneLoading, error, newId])
 
     const handleSubmit = async (values: any): Promise<void> => {
-        console.warn("error 1")
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -165,8 +151,6 @@ export const CreateElectionList: React.FC = () => {
             presentation,
         }
 
-        console.log("electionSubmit :: ", electionSubmit)
-
         try {
             let {data, errors} = await insertElectionEvent({
                 variables: {
@@ -175,21 +159,18 @@ export const CreateElectionList: React.FC = () => {
             })
 
             const newId = data?.insertElectionEvent?.id ?? null
-
             if (newId) {
                 setNewId(newId)
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
                 setIsLoading(true)
             } else {
                 console.log(`Error creating Election Event ${errors}`)
-                console.warn("error 1")
-                notify("electionEventScreen.createElectionEventError 2", {type: "info"})
+                notify(t("electionEventScreen.createElectionEventError"), {type: "info"})
                 setIsLoading(false)
             }
         } catch (error) {
             console.log(`Error creating Election Event ${error}`)
-            console.warn("error 2")
-            notify("electionEventScreen.createElectionEventError 3", {type: "success"})
+            notify(t("electionEventScreen.createElectionEventError"), {type: "success"})
             setIsLoading(false)
         }
 
@@ -233,19 +214,14 @@ export const CreateElectionList: React.FC = () => {
                 documentId,
             },
         })
-        console.log("election event imported", {data, errors})
 
         if (data?.import_election_event?.error) {
-            console.log("election event imported err", {data, errors})
-
             setErrors(data.import_election_event.error)
             return
         }
 
         let id = data?.import_election_event?.id
         if (id) {
-            console.log("election event imported set id", {data, errors})
-
             setNewId(id)
             setLastCreatedResource({id, type: "sequent_backend_election_event"})
             setIsLoading(true)

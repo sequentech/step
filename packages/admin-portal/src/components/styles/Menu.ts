@@ -111,12 +111,6 @@ export const MenuStyles = {
         & > *:not(:last-child) {
             margin-right: 0.5rem;
         }
-
-		&:hover {
-			.menu-action-button {
-            visibility: visible;
-
-		}
     `,
 
     ItemContainer: styled("p")`
