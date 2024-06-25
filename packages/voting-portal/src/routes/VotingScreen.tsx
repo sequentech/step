@@ -16,9 +16,6 @@ import {
     Dialog,
     translateElection,
     sortContestList,
-    IContest,
-    EInvalidVotePolicy,
-    EInvalidPlaintextErrorType,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -31,7 +28,11 @@ import {
     setBallotSelection,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {provideBallotService} from "../services/BallotService"
+import {
+    check_voting_error_dialog_bool,
+    check_voting_not_allowed_next_bool,
+    provideBallotService,
+} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -41,12 +42,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {
-    IDecodedVoteContest,
-    IInvalidPlaintextError,
-    check_voting_not_allowed_next,
-    check_voting_error_dialog,
-} from "sequent-core"
+import {IDecodedVoteContest} from "sequent-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -194,11 +190,11 @@ const VotingScreen: React.FC = () => {
     // if true, when the user clicks next, there will be a dialog
     // that doesn't allow to continue and forces the user to fix the issues
     const disableNextButton = (): boolean => {
-        return check_voting_not_allowed_next(ballotStyle?.ballot_eml.contests, decodedContests)
+        return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
     const showNextDialog = () => {
-        return check_voting_error_dialog(ballotStyle?.ballot_eml.contests, decodedContests)
+        return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
     const encryptAndReview = () => {
