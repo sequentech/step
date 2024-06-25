@@ -37,6 +37,9 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 }) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
+    const [decodedContestSelection, setDecodedContestSelection] = useState<
+        IDecodedVoteContest | undefined
+    >(undefined)
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
@@ -56,25 +59,36 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [contestSelection, isTouched])
 
-    const decodedContestSelection = useMemo(() => {
-        return (
+    useEffect(() => {
+        setDecodedContestSelection(
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
         )
     }, [contestSelection])
 
     useEffect(() => {
-        if (!isReview && !isTouched && decodedContestSelection) {
-            decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
-                (error) => error.message !== "errors.implicit.selectedMin"
-            )
+        if (!isReview && !isTouched) {
+            setDecodedContestSelection((prev) => {
+                if (!prev) return undefined
+                return {
+                    ...prev,
+                    invalid_errors:
+                        prev?.invalid_errors.filter(
+                            (error) => error.message !== "errors.implicit.selectedMin"
+                        ) || [],
+                    invalid_alerts:
+                        prev?.invalid_errors.filter(
+                            (error) => error.message !== "errors.implicit.underVote"
+                        ) || [],
+                }
+            })
         }
-    }, [isReview, isTouched, decodedContestSelection])
+    }, [isReview, isTouched])
 
     useEffect(() => {
         if (decodedContestSelection) {
             setDecodedContests(decodedContestSelection)
         }
-    }, [decodedContestSelection, decodedContestSelection?.invalid_errors])
+    }, [decodedContestSelection])
 
     const numAvailableChars = contestSelection
         ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)

@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
+import React, {Suspense, lazy, useContext} from "react"
 import ReactDOM from "react-dom/client"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
@@ -17,17 +17,21 @@ import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
-import {LoginScreen} from "./routes/LoginScreen"
-import {StartScreen} from "./routes/StartScreen"
-import {ConfirmationScreen} from "./routes/ConfirmationScreen"
-import {AuditScreen} from "./routes/AuditScreen"
-import {ElectionSelectionScreen} from "./routes/ElectionSelectionScreen"
-import {BallotLocator} from "./routes/BallotLocator"
 import {ErrorPage} from "./routes/ErrorPage"
-import {SupportMaterialsScreen} from "./routes/SupportMaterialsScreen"
-import TenantEvent from "./routes/TenantEvent"
-import VotingScreen, {action as votingAction} from "./routes/VotingScreen"
-import ReviewScreen, {action as castBallotAction} from "./routes/ReviewScreen"
+import {action as votingAction} from "./routes/VotingScreen"
+import {action as castBallotAction} from "./routes/ReviewScreen"
+import Loader from "./components/Loader"
+
+const TenantEvent = lazy(() => import("./routes/TenantEvent"))
+const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
+const LoginScreen = lazy(() => import("./routes/LoginScreen"))
+const StartScreen = lazy(() => import("./routes/StartScreen"))
+const VotingScreen = lazy(() => import("./routes/VotingScreen"))
+const ReviewScreen = lazy(() => import("./routes/ReviewScreen"))
+const ConfirmationScreen = lazy(() => import("./routes/ConfirmationScreen"))
+const AuditScreen = lazy(() => import("./routes/AuditScreen"))
+const BallotLocator = lazy(() => import("./routes/BallotLocator"))
+const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScreen"))
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -67,50 +71,90 @@ const router = createBrowserRouter(
             children: [
                 {
                     path: "/tenant/:tenantId/event/:eventId",
-                    element: <TenantEvent />,
+                    element: (
+                        <Suspense fallback={<Loader />}>
+                            <TenantEvent />
+                        </Suspense>
+                    ),
                     children: [
                         {
                             path: "election-chooser",
-                            element: <ElectionSelectionScreen />,
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <ElectionSelectionScreen />
+                                </Suspense>
+                            ),
                         },
                         {
                             path: "login",
-                            element: <LoginScreen />,
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <LoginScreen />
+                                </Suspense>
+                            ),
                         },
                         {
                             path: "election/:electionId",
                             children: [
                                 {
                                     path: "start",
-                                    element: <StartScreen />,
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <StartScreen />
+                                        </Suspense>
+                                    ),
                                 },
                                 {
                                     path: "vote",
-                                    element: <VotingScreen />,
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <VotingScreen />
+                                        </Suspense>
+                                    ),
                                     action: votingAction,
                                 },
                                 {
                                     path: "review",
-                                    element: <ReviewScreen />,
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <ReviewScreen />
+                                        </Suspense>
+                                    ),
                                     action: castBallotAction,
                                 },
                                 {
                                     path: "confirmation",
-                                    element: <ConfirmationScreen />,
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <ConfirmationScreen />
+                                        </Suspense>
+                                    ),
                                 },
                                 {
                                     path: "audit",
-                                    element: <AuditScreen />,
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <AuditScreen />
+                                        </Suspense>
+                                    ),
                                 },
                                 {
                                     path: "ballot-locator/:ballotId?",
-                                    element: <BallotLocator />,
+                                    element: (
+                                        <Suspense fallback={<Loader />}>
+                                            <BallotLocator />
+                                        </Suspense>
+                                    ),
                                 },
                             ],
                         },
                         {
                             path: "materials",
-                            element: <SupportMaterialsScreen />,
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <SupportMaterialsScreen />
+                                </Suspense>
+                            ),
                         },
                     ],
                 },

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
@@ -27,7 +27,7 @@ import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
-import {IElectionPresentation} from "@sequentech/ui-essentials"
+import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-essentials"
 
 const Hidden = styled(Box)`
     display: none;
@@ -40,21 +40,38 @@ export const CreateElection: React.FC = () => {
     const [searchParams] = useSearchParams()
     const redirect = useRedirect()
 
+    const [settings, setSettings] = useState<any>()
     const electionEventId = searchParams.get("electionEventId")
 
     const {data: electionEvent} = useGetOne("sequent_backend_election_event", {
         id: electionEventId,
+    })
+    const {data: tenant} = useGetOne("sequent_backend_tenant", {
+        id: tenantId,
     })
 
     const {refetch} = useTreeMenuData(false)
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
 
+    useEffect(() => {
+        if (tenant) {
+            const temp = tenant?.settings
+            setSettings(temp)
+        }
+    }, [tenant])
+
     const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
         let i18n = addDefaultTranslationsToElement(data)
+        let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
+            enabled_language_codes: settings?.languages ?? ["en"],
+            default_language_code: "en",
+        }
+        tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
         let presentation: IElectionPresentation = {
             ...(data.presentation as IElectionPresentation),
             i18n,
+            language_conf: tenantLangConf,
         }
         return {
             ...data,

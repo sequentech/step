@@ -37,13 +37,12 @@ const StyledChip = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 4px;
-    background: #d32f2f;
-    padding: 1px 7px;
+    border-radius: 14px;
+    background: #ebebeb;
+    padding: 7px;
 `
 
 const StyledChipLabel = styled.div`
-    color: #fff;
     font-family: Roboto;
     font-size: 12px;
     font-style: normal;
@@ -55,7 +54,7 @@ export const TrusteeItems: React.FC<TrusteeItemsProps> = (props) => {
     const {record} = props
     const {data} = useQuery(GET_TRUSTEES_NAMES, {
         variables: {
-            trustees: record.trustee_ids,
+            tenantId: record.tenant_id,
         },
     })
 

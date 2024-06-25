@@ -10,11 +10,13 @@ import AddCircleIcon from "@mui/icons-material/AddCircle"
 import DeleteIcon from "@mui/icons-material/Delete"
 import InventoryIcon from "@mui/icons-material/Inventory"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, adminTheme} from "@sequentech/ui-essentials"
 import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
 import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
+import styled from "@emotion/styled"
+import {divContainer} from "@/components/styles/Menu"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -190,11 +192,20 @@ export default function MenuAction({
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
 
+    const StyledIconContainer = styled.p`
+        ${divContainer}
+        cursor: pointer
+    `
+
+    const StyledAddCircleIcon = styled(AddCircleIcon)`
+        color: ${adminTheme.palette.brandColor};
+    `
+
     return (
         <>
-            <p className="flex-none w-6 h-6 cursor-pointer" onClick={handleOpenItemActions}>
+            <StyledIconContainer onClick={handleOpenItemActions}>
                 <MoreHorizIcon />
-            </p>
+            </StyledIconContainer>
             <Popover
                 id={idActionMenu}
                 open={openActionMenu}
@@ -219,7 +230,7 @@ export default function MenuAction({
                             }
                         >
                             <ListItemIcon>
-                                <AddCircleIcon className="text-brand-color" />
+                                <StyledAddCircleIcon />
                             </ListItemIcon>
                             {t(mapAddResource[resourceType])}
                         </MenuItem>
