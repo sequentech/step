@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useCallback, useEffect, useMemo, useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -78,6 +78,7 @@ type TDiffView<T> = {
     currentTitle: string
     current: T
     modify: T
+    fetchAllPublishChanges: () => Promise<void>
 }
 
 enum TRUNCATION_STATE {
@@ -96,16 +97,26 @@ const truncateLines = (str: string, maxLines: number) => {
 }
 
 const DiffViewMemo = React.memo(
-    <T extends {}>({current, currentTitle, modify, diffTitle, type = "modify"}: TDiffView<T>) => {
+    <T extends {}>({
+        current,
+        currentTitle,
+        modify,
+        diffTitle,
+        type = "modify",
+        fetchAllPublishChanges,
+    }: TDiffView<T>) => {
         const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
         const [diff, setDiff] = useState<any>("")
         const {t} = useTranslation()
         const [oldJsonString, setOldJsonString] = useState<string>("")
         const [newJsonString, setNewJsonString] = useState<string>("")
         const [showDialog, setShowDialog] = useState<boolean>(false)
+        const [loading, setLoading] = useState<boolean>(false)
+
         const [truncationState, setTruncationState] = useState<TRUNCATION_STATE>(
             TRUNCATION_STATE.NOT_NEEDED
         )
+
         const memoizedModify = useMemo(
             () => (modify ? JSON.stringify(modify, null, 2) : ""),
             [modify]
@@ -117,7 +128,7 @@ const DiffViewMemo = React.memo(
 
         // Check initially if truncation is needed - if so truncate the strings
         useEffect(() => {
-            if (!memoizedModify) return
+            if (!memoizedModify || truncationState !== TRUNCATION_STATE.NOT_NEEDED) return
             const lines = memoizedModify.split("\n")
             if (lines.length < MAX_DIFF_LINES) return
             setTruncationState(TRUNCATION_STATE.TRUNCATED)
@@ -134,11 +145,33 @@ const DiffViewMemo = React.memo(
         }, [truncationState, memoizedCurrent, memoizedModify])
 
         useEffect(() => {
-            if (oldJsonString && newJsonString) {
+            if (newJsonString || oldJsonString) {
                 const diffText: any = diffLines(oldJsonString, newJsonString)
                 setDiff(diffText)
             }
         }, [oldJsonString, newJsonString])
+
+        const handleDialogClose = useCallback(
+            async (result: boolean) => {
+                if (result) {
+                    let shouldUpdateData = false
+                    setTruncationState((prev) => {
+                        if (prev === TRUNCATION_STATE.TRUNCATED) {
+                            shouldUpdateData = true
+                            return TRUNCATION_STATE.UNTRUNCATED
+                        }
+                        return TRUNCATION_STATE.TRUNCATED
+                    })
+                    if (shouldUpdateData) {
+                        setLoading(true)
+                        await fetchAllPublishChanges()
+                        setLoading(false)
+                    }
+                }
+                setShowDialog(false)
+            },
+            [fetchAllPublishChanges]
+        )
 
         if (!diff) {
             return (
@@ -191,6 +224,7 @@ const DiffViewMemo = React.memo(
                                         minHeight: "unset",
                                         fontSize: "0.8rem",
                                         marginLeft: "auto",
+                                        marginBlock: "0.5rem",
                                     }}
                                     aria-expanded={truncationState !== TRUNCATION_STATE.TRUNCATED}
                                     aria-controls="diff-content"
@@ -240,6 +274,7 @@ const DiffViewMemo = React.memo(
                                             minHeight: "unset",
                                             fontSize: "0.8rem",
                                             marginLeft: "auto",
+                                            marginBlock: "0.5rem",
                                         }}
                                         aria-expanded={
                                             truncationState !== TRUNCATION_STATE.TRUNCATED
@@ -257,20 +292,11 @@ const DiffViewMemo = React.memo(
                     ok={t("publish.dialog.ok")}
                     cancel={t("publish.dialog.ko")}
                     title={t("publish.dialog.title")}
-                    handleClose={(result: boolean) => {
-                        if (result) {
-                            setTruncationState((prev) => {
-                                if (prev === TRUNCATION_STATE.TRUNCATED) {
-                                    return TRUNCATION_STATE.UNTRUNCATED
-                                }
-                                return TRUNCATION_STATE.TRUNCATED
-                            })
-                        }
-
-                        setShowDialog(false)
-                    }}
+                    handleClose={handleDialogClose}
+                    okEnabled={() => !loading}
                 >
                     {t("publish.dialog.diff")}
+                    {loading && <CircularProgress />}
                 </Dialog>
             </>
         )

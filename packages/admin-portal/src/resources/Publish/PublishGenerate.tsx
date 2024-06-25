@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React from "react"
 
 import styled from "@emotion/styled"
 
@@ -56,6 +56,7 @@ export type TPublishGenerate = {
     onPublish: () => void
     onGenerate: () => void
     electionEventId: string
+    fetchAllPublishChanges: () => Promise<void>
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
@@ -66,17 +67,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onBack = () => null,
     onPublish = () => null,
     onGenerate = () => null,
+    fetchAllPublishChanges,
 }): React.JSX.Element => {
     const {t} = useTranslation()
-    const [currentState, setCurrentState] = useState<null | any>(null)
-    const [previousState, setPreviouseState] = useState<null | any>(null)
-
-    useEffect(() => {
-        if (data) {
-            setCurrentState(data?.previous || {})
-            setPreviouseState(data?.current || {})
-        }
-    }, [data])
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -100,8 +93,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         readOnly ? t("publish.label.previous") : t("publish.label.current")
                     }
                     diffTitle={readOnly ? t("publish.label.publication") : t("publish.label.diff")}
-                    current={currentState}
-                    modify={previousState}
+                    current={data?.previous || null}
+                    modify={data?.current || null}
+                    fetchAllPublishChanges={fetchAllPublishChanges}
                 />
 
                 <PublishGenerateStyled.Bottom>

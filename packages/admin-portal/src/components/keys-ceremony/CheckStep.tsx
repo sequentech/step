@@ -58,7 +58,6 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
         }
         try {
             const fileContent = await readFileContent(firstFile)
-            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
             if (fileContent == null) {
                 setErrors(t("keysGeneration.checkStep.noFileSelected"))
                 return

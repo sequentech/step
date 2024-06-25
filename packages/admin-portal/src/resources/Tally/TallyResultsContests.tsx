@@ -36,8 +36,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
     const tallyData = useAtomValue(tallyQueryData)
 
-    // console.log("TallyResultsContest :: contestsData", contestsData)
-
     const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_results_contest?.filter(
