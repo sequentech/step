@@ -20,7 +20,7 @@ import {
     Button,
     RaRecord,
     Identifier,
-	useGetList,
+    useGetList,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
@@ -89,12 +89,19 @@ export const CreateElectionList: React.FC = () => {
     //     }
     // )
 
-	const { data: newElectionEvent,  isLoading: isOneLoading, error } = useGetList(
-        'sequent_backend_election_event',
-        { filter: { id: newId } }
-    );
+    const {
+        data: newElectionEvent,
+        isLoading: isOneLoading,
+        error,
+    } = useGetList("sequent_backend_election_event", {filter: {id: newId}})
 
-	console.log({error, isLoading, isOneLoading, newElectionEvent})
+    console.log("electionEventScreenLogs", {
+        error,
+        isLoading,
+        isOneLoading,
+        newElectionEvent,
+        newId,
+    })
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
@@ -113,17 +120,23 @@ export const CreateElectionList: React.FC = () => {
         if (isNull(newId)) {
             return
         }
-	console.log('effect',{error, isLoading, isOneLoading})
+        console.log("effect", {error, isLoading, isOneLoading})
 
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-        console.warn("error 3")
-            // notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
-            notify("electionEventScreen.createElectionEventError 1", {type: "error"})
+            console.warn("error 3")
+            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             refresh()
             return
         }
-        if (isLoading && !error && !isOneLoading && newElectionEvent.length) {
+        if (
+            isLoading &&
+            !error &&
+            !isOneLoading &&
+            (newElectionEvent as Sequent_Backend_Election_Event_Extended[]).length
+        ) {
+            console.warn("success")
+
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
             refresh()
