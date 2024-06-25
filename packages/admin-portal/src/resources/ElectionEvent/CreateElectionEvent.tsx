@@ -4,7 +4,11 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation, ImportElectionEventMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    CreateElectionEventMutation,
+    ImportElectionEventMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -80,9 +84,13 @@ export const CreateElectionList: React.FC = () => {
         data: newElectionEvent,
         isLoading: isOneLoading,
         error,
-    } = useGetList<Sequent_Backend_Election_Event>("sequent_backend_election_event", {filter: {id: newId}}, {
+    } = useGetList<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {filter: {id: newId}},
+        {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        })
+        }
+    )
 
     console.log("electionEventScreenLogs", {
         error,
@@ -117,12 +125,7 @@ export const CreateElectionList: React.FC = () => {
             refresh()
             return
         }
-        if (
-            isLoading &&
-            !error &&
-            !isOneLoading &&
-            newElectionEvent!.length
-        ) {
+        if (isLoading && !error && !isOneLoading && newElectionEvent!.length) {
             console.warn("success")
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
