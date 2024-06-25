@@ -20,6 +20,7 @@ import {
     Button,
     RaRecord,
     Identifier,
+	useGetList,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
@@ -76,17 +77,24 @@ export const CreateElectionList: React.FC = () => {
 
     const postDefaultValues = () => ({id: v4()})
 
-    const {
-        data: newElectionEvent,
-        isLoading: isOneLoading,
-        error,
-    } = useGetOne(
-        "sequent_backend_election_event",
-        {id: newId},
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
+    // const {
+    //     data: newElectionEvent,
+    //     isLoading: isOneLoading,
+    //     error,
+    // } = useGetOne(
+    //     "sequent_backend_election_event",
+    //     {id: newId},
+    //     {
+    //         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    //     }
+    // )
+
+	const { data: newElectionEvent,  isLoading: isOneLoading, error } = useGetList(
+        'sequent_backend_election_event',
+        { filter: { id: newId } }
+    );
+
+	console.log({error, isLoading, isOneLoading, newElectionEvent})
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
@@ -105,21 +113,26 @@ export const CreateElectionList: React.FC = () => {
         if (isNull(newId)) {
             return
         }
+	console.log('effect',{error, isLoading, isOneLoading})
+
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
+        console.warn("error 3")
+            // notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
+            notify("electionEventScreen.createElectionEventError 1", {type: "error"})
             refresh()
             return
         }
-        if (isLoading && !error && !isOneLoading && newElectionEvent) {
+        if (isLoading && !error && !isOneLoading && newElectionEvent.length) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
             refresh()
-            navigate(`/sequent_backend_election_event/${newId}`)
+            // navigate(`/sequent_backend_election_event/${newId}`)
         }
     }, [isLoading, newElectionEvent, isOneLoading, error])
 
     const handleSubmit = async (values: any): Promise<void> => {
+        console.warn("error 1")
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -156,12 +169,14 @@ export const CreateElectionList: React.FC = () => {
                 setIsLoading(true)
             } else {
                 console.log(`Error creating Election Event ${errors}`)
-                notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
+                console.warn("error 1")
+                notify("electionEventScreen.createElectionEventError 2", {type: "info"})
                 setIsLoading(false)
             }
         } catch (error) {
             console.log(`Error creating Election Event ${error}`)
-            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
+            console.warn("error 2")
+            notify("electionEventScreen.createElectionEventError 3", {type: "success"})
             setIsLoading(false)
         }
 
@@ -205,14 +220,19 @@ export const CreateElectionList: React.FC = () => {
                 documentId,
             },
         })
+        console.log("election event imported", {data, errors})
 
         if (data?.import_election_event?.error) {
+            console.log("election event imported err", {data, errors})
+
             setErrors(data.import_election_event.error)
             return
         }
 
         let id = data?.import_election_event?.id
         if (id) {
+            console.log("election event imported set id", {data, errors})
+
             setNewId(id)
             setLastCreatedResource({id, type: "sequent_backend_election_event"})
             setIsLoading(true)
@@ -321,7 +341,7 @@ export const CreateElectionList: React.FC = () => {
                 closeDrawer={closeImportDrawer}
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
-                paragraph={t("electionEventScreen.import.electionEventParagraph")}
+                paragraph={"electionEventScreen.import.electionEventParagraph"}
                 doImport={handleImportElectionEvent}
                 uploadCallback={uploadCallback}
                 errors={errors}

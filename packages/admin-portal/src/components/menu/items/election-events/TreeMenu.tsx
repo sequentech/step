@@ -234,7 +234,7 @@ function TreeMenuItem({
     }
 
     return (
-        <Box sx={{backgroundColor: adminTheme.palette.white}}>
+        <Box sx={{backgroundColor: adminTheme.palette.white, border: "1px dashed red"}}>
             <MenuStyles.TreeMenuItemContainer ref={menuItemRef}>
                 {hasNext && canCreateElectionEvent ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
@@ -264,7 +264,9 @@ function TreeMenuItem({
                         {item}
                     </MenuStyles.StyledSideBarNavLink>
                 )}
-                <MenuStyles.MenuActionContainer className={`menu-actions-${treeResourceNames[0]}`}>
+                <MenuStyles.MenuActionContainer
+                    className={`menu-actions-${treeResourceNames[0]} menu-action-button`}
+                >
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
