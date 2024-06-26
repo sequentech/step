@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect} from "react"
-import {Outlet, useMatch, useNavigate, useParams} from "react-router-dom"
+import {Outlet, useLocation, useMatch, useNavigate, useParams} from "react-router-dom"
 
 export default function TenantEvent() {
     const navigate = useNavigate()
     const params = useParams()
+    const location = useLocation()
 
     const noMatch = useMatch("/tenant/:tenantId/event/:eventId/")
-    const path = `/tenant/${params.tenantId}/event/${params.eventId}/election-chooser`
+    const path = `/tenant/${params.tenantId}/event/${params.eventId}/election-chooser${location.search}`
 
     useEffect(() => {
         if (noMatch) {
