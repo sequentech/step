@@ -195,10 +195,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     const recalculateTotals = () => {
         let newResults = {...results}
-        let totalCandidateVotes = candidatesResults
-            .map((candidate) => candidate.total_votes ?? 0)
-            .reduce((acc, curr) => acc + curr, 0)
-        let totalValidVotes = totalCandidateVotes + (newResults.total_blank_votes ?? 0)
+        let totalValidVotes = Math.max(
+            newResults.total_blank_votes ?? 0,
+            newResults.total_valid_votes ?? 0
+        )
         let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
         newResults.total_valid_votes = totalValidVotes
         newResults.total_votes = totalVotes
@@ -434,7 +434,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleNumberChange}
                     size="small"
                     required
-                    disabled
                 />
 
                 <Box
