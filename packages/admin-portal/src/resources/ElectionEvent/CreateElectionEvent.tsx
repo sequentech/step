@@ -138,13 +138,11 @@ export const CreateElectionList: React.FC = () => {
 
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            console.warn("error 3")
             notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newElectionEvent!.length) {
-            console.warn("success")
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
             refresh()
@@ -186,12 +184,12 @@ export const CreateElectionList: React.FC = () => {
                 setIsLoading(true)
             } else {
                 console.log(`Error creating Election Event ${errors}`)
-                notify(t("electionEventScreen.createElectionEventError"), {type: "info"})
+                notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
                 setIsLoading(false)
             }
         } catch (error) {
             console.log(`Error creating Election Event ${error}`)
-            notify(t("electionEventScreen.createElectionEventError"), {type: "success"})
+            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             setIsLoading(false)
         }
 
