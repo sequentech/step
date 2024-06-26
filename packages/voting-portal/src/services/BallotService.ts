@@ -10,9 +10,11 @@ import {
     get_write_in_available_characters_js,
     check_is_blank_js,
     IDecodedVoteContest,
+    check_voting_not_allowed_next,
+    check_voting_error_dialog,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {IBallotStyle, IAuditableBallot, IHashableBallot} from "@sequentech/ui-essentials"
+import {IBallotStyle, IAuditableBallot, IHashableBallot, IContest} from "@sequentech/ui-essentials"
 
 export interface IBallotService {
     toHashableBallot: (auditableBallot: IAuditableBallot) => IHashableBallot
@@ -112,6 +114,30 @@ export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+export const check_voting_not_allowed_next_bool = (
+    contests: IContest[] | undefined,
+    decodedContests: Record<string, IDecodedVoteContest>
+): boolean => {
+    try {
+        return check_voting_not_allowed_next(contests, decodedContests)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const check_voting_error_dialog_bool = (
+    contests: IContest[] | undefined,
+    decodedContests: Record<string, IDecodedVoteContest>
+): boolean => {
+    try {
+        return check_voting_error_dialog(contests, decodedContests)
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 

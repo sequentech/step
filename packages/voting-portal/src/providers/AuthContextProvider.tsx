@@ -7,6 +7,7 @@ import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 import {sleep} from "@sequentech/ui-essentials"
 import {SettingsContext} from "./SettingsContextProvider"
+import {getLanguageFromURL} from "../utils/queryParams"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -211,6 +212,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // be send to the login form. If already authenticated the webapp will open.
                     onLoad: "login-required",
                     checkLoginIframe: false,
+                    locale: getLanguageFromURL(),
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 

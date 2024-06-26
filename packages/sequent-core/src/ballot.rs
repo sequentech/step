@@ -397,6 +397,12 @@ pub enum InvalidVotePolicy {
     NOT_ALLOWED,
 }
 
+impl Default for InvalidVotePolicy {
+    fn default() -> Self {
+        InvalidVotePolicy::ALLOWED
+    }
+}
+
 #[derive(
     Debug,
     BorshSerialize,
@@ -668,7 +674,7 @@ impl Contest {
             .clone()
             .unwrap_or(ContestPresentation::new())
             .invalid_vote_policy
-            .unwrap_or(InvalidVotePolicy::ALLOWED);
+            .unwrap_or(InvalidVotePolicy::default());
 
         [InvalidVotePolicy::ALLOWED, InvalidVotePolicy::WARN]
             .contains(&invalid_vote_policy)

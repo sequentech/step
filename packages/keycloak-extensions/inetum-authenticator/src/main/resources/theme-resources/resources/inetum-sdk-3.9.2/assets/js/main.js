@@ -45,7 +45,6 @@ function flow() {
       // Esto simplemente es un ejemplo en caso de ser un flujo para pasaporte
       return [
         new InitialStep('permissions-passport'),
-        new InstructionsStep('instructions-passport', 'instructions_face_passport.gif', InstructionsResourceType.image, -1),
         new DocCaptureStep('passport-capture', DocSide.front, Evidence.imgPassport, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
         //new DocCaptureStep('certificate-capture', DocSide.front, Evidence.imgEUResidenceCertificate, SDKUtils.isMobile() ? 'environment' : 'user', VideoType.photo, true, -1),
         new InstructionsStep('instructions-face', SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop', InstructionsResourceType.video, -1),
@@ -603,16 +602,12 @@ dobSdk.addEventListener("status", status => {
     if (initial_step) {
       const initial_card_front = initial_step.getElementsByClassName('dob-card-front-icon')[0];
       const initial_card_back = initial_step.getElementsByClassName('dob-card-back-icon')[0];
-      initial_card_front.style.background = 'url("assets/images/instructions/passport_icon.svg") no-repeat center';
-      initial_card_back.style.background = 'url("assets/images/instructions/passport_icon.svg") no-repeat center';
     }
     // end styles
     const end_step = document.getElementById('dob-end-information-layout');
     if (end_step) {
       const end_card_front = end_step.getElementsByClassName('dob-card-front-icon')[0];
       const end_card_back = end_step.getElementsByClassName('dob-card-back-icon')[0];
-      end_card_front.style.background = 'url("assets/images/instructions/passport_icon.svg") no-repeat center';
-      end_card_back.style.background = 'url("assets/images/instructions/passport_icon.svg") no-repeat center';
     }
     // Strings
     myStrings['intro_row_obverse'] = myStrings['custom_intro_row_obverse'];
@@ -639,11 +634,11 @@ dobSdk.addEventListener("status", status => {
       const secondary_toolbar_card_back = secondary_toolbar.getElementsByClassName('dob-card-back-icon')[0];
       if (secondary_toolbar_card_front) {
         // Passport
-        secondary_toolbar_card_front.style.background = 'url("assets/images/instructions/passport_icon.svg") no-repeat center';
+        secondary_toolbar_card_front.style.background = 'url("assets/images/icons/passport_icon.svg") no-repeat center';
         secondary_toolbar_card_front.style.backgroundSize = '100% 70%';
       } else {
         // Certificate
-        secondary_toolbar_card_back.style.background = 'url("assets/images/instructions/passport_icon.svg") no-repeat center';
+        secondary_toolbar_card_back.style.background = 'url("assets/images/icons/passport_icon.svg") no-repeat center';
         secondary_toolbar_card_front.style.backgroundSize = '100% 70%';
       }
     }
