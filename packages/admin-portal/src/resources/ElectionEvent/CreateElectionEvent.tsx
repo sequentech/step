@@ -65,6 +65,35 @@ interface IElectionEventSubmit {
     tenant_id: string
     presentation: IElectionEventPresentation
 }
+interface IPullChecker<T extends RaRecord> {
+    id: string
+    resource: string
+    dependencies: any[]
+    onResolved: (result: {data: T[] | undefined; isLoading: boolean; error: any}) => void
+}
+
+const PullChecker = <T extends RaRecord>({
+    id,
+    resource,
+    dependencies,
+    onResolved,
+}: IPullChecker<T>) => {
+    const {globalSettings} = useContext(SettingsContext)
+
+    const {data, isLoading, error} = useGetList<T>(
+        resource,
+        {filter: {id: id}},
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+
+    useEffect(() => {
+        onResolved({data, isLoading, error})
+    }, [isLoading, data, error, id, ...dependencies])
+
+    return <div />
+}
 
 export const CreateElectionList: React.FC = () => {
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
@@ -80,25 +109,6 @@ export const CreateElectionList: React.FC = () => {
 
     const postDefaultValues = () => ({id: v4()})
 
-    const {
-        data: newElectionEvent,
-        isLoading: isOneLoading,
-        error,
-    } = useGetList<Sequent_Backend_Election_Event>(
-        "sequent_backend_election_event",
-        {filter: {id: newId}},
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
-
-    console.log("electionEventScreenLogs", {
-        error,
-        isLoading,
-        isOneLoading,
-        newElectionEvent,
-        newId,
-    })
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
@@ -113,7 +123,15 @@ export const CreateElectionList: React.FC = () => {
         }
     }, [tenant])
 
-    useEffect(() => {
+    const handleElectionCreated = ({
+        error,
+        isLoading: isOneLoading,
+        data: newElectionEvent,
+    }: {
+        data: Sequent_Backend_Election_Event[] | undefined
+        isLoading: boolean
+        error: any
+    }) => {
         if (isNull(newId)) {
             return
         }
@@ -132,7 +150,7 @@ export const CreateElectionList: React.FC = () => {
             refresh()
             navigate(`/sequent_backend_election_event/${newId}`)
         }
-    }, [isLoading, newElectionEvent, isOneLoading, error, newId])
+    }
 
     const handleSubmit = async (values: any): Promise<void> => {
         let electionSubmit = values as IElectionEventSubmit
@@ -233,6 +251,14 @@ export const CreateElectionList: React.FC = () => {
 
     return (
         <>
+            {newId && (
+                <PullChecker<Sequent_Backend_Election_Event>
+                    id={newId}
+                    resource="sequent_backend_election_event"
+                    dependencies={[isLoading, newId]}
+                    onResolved={handleElectionCreated}
+                />
+            )}
             <SimpleForm
                 defaultValues={postDefaultValues}
                 onSubmit={handleSubmit}
