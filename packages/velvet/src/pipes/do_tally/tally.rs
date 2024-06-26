@@ -27,7 +27,7 @@ pub struct Tally {
 }
 
 impl Tally {
-    #[instrument(skip(contest))]
+    #[instrument(skip(contest), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
         ballots_files: Vec<PathBuf>,
