@@ -354,9 +354,11 @@ impl ContestResult {
     }
 
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ContestResult) -> ContestResult {
+    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> ContestResult {
         let mut aggregate = self.clone();
-        aggregate.census += other.census;
+        if add_census {
+            aggregate.census += other.census;
+        }
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;

@@ -152,7 +152,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             .tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x));
+            .fold(contest_result, |acc, x| acc.aggregate(x, false));
 
         Ok(aggregate)
     }
