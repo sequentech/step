@@ -22,10 +22,19 @@ import {
     RecordContext,
     NumberInput,
     useGetList,
-	FormDataConsumer,
-	required,
+    FormDataConsumer,
+    required,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box, Typography} from "@mui/material"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Grid,
+    Box,
+    Typography,
+} from "@mui/material"
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Communication_Template,
@@ -44,7 +53,7 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
-	ContestsOrder,
+    ContestsOrder,
     DropFile,
     IContestPresentation,
     IElectionEventPresentation,
@@ -106,7 +115,6 @@ export const ElectionDataForm: React.FC = () => {
         id: record.election_event_id,
     })
 
-
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
         id: record.tenant_id || tenantId,
     })
@@ -137,11 +145,7 @@ export const ElectionDataForm: React.FC = () => {
         }
     )
 
-	console.log({data, record, tenantData,
-contests,
-imageData,
-receipts})
-
+    console.log({data, record, tenantData, contests, imageData, receipts})
 
     const [updateImage] = useUpdate()
 
@@ -223,7 +227,7 @@ receipts})
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
 
-			temp.presentation.contests_order =
+            temp.presentation.contests_order =
                 temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
@@ -273,7 +277,7 @@ receipts})
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
-			console.log({temp})
+            console.log({temp})
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -433,7 +437,7 @@ receipts})
     }
 
     const sortedContests = (contests ?? []).sort((a, b) => {
-		console.log({contests})
+        console.log({contests})
         let presentationA = a.presentation as IContestPresentation | undefined
         let presentationB = b.presentation as IContestPresentation | undefined
         let sortOrderA = a.name ?? -1
@@ -441,12 +445,12 @@ receipts})
         return (sortOrderA as any) - (sortOrderB as any)
     })
 
-	interface EnumChoice<T> {
-    id: T
-    name: string
-}
+    interface EnumChoice<T> {
+        id: T
+        name: string
+    }
 
-	const orderAnswerChoices = (): Array<EnumChoice<ContestsOrder>> => {
+    const orderAnswerChoices = (): Array<EnumChoice<ContestsOrder>> => {
         return Object.values(ContestsOrder).map((value) => ({
             id: value,
             name: t(`contestScreen.options.${value.toLowerCase()}`),
@@ -489,7 +493,7 @@ receipts})
                     })
                 }
 
-				console.log({parsedValue})
+                console.log({parsedValue})
 
                 return (
                     <SimpleForm
@@ -618,7 +622,7 @@ receipts})
                             </AccordionDetails>
                         </Accordion>
 
-						<Accordion
+                        <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-design"}
                             onChange={() => setExpanded("contest-data-design")}
@@ -644,9 +648,10 @@ receipts})
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-										console.log({formData})
+                                        console.log({formData})
                                         return (
-                                            formData?.presentation as any
+                                            formData?.presentation as
+                                                | any
                                                 // | IElectionPresentation
                                                 | undefined
                                         )?.contests_order === ContestsOrder.CUSTOM ? (
@@ -663,7 +668,7 @@ receipts})
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <CustomOrderInput source="contestsOrder"/>
+                                                <CustomOrderInput source="contestsOrder" />
                                                 <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </ContestRows>
                                         ) : null

@@ -21,5 +21,5 @@ export interface IElectionPresentation {
     dates?: IElectionDates
     language_conf?: ILanguageConf
     contests_order?: ContestsOrder
-    sort_order?:number
+    sort_order?: number
 }

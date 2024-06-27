@@ -175,39 +175,40 @@ pub fn decode_auditable_ballot_js(
         .into_json()
 }
 
-
 #[wasm_bindgen]
 pub fn sort_array_by_presentation(
-  array: JsValue,
-  election_presentation: Option<ElectionPresentation>,
+    array: JsValue,
+    election_presentation: Option<ElectionPresentation>,
 ) -> Result<Vec<Contest>> {
-    let contest_arr: Vec<Contest> =
-        serde_wasm_bindgen::from_value(contests)
-            .map_err(|err| {
-                format!(
-                    "Error parsing auditable ballot javascript string: {}",
-                    err
-                )
-            })?;
-            // .into_json()?;
+    let contest_arr: Vec<Contest> = serde_wasm_bindgen::from_value(contests)
+        .map_err(|err| {
+            format!("Error parsing auditable ballot javascript string: {}", err)
+        })?;
+    // .into_json()?;
     let election_presentation_val: Option<ElectionPresentation> =
-        serde_wasm_bindgen::from_value(election_presentation)
-            .map_err(|err| {
+        serde_wasm_bindgen::from_value(election_presentation).map_err(
+            |err| {
                 format!(
                     "Error parsing auditable ballot javascript string: {}",
                     err
                 )
-            })?;
-            // .into_json()?;
+            },
+        )?;
+    // .into_json()?;
 
-			//sort contests depending on election_presentation specification
+    //sort contests depending on election_presentation specification
 
-			match election_presentation_val.as_ref().and_then(|ep| ep.contests_order.clone()) {
-    Some("alphabetical") => contest_arr.sort_by(|a, b| a.name.cmp(&b.name)),
-    Some("custom") => contest_arr.sort_by(|a, b| a.presentation.sort_order.cmp(&b.presentation.sort_order)),
-    Some("random") => contest_arr.shuffle(&mut thread_rng()),
-    _ => {}
-  }
+    match election_presentation_val
+        .as_ref()
+        .and_then(|ep| ep.contests_order.clone())
+    {
+        Some("alphabetical") => contest_arr.sort_by(|a, b| a.name.cmp(&b.name)),
+        Some("custom") => contest_arr.sort_by(|a, b| {
+            a.presentation.sort_order.cmp(&b.presentation.sort_order)
+        }),
+        Some("random") => contest_arr.shuffle(&mut thread_rng()),
+        _ => {}
+    }
 }
 
 #[wasm_bindgen]

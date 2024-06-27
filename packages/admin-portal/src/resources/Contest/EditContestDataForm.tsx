@@ -322,8 +322,6 @@ export const ContestDataForm: React.FC = () => {
         },
     })
 
-	console.log('contest info', {candidates, election})
-
     useEffect(() => {
         if (election) {
             let langConf = (election.presentation as IElectionPresentation | undefined)
@@ -380,7 +378,6 @@ export const ContestDataForm: React.FC = () => {
 
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
-			// console.log('parsed Incoming', {incoming})
             if (!electionEvent) {
                 return incoming
             }
@@ -641,7 +638,7 @@ export const ContestDataForm: React.FC = () => {
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-										// console.log({formData})
+                                        // console.log({formData})
                                         return (
                                             formData?.presentation as
                                                 | IContestPresentation
@@ -661,7 +658,13 @@ export const ContestDataForm: React.FC = () => {
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
                                                 <CustomOrderInput source="candidatesOrder" />
-                                                <Box sx={{width: "100%", height: "180px", border: '1px dashed black'}}></Box>
+                                                <Box
+                                                    sx={{
+                                                        width: "100%",
+                                                        height: "180px",
+                                                        border: "1px dashed black",
+                                                    }}
+                                                ></Box>
                                             </CandidateRows>
                                         ) : null
                                     }}

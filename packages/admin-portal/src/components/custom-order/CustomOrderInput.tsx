@@ -1,19 +1,19 @@
-import { Box } from '@mui/material'
-import { isArray } from '@sequentech/ui-essentials'
-import React, { useEffect, useState } from 'react'
-import { useInput } from 'react-admin'
-import DraggableElement from '../DraggableElement'
+import {Box} from "@mui/material"
+import {isArray} from "@sequentech/ui-essentials"
+import React, {useEffect, useState} from "react"
+import {useInput} from "react-admin"
+import DraggableElement from "../DraggableElement"
 
-type props ={
+type props = {
     source: string
 }
 
-const CustomOrderInput = ({source}:props) => {
+const CustomOrderInput = ({source}: props) => {
     const {
         field: {onChange, value},
     } = useInput({source})
 
-    const [data,setData] = useState<Array<any>>(value ?? [])
+    const [data, setData] = useState<Array<any>>(value ?? [])
     const [dragIndex, setDragIndex] = useState<number>(-1)
     const [overIndex, setOverIndex] = useState<number | null>(null)
 
@@ -44,13 +44,13 @@ const CustomOrderInput = ({source}:props) => {
             return
         }
 
-        setData((prev)=>{
+        setData((prev) => {
             const reorderedItems = [...prev]
             const [reorderedItem] = reorderedItems.splice(dragIndex, 1)
             reorderedItems.splice(dropIndex, 0, reorderedItem)
-            
+
             onChange(reorderedItems) // update the form value
-            return reorderedItem;
+            return reorderedItem
         })
         onDragEnd()
     }
