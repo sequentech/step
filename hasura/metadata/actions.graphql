@@ -843,13 +843,9 @@ type OptionalImportEvent {
 
 type ManageElectionDatesOutput {
   something : String
-<<<<<<< HEAD
-=======
 }
 
 type ExportLogsOutput {
   task_id : String!
   document_id : String!
->>>>>>> 170c451e657b297b459e20e5ff4429f3ead8c0e5
 }
-
