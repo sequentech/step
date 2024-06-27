@@ -57,18 +57,6 @@ pub struct ImportElectionEventSchema {
     pub area_contests: Vec<AreaContest>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FlattenedImportElectionEventSchema {
-    pub tenant_id: String,
-    pub keycloak_event_realm: Option<String>,
-    pub election_event: String,
-    pub elections: String,
-    pub contests: String,
-    pub candidates: String,
-    pub areas: String,
-    pub area_contests: String,
-}
-
 #[instrument(err)]
 pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
