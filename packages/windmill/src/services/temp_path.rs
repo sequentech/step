@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::error::Result;
 use anyhow::Context;
+use csv::WriterBuilder;
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::io::Read;
@@ -52,6 +54,30 @@ pub fn write_into_named_temp_file(
     let temp_path_string = temp_path.to_string_lossy().to_string();
     let file_size =
         get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
+    Ok((temp_path, temp_path_string, file_size))
+}
+
+pub fn write_csv_into_named_temp_file<T: Serialize>(
+    data: &T,
+    prefix: &str,
+    suffix: &str,
+) -> Result<(TempPath, String, u64)> {
+    let mut file =
+        generate_temp_file(prefix, suffix).with_context(|| "Error creating named temp file")?;
+    let mut csv_writer = WriterBuilder::new().from_writer(vec![]);
+
+    csv_writer.serialize(&data).with_context(|| "Error Serializing data")?;
+    let data_bytes = csv_writer
+        .into_inner()
+        .with_context(|| "Error Converting data")?;
+
+    file.write_all(&data_bytes)?;
+
+    let temp_path = file.into_temp_path();
+    let temp_path_string = temp_path.to_string_lossy().to_string();
+    let file_size =
+        get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
+
     Ok((temp_path, temp_path_string, file_size))
 }
 

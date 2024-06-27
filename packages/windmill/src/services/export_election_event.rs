@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -8,7 +10,7 @@ use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
-use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::services::import_election_event::{ImportElectionEventSchema, FlattenedImportElectionEventSchema };
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
@@ -18,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
+use super::temp_path::write_csv_into_named_temp_file;
 use super::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
@@ -52,18 +55,28 @@ pub async fn read_export_data(
     })
 }
 
+pub fn flatten_election_event(data: &ImportElectionEventSchema) -> FlattenedImportElectionEventSchema {
+    FlattenedImportElectionEventSchema {
+        tenant_id: data.tenant_id.to_string(),
+        keycloak_event_realm: data.keycloak_event_realm.as_ref().map(|realm| format!("{:?}", realm)),
+        election_event: format!("{:?}", data.election_event),
+        elections: format!("{:?}", data.elections),
+        contests: format!("{:?}", data.contests),
+        candidates: format!("{:?}", data.candidates),
+        areas: format!("{:?}", data.areas),
+        area_contests: format!("{:?}", data.area_contests),
+    }
+}
+
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     data: ImportElectionEventSchema,
     document_id: &str,
 ) -> Result<Document> {
-    let data_str = serde_json::to_string(&data)?;
-    let data_bytes = data_str.into_bytes();
-
     let name = format!("export-election-event-{}", &data.election_event.id);
-
+    let flattened_data = flatten_election_event(&data);
     let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".csv")?;
+        write_csv_into_named_temp_file(&flattened_data, &name, ".csv")?;
 
     upload_and_return_document_postgres(
         transaction,
