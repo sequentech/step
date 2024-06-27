@@ -235,6 +235,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                reorder: "Réorganiser les élections"
             },
             field: {
                 name: "Nom",
@@ -387,6 +388,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                reorder: "Réorganiser les concours"
             },
             field: {
                 name: "Nom",

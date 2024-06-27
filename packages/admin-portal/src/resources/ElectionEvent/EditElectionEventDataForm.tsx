@@ -16,6 +16,9 @@ import {
     RadioButtonGroupInput,
     useNotify,
     Button,
+    SelectInput,
+    FormDataConsumer,
+    required,
 } from "react-admin"
 import {
     Accordion,
@@ -24,9 +27,10 @@ import {
     Tabs,
     Tab,
     Grid,
-    Drawer,
     Box,
+    Typography,
 } from "@mui/material"
+import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -36,7 +40,7 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {Dialog, IElectionEventPresentation, ITenantSettings} from "@sequentech/ui-essentials"
+import {Dialog, ElectionsOrder, IElectionEventPresentation, ITenantSettings} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
@@ -52,8 +56,8 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
-import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -67,6 +71,15 @@ interface ExportWrapperProps {
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
 }
+
+const ElectionRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
 
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
     electionEventId,
@@ -197,7 +210,10 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         // languages
         temp.enabled_languages = {}
-
+        
+        if (!incoming.presentation) {
+            temp.presentation = {}
+        }
         const incomingLangConf = (incoming?.presentation as IElectionEventPresentation | undefined)
             ?.language_conf
 
@@ -245,6 +261,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
             temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
+
+        temp.presentation.elections_order =
+                temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
 
         return temp
     }
@@ -397,6 +416,19 @@ export const EditElectionEventDataForm: React.FC = () => {
         console.log("EXPORT")
         setOpenExport(true)
     }
+
+    interface EnumChoice<T> {
+        id: T
+        name: string
+    }
+
+    const orderAnswerChoices = (): Array<EnumChoice<ElectionsOrder>> => {
+        return Object.values(ElectionsOrder).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         let {data, errors} = await importCandidates({
             variables: {
@@ -572,6 +604,38 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source={"presentation.show_user_profile"}
                                         label={t(`electionEventScreen.field.showUserProfile`)}
                                     />
+                                     <SelectInput
+                                    source="presentation.elections_order"
+                                    choices={orderAnswerChoices()}
+                                    validate={required()}
+                                />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => {
+                                        return (
+                                            formData?.presentation as
+                                                | any
+                                                // | IElectionPresentation
+                                                | undefined
+                                        )?.elections_order === ElectionsOrder.CUSTOM ? (
+                                            <ElectionRows>
+                                                <Typography
+                                                    variant="body1"
+                                                    component="span"
+                                                    sx={{
+                                                        padding: "0.5rem 1rem",
+                                                        fontWeight: "bold",
+                                                        margin: 0,
+                                                        display: {xs: "none", sm: "block"},
+                                                    }}
+                                                >
+                                                    {t("electionEventScreen.edit.reorder")}
+                                                </Typography>
+                                                <CustomOrderInput source="electionsOrder" />
+                                                <Box sx={{width: "100%", height: "180px"}}></Box>
+                                            </ElectionRows>
+                                        ) : null
+                                    }}
+                                </FormDataConsumer>
                                     <TextInput
                                         resettable={true}
                                         source={"presentation.logo_url"}

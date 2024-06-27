@@ -233,6 +233,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                reorder: "Reorder elections"
             },
             field: {
                 name: "Name",
@@ -383,6 +384,7 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                reorder: "Reorder contests"
             },
             field: {
                 name: "Name",

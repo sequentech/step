@@ -235,6 +235,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                reorder: "Reordenar elecciones"
             },
             field: {
                 name: "Nombre",
@@ -385,6 +386,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
+                reorder: "Reordenar concursos"
             },
             field: {
                 name: "Nombre",

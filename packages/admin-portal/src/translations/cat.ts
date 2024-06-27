@@ -235,6 +235,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                reorder: "Reordenar eleccions"
             },
             field: {
                 name: "Nom",
@@ -386,6 +387,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                reorder: "Reordenar concursos"
             },
             field: {
                 name: "Nom",

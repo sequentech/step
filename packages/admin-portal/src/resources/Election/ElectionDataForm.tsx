@@ -637,10 +637,6 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                {/* <BooleanInput source="is_acclaimed" /> */}
-                                {/* <NumberInput source="min_votes" min={0} /> */}
-                                {/* <NumberInput source="max_votes" min={0} /> */}
-                                {/* <NumberInput source="winning_candidates_num" min={0} /> */}
                                 <SelectInput
                                     source="presentation.contests_order"
                                     choices={orderAnswerChoices()}
@@ -666,7 +662,7 @@ export const ElectionDataForm: React.FC = () => {
                                                         display: {xs: "none", sm: "block"},
                                                     }}
                                                 >
-                                                    {t("contestScreen.edit.reorder")}
+                                                    {t("electionScreen.edit.reorder")}
                                                 </Typography>
                                                 <CustomOrderInput source="contestsOrder" />
                                                 <Box sx={{width: "100%", height: "180px"}}></Box>
@@ -674,33 +670,6 @@ export const ElectionDataForm: React.FC = () => {
                                         ) : null
                                     }}
                                 </FormDataConsumer>
-                                {/* <FormDataConsumer>
-                                    {({formData, ...rest}) => (
-                                        <ListsPresentationEditor
-                                            formData={formData}
-                                            candidates={candidates}
-                                            languageConf={languageConf}
-                                        />
-                                    )}
-                                </FormDataConsumer> */}
-
-                                {/* <SelectInput
-                                    source="presentation.invalid_vote_policy"
-                                    choices={invalidVotePolicyChoices()}
-                                    validate={required()}
-                                />
-
-                                <SelectInput
-                                    source="presentation.enable_checkable_lists"
-                                    choices={checkableListChoices()}
-                                    validate={required()}
-                                />
-
-                                <NumberInput
-                                    source="presentation.max_selections_per_type"
-                                    min={0}
-                                    isRequired={false}
-                                /> */}
                             </AccordionDetails>
                         </Accordion>
 
