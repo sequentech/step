@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect} from "react"
-import {useGetList, useRefresh, useSidebarState} from "react-admin"
+import {useGetOne, useRefresh, useSidebarState} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
@@ -24,10 +24,8 @@ const SelectTenants: React.FC = () => {
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
-    const {data, total} = useGetList("sequent_backend_tenant", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "updated_at", order: "DESC"},
-        filter: {is_active: true},
+    const {data} = useGetOne("sequent_backend_tenant", {
+        id: tenantId,
     })
 
     useEffect(() => {
@@ -39,41 +37,18 @@ const SelectTenants: React.FC = () => {
         }
     }, [data, tenantId, authContext.tenantId, setTenantId])
 
-    const hasSingle = total === 1
-
-    const handleChange = (event: SelectChangeEvent<unknown>) => {
-        const tenantId: string = event.target.value as string
-        setTenantId(tenantId)
-        refresh()
-    }
-
     return (
-        <Container hasSingle={hasSingle}>
+        <Container hasSingle={true}>
             <AccountCircleIcon />
             {isOpenSidebar && !!data && (
                 <>
-                    {hasSingle ? (
-                        <SingleDataContainer
-                            style={{
-                                textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
-                            }}
-                        >
-                            {data[0].slug}
-                        </SingleDataContainer>
-                    ) : (
-                        <StyledSelect
-                            labelId="tenant-select-label"
-                            id="tenant-select"
-                            value={tenantId}
-                            onChange={handleChange}
-                        >
-                            {data?.map((tenant) => (
-                                <MenuItem key={tenant.id} value={tenant.id}>
-                                    {tenant.slug}
-                                </MenuItem>
-                            ))}
-                        </StyledSelect>
-                    )}
+                    <SingleDataContainer
+                        style={{
+                            textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                        }}
+                    >
+                        {data.slug}
+                    </SingleDataContainer>
                     {showAddTenant ? (
                         <Link to="/sequent_backend_tenant/create">
                             <StyledIcon icon={faPlusCircle} />

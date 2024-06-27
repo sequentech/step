@@ -6,6 +6,8 @@ import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useNavigate, useParams} from "react-router"
 import {CircularProgress} from "@mui/material"
+import {useGetList} from "react-admin"
+import {Sequent_Backend_Tenant} from "@/gql/graphql"
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -13,8 +15,14 @@ export const LoginScreen: React.FC = () => {
 
     const params = useParams()
 
-    console.log("Login Screen")
-    console.log("Tenant ID: " + params.tenantId)
+    // console.log("Login Screen")
+    // console.log("Tenant ID: " + params.tenantId)
+
+    // const {data} = useGetList("sequent_backend_tenant", {
+    //     pagination: {page: 1, perPage: 10},
+    //     sort: {field: "updated_at", order: "DESC"},
+    //     filter: {is_active: true},
+    // })
 
     useEffect(() => {
         if (!params.tenantId) {
@@ -22,15 +30,20 @@ export const LoginScreen: React.FC = () => {
             return
         }
 
-        if (authContext.isAuthenticated) {
-            // navigate(`/test`)
-            if (authContext.tenantId !== params.tenantId) {
-                localStorage.setItem("selected-tenant-id", params.tenantId)
+        let currentTenantId = localStorage.getItem("selected-tenant-id")
+
+        if (currentTenantId !== params.tenantId){
+            localStorage.setItem("selected-tenant-id", params.tenantId)
+
+            if (authContext.isAuthenticated) {
                 authContext.logout()
                 navigate(`/`)
             }
         }
-    }, [authContext.isAuthenticated, navigate])
+
+        navigate(`/`)
+
+    }, [authContext.isAuthenticated, authContext.tenantId, params.tenantId, navigate])
 
     return (
         <Box>
