@@ -132,11 +132,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak) {
             return
         }
+        let localStoredTenant = localStorage.getItem("selected-tenant-id")
+        let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
+
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
         const keycloakConfig: KeycloakConfig = {
-            realm: `tenant-${globalSettings.DEFAULT_TENANT_ID}`,
+            realm: `tenant-${newTenant}`,
             clientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
             url: globalSettings.KEYCLOAK_URL,
         }

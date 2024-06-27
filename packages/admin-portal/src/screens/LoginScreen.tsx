@@ -17,10 +17,17 @@ export const LoginScreen: React.FC = () => {
     console.log("Tenant ID: " + params.tenantId)
 
     useEffect(() => {
+        if (!params.tenantId) {
+            navigate(`/`)
+            return
+        }
+
         if (authContext.isAuthenticated) {
             // navigate(`/test`)
-            if (authContext.tenantId != params.tenandId) {
+            if (authContext.tenantId !== params.tenantId) {
+                localStorage.setItem("selected-tenant-id", params.tenantId)
                 authContext.logout()
+                navigate(`/`)
             }
         }
     }, [authContext.isAuthenticated, navigate])
