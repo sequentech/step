@@ -5,7 +5,6 @@
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::contest::export_contests;
-use crate::services::import_election_event::AreaContest;
 use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
@@ -14,6 +13,7 @@ use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::AreaContest;
 use std::io::Seek;
 use tracing::instrument;
 use uuid::Uuid;
@@ -83,18 +83,17 @@ pub async fn import_areas_task(
                 name: Some(area_id.to_string()),
                 description: area_name,
                 r#type: None,
+                parent_id: None,
             });
             let new_area_contests: Vec<AreaContest> = contests
                 .clone()
                 .into_iter()
-                .map(|contest| -> Result<AreaContest> {
-                    Ok(AreaContest {
-                        id: Uuid::new_v4(),
-                        area_id: new_area_id.clone(),
-                        contest_id: Uuid::parse_str(&contest.id)?,
-                    })
+                .map(|contest| AreaContest {
+                    id: Uuid::new_v4().to_string(),
+                    area_id: new_area_id.to_string(),
+                    contest_id: contest.id.clone(),
                 })
-                .collect::<Result<Vec<AreaContest>>>()?;
+                .collect();
             area_contests.extend(new_area_contests);
         };
     }

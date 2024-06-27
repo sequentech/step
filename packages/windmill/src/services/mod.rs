@@ -3,8 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod ballot_publication;
-pub mod ballot_style;
+pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;
@@ -20,6 +19,7 @@ pub mod election_event_status;
 pub mod election_statistics;
 pub mod electoral_log;
 pub mod export_election_event;
+pub mod export_election_event_logs;
 pub mod import_election_event;
 pub mod insert_cast_vote;
 pub mod jwks;
@@ -29,6 +29,7 @@ pub mod private_keys;
 pub mod protocol_manager;
 pub mod public_keys;
 pub mod s3;
+pub mod tally_sheets;
 pub mod temp_path;
 pub mod to_result;
 pub mod users;

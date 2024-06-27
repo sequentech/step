@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {Identifier, SimpleForm, useCreate, useGetList, useNotify, useUpdate} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -27,6 +27,8 @@ import {
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
+import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-essentials"
+import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -88,12 +90,20 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             election_event_id: contest.election_event_id,
         },
     })
+    const checkableLists = useMemo(() => {
+        let presentation = contest.presentation as IContestPresentation | undefined
+        return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
+    }, [contest.presentation])
 
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheet")
 
         if ((tallySheet || tallySaved) && candidates) {
-            const tallySheetTemp = tallySheet ? {...tallySheet} : JSON.parse(tallySaved || "")
+            const tallySheetTemp:
+                | Sequent_Backend_Tally_Sheet
+                | Sequent_Backend_Tally_Sheet_Insert_Input = tallySheet
+                ? {...tallySheet}
+                : JSON.parse(tallySaved || "")
             if (tallySheetTemp.content) {
                 const contentTemp: IAreaContestResults = {...tallySheetTemp.content}
                 if (contentTemp.invalid_votes) {
@@ -103,13 +113,15 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 if (contentTemp.candidate_results) {
                     let candidatesResultsTemp: ICandidateResultsExtended[] = []
                     for (const candidate of candidates) {
+                        let isValid = filterCandidateByCheckableLists(candidate, checkableLists)
+                        if (!isValid) {
+                            continue
+                        }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
                             name: candidate.name,
-                        }
-                        if (contentTemp.candidate_results[candidate.id]) {
-                            candidateTemp.total_votes =
-                                contentTemp.candidate_results[candidate.id].total_votes
+                            total_votes:
+                                contentTemp.candidate_results?.[candidate.id]?.total_votes ?? 0,
                         }
 
                         candidatesResultsTemp.push(candidateTemp)
@@ -120,7 +132,9 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 setResults(contentTemp)
             }
 
-            setChannel(tallySheetTemp.channel)
+            if (tallySheetTemp.channel) {
+                setChannel(tallySheetTemp.channel)
+            }
         }
     }, [tallySheet, candidates])
 

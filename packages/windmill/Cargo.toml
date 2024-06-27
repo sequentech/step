@@ -22,7 +22,7 @@ rocket = { version = "0.5.0", features = ["json"] }
 serde = { version = "1.0.190", features = ["derive"] }
 serde_json = "1.0.105"
 serde_path_to_error = "0.1"
-reqwest = { version="0.11.18", features = ["blocking", "json"] }
+reqwest = { version="0.12", features = ["blocking", "json"] }
 handlebars = "4.3.7"
 headless_chrome = {version = "1.0.9", default-features = false}
 anyhow = "1.0.75"
@@ -45,7 +45,7 @@ async_once = "0.2.6"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 toml = "0.6.0"
 quick-error = "2.0.1"
-keycloak = "21.0.102"
+keycloak = "24.0.301"
 encoding_rs = "0.8.34"
 encoding_rs_io = "0.1.7"
 
@@ -67,6 +67,7 @@ aws-smithy-types = "1.1.1"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }
+immudb-rs = { path="../immudb-rs" }
 board-messages = { path="../board-messages" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log", "probe"] }

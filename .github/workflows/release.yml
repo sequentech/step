@@ -76,7 +76,7 @@ jobs:
           -H "Authorization: token ${{ secrets.PAT }}" \
           -H "Accept: application/vnd.github.v3+json" \
           "${{ secrets.GH_API_URL }}" \
-          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "backend-services"}}'
+          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "step"}}'
 
   cleanup:
     if: failure()

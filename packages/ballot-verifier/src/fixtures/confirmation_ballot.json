@@ -115,7 +115,8 @@
                 "base32_writeins": true,
                 "invalid_vote_policy": "allowed",
                 "shuffle_categories": true,
-                "show_points": false
+                "show_points": false,
+                "under_vote_alert": false
             }
          },
          {
@@ -217,7 +218,8 @@
                 "base32_writeins": true,
                 "invalid_vote_policy": "allowed",
                 "shuffle_categories": true,
-                "show_points": false
+                "show_points": false,
+                "under_vote_alert": false
             }
          }
       ]
@@ -248,7 +250,8 @@
                 "selected":0
              }
           ],
-          "invalid_errors": []
+          "invalid_errors": [],
+          "invalid_alerts": []
        },
        {
           "contest_id":"837993a6-1d7d-473c-82b7-5fc5a128f0a4",
@@ -275,7 +278,8 @@
                 "selected":-1
              }
           ],
-          "invalid_errors": []
+          "invalid_errors": [],
+          "invalid_alerts": []
        }
     ]
  }

@@ -25,6 +25,7 @@ use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
 use immu_board::{BoardClient, BoardMessage};
+use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
@@ -251,18 +252,32 @@ pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolMa
     Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
 }
 
-#[instrument(skip(trustee_pks), err)]
-pub async fn add_ballots_to_board<C: Ctx>(
+pub async fn get_board_messages<C: Ctx>(
     board_name: &str,
-    ballots: Vec<Ciphertext<C>>,
-    batch: BatchNumber,
-    trustee_pks: Vec<StrandSignaturePk>,
-) -> Result<()> {
-    let pm = get_protocol_manager(board_name).await?;
+    board: &mut BoardClient,
+) -> Result<Vec<Message>> {
+    let pm = get_protocol_manager::<C>(board_name).await?;
 
-    let mut board = get_board_client().await?;
     let board_messages = board.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
+    Ok(messages)
+}
+
+#[instrument(
+    skip(messages, configuration, public_key_hash, selected_trustees, ballots),
+    err
+)]
+pub async fn add_ballots_to_board<C: Ctx>(
+    pm: &ProtocolManager<C>,
+    board: &mut BoardClient,
+    board_name: &str,
+    messages: &Vec<Message>,
+    configuration: &Configuration<C>,
+    public_key_hash: PublicKeyHash,
+    selected_trustees: TrusteeSet,
+    ballots: Vec<Ciphertext<C>>,
+    batch: BatchNumber,
+) -> Result<()> {
     let existing_message = messages.iter().find(|message| {
         let batch_number = message.statement.get_batch_number();
         let kind = message.statement.get_kind();
@@ -277,17 +292,14 @@ pub async fn add_ballots_to_board<C: Ctx>(
         );
         return Ok(());
     }
-    let configuration = get_configuration::<C>(&messages)?;
-    let public_key_hash = get_public_key_hash::<C>(&messages)?;
-    let selected_trustees: TrusteeSet = generate_trustee_set::<C>(&configuration, trustee_pks);
 
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
-        &configuration,
+        configuration,
         batch,
         &Ballots::<C>::new(ballots),
         selected_trustees,
         public_key_hash,
-        &pm,
+        pm,
     )?;
     info!("Adding configuration to the board..");
     let board_message: BoardMessage = message.try_into()?;
@@ -305,4 +317,23 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
+}
+
+#[instrument(err)]
+pub async fn get_immudb_client() -> Result<Client> {
+    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+    let mut client = Client::new(&server_url, &username, &password).await?;
+    client.login().await?;
+
+    Ok(client)
+}
+
+pub fn create_named_param(name: String, value: Value) -> NamedParam {
+    NamedParam {
+        name,
+        value: Some(SqlValue { value: Some(value) }),
+    }
 }

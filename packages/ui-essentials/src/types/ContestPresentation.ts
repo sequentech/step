@@ -48,4 +48,5 @@ export interface IContestPresentation {
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>
     sort_order?: number
+    under_vote_alert?: boolean
 }

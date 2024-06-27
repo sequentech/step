@@ -53,6 +53,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
+            under_vote_alert: Some(false),
         }),
     }
 }
@@ -108,6 +109,7 @@ pub fn get_contest_min_max_votes(
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
+            under_vote_alert: Some(false),
         }),
     }
 }

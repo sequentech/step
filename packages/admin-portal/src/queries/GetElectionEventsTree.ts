@@ -24,9 +24,11 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
                 contests {
                     id
                     name
+                    alias
                     presentation
                     election_event_id
                     election_id
+                    created_at
                     candidates {
                         id
                         name
@@ -34,7 +36,9 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
                         contest_id
                         election_event_id
                         presentation
+                        image_document_id
                     }
+                    image_document_id
                 }
             }
         }

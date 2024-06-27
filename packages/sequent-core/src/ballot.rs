@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2022-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
@@ -8,7 +8,6 @@ use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::Serializer;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
@@ -448,6 +447,12 @@ pub enum InvalidVotePolicy {
     NOT_ALLOWED,
 }
 
+impl Default for InvalidVotePolicy {
+    fn default() -> Self {
+        InvalidVotePolicy::ALLOWED
+    }
+}
+
 #[derive(
     Debug,
     BorshSerialize,
@@ -631,6 +636,7 @@ pub struct ContestPresentation {
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
+    pub under_vote_alert: Option<bool>,
 }
 
 impl ContestPresentation {
@@ -650,6 +656,7 @@ impl ContestPresentation {
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
+            under_vote_alert: Some(false),
         }
     }
 }
@@ -722,7 +729,7 @@ impl Contest {
             .clone()
             .unwrap_or(ContestPresentation::new())
             .invalid_vote_policy
-            .unwrap_or(InvalidVotePolicy::ALLOWED);
+            .unwrap_or(InvalidVotePolicy::default());
 
         [InvalidVotePolicy::ALLOWED, InvalidVotePolicy::WARN]
             .contains(&invalid_vote_policy)
@@ -823,11 +830,19 @@ pub enum VotingStatus {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionEventStatistics {
-    pub num_emails_sent: i64,
-    pub num_sms_sent: i64,
+    pub num_emails_sent: Option<i64>,
+    pub num_sms_sent: Option<i64>,
+}
+
+impl Default for ElectionEventStatistics {
+    fn default() -> Self {
+        ElectionEventStatistics {
+            num_emails_sent: Some(0),
+            num_sms_sent: Some(0),
+        }
+    }
 }
 
 #[derive(
@@ -839,11 +854,19 @@ pub struct ElectionEventStatistics {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionStatistics {
-    pub num_emails_sent: i64,
-    pub num_sms_sent: i64,
+    pub num_emails_sent: Option<i64>,
+    pub num_sms_sent: Option<i64>,
+}
+
+impl Default for ElectionStatistics {
+    fn default() -> Self {
+        ElectionStatistics {
+            num_emails_sent: Some(0),
+            num_sms_sent: Some(0),
+        }
+    }
 }
 
 #[derive(
@@ -858,6 +881,14 @@ pub struct ElectionStatistics {
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+}
+
+impl Default for ElectionStatus {
+    fn default() -> Self {
+        ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+        }
+    }
 }
 
 #[derive(

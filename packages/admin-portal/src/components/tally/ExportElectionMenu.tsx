@@ -118,10 +118,11 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 name: `vote_receipts.pdf`,
             })
         } else {
+            let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
             setPerformDownload({
                 id: documentId,
                 kind: format,
-                name: `report.${format}`,
+                name: `report.${extension}`,
             })
         }
     }

@@ -20,6 +20,7 @@ import {
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
+import WatermarkBackground from "./components/WaterMark/Watermark"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -63,11 +64,10 @@ const App = () => {
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
-
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser`
+                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
             )
         } else {
             if (location.pathname === "/") {
@@ -96,7 +96,11 @@ const App = () => {
             <ScrollRestoration />
             <ApolloWrapper>
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-                <PageBanner marginBottom="auto">
+                <PageBanner
+                    marginBottom="auto"
+                    sx={{display: "flex", position: "relative", flex: 1}}
+                >
+                    <WatermarkBackground />
                     <Outlet />
                 </PageBanner>
             </ApolloWrapper>
