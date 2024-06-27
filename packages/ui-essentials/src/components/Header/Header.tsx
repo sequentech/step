@@ -16,6 +16,7 @@ import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
+import CountdownTimer from "../CountdownBar/CountdownBar"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -45,10 +46,33 @@ const StyledImage = styled(Image)`
     }
 `
 
+const StyledButtonContainerWrapper = styled.div`
+    position: relative;
+    padding: 0;
+    margin: 0;
+    width: 150px;
+    height: 44px;
+`
+
+const StyledButtonContainer = styled.div`
+    position: absolute;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+`
+
 const StyledButton = styled(Button)`
     color: ${({theme}) => theme.palette.brandColor} !important;
-    background: none;
+    background: transparent !important;
     border: none;
+    display: flex;
+    width: 100%;
+    border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
 
     &:hover,
     &:focus,
@@ -128,20 +152,23 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                <Box>
-                                    <StyledButton
-                                        className="logout-button"
-                                        aria-label="log out button"
-                                        onClick={() => {
-                                            setOpenModal(true)
-                                        }}
-                                    >
-                                        <LogoutIcon />
-                                        <Box sx={{display: {xs: "none", sm: "block"}}}>
-                                            {t("logout.buttonText")}
-                                        </Box>
-                                    </StyledButton>
-                                </Box>
+                                <StyledButtonContainerWrapper>
+                                    <StyledButtonContainer className="logout-button-container">
+                                        <StyledButton
+                                            className="logout-button"
+                                            aria-label="log out button"
+                                            onClick={() => {
+                                                setOpenModal(true)
+                                            }}
+                                        >
+                                            <LogoutIcon />
+                                            <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                                {t("logout.buttonText")}
+                                            </Box>
+                                        </StyledButton>
+                                    </StyledButtonContainer>
+                                    <CountdownTimer duration={5 * 60} />
+                                </StyledButtonContainerWrapper>
                             ) : (
                                 userProfile && (
                                     <Box>
