@@ -32,7 +32,7 @@ export const LoginScreen: React.FC = () => {
 
         let currentTenantId = localStorage.getItem("selected-tenant-id")
 
-        if (currentTenantId !== params.tenantId){
+        if (currentTenantId !== params.tenantId) {
             localStorage.setItem("selected-tenant-id", params.tenantId)
 
             if (authContext.isAuthenticated) {
@@ -42,7 +42,6 @@ export const LoginScreen: React.FC = () => {
         }
 
         navigate(`/`)
-
     }, [authContext.isAuthenticated, authContext.tenantId, params.tenantId, navigate])
 
     return (
