@@ -10,7 +10,17 @@ import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
 import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
-import {Box, Button, IconButton, Menu, MenuItem} from "@mui/material"
+import {
+    Box,
+    Button,
+    IconButton,
+    Menu,
+    MenuItem,
+    Tooltip,
+    TooltipProps,
+    Typography,
+    tooltipClasses,
+} from "@mui/material"
 import Version from "../Version/Version"
 import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
@@ -44,6 +54,30 @@ const StyledImage = styled(Image)`
     @media (max-width: ${theme.breakpoints.values.md}px) {
         height: 37px !important;
     }
+`
+
+const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
+    <Tooltip {...props} classes={{popper: className}} />
+))(({theme}) => ({
+    [`& .${tooltipClasses.tooltip}`]: {
+        backgroundColor: "#cce5ff",
+        color: "rgba(0, 0, 0)",
+        maxWidth: 220,
+        fontSize: theme.typography.pxToRem(12),
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+    },
+    [`& .MuiTooltip-arrow`]: {
+        color: "#cce5ff",
+    },
+}))
+
+const StyledButtonTooltipText = styled(Typography)`
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
 `
 
 const StyledButtonContainerWrapper = styled.div`
@@ -152,23 +186,42 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                <StyledButtonContainerWrapper>
-                                    <StyledButtonContainer className="logout-button-container">
-                                        <StyledButton
-                                            className="logout-button"
-                                            aria-label="log out button"
-                                            onClick={() => {
-                                                setOpenModal(true)
-                                            }}
-                                        >
-                                            <LogoutIcon />
-                                            <Box sx={{display: {xs: "none", sm: "block"}}}>
-                                                {t("logout.buttonText")}
-                                            </Box>
-                                        </StyledButton>
-                                    </StyledButtonContainer>
-                                    <CountdownTimer duration={5 * 60} />
-                                </StyledButtonContainerWrapper>
+                                <StyledButtonTooltip
+                                    arrow
+                                    placement="bottom-end"
+                                    title={
+                                        <>
+                                            <StyledButtonTooltipText
+                                                sx={{
+                                                    fontWeight: 500,
+                                                }}
+                                            >
+                                                Your session is going to expire.
+                                            </StyledButtonTooltipText>
+                                            <StyledButtonTooltipText>
+                                                You have 10 minutes left to cast your vote.
+                                            </StyledButtonTooltipText>
+                                        </>
+                                    }
+                                >
+                                    <StyledButtonContainerWrapper>
+                                        <StyledButtonContainer className="logout-button-container">
+                                            <StyledButton
+                                                className="logout-button"
+                                                aria-label="log out button"
+                                                onClick={() => {
+                                                    setOpenModal(true)
+                                                }}
+                                            >
+                                                <LogoutIcon />
+                                                <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                                    {t("logout.buttonText")}
+                                                </Box>
+                                            </StyledButton>
+                                        </StyledButtonContainer>
+                                        <CountdownTimer duration={5 * 60} />
+                                    </StyledButtonContainerWrapper>
+                                </StyledButtonTooltip>
                             ) : (
                                 userProfile && (
                                     <Box>
