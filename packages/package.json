@@ -34,9 +34,7 @@
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
     "generate:admin-portal": "yarn --cwd ./admin-portal generate",
     "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate",
-    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs"
-  },
-  "devDependencies": {
-    "spectaql": "^2.3.1"
+    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs",
+    "generate-full-docs": "cd ./api-docs/graphql/docs && yarn run generate-schema && cd .. && yarn run preprocess-schema && yarn run generate-docs-graphql"
   }
 }

@@ -7,6 +7,11 @@
     "spectaql": "^2.3.1"
   },
   "scripts": {
-    "generate-docs": "npx spectaql spectaql-config.yml"
+    "generate-schema": "gq http://graphql-engine:8080/v1/graphql -H \"X-Hasura-Admin-Secret: admin\" --introspect > ./graphql/docs/schema.graphql",
+    "preprocess-schema": "node ./graphql/preprocess-schema.js",
+    "generate-docs-graphql": "npx spectaql spectaql-config.yml"
+  },
+  "dependencies": {
+    "graphql": "^16.9.0"
   }
 }
