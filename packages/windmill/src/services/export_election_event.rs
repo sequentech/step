@@ -63,13 +63,13 @@ pub async fn write_export_document(
     let name = format!("export-election-event-{}", &data.election_event.id);
 
     let (temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".csv")?;
+        write_into_named_temp_file(&data_bytes, &name, ".json")?;
 
     upload_and_return_document_postgres(
         transaction,
         &temp_path_string,
         file_size,
-        "text/csv",
+        "application/json",
         &data.tenant_id.to_string(),
         &data.election_event.id,
         &name,
