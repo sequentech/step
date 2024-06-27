@@ -58,8 +58,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
-import {OrderContests} from "@/components/election/OrderContests"
-import ContestsInput from "@/components/contest/custom-order-contests/ContestsInput"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -664,7 +663,7 @@ receipts})
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <ContestsInput source="contestsOrder" />
+                                                <CustomOrderInput source="contestsOrder"/>
                                                 <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </ContestRows>
                                         ) : null

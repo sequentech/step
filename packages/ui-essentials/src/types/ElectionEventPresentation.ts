@@ -8,6 +8,12 @@ export interface IElectionEventMaterials {
     activated?: boolean
 }
 
+export enum ElectionsOrder {
+    RANDOM = "random",
+    CUSTOM = "custom",
+    ALPHABETICAL = "alphabetical",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -18,4 +24,5 @@ export interface IElectionEventPresentation {
     hide_audit?: boolean
     skip_election_list?: boolean
     show_user_profile?: boolean
+    contests_order?: ElectionsOrder
 }

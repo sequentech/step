@@ -1,25 +1,27 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
+import { Box } from '@mui/material'
+import { isArray } from '@sequentech/ui-essentials'
+import React, { useEffect, useState } from 'react'
+import { useInput } from 'react-admin'
+import DraggableElement from '../DraggableElement'
 
-import React, {useState} from "react"
-import {Sequent_Backend_Contest} from "@/gql/graphql"
-import {useInput} from "react-admin"
-import {Box} from "@mui/material"
-import DraggableElement from "@/components/DraggableElement"
-
-export interface OrderContestsProps {
+type props ={
     source: string
 }
 
-export const OrderContests: React.FC<OrderContestsProps> = ({source}) => {
+const CustomOrderInput = ({source}:props) => {
     const {
         field: {onChange, value},
     } = useInput({source})
 
-    const [contests, setContests] = useState<Array<Sequent_Backend_Contest>>(value ?? [])
+    const [data,setData] = useState<Array<any>>(value ?? [])
     const [dragIndex, setDragIndex] = useState<number>(-1)
     const [overIndex, setOverIndex] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (isArray(value) && value.length > 0) {
+            setData(value)
+        }
+    }, [value, setData, isArray])
 
     const onDragStart = (_event: React.DragEvent<HTMLDivElement>, index: number) => {
         setDragIndex(index)
@@ -38,31 +40,31 @@ export const OrderContests: React.FC<OrderContestsProps> = ({source}) => {
 
     const onDrop = (event: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
         event.preventDefault()
-
         if (dragIndex === -1 || dragIndex === dropIndex) {
             return
         }
 
-        const reorderedItems = [...contests]
-        const [reorderedItem] = reorderedItems.splice(dragIndex, 1)
-        reorderedItems.splice(dropIndex, 0, reorderedItem)
-
-        setContests(reorderedItems)
-        onChange(reorderedItems) // update the form value
-
+        setData((prev)=>{
+            const reorderedItems = [...prev]
+            const [reorderedItem] = reorderedItems.splice(dragIndex, 1)
+            reorderedItems.splice(dropIndex, 0, reorderedItem)
+            
+            onChange(reorderedItems) // update the form value
+            return reorderedItem;
+        })
         onDragEnd()
     }
 
     return (
         <Box>
-            {contests?.map((contest: Sequent_Backend_Contest, index: number) => {
+            {data?.map((lineItem: any, index: number) => {
                 return (
-                    contest && (
+                    lineItem && (
                         <DraggableElement
-                            key={contest.id}
+                            key={lineItem.id}
                             index={index}
-                            id={contest.id}
-                            name={contest.name ?? ""}
+                            id={lineItem.id}
+                            name={lineItem?.name ?? ""}
                             onDragStart={onDragStart}
                             onDragOver={onDragOver}
                             onDrop={onDrop}
@@ -74,3 +76,5 @@ export const OrderContests: React.FC<OrderContestsProps> = ({source}) => {
         </Box>
     )
 }
+
+export default CustomOrderInput

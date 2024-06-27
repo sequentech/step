@@ -63,9 +63,9 @@ import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
-import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 
 type FieldValues = Record<string, any>
 
@@ -546,7 +546,6 @@ export const ContestDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
-				console.log({parsedValue, sortedCandidates, value, incoming})
 
                 return (
                     <SimpleForm
@@ -654,7 +653,7 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <CandidatesInput source="candidatesOrder" />
+                                                <CustomOrderInput source="candidatesOrder" />
                                                 <Box sx={{width: "100%", height: "180px", border: '1px dashed black'}}></Box>
                                             </CandidateRows>
                                         ) : null
