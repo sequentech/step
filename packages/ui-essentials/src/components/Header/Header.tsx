@@ -84,7 +84,7 @@ const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
     margin: 0;
-    width: 150px;
+    width: 125px;
     height: 44px;
 `
 
@@ -106,7 +106,9 @@ const StyledButton = styled(Button)`
     border: none;
     display: flex;
     width: 100%;
-    border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
+    // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
+    outline: "none";
+    box-sizing: "border-box";
 
     &:hover,
     &:focus,
@@ -167,6 +169,23 @@ export default function Header({
         setAnchorEl(null)
     }
 
+    function timeContent() {
+        return (
+            <>
+                <StyledButtonTooltipText
+                    sx={{
+                        fontWeight: 500,
+                    }}
+                >
+                    Your session is going to expire.
+                </StyledButtonTooltipText>
+                <StyledButtonTooltipText>
+                    You have 10 minutes left to cast your vote.
+                </StyledButtonTooltipText>
+            </>
+        )
+    }
+
     return (
         <>
             <HeaderWrapper
@@ -189,20 +208,7 @@ export default function Header({
                                 <StyledButtonTooltip
                                     arrow
                                     placement="bottom-end"
-                                    title={
-                                        <>
-                                            <StyledButtonTooltipText
-                                                sx={{
-                                                    fontWeight: 500,
-                                                }}
-                                            >
-                                                Your session is going to expire.
-                                            </StyledButtonTooltipText>
-                                            <StyledButtonTooltipText>
-                                                You have 10 minutes left to cast your vote.
-                                            </StyledButtonTooltipText>
-                                        </>
-                                    }
+                                    title={timeContent()}
                                 >
                                     <StyledButtonContainerWrapper>
                                         <StyledButtonContainer className="logout-button-container">
@@ -225,18 +231,31 @@ export default function Header({
                             ) : (
                                 userProfile && (
                                     <Box>
-                                        <IconButton
-                                            className="profile-menu-button"
-                                            size="large"
-                                            aria-label="account of current user"
-                                            aria-controls="menu-appbar"
-                                            aria-haspopup="true"
-                                            onClick={handleMenu}
-                                            color="inherit"
+                                        <StyledButtonTooltip
+                                            arrow
+                                            placement="bottom-end"
+                                            title={timeContent()}
                                         >
-                                            <AccountCircle sx={{fontSize: 40}} />
-                                        </IconButton>
-
+                                            <StyledButtonContainerWrapper>
+                                                <StyledButtonContainer className="logout-button-container">
+                                                    <StyledButton
+                                                        className="logout-button"
+                                                        aria-label="log out button"
+                                                        onClick={handleMenu}
+                                                    >
+                                                        <AccountCircle sx={{fontSize: 40}} />
+                                                        <Box
+                                                            sx={{
+                                                                display: {xs: "none", sm: "block"},
+                                                            }}
+                                                        >
+                                                            Time Left
+                                                        </Box>
+                                                    </StyledButton>
+                                                </StyledButtonContainer>
+                                                <CountdownTimer duration={5 * 60} />
+                                            </StyledButtonContainerWrapper>
+                                        </StyledButtonTooltip>
                                         <Menu
                                             id="menu-appbar"
                                             anchorEl={anchorEl}

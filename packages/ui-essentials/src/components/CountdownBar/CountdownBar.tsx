@@ -8,6 +8,7 @@ const StyledContainer = styled.div`
     border-radius: 5px;
     overflow: hidden;
     margin: 0px 0;
+    border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
 `
 
 const StyledBar = styled.div`
