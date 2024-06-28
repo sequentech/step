@@ -22,11 +22,11 @@ import {
     tooltipClasses,
 } from "@mui/material"
 import Version from "../Version/Version"
-import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import CountdownTimer from "../CountdownBar/CountdownBar"
+import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -36,11 +36,6 @@ const HeaderWrapper = styled(PageBanner)`
     @media (max-width: ${theme.breakpoints.values.lg}px) {
         padding: 9px;
     }
-`
-
-const Span = styled.span`
-    font-size: 14px;
-    color: ${theme.palette.customGrey.dark};
 `
 
 const StyledLink = styled.a`
@@ -56,13 +51,13 @@ const StyledImage = styled(Image)`
     }
 `
 
-const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
+export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
     <Tooltip {...props} classes={{popper: className}} />
 ))(({theme}) => ({
     [`& .${tooltipClasses.tooltip}`]: {
-        backgroundColor: "#cce5ff",
+        backgroundColor: theme.palette.blue.light,
         color: "rgba(0, 0, 0)",
-        maxWidth: 220,
+        width: 220,
         fontSize: theme.typography.pxToRem(12),
         padding: 16,
         display: "flex",
@@ -70,17 +65,19 @@ const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
         gap: 8,
     },
     [`& .MuiTooltip-arrow`]: {
-        color: "#cce5ff",
+        color: theme.palette.blue.light,
+        fontSize: 20,
+        transform: "translate3d(200px, 0px, 0px) !important",
     },
 }))
 
-const StyledButtonTooltipText = styled(Typography)`
+export const StyledButtonTooltipText = styled(Typography)`
     padding: 0;
     margin: 0;
     font-size: 12px;
 `
 
-const StyledButtonContainerWrapper = styled.div`
+export const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
     margin: 0;
@@ -88,7 +85,7 @@ const StyledButtonContainerWrapper = styled.div`
     height: 44px;
 `
 
-const StyledButtonContainer = styled.div`
+export const StyledButtonContainer = styled.div`
     position: absolute;
     padding: 0;
     margin: 0;
@@ -100,7 +97,7 @@ const StyledButtonContainer = styled.div`
     width: 100%;
 `
 
-const StyledButton = styled(Button)`
+export const StyledButton = styled(Button)`
     color: ${({theme}) => theme.palette.brandColor} !important;
     background: transparent !important;
     border: none;
@@ -153,20 +150,17 @@ export default function Header({
     languagesList,
     errorVariant,
 }: HeaderProps) {
+    console.log("Header Props", errorVariant, logoutFn)
     const {t} = useTranslation()
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState<boolean>(false)
+    const [openTimeModal, setOpenTimeModal] = useState<boolean>(false)
 
     function handleCloseModal(value: boolean) {
         return value && logoutFn ? logoutFn() : setOpenModal(false)
     }
 
-    function handleMenu(event: React.MouseEvent<HTMLElement>) {
-        setAnchorEl(event.currentTarget)
-    }
-
-    function handleClose() {
-        setAnchorEl(null)
+    function handleToggleTimeModal(value: boolean) {
+        return setOpenTimeModal(value)
     }
 
     function timeContent() {
@@ -175,12 +169,13 @@ export default function Header({
                 <StyledButtonTooltipText
                     sx={{
                         fontWeight: 500,
+                        color: theme.palette.brandColor,
                     }}
                 >
-                    Your session is going to expire.
+                    {t("header.session.title")}
                 </StyledButtonTooltipText>
                 <StyledButtonTooltipText>
-                    You have 10 minutes left to cast your vote.
+                    {t("header.session.timeLeft", {time: "10 minutes"})}
                 </StyledButtonTooltipText>
             </>
         )
@@ -209,6 +204,18 @@ export default function Header({
                                     arrow
                                     placement="bottom-end"
                                     title={timeContent()}
+                                    slotProps={{
+                                        popper: {
+                                            modifiers: [
+                                                {
+                                                    name: "offset",
+                                                    options: {
+                                                        offset: [-50, 10],
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    }}
                                 >
                                     <StyledButtonContainerWrapper>
                                         <StyledButtonContainer className="logout-button-container">
@@ -230,98 +237,13 @@ export default function Header({
                                 </StyledButtonTooltip>
                             ) : (
                                 userProfile && (
-                                    <Box>
-                                        <StyledButtonTooltip
-                                            arrow
-                                            placement="bottom-end"
-                                            title={timeContent()}
-                                        >
-                                            <StyledButtonContainerWrapper>
-                                                <StyledButtonContainer className="logout-button-container">
-                                                    <StyledButton
-                                                        className="logout-button"
-                                                        aria-label="log out button"
-                                                        onClick={handleMenu}
-                                                    >
-                                                        <AccountCircle sx={{fontSize: 40}} />
-                                                        <Box
-                                                            sx={{
-                                                                display: {xs: "none", sm: "block"},
-                                                            }}
-                                                        >
-                                                            Time Left
-                                                        </Box>
-                                                    </StyledButton>
-                                                </StyledButtonContainer>
-                                                <CountdownTimer duration={5 * 60} />
-                                            </StyledButtonContainerWrapper>
-                                        </StyledButtonTooltip>
-                                        <Menu
-                                            id="menu-appbar"
-                                            anchorEl={anchorEl}
-                                            anchorOrigin={{
-                                                vertical: "bottom",
-                                                horizontal: "right",
-                                            }}
-                                            keepMounted
-                                            transformOrigin={{
-                                                vertical: "top",
-                                                horizontal: "right",
-                                            }}
-                                            sx={{maxWidth: 220}}
-                                            open={Boolean(anchorEl)}
-                                            onClose={handleClose}
-                                        >
-                                            {(!!userProfile.username || !!userProfile.email) && (
-                                                <MenuItem>
-                                                    <Box
-                                                        sx={{
-                                                            textOverflow: "ellipsis",
-                                                            whiteSpace: "nowrap",
-                                                            overflow: "hidden",
-                                                        }}
-                                                    >
-                                                        {!!userProfile.username && (
-                                                            <>
-                                                                <span title={userProfile.username}>
-                                                                    {userProfile.username}
-                                                                </span>
-                                                                <br />
-                                                            </>
-                                                        )}
-                                                        {!!userProfile.email && (
-                                                            <Span title={userProfile.email}>
-                                                                {userProfile.email}
-                                                            </Span>
-                                                        )}
-                                                    </Box>
-                                                </MenuItem>
-                                            )}
-                                            {userProfile.openLink && (
-                                                <MenuItem
-                                                    onClick={() => {
-                                                        handleClose()
-                                                        userProfile?.openLink?.()
-                                                    }}
-                                                >
-                                                    <AccountCircle sx={{marginRight: "14px"}} />
-                                                    {t("header.profile")}
-                                                </MenuItem>
-                                            )}
-                                            {logoutFn && (
-                                                <MenuItem
-                                                    className="logout-button"
-                                                    onClick={() => {
-                                                        setOpenModal(true)
-                                                        handleClose()
-                                                    }}
-                                                >
-                                                    <LogoutIcon sx={{marginRight: "14px"}} />
-                                                    {t("logout.buttonText")}
-                                                </MenuItem>
-                                            )}
-                                        </Menu>
-                                    </Box>
+                                    <ProfileMenu
+                                        timeContent={timeContent}
+                                        userProfile={userProfile}
+                                        logoutFn={logoutFn}
+                                        setOpenModal={setOpenModal}
+                                        handleOpenTimeModal={() => handleToggleTimeModal(true)}
+                                    />
                                 )
                             )}
                         </Box>
@@ -338,6 +260,16 @@ export default function Header({
                 variant="action"
             >
                 <p>{t("logout.modal.content")}</p>
+            </Dialog>
+            <Dialog
+                handleClose={() => handleToggleTimeModal(false)}
+                open={openTimeModal}
+                title={t("header.session.title")}
+                ok={t("logout.modal.ok")}
+                cancel={t("logout.modal.close")}
+                variant="info"
+            >
+                <p>{t("header.session.timeLeft", {time: "less than 1 minute"})}</p>
             </Dialog>
         </>
     )

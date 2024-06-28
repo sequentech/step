@@ -13,15 +13,23 @@ const StyledContainer = styled.div`
 
 const StyledBar = styled.div`
     height: 100%;
-    background: #cce5ff;
+    background: ${({theme}) => theme.palette.blue.light} !important;
     transition: width 1s linear;
 `
 
-const CountdownTimer = ({duration}) => {
+interface ICountdownTimer {
+    duration: number
+    onTimeMinReached?: () => void
+    minTime?: number
+}
+
+const CountdownTimer = ({duration, onTimeMinReached, minTime = 60}: ICountdownTimer) => {
     const [timeLeft, setTimeLeft] = useState(duration)
 
     useEffect(() => {
         if (timeLeft > 0) {
+            if (timeLeft < minTime) onTimeMinReached?.()
+
             const timerId = setInterval(() => {
                 setTimeLeft(timeLeft - 1)
             }, 1000)
