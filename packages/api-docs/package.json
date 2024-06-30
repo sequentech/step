@@ -12,5 +12,8 @@
   "dependencies": {
     "graphql": "^16.9.0",
     "spectaql": "^2.3.1"
+  },
+  "devDependencies": {
+    "gq": "^0.10.0"
   }
 }
