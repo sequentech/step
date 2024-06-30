@@ -24,6 +24,10 @@ jobs:
     
     - name: Navigate to api-docs package
       run: cd packages/api-docs/graphql
+      
+    - name: Install dependencies
+      run: yarn install
+      working-directory: ./packages/api-docs/graphql
 
     - name: Generate graphql documentation
       run: yarn run generate-full-docs
