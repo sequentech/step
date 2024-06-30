@@ -20,15 +20,12 @@ jobs:
       uses: borales/actions-yarn@v4
       with:
         cmd: install # will run `yarn install` command
-        dir: packages/
-    
-    - name: Navigate to api-docs package
-      run: cd packages/api-docs/graphql
-      
+        dir: packages/api-docs
+
     - name: Install dependencies
       run: yarn install
       working-directory: ./packages/api-docs/graphql
 
     - name: Generate graphql documentation
       run: yarn run generate-full-docs
-      working-directory: packages
+      working-directory: packages/api-docs

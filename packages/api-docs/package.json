@@ -9,7 +9,9 @@
   "scripts": {
     "generate-schema": "gq http://graphql-engine:8080/v1/graphql -H \"X-Hasura-Admin-Secret: admin\" --introspect > ./graphql/docs/schema.graphql",
     "preprocess-schema": "node ./graphql/preprocess-schema.js",
-    "generate-docs-graphql": "npx spectaql spectaql-config.yml"
+    "generate-docs-graphql": "npx spectaql spectaql-config.yml",
+    "generate-full-docs": "mkdir -p ./graphql/docs && cd ./graphql/docs && yarn run generate-schema && cd .. && yarn run preprocess-schema && yarn run generate-docs-graphql"
+
   },
   "dependencies": {
     "graphql": "^16.9.0"
