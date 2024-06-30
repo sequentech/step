@@ -45,7 +45,10 @@ export const electionsSlice = createSlice({
 export const {setElection} = electionsSlice.actions
 
 export const selectElectionIds = (state: RootState) => {
-    return sortElectionList(Object.values(state.elections) as any,Object.values(state.electionEvent)[0]?.presentation?.elections_order).map((election) => election.id)
+    return sortElectionList(
+        Object.values(state.elections) as any,
+        Object.values(state.electionEvent)[0]?.presentation?.elections_order
+    ).map((election) => election.id)
 }
 
 export const selectElectionById = (electionId: string) => (state: RootState) =>

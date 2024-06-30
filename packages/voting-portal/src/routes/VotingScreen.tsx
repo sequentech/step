@@ -272,7 +272,7 @@ const VotingScreen: React.FC = () => {
     }
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
-    const contests = sortContestList(ballotStyle.ballot_eml.contests,contestsOrderType)
+    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     const warnAllowContinue = (value: boolean) => {
         setOpenNonVoted(false)

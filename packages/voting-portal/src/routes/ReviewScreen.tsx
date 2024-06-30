@@ -260,7 +260,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
-    
+
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
@@ -300,7 +300,7 @@ export const ReviewScreen: React.FC = () => {
     }
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
-    const contests = sortContestList(ballotStyle.ballot_eml.contests,contestsOrderType)
+    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
