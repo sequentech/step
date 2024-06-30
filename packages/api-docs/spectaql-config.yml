@@ -4,7 +4,10 @@ spectaql:
   logoFile: '/workspaces/step/packages/admin-portal/public/Sequent_logo_small.png'
 
 introspection:
-  schemaFile: "./graphql/docs/schema-no-schema-names.graphql"
+  # schemaFile: "./graphql/docs/schema-no-schema-names.graphql"
+  url: "http://graphql-engine:8080/v1/graphql"
+  headers:
+    x-hasura-admin-secret: "admin"
 
 template:
   name: "spectaql"
@@ -13,4 +16,3 @@ info:
   title: "Your API Documentation"
   description: "Detailed description of your API"
   version: "1.0.0"
-  x-url: "http://localhost:4000/graphql"

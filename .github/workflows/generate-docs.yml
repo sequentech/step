@@ -11,24 +11,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Set Node.js 20.x
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20.x
-
     - name: Install dependencies
       run: yarn install
       working-directory: ./packages/api-docs/graphql
-
-    # - name: Run GraphQL Introspection
-    #   run: |
-    #       yarn run generate-schema
-    #   working-directory: ./packages/api-docs/graphql
-  
-    # - name: Preprocess schema
-    #   run: yarn run preprocess-schema
-    #   working-directory: ./packages/api-docs/graphql
   
     - name: Generate GraphQL documentation
-      run: yarn run generate-full-docs
+      run: yarn run generate-docs-graphql
       working-directory: ./packages/api-docs/graphql
