@@ -20,15 +20,15 @@ jobs:
       run: yarn install
       working-directory: ./packages/api-docs/graphql
 
-    - name: Run GraphQL Introspection
-      run: |
-          yarn run generate-schema
-      working-directory: ./packages/api-docs/graphql
+    # - name: Run GraphQL Introspection
+    #   run: |
+    #       yarn run generate-schema
+    #   working-directory: ./packages/api-docs/graphql
   
-    - name: Preprocess schema
-      run: yarn run preprocess-schema
-      working-directory: ./packages/api-docs/graphql
+    # - name: Preprocess schema
+    #   run: yarn run preprocess-schema
+    #   working-directory: ./packages/api-docs/graphql
   
     - name: Generate GraphQL documentation
-      run: yarn run generate-docs-graphql
+      run: yarn run generate-full-docs
       working-directory: ./packages/api-docs/graphql
