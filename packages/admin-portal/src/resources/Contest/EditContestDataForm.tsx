@@ -51,7 +51,6 @@ import {
     EInvalidVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
-    ILanguageConf,
     IElectionEventPresentation,
     isArray,
     ICandidatePresentation,
@@ -123,7 +122,6 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
     const [value, setValue] = useState(0)
     const {t} = useTranslation()
 
-    let presentation = formData?.presentation as IContestPresentation | undefined
     let types = candidates?.map((candidate) => candidate.type!!).filter((type) => type) ?? []
     types = uniqueArray(types)
 

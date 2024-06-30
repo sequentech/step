@@ -70,6 +70,7 @@ export interface IElection {
     alias_i18n?: TranslationDict
     image_document_id: string
     contests: Array<IContest>
+    presentation?: IElectionPresentation
 }
 
 export interface ICandidate {

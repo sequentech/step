@@ -24,5 +24,5 @@ export interface IElectionEventPresentation {
     hide_audit?: boolean
     skip_election_list?: boolean
     show_user_profile?: boolean
-    contests_order?: ElectionsOrder
+    elections_order?: ElectionsOrder
 }

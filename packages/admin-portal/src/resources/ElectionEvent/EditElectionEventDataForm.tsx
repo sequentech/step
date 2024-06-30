@@ -19,6 +19,7 @@ import {
     SelectInput,
     FormDataConsumer,
     required,
+    useGetList,
 } from "react-admin"
 import {
     Accordion,
@@ -40,7 +41,13 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {Dialog, ElectionsOrder, IElectionEventPresentation, ITenantSettings} from "@sequentech/ui-essentials"
+import {
+    Dialog,
+    ElectionsOrder,
+    IElectionEventPresentation,
+    IElectionPresentation,
+    ITenantSettings,
+} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
@@ -49,6 +56,7 @@ import {TVotingSetting} from "@/types/settings"
 import {
     ExportElectionEventMutation,
     ImportCandidatesMutation,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
@@ -62,6 +70,7 @@ import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
+    electionsOrder?: Array<Sequent_Backend_Election>
 } & Sequent_Backend_Election_Event
 
 interface ExportWrapperProps {
@@ -179,6 +188,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         redirect: false,
         undoable: false,
     })
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        filter: {
+            tenant_id: record.tenant_id,
+            election_event_id: record.id,
+        },
+    })
 
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
@@ -210,7 +225,7 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         // languages
         temp.enabled_languages = {}
-        
+
         if (!incoming.presentation) {
             temp.presentation = {}
         }
@@ -263,7 +278,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         temp.presentation.elections_order =
-                temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
+            temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
 
         return temp
     }
@@ -446,6 +461,14 @@ export const EditElectionEventDataForm: React.FC = () => {
         notify("Candidates successfully imported", {type: "success"})
     }
 
+    const sortedElections = (elections ?? []).sort((a, b) => {
+        let presentationA = a.presentation as IElectionPresentation | undefined
+        let presentationB = b.presentation as IElectionPresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
     return (
         <>
             <Box
@@ -482,6 +505,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     )
                     return (
                         <SimpleForm
+                            defaultValues={{electionsOrder: sortedElections}}
                             validate={formValidator}
                             record={parsedValue}
                             toolbar={
@@ -604,38 +628,40 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source={"presentation.show_user_profile"}
                                         label={t(`electionEventScreen.field.showUserProfile`)}
                                     />
-                                     <SelectInput
-                                    source="presentation.elections_order"
-                                    choices={orderAnswerChoices()}
-                                    validate={required()}
-                                />
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => {
-                                        return (
-                                            formData?.presentation as
-                                                | any
-                                                // | IElectionPresentation
-                                                | undefined
-                                        )?.elections_order === ElectionsOrder.CUSTOM ? (
-                                            <ElectionRows>
-                                                <Typography
-                                                    variant="body1"
-                                                    component="span"
-                                                    sx={{
-                                                        padding: "0.5rem 1rem",
-                                                        fontWeight: "bold",
-                                                        margin: 0,
-                                                        display: {xs: "none", sm: "block"},
-                                                    }}
-                                                >
-                                                    {t("electionEventScreen.edit.reorder")}
-                                                </Typography>
-                                                <CustomOrderInput source="electionsOrder" />
-                                                <Box sx={{width: "100%", height: "180px"}}></Box>
-                                            </ElectionRows>
-                                        ) : null
-                                    }}
-                                </FormDataConsumer>
+                                    <SelectInput
+                                        source="presentation.elections_order"
+                                        choices={orderAnswerChoices()}
+                                        validate={required()}
+                                    />
+                                    <FormDataConsumer>
+                                        {({formData, ...rest}) => {
+                                            return (
+                                                formData?.presentation as
+                                                    | any
+                                                    // | IElectionPresentation
+                                                    | undefined
+                                            )?.elections_order === ElectionsOrder.CUSTOM ? (
+                                                <ElectionRows>
+                                                    <Typography
+                                                        variant="body1"
+                                                        component="span"
+                                                        sx={{
+                                                            padding: "0.5rem 1rem",
+                                                            fontWeight: "bold",
+                                                            margin: 0,
+                                                            display: {xs: "none", sm: "block"},
+                                                        }}
+                                                    >
+                                                        {t("electionEventScreen.edit.reorder")}
+                                                    </Typography>
+                                                    <CustomOrderInput source="electionsOrder" />
+                                                    <Box
+                                                        sx={{width: "100%", height: "180px"}}
+                                                    ></Box>
+                                                </ElectionRows>
+                                            ) : null
+                                        }}
+                                    </FormDataConsumer>
                                     <TextInput
                                         resettable={true}
                                         source={"presentation.logo_url"}

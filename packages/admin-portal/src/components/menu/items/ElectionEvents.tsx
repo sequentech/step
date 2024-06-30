@@ -165,23 +165,29 @@ export default function ElectionEvents() {
     resultData = {
         electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
             (electionEvent: ElectionEventType) => {
+                const electionOrderType = electionEvent?.presentation?.elections_order
                 return {
                     ...electionEvent,
-                    elections: sortElectionList(electionEvent.elections).map((election: any) => {
-                        return {
-                            ...election,
-                            contests: sortContestList(election.contests).map((contest: any) => {
-                                let orderType = contest.presentation?.candidates_order
+                    elections: sortElectionList(electionEvent.elections, electionOrderType).map(
+                        (election: any) => {
+                            const contestOrderType = election?.presentation?.contests_order
+                            return {
+                                ...election,
+                                contests: sortContestList(election.contests, contestOrderType).map(
+                                    (contest: any) => {
+                                        let orderType = contest.presentation?.candidates_order
 
-                                contest.candidates = sortCandidatesInContest(
-                                    contest.candidates,
-                                    orderType
-                                ) as any
+                                        contest.candidates = sortCandidatesInContest(
+                                            contest.candidates,
+                                            orderType
+                                        ) as any
 
-                                return contest
-                            }),
+                                        return contest
+                                    }
+                                ),
+                            }
                         }
-                    }),
+                    ),
                 }
             }
         ),

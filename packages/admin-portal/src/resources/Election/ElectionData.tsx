@@ -11,22 +11,19 @@ import {Sequent_Backend_Contest} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-essentials"
 
 export const EditElectionData: React.FC = () => {
-    const [update] = useUpdate<Sequent_Backend_Contest>()
+    const [update] = useUpdate()
 
     function updateContestsOrder(data: Sequent_Backend_Election_Extended) {
         data.contestsOrder?.map((contest: Sequent_Backend_Contest, index: number) => {
             let electionPresentation = data.presentation as IElectionPresentation | undefined
             if (electionPresentation?.contests_order === ContestsOrder.CUSTOM) {
                 let contestPresentation = (contest.presentation ?? {}) as IContestPresentation
-                contestPresentation.sort_order = index
-                console.log({contestPresentation})
                 return update("sequent_backend_contest", {
                     id: contest.id,
                     data: {
                         presentation: {
                             ...contestPresentation,
                             sort_order: index,
-                            x: "test",
                         },
                     },
                     previousData: contest,
@@ -37,8 +34,10 @@ export const EditElectionData: React.FC = () => {
     }
 
     const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
-        // update candidates
+        // update contests
         updateContestsOrder(data)
+
+        delete data.contestsOrder
 
         // save receipts object
         const receipts: IRECEIPTS = {}

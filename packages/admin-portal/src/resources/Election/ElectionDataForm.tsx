@@ -145,8 +145,6 @@ export const ElectionDataForm: React.FC = () => {
         }
     )
 
-    console.log({data, record, tenantData, contests, imageData, receipts})
-
     const [updateImage] = useUpdate()
 
     useEffect(() => {
@@ -437,12 +435,11 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     const sortedContests = (contests ?? []).sort((a, b) => {
-        console.log({contests})
         let presentationA = a.presentation as IContestPresentation | undefined
         let presentationB = b.presentation as IContestPresentation | undefined
-        let sortOrderA = a.name ?? -1
-        let sortOrderB = b.name ?? -1
-        return (sortOrderA as any) - (sortOrderB as any)
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
     })
 
     interface EnumChoice<T> {

@@ -49,15 +49,15 @@ const CustomOrderInput = ({source}: props) => {
         }
 
         setData((prev) => {
-            if(!prev || !prev.length) return []
-        const reorderedItems = [...prev];
-        const [draggedItem] = reorderedItems.splice(dragIndex, 1);
+            if (!prev || !prev.length) return []
+            const reorderedItems = [...prev]
+            const [draggedItem] = reorderedItems.splice(dragIndex, 1)
 
-        reorderedItems.splice(dropIndex, 0, draggedItem);
+            reorderedItems.splice(dropIndex, 0, draggedItem)
 
-        onChange(reorderedItems); // Update the form value
-        return reorderedItems;
-        });
+            onChange(reorderedItems) // Update the form value
+            return reorderedItems
+        })
         onDragEnd()
     }
 
