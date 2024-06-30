@@ -1,7 +1,7 @@
 name: Generate API Documentation
 
 on:
-  push:
+  pull_request:
     branches:
       - feat/meta-1148A/main
 
