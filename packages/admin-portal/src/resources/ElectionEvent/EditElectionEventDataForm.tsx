@@ -147,7 +147,7 @@ const ExportWrapper: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.csv`}
+                        fileName={`election-event-${electionEventId}-export.json`}
                         onDownload={() => {
                             console.log("onDownload called")
                             setExportDocumentId(undefined)
