@@ -28,4 +28,4 @@ jobs:
 
     - name: Generate graphql documentation
       run: yarn run generate-full-docs
-      working-directory: packages/api-docs
+      working-directory: ./packages/api-docs
