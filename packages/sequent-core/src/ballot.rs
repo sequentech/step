@@ -420,6 +420,31 @@ pub enum ElectionsOrder {
 }
 
 #[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
+pub struct Election {
+    pub id: String,
+    pub election_event_id: String,
+    pub name: Option<String>,
+    pub name_i18n: Option<I18nContent>,
+    pub description: Option<String>,
+    pub description_i18n: Option<I18nContent>,
+    pub alias: Option<String>,
+    pub alias_i18n: Option<I18nContent>,
+    pub image_document_id: Option<String>,
+    pub contests: Option<Vec<Contest>>,
+    pub presentation: Option<ElectionPresentation>,
+}
+
+#[derive(
     Debug,
     BorshSerialize,
     BorshDeserialize,

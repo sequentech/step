@@ -16,6 +16,7 @@ use crate::util::normalize_vote::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
@@ -176,39 +177,201 @@ pub fn decode_auditable_ballot_js(
 }
 
 #[wasm_bindgen]
-pub fn sort_array_by_presentation(
-    array: JsValue,
-    election_presentation: Option<ElectionPresentation>,
-) -> Result<Vec<Contest>> {
-    let contest_arr: Vec<Contest> = serde_wasm_bindgen::from_value(contests)
-        .map_err(|err| {
-            format!("Error parsing auditable ballot javascript string: {}", err)
+pub fn sort_candidates_list_js(
+    candidates: JsValue,
+    order: JsValue,
+    apply_random: JsValue,
+) -> Result<JsValue, JsValue> {
+    let mut all_candidates: Vec<Candidate> =
+        serde_wasm_bindgen::from_value(candidates).map_err(|err| {
+            JsValue::from_str(&format!("Error parsing candidates: {}", err))
         })?;
-    // .into_json()?;
-    let election_presentation_val: Option<ElectionPresentation> =
-        serde_wasm_bindgen::from_value(election_presentation).map_err(
-            |err| {
-                format!(
-                    "Error parsing auditable ballot javascript string: {}",
-                    err
-                )
-            },
-        )?;
-    // .into_json()?;
+    let order_field: CandidatesOrder =
+        serde_wasm_bindgen::from_value(order.clone())
+            .unwrap_or(CandidatesOrder::Alphabetical);
 
-    //sort contests depending on election_presentation specification
+    let should_apply_random: bool =
+        serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
 
-    match election_presentation_val
-        .as_ref()
-        .and_then(|ep| ep.contests_order.clone())
-    {
-        Some("alphabetical") => contest_arr.sort_by(|a, b| a.name.cmp(&b.name)),
-        Some("custom") => contest_arr.sort_by(|a, b| {
-            a.presentation.sort_order.cmp(&b.presentation.sort_order)
-        }),
-        Some("random") => contest_arr.shuffle(&mut thread_rng()),
-        _ => {}
+    match order_field {
+        CandidatesOrder::Alphabetical => {
+            all_candidates.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        CandidatesOrder::Custom => {
+            all_candidates.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        CandidatesOrder::Random => {
+            if should_apply_random {
+                let mut rng = rand::thread_rng();
+                all_candidates.shuffle(&mut rng);
+            }
+        }
     }
+
+    let serializer = Serializer::json_compatible();
+    all_candidates
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting array to json {:?}", err))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sort_contests_list_js(
+    contests: JsValue,
+    order: JsValue,
+    apply_random: JsValue,
+) -> Result<JsValue, JsValue> {
+    let mut all_contests: Vec<Contest> =
+        serde_wasm_bindgen::from_value(contests).map_err(|err| {
+            JsValue::from_str(&format!("Error parsing contests: {}", err))
+        })?;
+    let order_field: ContestsOrder =
+        serde_wasm_bindgen::from_value(order.clone())
+            .unwrap_or(ContestsOrder::Alphabetical);
+
+    let should_apply_random: bool =
+        serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
+
+    match order_field {
+        ContestsOrder::Alphabetical => {
+            all_contests.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        ContestsOrder::Custom => {
+            all_contests.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        ContestsOrder::Random => {
+            if should_apply_random {
+                let mut rng = rand::thread_rng();
+                all_contests.shuffle(&mut rng);
+            }
+        }
+    }
+
+    let serializer = Serializer::json_compatible();
+    all_contests
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting array to json {:?}", err))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sort_elections_list_js(
+    elections: JsValue,
+    order: JsValue,
+    apply_random: JsValue,
+) -> Result<JsValue, JsValue> {
+    let mut all_elections: Vec<Election> =
+        serde_wasm_bindgen::from_value(elections).map_err(|err| {
+            JsValue::from_str(&format!("Error parsing elections: {}", err))
+        })?;
+    let order_field: ElectionsOrder =
+        serde_wasm_bindgen::from_value(order.clone())
+            .unwrap_or(ElectionsOrder::Alphabetical);
+
+    let should_apply_random: bool =
+        serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
+
+    match order_field {
+        ElectionsOrder::Alphabetical => {
+            all_elections.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        ElectionsOrder::Custom => {
+            all_elections.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        ElectionsOrder::Random => {
+            if should_apply_random {
+                let mut rng = rand::thread_rng();
+                all_elections.shuffle(&mut rng);
+            }
+        }
+    }
+
+    let serializer = Serializer::json_compatible();
+    all_elections
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting array to json {:?}", err))
+        .into_json()
 }
 
 #[wasm_bindgen]
