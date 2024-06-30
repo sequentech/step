@@ -22,7 +22,7 @@ jobs:
 
     - name: Run GraphQL Introspection
       run: |
-          npx gq http://graphql-engine:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect > ./docs/schema.json
+          npx gq http://graphql-engine:8080/v1/graphql -H \"X-Hasura-Admin-Secret: admin\" --introspect > ./graphql/docs/schema.graphql"
       working-directory: ./packages/api-docs/graphql
   
     - name: Preprocess schema
