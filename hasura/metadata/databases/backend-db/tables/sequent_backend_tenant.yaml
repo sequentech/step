@@ -81,6 +81,15 @@ select_permissions:
       id:
         _eq: X-Hasura-Tenant-Id
   role: user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_active
+    - slug
+    - id
+    filter: {}
+  role: unauthorized
 update_permissions:
 - comment: ""
   permission:
