@@ -188,7 +188,7 @@ pub fn sort_candidates_list_js(
         })?;
     let order_field: CandidatesOrder =
         serde_wasm_bindgen::from_value(order.clone())
-            .unwrap_or(CandidatesOrder::Alphabetical);
+            .unwrap_or(CandidatesOrder::default());
 
     let should_apply_random: bool =
         serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
@@ -254,7 +254,7 @@ pub fn sort_contests_list_js(
         })?;
     let order_field: ContestsOrder =
         serde_wasm_bindgen::from_value(order.clone())
-            .unwrap_or(ContestsOrder::Alphabetical);
+            .unwrap_or(ContestsOrder::default());
 
     let should_apply_random: bool =
         serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
@@ -320,7 +320,7 @@ pub fn sort_elections_list_js(
         })?;
     let order_field: ElectionsOrder =
         serde_wasm_bindgen::from_value(order.clone())
-            .unwrap_or(ElectionsOrder::Alphabetical);
+            .unwrap_or(ElectionsOrder::default());
 
     let should_apply_random: bool =
         serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);

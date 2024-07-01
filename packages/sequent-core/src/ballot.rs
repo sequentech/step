@@ -368,6 +368,11 @@ pub enum CandidatesOrder {
     #[serde(rename = "alphabetical")]
     Alphabetical,
 }
+impl Default for CandidatesOrder {
+    fn default() -> Self {
+        CandidatesOrder::Alphabetical
+    }
+}
 
 #[derive(
     Debug,
@@ -393,6 +398,11 @@ pub enum ContestsOrder {
     #[serde(rename = "alphabetical")]
     Alphabetical,
 }
+impl Default for ContestsOrder {
+    fn default() -> Self {
+        ContestsOrder::Alphabetical
+    }
+}
 
 #[derive(
     Debug,
@@ -417,6 +427,11 @@ pub enum ElectionsOrder {
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
     Alphabetical,
+}
+impl Default for ElectionsOrder {
+    fn default() -> Self {
+        ElectionsOrder::Alphabetical
+    }
 }
 
 #[derive(
