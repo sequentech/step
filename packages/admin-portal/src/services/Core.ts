@@ -12,7 +12,7 @@ export const sortElectionList = (
     applyRandom?: boolean
 ): Array<IElection> => {
     try {
-        
+        if(!elections || !elections.length) return elections
         return sort_elections_list_js(elections, order, applyRandom)
     } catch (error) {
         console.log(error)
@@ -26,6 +26,7 @@ export const sortContestList = (
     applyRandom?: boolean
 ): Array<IContest> => {
     try {
+        if(!contests || !contests.length) return contests
         return sort_contests_list_js(contests, order, applyRandom)
     } catch (error) {
         console.log(error)
@@ -39,6 +40,7 @@ export const sortCandidatesInContest = (
     applyRandom?: boolean
 ): Array<ICandidate> => {
     try {
+        if(!candidates || !candidates.length) return candidates
         return sort_candidates_list_js(candidates, order, applyRandom)
     } catch (error) {
         console.log(error)

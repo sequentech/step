@@ -455,7 +455,7 @@ pub struct Election {
     pub alias: Option<String>,
     pub alias_i18n: Option<I18nContent>,
     pub image_document_id: Option<String>,
-    pub contests: Vec<Contest>,
+    pub contests: Option<Vec<Contest>>,
     pub presentation: Option<ElectionPresentation>,
 }
 
