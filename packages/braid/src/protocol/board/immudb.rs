@@ -46,7 +46,8 @@ impl ImmudbBoard {
             let messages = self
                 .get_remote_messages_consecutively(last_id.unwrap_or(0))
                 .await?;
-            // let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
+            // If last_id is None, use 0 as last_id: immudb sequences start with 1
+            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
 
             messages
                 .iter()

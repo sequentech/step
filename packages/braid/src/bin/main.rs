@@ -133,7 +133,7 @@ async fn main() -> Result<()> {
                 continue;
             }
 
-            info!("Creating new session created for board '{}'..", board_name.clone());
+            info!("Creating new session for board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> =
                 Trustee::new(name.clone(), sk.clone(), ek.clone());
             let board = BoardParams::new(
