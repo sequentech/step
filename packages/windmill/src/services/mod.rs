@@ -29,6 +29,7 @@ pub mod private_keys;
 pub mod protocol_manager;
 pub mod public_keys;
 pub mod s3;
+pub mod tally_sheets;
 pub mod temp_path;
 pub mod to_result;
 pub mod users;

@@ -124,13 +124,14 @@ impl Pipe for DoTally {
                     };
                     // Note: children areas includes itself
                     let children_areas = area_tree.get_all_children();
+
                     let num_children_areas = children_areas
                         .clone()
                         .iter()
                         .filter(|child| child.id != area_input.id.to_string())
                         .count();
 
-                    if num_children_areas > 1usize {
+                    if num_children_areas > 0usize {
                         let base_aggregate_path = base_output_path
                             .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
                         fs::create_dir_all(&base_aggregate_path)?;
@@ -354,58 +355,34 @@ impl ContestResult {
     }
 
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ContestResult) -> ContestResult {
+    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> ContestResult {
         let mut aggregate = self.clone();
-        aggregate.census += other.census;
+        if add_census {
+            aggregate.census += other.census;
+        }
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;
         aggregate.total_blank_votes += other.total_blank_votes;
         aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes);
-        let one_map: HashMap<String, CandidateResult> = self
-            .candidate_result
-            .iter()
-            .map(|candidate_result| {
-                (
-                    candidate_result.candidate.id.clone(),
-                    candidate_result.clone(),
-                )
-            })
-            .collect();
-        let other_map: HashMap<String, CandidateResult> = other
-            .candidate_result
-            .iter()
-            .map(|candidate_result| {
-                (
-                    candidate_result.candidate.id.clone(),
-                    candidate_result.clone(),
-                )
-            })
-            .collect();
-        let mut candidate_ids: HashSet<String> = HashSet::new();
-        candidate_ids.extend(one_map.clone().into_keys().collect::<Vec<String>>());
-        candidate_ids.extend(other_map.clone().into_keys().collect::<Vec<String>>());
-        aggregate.candidate_result = vec![];
-        for candidate_id in candidate_ids {
-            let one_opt = one_map.get(&candidate_id);
-            let other_opt = other_map.get(&candidate_id);
-            if one_opt.is_some() && other_opt.is_some() {
-                if let Some(one) = one_opt {
-                    if let Some(other) = other_opt {
-                        let mut new_candidate = one.clone();
-                        new_candidate.total_count += other.total_count;
-                    } else {
-                        aggregate.candidate_result.push(one.clone());
-                    }
-                }
-            } else {
-                if let Some(one) = one_opt {
-                    aggregate.candidate_result.push(one.clone());
-                } else if let Some(other) = other_opt {
-                    aggregate.candidate_result.push(other.clone());
-                }
-            }
+
+        let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();
+
+        for candidate_result in &self.candidate_result {
+            candidate_map.insert(
+                candidate_result.candidate.id.clone(),
+                candidate_result.clone(),
+            );
         }
+
+        for candidate_result in &other.candidate_result {
+            candidate_map
+                .entry(candidate_result.candidate.id.clone())
+                .and_modify(|entry| entry.total_count += candidate_result.total_count)
+                .or_insert_with(|| candidate_result.clone());
+        }
+
+        aggregate.candidate_result = candidate_map.into_values().collect();
 
         aggregate.calculate_percentages()
     }
