@@ -223,9 +223,9 @@ async fn process_plaintexts(
             auth_headers.clone(),
             &hasura_transaction,
             &keycloak_transaction,
-            &area_contest.contest.tenant_id,
-            &area_contest.contest.election_event_id,
-            &area_contest.contest.election_id,
+            &area_contest.contest.tenant_id.clone().unwrap_or_default(),
+            &area_contest.contest.election_event_id.clone().unwrap_or_default(),
+            &area_contest.contest.election_id.clone().unwrap_or_default(),
             &area_contest.last_tally_session_execution.area_id,
         )
         .await?;

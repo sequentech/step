@@ -10,7 +10,6 @@ import {
     keyBy,
     translate,
     IContest,
-    sortCandidatesInContest,
     CandidatesOrder,
     BlankAnswer,
 } from "@sequentech/ui-essentials"
@@ -37,6 +36,7 @@ import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {checkIsBlank} from "../../services/BallotService"
+import { sortCandidatesInContest } from "../../services/Core"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

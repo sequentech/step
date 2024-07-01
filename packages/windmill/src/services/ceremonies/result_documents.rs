@@ -181,8 +181,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tarfile_size,
                 "application/gzip".to_string(),
                 auth_headers.clone(),
-                contest.tenant_id.clone(),
-                contest.election_event_id.clone(),
+                contest.tenant_id.clone().unwrap_or_default(),
+                contest.election_event_id.clone().unwrap_or_default(),
                 "tally.tar.gz".into(),
                 None,
                 false,
@@ -199,9 +199,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             update_results_event_documents(
                 hasura_transaction,
-                &contest.tenant_id,
+                &contest.tenant_id.clone().unwrap_or_default(),
                 results_event_id,
-                &contest.election_event_id,
+                &contest.election_event_id.clone().unwrap_or_default(),
                 &documents,
             )
             .await?;
@@ -272,17 +272,17 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         let documents = generic_save_documents(
             auth_headers,
             document_paths,
-            &contest.tenant_id.to_string(),
-            &contest.election_event_id.to_string(),
+            &contest.tenant_id.clone().unwrap_or_default().to_string(),
+            &contest.election_event_id.clone().unwrap_or_default().to_string(),
         )
         .await?;
 
         update_results_election_documents(
             hasura_transaction,
-            &contest.tenant_id,
+            &contest.tenant_id.clone().unwrap_or_default(),
             results_event_id,
-            &contest.election_event_id,
-            &contest.election_id,
+            &contest.election_event_id.clone().unwrap_or_default(),
+            &contest.election_id.clone().unwrap_or_default(),
             &documents,
         )
         .await?;
@@ -300,18 +300,18 @@ impl GenerateResultDocuments for ReportDataComputed {
         let folder_path = match area_id.clone() {
             Some(area_id_str) => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}/area__{}",
-                self.contest.election_id, self.contest.id, area_id_str
+                self.contest.election_id.clone().unwrap_or_default(), self.contest.id, area_id_str
             )),
             None => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}",
-                self.contest.election_id, self.contest.id
+                self.contest.election_id.clone().unwrap_or_default(), self.contest.id
             )),
         };
         let vote_receipts_pdf = match area_id {
             Some(area_id_str) => {
                 let path = base_path.join(format!(
                     "output/velvet-vote-receipts/election__{}/contest__{}/area__{}",
-                    self.contest.election_id, self.contest.id, area_id_str
+                    self.contest.election_id.clone().unwrap_or_default(), self.contest.id, area_id_str
                 ));
 
                 if path.is_file() {
@@ -359,18 +359,18 @@ impl GenerateResultDocuments for ReportDataComputed {
         let documents = generic_save_documents(
             auth_headers,
             document_paths,
-            &self.contest.tenant_id.to_string(),
-            &self.contest.election_event_id.to_string(),
+            &self.contest.tenant_id.clone().unwrap_or_default().to_string(),
+            &self.contest.election_event_id.clone().unwrap_or_default().to_string(),
         )
         .await?;
 
         if let Some(area_id) = self.area_id.clone() {
             update_results_area_contest_documents(
                 hasura_transaction,
-                &self.contest.tenant_id,
+                &self.contest.tenant_id.clone().unwrap_or_default(),
                 results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
+                &self.contest.election_event_id.clone().unwrap_or_default(),
+                &self.contest.election_id.clone().unwrap_or_default(),
                 &self.contest.id,
                 &area_id,
                 &documents,
@@ -379,10 +379,10 @@ impl GenerateResultDocuments for ReportDataComputed {
         } else {
             update_results_contest_documents(
                 hasura_transaction,
-                &self.contest.tenant_id,
+                &self.contest.tenant_id.clone().unwrap_or_default(),
                 results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
+                &self.contest.election_event_id.clone().unwrap_or_default(),
+                &self.contest.election_id.clone().unwrap_or_default(),
                 &self.contest.id,
                 &documents,
             )

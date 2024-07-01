@@ -13,9 +13,9 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
     Contest {
         created_at: None,
         id: contest_id.to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        tenant_id: Some(tenant_id.to_string()),
+        election_event_id: Some(election_event_id.to_string()),
+        election_id: Some(election_id.to_string()),
         name: Some("Secretario <strong><em>General</em></strong>".into()),
         description: Some(
             "<strong>Elige</strong> quien quieres que sea tu Secretario General en tu municipio.<br/>Hello,<br>World!"
@@ -25,12 +25,12 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         description_i18n: None,
         alias: None,
         alias_i18n: None,
-        max_votes: 1,
-        min_votes: 0,
-        winning_candidates_num: 1,
+        max_votes: Some(1),
+        min_votes: Some(0),
+        winning_candidates_num: Some(1),
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
-        is_encrypted: true,
+        is_encrypted: Some(true),
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
             candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),
@@ -70,9 +70,9 @@ pub fn get_contest_min_max_votes(
     Contest {
         created_at: None,
         id: contest_id.to_string(),
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        tenant_id: Some(tenant_id.to_string()),
+        election_event_id: Some(election_event_id.to_string()),
+        election_id: Some(election_id.to_string()),
         name: Some("Secretario General".into()),
         description: Some(
             "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
@@ -81,12 +81,12 @@ pub fn get_contest_min_max_votes(
         description_i18n: None,
         alias: None,
         alias_i18n: None,
-        max_votes: max_votes as i64,
-        min_votes: min_votes as i64,
-        winning_candidates_num: 1,
+        max_votes: Some(max_votes as i64),
+        min_votes: Some(min_votes as i64),
+        winning_candidates_num: Some(1),
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
-        is_encrypted: true,
+        is_encrypted: Some(true),
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
             candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),

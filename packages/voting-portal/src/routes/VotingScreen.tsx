@@ -15,7 +15,6 @@ import {
     isUndefined,
     Dialog,
     translateElection,
-    sortContestList,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -43,6 +42,7 @@ import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "sequent-core"
+import { sortContestList } from "../services/Core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

@@ -17,6 +17,7 @@ use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
 use rand::seq::SliceRandom;
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
@@ -229,7 +230,7 @@ pub fn sort_candidates_list_js(
 
         CandidatesOrder::Random => {
             if should_apply_random {
-                let mut rng = rand::thread_rng();
+                let mut rng = thread_rng();
                 all_candidates.shuffle(&mut rng);
             }
         }
@@ -295,7 +296,7 @@ pub fn sort_contests_list_js(
 
         ContestsOrder::Random => {
             if should_apply_random {
-                let mut rng = rand::thread_rng();
+                let mut rng = thread_rng();
                 all_contests.shuffle(&mut rng);
             }
         }
@@ -361,7 +362,7 @@ pub fn sort_elections_list_js(
 
         ElectionsOrder::Random => {
             if should_apply_random {
-                let mut rng = rand::thread_rng();
+                let mut rng = thread_rng();
                 all_elections.shuffle(&mut rng);
             }
         }

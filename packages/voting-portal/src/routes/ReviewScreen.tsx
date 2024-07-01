@@ -25,7 +25,6 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
-    sortContestList,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -52,6 +51,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
+import { sortContestList } from "../services/Core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

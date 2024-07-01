@@ -17,10 +17,12 @@ impl BasesCodec for Contest {
         // - preferential (*bordas*): contest.max + 1
         // - cummulative: contest.extra_options.cumulative_number_of_checkboxes
         //   + 1
+
+        let max_votes = self.max_votes.unwrap_or_default();
         let candidate_base: u64 = match self.get_counting_algorithm().as_str() {
             "plurality-at-large" => 2,
             "cumulative" => self.cumulative_number_of_checkboxes() + 1u64,
-            _ => (self.max_votes + 1i64).try_into().unwrap(),
+            _ => (max_votes + 1i64).try_into().unwrap(),
         };
 
         let num_valid_candidates: usize = self

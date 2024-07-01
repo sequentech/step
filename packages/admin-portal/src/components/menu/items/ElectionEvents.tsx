@@ -13,9 +13,6 @@ import {
     ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
-    sortCandidatesInContest,
-    sortContestList,
-    sortElectionList,
     IContest,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
@@ -32,6 +29,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
+import { sortCandidatesInContest, sortContestList, sortElectionList } from "@/services/Core"
 
 export type ResourceName =
     | "sequent_backend_election_event"

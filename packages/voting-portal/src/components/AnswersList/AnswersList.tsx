@@ -6,10 +6,8 @@ import {
     CandidatesList,
     isUndefined,
     IContest,
-    sortCandidatesInContest,
     translate,
     keyBy,
-    IContestPresentation,
 } from "@sequentech/ui-essentials"
 import {IDecodedVoteContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
@@ -24,6 +22,7 @@ import {ICategory} from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {sortBy} from "lodash"
+import { sortCandidatesInContest } from "../../services/Core"
 
 export interface AnswersListProps {
     title: string
