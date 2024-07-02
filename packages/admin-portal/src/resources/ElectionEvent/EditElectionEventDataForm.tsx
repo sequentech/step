@@ -16,6 +16,7 @@ import {
     RadioButtonGroupInput,
     useNotify,
     Button,
+    SelectInput,
 } from "react-admin"
 import {
     Accordion,
@@ -41,7 +42,7 @@ import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {TVotingSetting} from "@/types/settings"
+import {IVotingPortalCountdownPolicy, TVotingSetting} from "@/types/settings"
 import {
     ExportElectionEventMutation,
     ImportCandidatesMutation,
@@ -414,6 +415,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         notify("Candidates successfully imported", {type: "success"})
     }
 
+    const votingPortalCountDownPolicies =  () => {
+        return (Object.values(IVotingPortalCountdownPolicy) as IVotingPortalCountdownPolicy[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.field.countDownPolicyOptions.${value}`),
+        }))
+    }
+
     return (
         <>
             <Box
@@ -645,6 +653,31 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </Box>
                                 </AccordionDetails>
                             </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "voting-portal-countdown-policy"}
+                                onChange={() => setExpanded("voting-portal-countdown-policy")}
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="voting-portal-countdown-policy" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.votingPortalCountDown")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                   <SelectInput 
+                                    source={`presentation.votingPortalCountdownPolicy`}
+                                    choices={votingPortalCountDownPolicies()}
+                                   />
+                                </AccordionDetails>
+                            </Accordion>
+
                         </SimpleForm>
                     )
                 }}
