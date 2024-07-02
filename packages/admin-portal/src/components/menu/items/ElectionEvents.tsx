@@ -29,7 +29,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
-import { sortCandidatesInContest, sortContestList, sortElectionList } from "@/services/Core"
+import { sortCandidatesInContest, sortContestList, sortElectionList } from "@sequentech/ui-core"
 
 export type ResourceName =
     | "sequent_backend_election_event"

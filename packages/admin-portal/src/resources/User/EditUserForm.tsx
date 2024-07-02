@@ -14,7 +14,7 @@ import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IRole, IUser} from "sequent-core"
+import {IRole, IUser} from "@sequentech/ui-core"
 import {
     FormControl,
     MenuItem,

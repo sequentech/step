@@ -2,9 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { CandidatesOrder, ContestsOrder, ElectionsOrder, ICandidate, IContest, IElection } from "@sequentech/ui-essentials"
+import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import {sort_elections_list_js, sort_contests_list_js, sort_candidates_list_js} from "sequent-core"
+import {CandidatesOrder, ContestsOrder, ElectionsOrder, ICandidate, IContest, IElection} from ".."
 
+export type {IPermission, IRole, IUser} from "sequent-core"
+
+export const initCore = () => {
+    try {
+        SequentCoreLibInit().then(set_hooks)
+    } catch (error) {
+        console.error("Error initializing SequentCoreLib:", error)
+        throw error
+    }
+}
 
 export const sortElectionList = (
     elections: Array<IElection>,
@@ -12,7 +23,7 @@ export const sortElectionList = (
     applyRandom?: boolean
 ): Array<IElection> => {
     try {
-        if(!elections || !elections.length) return elections
+        if (!elections || !elections.length) return elections
         return sort_elections_list_js(elections, order, applyRandom)
     } catch (error) {
         console.log(error)
@@ -26,7 +37,7 @@ export const sortContestList = (
     applyRandom?: boolean
 ): Array<IContest> => {
     try {
-        if(!contests || !contests.length) return contests
+        if (!contests || !contests.length) return contests
         return sort_contests_list_js(contests, order, applyRandom)
     } catch (error) {
         console.log(error)
@@ -40,7 +51,7 @@ export const sortCandidatesInContest = (
     applyRandom?: boolean
 ): Array<ICandidate> => {
     try {
-        if(!candidates || !candidates.length) return candidates
+        if (!candidates || !candidates.length) return candidates
         return sort_candidates_list_js(candidates, order, applyRandom)
     } catch (error) {
         console.log(error)
