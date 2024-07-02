@@ -22,6 +22,7 @@
     "@tinymce/tinymce-react": "^4.3.2",
     "@types/diff": "^5.0.8",
     "apexcharts": "3.41.1",
+    "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
     "diff": "^5.1.0",
     "fs-extra": "^11.2.0",
     "graphql": "16.7.1",

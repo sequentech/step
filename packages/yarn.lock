@@ -21197,13 +21197,13 @@ sentence-case@^3.0.4:
     tslib "^2.0.3"
     upper-case-first "^2.0.2"
 
+"sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#ab4a05abfd5c193d52912c1cdfc6baab80fc8998"
+
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#ab4a05abfd5c193d52912c1cdfc6baab80fc8998"
-
-"sequent-core@file:./ui-core/rust/sequent-core-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./ui-core/rust/sequent-core-0.1.0.tgz#ab4a05abfd5c193d52912c1cdfc6baab80fc8998"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"

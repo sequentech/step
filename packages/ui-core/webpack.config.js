@@ -41,12 +41,16 @@ module.exports = function (env, argv) {
             "mui-image": "mui-image",
             "react-i18next": "react-i18next",
             "react-router-dom": "react-router-dom",
+            "sequent-core": "sequent-core",
         },
         resolve: {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
             },
-            extensions: [".js", ".jsx", ".ts", ".tsx"],
+            extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
+        },
+        experiments: {
+            asyncWebAssembly: true,
         },
         plugins: [
             new ProgressPlugin(),
