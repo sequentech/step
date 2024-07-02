@@ -273,7 +273,11 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             auth_headers,
             document_paths,
             &contest.tenant_id.clone().unwrap_or_default().to_string(),
-            &contest.election_event_id.clone().unwrap_or_default().to_string(),
+            &contest
+                .election_event_id
+                .clone()
+                .unwrap_or_default()
+                .to_string(),
         )
         .await?;
 
@@ -300,18 +304,23 @@ impl GenerateResultDocuments for ReportDataComputed {
         let folder_path = match area_id.clone() {
             Some(area_id_str) => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}/area__{}",
-                self.contest.election_id.clone().unwrap_or_default(), self.contest.id, area_id_str
+                self.contest.election_id.clone().unwrap_or_default(),
+                self.contest.id,
+                area_id_str
             )),
             None => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}",
-                self.contest.election_id.clone().unwrap_or_default(), self.contest.id
+                self.contest.election_id.clone().unwrap_or_default(),
+                self.contest.id
             )),
         };
         let vote_receipts_pdf = match area_id {
             Some(area_id_str) => {
                 let path = base_path.join(format!(
                     "output/velvet-vote-receipts/election__{}/contest__{}/area__{}",
-                    self.contest.election_id.clone().unwrap_or_default(), self.contest.id, area_id_str
+                    self.contest.election_id.clone().unwrap_or_default(),
+                    self.contest.id,
+                    area_id_str
                 ));
 
                 if path.is_file() {
@@ -359,8 +368,18 @@ impl GenerateResultDocuments for ReportDataComputed {
         let documents = generic_save_documents(
             auth_headers,
             document_paths,
-            &self.contest.tenant_id.clone().unwrap_or_default().to_string(),
-            &self.contest.election_event_id.clone().unwrap_or_default().to_string(),
+            &self
+                .contest
+                .tenant_id
+                .clone()
+                .unwrap_or_default()
+                .to_string(),
+            &self
+                .contest
+                .election_event_id
+                .clone()
+                .unwrap_or_default()
+                .to_string(),
         )
         .await?;
 

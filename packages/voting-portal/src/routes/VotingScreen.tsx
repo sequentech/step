@@ -42,7 +42,7 @@ import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "sequent-core"
-import { sortContestList } from "../services/Core"
+import {sortContestList} from "../services/Core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

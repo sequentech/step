@@ -8,7 +8,7 @@ import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
-import { initCore } from '@sequentech/ui-core'
+import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {TenantContextProvider} from "./providers/TenantContextProvider"
