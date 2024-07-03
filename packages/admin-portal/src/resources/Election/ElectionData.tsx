@@ -8,7 +8,7 @@ import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ICommunicationMethod, IRECEIPTS} from "@/types/communications"
 import {Sequent_Backend_Contest} from "@/gql/graphql"
-import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-essentials"
+import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
 export const EditElectionData: React.FC = () => {
     const [update] = useUpdate()

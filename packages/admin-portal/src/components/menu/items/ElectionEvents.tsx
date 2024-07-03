@@ -9,12 +9,12 @@ import {useLocation} from "react-router-dom"
 import styled from "@emotion/styled"
 import {
     IconButton,
-    adminTheme,
-    ICandidatePresentation,
+    adminTheme
+} from "@sequentech/ui-essentials"
+import {ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
-    IContest,
-} from "@sequentech/ui-essentials"
+    IContest} from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"

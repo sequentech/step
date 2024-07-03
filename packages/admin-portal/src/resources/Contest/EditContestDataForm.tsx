@@ -47,7 +47,6 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
     CandidatesOrder,
-    DropFile,
     EInvalidVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
@@ -55,7 +54,8 @@ import {
     isArray,
     ICandidatePresentation,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"

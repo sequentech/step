@@ -7,7 +7,7 @@ import {
     CandidatesOrder,
     ICandidatePresentation,
     IContestPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"

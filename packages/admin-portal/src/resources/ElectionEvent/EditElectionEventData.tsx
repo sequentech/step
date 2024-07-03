@@ -13,7 +13,7 @@ import {
     ElectionsOrder,
     IElectionEventPresentation,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()

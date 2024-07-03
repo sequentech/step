@@ -16,7 +16,8 @@ import {
     Sequent_Backend_Tally_Session,
 } from "@/gql/graphql"
 import styled from "@emotion/styled"
-import {downloadUrl, isNull, theme} from "@sequentech/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
+import {downloadUrl, isNull} from "@sequentech/ui-core"
 import {useGetList} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {EExportFormat, IResultDocuments} from "@/types/results"

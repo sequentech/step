@@ -6,7 +6,6 @@ import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
     Dialog,
-    sleep,
     theme,
 } from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"

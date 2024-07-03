@@ -35,7 +35,7 @@ import {
     EEnableCheckableLists,
     ICandidatePresentation,
     IContestPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 
 const votingChannels = [

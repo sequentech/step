@@ -34,7 +34,7 @@ import {
 import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined} from "@sequentech/ui-core"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"

@@ -42,12 +42,12 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {
-    Dialog,
     ElectionsOrder,
     IElectionEventPresentation,
     IElectionPresentation,
     ITenantSettings,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box} from "@mui/material"
-import {isArray} from "@sequentech/ui-essentials"
+import {isArray} from "@sequentech/ui-core"
 import React, {useEffect, useState} from "react"
 import {useInput} from "react-admin"
 import DraggableElement from "../DraggableElement"

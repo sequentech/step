@@ -54,11 +54,11 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
-    DropFile,
     IContestPresentation,
     IElectionEventPresentation,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"

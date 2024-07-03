@@ -23,7 +23,7 @@ import {
     EVotingStatus,
     IElectionEventStatistics,
     IElectionEventStatus,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 

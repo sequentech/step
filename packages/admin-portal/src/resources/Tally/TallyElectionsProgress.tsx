@@ -17,7 +17,7 @@ import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
-import {formatPercentOne} from "@sequentech/ui-essentials"
+import {formatPercentOne} from "@sequentech/ui-core"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
