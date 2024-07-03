@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {CandidatesList, isUndefined, IContest, translate, keyBy} from "@sequentech/ui-essentials"
+import {CandidatesList} from "@sequentech/ui-essentials"
+import {isUndefined, IContest, translate, keyBy} from "@sequentech/ui-core"
 import {IDecodedVoteContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"

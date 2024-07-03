@@ -12,8 +12,8 @@ import {
     InfoDataBox,
     IconButton,
     Dialog,
-    stringToHtml,
 } from "@sequentech/ui-essentials"
+import {stringToHtml} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"

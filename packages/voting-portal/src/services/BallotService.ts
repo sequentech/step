@@ -14,7 +14,7 @@ import {
     check_voting_error_dialog,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {IBallotStyle, IAuditableBallot, IHashableBallot, IContest} from "@sequentech/ui-essentials"
+import {IBallotStyle, IAuditableBallot, IHashableBallot, IContest} from "@sequentech/ui-core"
 
 export interface IBallotService {
     toHashableBallot: (auditableBallot: IAuditableBallot) => IHashableBallot

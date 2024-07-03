@@ -4,15 +4,14 @@
 import React, {useState} from "react"
 import {Box} from "@mui/material"
 import {
-    theme,
     stringToHtml,
     splitList,
     keyBy,
     translate,
     IContest,
     CandidatesOrder,
-    BlankAnswer,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"

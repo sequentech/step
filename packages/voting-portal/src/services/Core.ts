@@ -9,7 +9,7 @@ import {
     ICandidate,
     IContest,
     IElection,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {sort_elections_list_js, sort_contests_list_js, sort_candidates_list_js} from "sequent-core"
 
 export const sortElectionList = (

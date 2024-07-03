@@ -7,14 +7,13 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import styled from "@emotion/styled"
+import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
-    IconButton,
-    adminTheme
-} from "@sequentech/ui-essentials"
-import {ICandidatePresentation,
+    ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
-    IContest} from "@sequentech/ui-core"
+    IContest,
+} from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"

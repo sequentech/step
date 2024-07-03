@@ -5,20 +5,17 @@
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+
 import {
-    Dialog,
-    IconButton,
-    PageLimit,
-    SelectElection,
     isString,
     stringToHtml,
-    theme,
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
     IBallotStyle as IElectionDTO,
     isUndefined,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
