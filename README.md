@@ -34,6 +34,9 @@ To be able to launch locally it is necessary to meet the following prerequisites
 - Docker login against ghci.io[https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry]
 - Dev Containers extension in VSCode.
 
+After this you can reopen the directory like container with Command "Reopen in Container"
+
+### Launch in Github codespaces
 Open the repository with devcontainers/codespaces within vscode. This will
 launch all the services in development mode, so that you are ready to start
 using them and continue development:
