@@ -235,6 +235,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                votingPortalCountDown: "Voting Portal Countdown Policy",
             },
             field: {
                 name: "Nom",
@@ -253,6 +254,12 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "No Countdown",
+                    COUNTDOWN: "Countdown",
+                    COUNTDOWN_WITH_ALRET: "Countdown with alret",
+                    sectionTitle: "Countdown policy",
+                }
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",

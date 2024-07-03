@@ -235,6 +235,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                votingPortalCountDown: "Voting Portal Countdown Policy",
             },
             field: {
                 name: "Nom",
@@ -253,6 +254,12 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "No Countdown",
+                    COUNTDOWN: "Countdown",
+                    COUNTDOWN_WITH_ALRET: "Countdown with alret",
+                    sectionTitle: "Countdown policy",
+                }
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
