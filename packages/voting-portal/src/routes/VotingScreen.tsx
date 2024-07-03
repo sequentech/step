@@ -11,11 +11,13 @@ import {
     Icon,
     IconButton,
     theme,
+    Dialog,
+} from "@sequentech/ui-essentials"
+import {
     stringToHtml,
     isUndefined,
-    Dialog,
     translateElection,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -41,8 +43,8 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {IDecodedVoteContest} from "sequent-core"
-import {sortContestList} from "../services/Core"
+import {IDecodedVoteContest} from "@sequentech/ui-core"
+import {sortContestList} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

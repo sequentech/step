@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IDecodedVoteContest, IDecodedVoteChoice} from "sequent-core"
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined, IDecodedVoteContest, IDecodedVoteChoice} from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
 export type BallotSelection = Array<IDecodedVoteContest>

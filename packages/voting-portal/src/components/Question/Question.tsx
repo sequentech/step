@@ -32,11 +32,11 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {checkIsBlank} from "../../services/BallotService"
-import {sortCandidatesInContest} from "../../services/Core"
+import {sortCandidatesInContest} from "@sequentech/ui-core"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

@@ -8,12 +8,11 @@ import {
     PageLimit,
     Icon,
     IconButton,
-    stringToHtml,
     theme,
     QRCode,
-    Dialog,
-    IElectionEventPresentation,
+    Dialog
 } from "@sequentech/ui-essentials"
+import {stringToHtml, IElectionEventPresentation} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"

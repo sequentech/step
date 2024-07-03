@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {sortElectionList} from "../../services/Core"
+import {sortElectionList} from "@sequentech/ui-core"
 
 export interface IElection {
     id: string

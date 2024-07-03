@@ -5,13 +5,12 @@
 import {Box, Button, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {PageLimit, theme} from "@sequentech/ui-essentials"
 import {
-    PageLimit,
     stringToHtml,
-    theme,
     translate,
     translateElection,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"

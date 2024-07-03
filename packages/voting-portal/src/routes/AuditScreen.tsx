@@ -11,12 +11,14 @@ import {
     Dialog,
     IconButton,
     WarnBox,
-    stringToHtml,
     theme,
-    isUndefined,
-    downloadBlob,
     InfoDataBox,
 } from "@sequentech/ui-essentials"
+import {
+    stringToHtml,
+    isUndefined,
+    downloadBlob,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
 import {

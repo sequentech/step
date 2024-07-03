@@ -10,15 +10,17 @@ import {
     IconButton,
     PageLimit,
     SelectElection,
+    theme
+} from "@sequentech/ui-essentials"
+import {
     isString,
     stringToHtml,
-    theme,
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
     IBallotStyle as IElectionDTO,
     isUndefined,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"

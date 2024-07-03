@@ -4,14 +4,14 @@
 import React, {useContext} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
-    Candidate,
     stringToHtml,
     isUndefined,
     normalizeWriteInText,
     translate,
     ICandidate,
     IContest,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {Candidate} from "@sequentech/ui-essentials"
 import Image from "mui-image"
 import {
     resetBallotSelection,

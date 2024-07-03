@@ -19,13 +19,15 @@ import {
     Icon,
     IconButton,
     theme,
-    stringToHtml,
     BallotHash,
-    Dialog,
+    Dialog
+} from "@sequentech/ui-essentials"
+import {
+    stringToHtml,
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {
@@ -51,7 +53,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {sortContestList} from "../services/Core"
+import {sortContestList} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;

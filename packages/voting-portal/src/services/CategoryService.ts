@@ -8,7 +8,7 @@ import {
     ITypePresentation,
     shuffle,
     splitList,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
 import {sortBy} from "lodash"
 
