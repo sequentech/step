@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
@@ -13,9 +13,6 @@ import styled from "@emotion/styled"
 import {
     Box,
     Button,
-    IconButton,
-    Menu,
-    MenuItem,
     Tooltip,
     TooltipProps,
     Typography,
@@ -25,7 +22,6 @@ import Version from "../Version/Version"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
-import CountdownTimer from "../CountdownBar/CountdownBar"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 
 const HeaderWrapper = styled(PageBanner)`
@@ -139,6 +135,33 @@ export interface HeaderProps {
     logoUrl?: string
     languagesList?: Array<string>
     errorVariant?: HeaderErrorVariant
+    expiry?: {
+        startTime: Date
+        endTime: Date | undefined
+        countdown: "countdownWithAlert" | "countdown" | "none"
+        duration: number
+        alertAt: number
+    }
+}
+
+function CountdownTooltipContent({timeLeft = ""}) {
+    const {t} = useTranslation()
+
+    return (
+        <>
+            <StyledButtonTooltipText
+                sx={{
+                    fontWeight: 500,
+                    color: theme.palette.brandColor,
+                }}
+            >
+                {t("header.session.title")}
+            </StyledButtonTooltipText>
+            <StyledButtonTooltipText>
+                {t("header.session.timeLeft", {time: timeLeft})}
+            </StyledButtonTooltipText>
+        </>
+    )
 }
 
 export default function Header({
@@ -149,6 +172,7 @@ export default function Header({
     logoUrl,
     languagesList,
     errorVariant,
+    expiry = undefined,
 }: HeaderProps) {
     console.log("Header Props", errorVariant, logoutFn)
     const {t} = useTranslation()
@@ -161,24 +185,6 @@ export default function Header({
 
     function handleToggleTimeModal(value: boolean) {
         return setOpenTimeModal(value)
-    }
-
-    function timeContent() {
-        return (
-            <>
-                <StyledButtonTooltipText
-                    sx={{
-                        fontWeight: 500,
-                        color: theme.palette.brandColor,
-                    }}
-                >
-                    {t("header.session.title")}
-                </StyledButtonTooltipText>
-                <StyledButtonTooltipText>
-                    {t("header.session.timeLeft", {time: "10 minutes"})}
-                </StyledButtonTooltipText>
-            </>
-        )
     }
 
     return (
@@ -200,23 +206,6 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                <StyledButtonTooltip
-                                    arrow
-                                    placement="bottom-end"
-                                    title={timeContent()}
-                                    slotProps={{
-                                        popper: {
-                                            modifiers: [
-                                                {
-                                                    name: "offset",
-                                                    options: {
-                                                        offset: [-50, 10],
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    }}
-                                >
                                     <StyledButtonContainerWrapper>
                                         <StyledButtonContainer className="logout-button-container">
                                             <StyledButton
@@ -232,17 +221,16 @@ export default function Header({
                                                 </Box>
                                             </StyledButton>
                                         </StyledButtonContainer>
-                                        <CountdownTimer duration={5 * 60} />
                                     </StyledButtonContainerWrapper>
-                                </StyledButtonTooltip>
                             ) : (
                                 userProfile && (
                                     <ProfileMenu
-                                        timeContent={timeContent}
                                         userProfile={userProfile}
                                         logoutFn={logoutFn}
                                         setOpenModal={setOpenModal}
                                         handleOpenTimeModal={() => handleToggleTimeModal(true)}
+                                        CountdownTooltipContent={CountdownTooltipContent}
+                                        expiry={expiry}
                                     />
                                 )
                             )}

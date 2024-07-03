@@ -296,6 +296,26 @@ Note that you can insert rows as a migration by clicking on the
 
 ## admin-portal
 
+## ui-essentials
+
+Contains all the components used across the various portals i.e admin, voting, ballot etc.
+Has storybook configured for component documentation and easy update of existing components or building new ones
+
+To start storybook,
+```bash
+cd /workspaces/step/packages/
+yarn storybook:ui-essentials
+```
+
+After updating any component in ui-essentials, run the following commands to build the current state.
+
+```bash
+cd /workspaces/step/packages/
+yarn prettify:fix:ui-essentials && yarn build:ui-essentials
+```
+
+This is done to allow portals to fetch and use the latest versions of components
+
 ## Update graphql JSON schema
 
 The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura

@@ -42,10 +42,100 @@ export default meta
 
 type Story = StoryObj<typeof ProfileMenu>
 
-export const Primary: Story = {
+export const CountdownWithAlert: Story = {
     // More on args: https://storybook.js.org/docs/react/writing-stories/args
     args: {
-        timeContent: function timeContent() {
+        CountdownTooltipContent: function timeContent() {
+            return (
+                <>
+                    <StyledButtonTooltipText
+                        sx={{
+                            fontWeight: 500,
+                            color: theme.palette.brandColor,
+                        }}
+                    >
+                        Sameple title
+                    </StyledButtonTooltipText>
+                    <StyledButtonTooltipText>Sample time left definition</StyledButtonTooltipText>
+                </>
+            )
+        },
+        userProfile: {
+            email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
+            username: "John has a very super super duper very super duper long name",
+            openLink() {
+                alert("rouge")
+            },
+        },
+        logoutFn() {
+            alert("logging out")
+        },
+        setOpenModal: () => alert("open log out modal"),
+        handleOpenTimeModal: () => alert("open time modal"),
+        expiry: {
+            startTime: new Date(Date.now()),
+            endTime: new Date(Date.now() + 120000), //current time plus 2 minutes
+            countdown: "countdownWithAlert",
+            duration: 120,
+            alertAt: 60,
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const CountdownOnly: Story = {
+    // More on args: https://storybook.js.org/docs/react/writing-stories/args
+    args: {
+        CountdownTooltipContent: function timeContent() {
+            return (
+                <>
+                    <StyledButtonTooltipText
+                        sx={{
+                            fontWeight: 500,
+                            color: theme.palette.brandColor,
+                        }}
+                    >
+                        Sameple title
+                    </StyledButtonTooltipText>
+                    <StyledButtonTooltipText>Sample time left definition</StyledButtonTooltipText>
+                </>
+            )
+        },
+        userProfile: {
+            email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
+            username: "John has a very super super duper very super duper long name",
+            openLink() {
+                alert("rouge")
+            },
+        },
+        logoutFn() {
+            alert("logging out")
+        },
+        setOpenModal: () => alert("open log out modal"),
+        handleOpenTimeModal: () => alert("open time modal"),
+        expiry: {
+            startTime: new Date(Date.now()),
+            endTime: new Date(Date.now() + 120000), //current time plus 2 minutes
+            countdown: "countdown",
+            duration: 120,
+            alertAt: 60,
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const NoCountdown: Story = {
+    // More on args: https://storybook.js.org/docs/react/writing-stories/args
+    args: {
+        CountdownTooltipContent: function timeContent() {
             return (
                 <>
                     <StyledButtonTooltipText

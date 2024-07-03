@@ -1,5 +1,5 @@
 import {Box, Menu, MenuItem} from "@mui/material"
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     StyledButton,
@@ -18,15 +18,57 @@ const Span = styled.span`
     color: ${theme.palette.customGrey.dark};
 `
 export const ProfileMenu = ({
-    timeContent,
+    CountdownTooltipContent,
     userProfile,
     logoutFn,
     setOpenModal,
     handleOpenTimeModal,
+    expiry,
 }) => {
     const {t} = useTranslation()
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const [timeLeftText, setTimeLeftText] = useState("")
+    const [timeLeft, setTimeLeft] = useState(0)
+    const [totalDuration, setTotalDuration] = useState(0)
+
+    const [timeMinReached, setTimeMinReached] = useState(false)
+
+    useEffect(() => {
+        if (expiry) {
+            const futureTime = expiry.endTime
+            const currentTime = expiry.startTime
+            const totalDuration: number =
+                expiry.duration ?? Math.floor((futureTime.getTime() - currentTime.getTime()) / 1000)
+
+            const timeLeftInSeconds = Math.floor((futureTime.getTime() - Date.now()) / 1000)
+
+            console.log({timeLeftInSeconds, totalDuration})
+            setTimeLeft(timeLeftInSeconds)
+            setTotalDuration(60)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (timeLeft > 0) {
+            if (timeLeft < expiry.alertAt && !timeMinReached) {
+                setTimeMinReached(true)
+                handleOpenTimeModal?.()
+            }
+
+            const timerId = setInterval(() => {
+                setTimeLeft(timeLeft - 1)
+                if (timeLeft > 60) {
+                    const timeLeftInMinutes: number = Math.floor(timeLeft / 60)
+                    const time = timeLeft % 60
+                    setTimeLeftText(`${timeLeftInMinutes} minutes and ${time} seconds`)
+                } else {
+                    setTimeLeftText(`${timeLeft} seconds`)
+                }
+            }, 1000)
+            return () => clearInterval(timerId)
+        }
+    }, [expiry, timeLeft])
 
     function handleMenu(event: React.MouseEvent<HTMLElement>) {
         setAnchorEl(event.currentTarget)
@@ -39,9 +81,10 @@ export const ProfileMenu = ({
     return (
         <Box>
             <StyledButtonTooltip
+                disableHoverListener={!expiry || timeLeft > 60}
                 arrow
                 placement="bottom-end"
-                title={timeContent()}
+                title={<CountdownTooltipContent timeLeft={timeLeftText} />}
                 slotProps={{
                     popper: {
                         modifiers: [
@@ -64,19 +107,17 @@ export const ProfileMenu = ({
                         >
                             <AccountCircle sx={{fontSize: 40}} />
                             {/* <Box
-                                                            sx={{
-                                                                display: {xs: "none", sm: "block"},
-                                                            }}
-                                                        >
-                                                            Profile
-                                                        </Box> */}
+									sx={{
+										display: {xs: "none", sm: "block"},
+									}}
+								>
+									Profile
+								</Box> */}
                         </StyledButton>
                     </StyledButtonContainer>
-                    <CountdownTimer
-                        duration={5 * 60}
-                        onTimeMinReached={handleOpenTimeModal}
-                        minTime={5 * 60}
-                    />
+                    {expiry && timeLeft < 60 && (
+                        <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
+                    )}
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
