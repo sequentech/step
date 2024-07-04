@@ -174,6 +174,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                   </div>
               </div>
           </#if>
+          <div class="footer">
+              <p>${msg("loginFooter")}</p>
+          </div>
         </div>
       </div>
 

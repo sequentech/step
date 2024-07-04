@@ -7,13 +7,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 /* Base css at: https://github.com/keycloak/keycloak/blob/24.0.0/themes/src/main/resources/theme/keycloak/login/resources/css/login.css */
 /* Base ftl at: https://github.com/keycloak/keycloak/blob/24.0.0/themes/src/main/resources/theme/base/login/login.ftl */
 
+:root {
+    --pf-global--palette--black-200: #D0D5DD;
+    --pf-global--palette--black-800: #191D23;
+    --pf-global--danger-color--200: #991b1b;
+    --pf-global--BackgroundColor--100: #F7F9FE;
+    --pf-global--BoxShadow--lg: none;
+    --pf-global--primary-color--100: #0F054C;
+
+    --pf-global--link--Color: #191D23;
+    --pf-global--link--TextDecoration: underline;
+}
+
 .login-pf body {
     background: #FFFFFF;
     height: 100%;
 }
 
 .login-pf-page-header {
-    background-color: #F7F9FE;
+    background-color: var(--pf-global--BackgroundColor--100);
     padding: 16px 0;
 }
 
@@ -27,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     padding: 0 30px;
     background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTEiIGhlaWdodD0iNDciIGZpbGw9Im5vbmUiPjxnIGNsaXAtcGF0aD0idXJsKCNwcmVmaXhfX2NsaXAwXzEzOF8zMTAzKSI+PHBhdGggZD0iTTg4LjQgMjguMTFjMC0xMC44LTIwLjIxLTIuNjQtMjAuMjEtMTYuMzIgMC00Ljg5IDQtOS42IDExLjY3LTkuNnMxMS42MSA0LjggMTEuNzYgMTFoLTMuNDFDODguMDcgOC41MyA4NSA1LjM2IDc5LjkgNS4zNmMtNS4xIDAtOC4yIDIuNS04LjIgNi4yOSAwIDkuOTQgMjAuMyAyLjQ5IDIwLjMgMTYuMjIgMCA1LjkxLTUuMTMgOS44LTEyLjc3IDkuOC04Ljc4IDAtMTIuNDgtNS4xNC0xMi43Mi0xMWgzLjQ2Yy4zOCA1LjE0IDQgNy44MyA5LjM2IDcuODMgNS41MiAwIDkuMDctMi4yMSA5LjA3LTYuMzl6TTEwMC4yMSAyNS43NmMuMzMgNC45NSAzLjU1IDguNzQgOC42OSA4Ljc0YTcuOTA5IDcuOTA5IDAgMDA3LjY4LTUuMTRoMy41NWExMS40MTEgMTEuNDExIDAgMDEtMTEuMjggOC4yMWMtNy43MyAwLTEyLTUuOTUtMTItMTIuODJTMTAxLjQ2IDEyIDEwOC44IDEyYzcuMzQgMCAxMS43NiA1LjU3IDExLjc2IDEyLjQ5djEuMjlsLTIwLjM1LS4wMnptLjA5LTIuNzZoMTYuODVjLS40My00LjcxLTMuNTUtNy45Mi04LjM1LTcuOTJzLTcuOTIgMy4zOC04LjUgNy45MnpNMTM2LjI5OSAzNy41N2MtNy40OCAwLTExLjUyLTYuMDUtMTEuNTItMTIuNzdzNC4wNC0xMi44IDExLjUyLTEyLjhjNC40NyAwIDcuNTkgMiA5LjI3IDUuMDl2LTQuNTNoMy4yNlY0N2gtMy40MVYzMi41OGMtMS42MyAyLjk3LTQuNjUgNC45OS05LjEyIDQuOTl6bS43LTIyLjUxYy01LjQ4IDAtOC43NCA0LjMyLTguNzQgOS43NHMzLjI2IDkuNzUgOC43NCA5Ljc1IDguNTktNC4zNyA4LjU5LTkuNzUtMy4xNC05Ljc0LTguNTktOS43NHpNMTU2LjUxIDI3LjczVjEyLjU2aDMuNDF2MTQuOTNjMCA0LjQyIDIuMzUgNy4xIDYuNzIgNy4xIDQuMzcgMCA2LjcyLTIuNjggNi43Mi03LjFWMTIuNTZoMy40MXYxNS4xN2MwIDUuNDItMy4yMiA5Ljg0LTEwLjEzIDkuODRzLTEwLjEzLTQuNDItMTAuMTMtOS44NHpNMTg2IDI1Ljc2Yy4zNCA0Ljk1IDMuNTUgOC43NCA4LjY5IDguNzRhNy45IDcuOSAwIDAwNy42OC01LjE0aDMuNTVhMTEuNDExIDExLjQxMSAwIDAxLTExLjI4IDguMjFjLTcuNzMgMC0xMi4wNS01Ljk1LTEyLjA1LTEyLjgyUzE4Ny4yMyAxMiAxOTQuNTcgMTJjNy4zNCAwIDExLjc3IDUuNTcgMTEuNzcgMTIuNDkgMCAuNTItLjA1IDEuMjktLjA1IDEuMjlMMTg2IDI1Ljc2em0uMS0yLjc4aDE2Ljg1Yy0uNDMtNC43MS0zLjU2LTcuOTItOC4zNi03LjkyLTQuOCAwLTcuOTQgMy40LTguNTEgNy45NGwuMDItLjAyek0yMTUuNjQ5IDE2LjNhOC44NjkgOC44NjkgMCAwMTguMDYtNC4zYzYgMCA5LjI2IDQgOS4yNiA5LjQxVjM3aC0zLjRWMjIuMDdjMC00LjQyLTIuMDctNy4xMS02LjQ0LTcuMTEtNC4xMiAwLTcuMzQgMi41OS03LjM0IDcuNDlWMzdoLTMuNDFWMTIuNTZoMy4yN3YzLjc0ek0yNDUgMzdoLTMuNDFWMTUuNDRIMjM3di0yLjg4aDQuNjV2LTdIMjQ1djdoNXYyLjg4aC01VjM3ek00OS43OCAxNi40YTguMiA4LjIgMCAxMDAtMTYuNCA4LjIgOC4yIDAgMDAwIDE2LjR6TTguMiAxNi40QTguMiA4LjIgMCAxMDguMiAwYTguMiA4LjIgMCAwMDAgMTYuNHpNOC4yIDM2LjI1YTguMiA4LjIgMCAxMDAtMTYuNCA4LjIgOC4yIDAgMDAwIDE2LjR6TTI4Ljk5IDM2LjI1YTguMiA4LjIgMCAxMC0uMDAxLTE2LjQgOC4yIDguMiAwIDAwMCAxNi40eiIgZmlsbD0iIzBGMDU0QyIvPjxwYXRoIGQ9Ik0yOC45OSAxNi40QTguMiA4LjIgMCAxMDI4Ljk4OCAwYTguMiA4LjIgMCAwMDAgMTYuNHoiIGZpbGw9IiM0M0UzQTEiLz48L2c+PGRlZnM+PGNsaXBQYXRoIGlkPSJwcmVmaXhfX2NsaXAwXzEzOF8zMTAzIj48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMCAwaDI1MC4wMXY0Ni45OEgweiIvPjwvY2xpcFBhdGg+PC9kZWZzPjwvc3ZnPg==') center left no-repeat;
     background-origin: content-box;
-    color: #f7f9fe;
+    /* color: #F7F9FE; */
     height: 47px;
     font-size: 0px;
 }
@@ -36,9 +48,9 @@ SPDX-License-Identifier: AGPL-3.0-only
     background-color: #ffffff;
 }
 
-a {
-    color: #191D23;
-    text-decoration: underline;
+.login-pf-page .login-pf-signup a {
+    color: var(--pf-global--palette--black-800);
+    text-decoration: var(--pf-global--primary-color--100);
 }
 
 .card-pf {
@@ -51,7 +63,7 @@ a {
 }
 
 .pf-c-button.pf-m-block {
-    background: #0F054C;
+    /* background: var(--pf-c-button--m-primary--BackgroundColor); */
     border-radius: 4px;
 }
 
@@ -76,6 +88,24 @@ a {
 }
 
 .pf-c-form-control {
-    border: 1px solid #D0D5DD;
+    border: 1px solid var(--pf-global--palette--black-200);
     border-radius: 4px;
+}
+
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--pf-global--BackgroundColor--100);
+    text-align: center;
+    color: var(--pf-global--palette--black-800);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 70px;
+}
+
+.footer p {
+    margin: 0;
 }
