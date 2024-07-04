@@ -35,7 +35,7 @@ const DiffViewStyled = {
         width: 100%;
     `,
     Block: styled.div`
-        position:relative;
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -187,8 +187,7 @@ const DiffViewMemo = React.memo(
                     <DiffViewStyled.Content>
                         <DiffViewStyled.Header>{currentTitle}</DiffViewStyled.Header>
                         <DiffViewStyled.Block>
-                            <DiffViewStyled.Json
-                            >
+                            <DiffViewStyled.Json>
                                 {diff.map((line: any, index: number) =>
                                     !line.added ? (
                                         line.removed && type === "modify" ? (
@@ -224,9 +223,9 @@ const DiffViewMemo = React.memo(
                                         width: "fit-content",
                                         minHeight: "unset",
                                         fontSize: "0.8rem",
-                                        position: 'absolute',
-                                        right:'0.5rem',
-                                        bottom:'0.5rem',
+                                        position: "absolute",
+                                        right: "0.5rem",
+                                        bottom: "0.5rem",
                                     }}
                                     aria-expanded={truncationState !== TRUNCATION_STATE.TRUNCATED}
                                     aria-controls="diff-content"
@@ -239,8 +238,7 @@ const DiffViewMemo = React.memo(
                         <DiffViewStyled.Content>
                             <DiffViewStyled.Header>{diffTitle}</DiffViewStyled.Header>
                             <DiffViewStyled.Block>
-                                <DiffViewStyled.Json
-                                >
+                                <DiffViewStyled.Json>
                                     {diff.map((line: any, index: number) =>
                                         !line.removed ? (
                                             line.added ? (
@@ -276,9 +274,9 @@ const DiffViewMemo = React.memo(
                                             width: "fit-content",
                                             minHeight: "unset",
                                             fontSize: "0.8rem",
-                                            position: 'absolute',
-                                            right:'0.5rem',
-                                            bottom:'0.5rem',
+                                            position: "absolute",
+                                            right: "0.5rem",
+                                            bottom: "0.5rem",
                                         }}
                                         aria-expanded={
                                             truncationState !== TRUNCATION_STATE.TRUNCATED
