@@ -35,6 +35,7 @@ const DiffViewStyled = {
         width: 100%;
     `,
     Block: styled.div`
+        position:relative;
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -125,7 +126,6 @@ const DiffViewMemo = React.memo(
             () => (current ? JSON.stringify(current, null, 2) : ""),
             [current]
         )
-
         // Check initially if truncation is needed - if so truncate the strings
         useEffect(() => {
             if (!memoizedModify || truncationState !== TRUNCATION_STATE.NOT_NEEDED) return
@@ -188,12 +188,6 @@ const DiffViewMemo = React.memo(
                         <DiffViewStyled.Header>{currentTitle}</DiffViewStyled.Header>
                         <DiffViewStyled.Block>
                             <DiffViewStyled.Json
-                                style={{
-                                    maxHeight:
-                                        truncationState !== TRUNCATION_STATE.NOT_NEEDED
-                                            ? "calc(100% - 3rem)"
-                                            : "",
-                                }}
                             >
                                 {diff.map((line: any, index: number) =>
                                     !line.added ? (
@@ -230,7 +224,9 @@ const DiffViewMemo = React.memo(
                                         width: "fit-content",
                                         minHeight: "unset",
                                         fontSize: "0.8rem",
-                                        marginLeft: "auto",
+                                        position: 'absolute',
+                                        right:'0.5rem',
+                                        bottom:'0.5rem',
                                     }}
                                     aria-expanded={truncationState !== TRUNCATION_STATE.TRUNCATED}
                                     aria-controls="diff-content"
@@ -244,12 +240,6 @@ const DiffViewMemo = React.memo(
                             <DiffViewStyled.Header>{diffTitle}</DiffViewStyled.Header>
                             <DiffViewStyled.Block>
                                 <DiffViewStyled.Json
-                                    style={{
-                                        maxHeight:
-                                            truncationState !== TRUNCATION_STATE.NOT_NEEDED
-                                                ? "calc(100% - 3rem)"
-                                                : "",
-                                    }}
                                 >
                                     {diff.map((line: any, index: number) =>
                                         !line.removed ? (
@@ -286,7 +276,9 @@ const DiffViewMemo = React.memo(
                                             width: "fit-content",
                                             minHeight: "unset",
                                             fontSize: "0.8rem",
-                                            marginLeft: "auto",
+                                            position: 'absolute',
+                                            right:'0.5rem',
+                                            bottom:'0.5rem',
                                         }}
                                         aria-expanded={
                                             truncationState !== TRUNCATION_STATE.TRUNCATED
