@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {Box, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
