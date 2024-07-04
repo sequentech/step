@@ -49,9 +49,6 @@ const HeaderWithContext: React.FC = () => {
         return ballotStyle?.ballot_eml.election_event_presentation?.voting_portal_countdown_policy
     }, [ballotStyle])
 
-    console.log("expiryTIme", authContext.getExpiry())
-
-    console.log("countdownPolicy", countdownPolicy)
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}

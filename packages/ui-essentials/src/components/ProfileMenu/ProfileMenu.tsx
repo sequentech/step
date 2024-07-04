@@ -1,11 +1,13 @@
-import {Box, Menu, MenuItem} from "@mui/material"
+import {Box, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
+    IExpiryCountdown,
     StyledButton,
     StyledButtonContainer,
     StyledButtonContainerWrapper,
     StyledButtonTooltip,
+    UserProfile,
 } from "../Header/Header"
 import CountdownTimer from "../CountdownBar/CountdownBar"
 import AccountCircle from "@mui/icons-material/AccountCircle"
@@ -18,34 +20,66 @@ const Span = styled.span`
     font-size: 14px;
     color: ${theme.palette.customGrey.dark};
 `
+
+export const StyledButtonTooltipText = styled(Typography)`
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+`
+
+function CountdownTooltipContent({timeLeft = ""}) {
+    const {t} = useTranslation()
+
+    return (
+        <>
+            <StyledButtonTooltipText
+                sx={{
+                    fontWeight: 500,
+                    color: theme.palette.brandColor,
+                }}
+            >
+                {t("header.session.title")}
+            </StyledButtonTooltipText>
+            <StyledButtonTooltipText>
+                {t("header.session.timeLeft", {time: timeLeft})}
+            </StyledButtonTooltipText>
+        </>
+    )
+}
+
+interface ProfileMenuProps {
+    userProfile: UserProfile
+    logoutFn?: () => void
+    setOpenModal: (value: boolean) => void
+    handleOpenTimeModal: () => void
+    expiry?: IExpiryCountdown
+    setTimeLeftDialogText: (dialogText: string) => void
+}
+
 export const ProfileMenu = ({
-    CountdownTooltipContent,
     userProfile,
     logoutFn,
     setOpenModal,
     handleOpenTimeModal,
     expiry,
-    setTimeLeftText,
-}) => {
+    setTimeLeftDialogText,
+}: ProfileMenuProps) => {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    // const [timeLeftText, setTimeLeftText] = useState("")
+    const [timeLeftText, setTimeLeftText] = useState("")
     const [timeLeft, setTimeLeft] = useState(0)
     const [totalDuration, setTotalDuration] = useState(0)
 
     const [timeMinReached, setTimeMinReached] = useState(false)
 
     useEffect(() => {
-        if (expiry) {
+        if (expiry && expiry.endTime) {
             const futureTime = expiry.endTime
             const currentTime = expiry.startTime
             const totalDuration: number = Math.floor(
                 (futureTime.getTime() - currentTime.getTime()) / 1000
             )
-            console.log("totalDuration", totalDuration)
             const timeLeftInSeconds = Math.floor((futureTime.getTime() - Date.now()) / 1000)
-            console.log({timeLeftInSeconds, totalDuration})
-            console.log("timeLeftInSecinds", timeLeftInSeconds)
             setTimeLeft(timeLeftInSeconds)
             setTotalDuration(
                 expiry?.countdownAt && expiry?.countdownAt < timeLeftInSeconds
@@ -57,10 +91,14 @@ export const ProfileMenu = ({
 
     useEffect(() => {
         if (timeLeft > 0 && expiry?.countdown !== EVotingPortalCountdownPolicy.NO_COUNTDOWN) {
-            if (timeLeft < expiry.alertAt && !timeMinReached) {
-                setTimeMinReached(true)
+            if (
                 expiry?.countdown === EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT &&
-                    handleOpenTimeModal?.(timeLeft)
+                expiry?.alertAt &&
+                timeLeft < expiry?.alertAt &&
+                !timeMinReached
+            ) {
+                setTimeMinReached(true)
+                handleOpenTimeModal?.()
             }
             const timerId = setInterval(() => {
                 setTimeLeft(timeLeft - 1)
@@ -76,6 +114,10 @@ export const ProfileMenu = ({
         }
     }, [expiry, timeLeft])
 
+    useEffect(() => {
+        setTimeLeftDialogText(timeLeftText)
+    }, [timeLeftText])
+
     function handleMenu(event: React.MouseEvent<HTMLElement>) {
         setAnchorEl(event.currentTarget)
     }
@@ -87,10 +129,12 @@ export const ProfileMenu = ({
     return (
         <Box>
             <StyledButtonTooltip
-                disableHoverListener={!expiry || timeLeft > expiry?.countdownAt}
+                disableHoverListener={
+                    !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
+                }
                 arrow
                 placement="bottom-end"
-                title={<CountdownTooltipContent />}
+                title={<CountdownTooltipContent timeLeft={timeLeftText} />}
                 slotProps={{
                     popper: {
                         modifiers: [

@@ -4,10 +4,11 @@
 import React from "react"
 import {Meta, StoryFn, StoryObj} from "@storybook/react"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
-import {ProfileMenu} from "../ProfileMenu"
-import {StyledButtonTooltipText} from "../../../components/Header/Header"
+import {ProfileMenu, StyledButtonTooltipText} from "../ProfileMenu"
+import {StyledButtonTooltip} from "../../../components/Header/Header"
 import theme from "../../../services/theme"
 import {Box} from "@mui/material"
+import {EVotingPortalCountdownPolicy} from "@root/types/CoreTypes"
 
 const meta: Meta<typeof ProfileMenu> = {
     title: "components/ProfileMenu",
@@ -45,21 +46,6 @@ type Story = StoryObj<typeof ProfileMenu>
 export const CountdownWithAlert: Story = {
     // More on args: https://storybook.js.org/docs/react/writing-stories/args
     args: {
-        CountdownTooltipContent: function timeContent() {
-            return (
-                <>
-                    <StyledButtonTooltipText
-                        sx={{
-                            fontWeight: 500,
-                            color: theme.palette.brandColor,
-                        }}
-                    >
-                        Sameple title
-                    </StyledButtonTooltipText>
-                    <StyledButtonTooltipText>Sample time left definition</StyledButtonTooltipText>
-                </>
-            )
-        },
         userProfile: {
             email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
             username: "John has a very super super duper very super duper long name",
@@ -75,8 +61,8 @@ export const CountdownWithAlert: Story = {
         expiry: {
             startTime: new Date(Date.now()),
             endTime: new Date(Date.now() + 120000), //current time plus 2 minutes
-            countdown: "countdownWithAlert",
-            duration: 120,
+            countdown: EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT,
+            countdownAt: 120,
             alertAt: 60,
         },
     },
@@ -90,21 +76,6 @@ export const CountdownWithAlert: Story = {
 export const CountdownOnly: Story = {
     // More on args: https://storybook.js.org/docs/react/writing-stories/args
     args: {
-        CountdownTooltipContent: function timeContent() {
-            return (
-                <>
-                    <StyledButtonTooltipText
-                        sx={{
-                            fontWeight: 500,
-                            color: theme.palette.brandColor,
-                        }}
-                    >
-                        Sameple title
-                    </StyledButtonTooltipText>
-                    <StyledButtonTooltipText>Sample time left definition</StyledButtonTooltipText>
-                </>
-            )
-        },
         userProfile: {
             email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
             username: "John has a very super super duper very super duper long name",
@@ -120,8 +91,8 @@ export const CountdownOnly: Story = {
         expiry: {
             startTime: new Date(Date.now()),
             endTime: new Date(Date.now() + 120000), //current time plus 2 minutes
-            countdown: "countdown",
-            duration: 120,
+            countdown: EVotingPortalCountdownPolicy.COUNTDOWN,
+            countdownAt: 120,
             alertAt: 60,
         },
     },
@@ -135,21 +106,6 @@ export const CountdownOnly: Story = {
 export const NoCountdown: Story = {
     // More on args: https://storybook.js.org/docs/react/writing-stories/args
     args: {
-        CountdownTooltipContent: function timeContent() {
-            return (
-                <>
-                    <StyledButtonTooltipText
-                        sx={{
-                            fontWeight: 500,
-                            color: theme.palette.brandColor,
-                        }}
-                    >
-                        Sameple title
-                    </StyledButtonTooltipText>
-                    <StyledButtonTooltipText>Sample time left definition</StyledButtonTooltipText>
-                </>
-            )
-        },
         userProfile: {
             email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
             username: "John has a very super super duper very super duper long name",

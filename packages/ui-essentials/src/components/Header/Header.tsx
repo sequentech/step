@@ -61,12 +61,6 @@ export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) 
     },
 }))
 
-export const StyledButtonTooltipText = styled(Typography)`
-    padding: 0;
-    margin: 0;
-    font-size: 12px;
-`
-
 export const StyledButtonContainerWrapper = styled.div`
     position: relative;
     padding: 0;
@@ -110,7 +104,7 @@ type ApplicationVersion = {
     main: string
 }
 
-type UserProfile = {
+export type UserProfile = {
     username: string
     email?: string
     openLink?: Function
@@ -123,7 +117,7 @@ export enum HeaderErrorVariant {
 
 export interface IExpiryCountdown {
     startTime: Date
-    endTime: Date | undefined
+    endTime?: Date
     countdown?: EVotingPortalCountdownPolicy
     countdownAt?: number
     alertAt?: number
@@ -140,26 +134,6 @@ export interface HeaderProps {
     expiry?: IExpiryCountdown
 }
 
-function CountdownTooltipContent({timeLeft = ""}) {
-    const {t} = useTranslation()
-
-    return (
-        <>
-            <StyledButtonTooltipText
-                sx={{
-                    fontWeight: 500,
-                    color: theme.palette.brandColor,
-                }}
-            >
-                {t("header.session.title")}
-            </StyledButtonTooltipText>
-            <StyledButtonTooltipText>
-                {t("header.session.timeLeft", {time: timeLeft})}
-            </StyledButtonTooltipText>
-        </>
-    )
-}
-
 export default function Header({
     userProfile,
     appVersion,
@@ -170,8 +144,6 @@ export default function Header({
     errorVariant,
     expiry = undefined,
 }: HeaderProps) {
-    console.log("Header Props", errorVariant, logoutFn)
-    console.log("expiry header", expiry)
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
     const [openTimeModal, setOpenTimeModal] = useState<boolean>(false)
@@ -225,9 +197,10 @@ export default function Header({
                                         userProfile={userProfile}
                                         logoutFn={logoutFn}
                                         setOpenModal={setOpenModal}
-                                        setTimeLeftText={(timeLeft: string) => setCountdownTimeLeft(timeLeft)}
+                                        setTimeLeftDialogText={(timeLeft: string) =>
+                                            setCountdownTimeLeft(timeLeft)
+                                        }
                                         handleOpenTimeModal={() => handleToggleTimeModal(true)}
-                                        CountdownTooltipContent={CountdownTooltipContent}
                                         expiry={expiry}
                                     />
                                 )
