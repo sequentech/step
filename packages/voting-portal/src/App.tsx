@@ -3,10 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useContext} from "react"
+import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, IElectionEventPresentation, PageBanner} from "@sequentech/ui-essentials"
+import {
+    EVotingPortalCountdownPolicy,
+    Footer,
+    Header,
+    IElectionEventPresentation,
+    PageBanner,
+} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -39,7 +45,13 @@ const HeaderWithContext: React.FC = () => {
 
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
+    const countdownPolicy = useMemo(() => {
+        return ballotStyle?.ballot_eml.election_event_presentation?.voting_portal_countdown_policy
+    }, [ballotStyle])
 
+    console.log("expiryTIme", authContext.getExpiry())
+
+    console.log("countdownPolicy", countdownPolicy)
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
@@ -51,13 +63,13 @@ const HeaderWithContext: React.FC = () => {
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             logoUrl={presentation?.logo_url}
-			expiry={{
-				alertAt: 60,
-				countdown: 'countdownWithAlert',
-				duration: 120,
-				endTime: authContext.getExpiry(),
-				startTime: new Date('2024-07-03T15:18:44.001Z')
-			}}
+            expiry={{
+                alertAt: countdownPolicy?.countdown_alert_anticipation_secs,
+                countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,
+                countdownAt: countdownPolicy?.countdown_anticipation_secs,
+                endTime: authContext.getExpiry(),
+                startTime: new Date(),
+            }}
         />
     )
 }

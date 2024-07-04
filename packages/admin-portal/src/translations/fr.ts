@@ -256,12 +256,14 @@ const frenchTranslation: TranslationType = {
                 showUserProfile: "Afficher le profil utilisateur",
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
-                    COUNDOWN: "Compte à rebours",
-                    COUNTDOWN_WITH_ALRET: "Compte à rebours avec alerte",
+                    COUNTDOWN: "Compte à rebours",
+                    COUNTDOWN_WITH_ALERT: "Compte à rebours avec alerte",
                     sectionTitle: "Portail de vote",
                     policyLabel: "Politique de compte à rebours du portail de vote",
-                    coundownSecondsLabel: "temps en secondes avant expiration pour afficher le compte à rebours",
-                    alertSecondsLabel: "temps en secondes avant expiration pour afficher l'alerte de déconnexion"
+                    coundownSecondsLabel:
+                        "temps en secondes avant expiration pour afficher le compte à rebours",
+                    alertSecondsLabel:
+                        "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
                 },
             },
             error: {

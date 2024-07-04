@@ -12,6 +12,7 @@ import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import styled from "@emotion/styled"
 import theme from "../../services/theme"
+import {EVotingPortalCountdownPolicy} from "@root/types/CoreTypes"
 
 const Span = styled.span`
     font-size: 14px;
@@ -24,11 +25,11 @@ export const ProfileMenu = ({
     setOpenModal,
     handleOpenTimeModal,
     expiry,
+    setTimeLeftText,
 }) => {
     const {t} = useTranslation()
-
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    const [timeLeftText, setTimeLeftText] = useState("")
+    // const [timeLeftText, setTimeLeftText] = useState("")
     const [timeLeft, setTimeLeft] = useState(0)
     const [totalDuration, setTotalDuration] = useState(0)
 
@@ -38,24 +39,29 @@ export const ProfileMenu = ({
         if (expiry) {
             const futureTime = expiry.endTime
             const currentTime = expiry.startTime
-            const totalDuration: number =
-                expiry.duration ?? Math.floor((futureTime.getTime() - currentTime.getTime()) / 1000)
-
+            const totalDuration: number = Math.floor(
+                (futureTime.getTime() - currentTime.getTime()) / 1000
+            )
+            console.log("totalDuration", totalDuration)
             const timeLeftInSeconds = Math.floor((futureTime.getTime() - Date.now()) / 1000)
-
             console.log({timeLeftInSeconds, totalDuration})
+            console.log("timeLeftInSecinds", timeLeftInSeconds)
             setTimeLeft(timeLeftInSeconds)
-            setTotalDuration(60)
+            setTotalDuration(
+                expiry?.countdownAt && expiry?.countdownAt < timeLeftInSeconds
+                    ? expiry.countdownAt
+                    : timeLeftInSeconds
+            )
         }
-    }, [])
+    }, [expiry])
 
     useEffect(() => {
-        if (timeLeft > 0) {
+        if (timeLeft > 0 && expiry?.countdown !== EVotingPortalCountdownPolicy.NO_COUNTDOWN) {
             if (timeLeft < expiry.alertAt && !timeMinReached) {
                 setTimeMinReached(true)
-                handleOpenTimeModal?.()
+                expiry?.countdown === EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT &&
+                    handleOpenTimeModal?.(timeLeft)
             }
-
             const timerId = setInterval(() => {
                 setTimeLeft(timeLeft - 1)
                 if (timeLeft > 60) {
@@ -81,10 +87,10 @@ export const ProfileMenu = ({
     return (
         <Box>
             <StyledButtonTooltip
-                disableHoverListener={!expiry || timeLeft > 60}
+                disableHoverListener={!expiry || timeLeft > expiry?.countdownAt}
                 arrow
                 placement="bottom-end"
-                title={<CountdownTooltipContent timeLeft={timeLeftText} />}
+                title={<CountdownTooltipContent />}
                 slotProps={{
                     popper: {
                         modifiers: [
@@ -115,7 +121,8 @@ export const ProfileMenu = ({
 								</Box> */}
                         </StyledButton>
                     </StyledButtonContainer>
-                    {expiry && timeLeft < 60 && (
+
+                    {expiry && timeLeft > 0 && timeLeft < totalDuration && (
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
                 </StyledButtonContainerWrapper>

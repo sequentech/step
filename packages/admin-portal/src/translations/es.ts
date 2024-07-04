@@ -256,12 +256,14 @@ const spanishTranslation: TranslationType = {
                 showUserProfile: "Mostrar perfil de usuario",
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
-                    COUNDOWN: "Cuenta regresiva",
-                    COUNTDOWN_WITH_ALRET: "Cuenta regresiva con alerta",
+                    COUNTDOWN: "Cuenta regresiva",
+                    COUNTDOWN_WITH_ALERT: "Cuenta regresiva con alerta",
                     sectionTitle: "Portal de votación",
                     policyLabel: "Política de cuenta regresiva del portal de votación",
-                    coundownSecondsLabel: "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
-                    alertSecondsLabel: "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión"
+                    coundownSecondsLabel:
+                        "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
+                    alertSecondsLabel:
+                        "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
             },
             error: {

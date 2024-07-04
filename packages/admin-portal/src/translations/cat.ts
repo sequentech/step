@@ -256,12 +256,14 @@ const catalanTranslation: TranslationType = {
                 showUserProfile: "Mostra el perfil de l'usuari",
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
-                    COUNDOWN: "Compte enrere",
-                    COUNTDOWN_WITH_ALRET: "Compte enrere amb avís",
+                    COUNTDOWN: "Compte enrere",
+                    COUNTDOWN_WITH_ALERT: "Compte enrere amb avís",
                     sectionTitle: "Portal de votació",
                     policyLabel: "Política de compte enrere del portal de votació",
-                    coundownSecondsLabel: "temps en segons abans de la caducitat per mostrar el compte enrere",
-                    alertSecondsLabel: "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió"
+                    coundownSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar el compte enrere",
+                    alertSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
                 },
             },
             error: {

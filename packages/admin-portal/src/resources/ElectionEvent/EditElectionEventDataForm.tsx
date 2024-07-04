@@ -39,12 +39,17 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {Dialog, IElectionEventPresentation, ITenantSettings} from "@sequentech/ui-essentials"
+import {
+    Dialog,
+    EVotingPortalCountdownPolicy,
+    IElectionEventPresentation,
+    ITenantSettings,
+} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {EVotingPortalCountdownPolicy, TVotingSetting} from "@/types/settings"
+import {TVotingSetting} from "@/types/settings"
 import {
     ExportElectionEventMutation,
     ImportCandidatesMutation,

@@ -254,8 +254,8 @@ const englishTranslation = {
                 showUserProfile: "Show User Profile",
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
-                    COUNDOWN: "Countdown",
-                    COUNTDOWN_WITH_ALRET: "Countdown with alret",
+                    COUNTDOWN: "Countdown",
+                    COUNTDOWN_WITH_ALERT: "Countdown with alret",
                     sectionTitle: "Voting Portal",
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",

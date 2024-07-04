@@ -34,6 +34,9 @@ const CountdownTimer = ({
     // onCount,
     progress,
 }: ICountdownTimer) => {
+    useEffect(() => {
+        console.log("progress", progress)
+    }, [progress])
     //relocated logic to satisfy new requirement...
     //could be restored it component ever required to control own state
 

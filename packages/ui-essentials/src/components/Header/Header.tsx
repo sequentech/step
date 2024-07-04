@@ -10,19 +10,13 @@ import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
 import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
-import {
-    Box,
-    Button,
-    Tooltip,
-    TooltipProps,
-    Typography,
-    tooltipClasses,
-} from "@mui/material"
+import {Box, Button, Tooltip, TooltipProps, Typography, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
+import {EVotingPortalCountdownPolicy} from "@root/types/CoreTypes"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -127,6 +121,14 @@ export enum HeaderErrorVariant {
     SHOW_PROFILE = "show profile",
 }
 
+export interface IExpiryCountdown {
+    startTime: Date
+    endTime: Date | undefined
+    countdown?: EVotingPortalCountdownPolicy
+    countdownAt?: number
+    alertAt?: number
+}
+
 export interface HeaderProps {
     logoutFn?: () => void
     appVersion?: ApplicationVersion
@@ -135,13 +137,7 @@ export interface HeaderProps {
     logoUrl?: string
     languagesList?: Array<string>
     errorVariant?: HeaderErrorVariant
-    expiry?: {
-        startTime: Date
-        endTime: Date | undefined
-        countdown: "countdownWithAlert" | "countdown" | "none"
-        duration: number
-        alertAt: number
-    }
+    expiry?: IExpiryCountdown
 }
 
 function CountdownTooltipContent({timeLeft = ""}) {
@@ -175,16 +171,17 @@ export default function Header({
     expiry = undefined,
 }: HeaderProps) {
     console.log("Header Props", errorVariant, logoutFn)
+    console.log("expiry header", expiry)
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
     const [openTimeModal, setOpenTimeModal] = useState<boolean>(false)
-
+    const [countdownTimeLeft, setCountdownTimeLeft] = useState<string | undefined>(undefined)
     function handleCloseModal(value: boolean) {
         return value && logoutFn ? logoutFn() : setOpenModal(false)
     }
 
     function handleToggleTimeModal(value: boolean) {
-        return setOpenTimeModal(value)
+        setOpenTimeModal(value)
     }
 
     return (
@@ -206,28 +203,29 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                    <StyledButtonContainerWrapper>
-                                        <StyledButtonContainer className="logout-button-container">
-                                            <StyledButton
-                                                className="logout-button"
-                                                aria-label="log out button"
-                                                onClick={() => {
-                                                    setOpenModal(true)
-                                                }}
-                                            >
-                                                <LogoutIcon />
-                                                <Box sx={{display: {xs: "none", sm: "block"}}}>
-                                                    {t("logout.buttonText")}
-                                                </Box>
-                                            </StyledButton>
-                                        </StyledButtonContainer>
-                                    </StyledButtonContainerWrapper>
+                                <StyledButtonContainerWrapper>
+                                    <StyledButtonContainer className="logout-button-container">
+                                        <StyledButton
+                                            className="logout-button"
+                                            aria-label="log out button"
+                                            onClick={() => {
+                                                setOpenModal(true)
+                                            }}
+                                        >
+                                            <LogoutIcon />
+                                            <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                                {t("logout.buttonText")}
+                                            </Box>
+                                        </StyledButton>
+                                    </StyledButtonContainer>
+                                </StyledButtonContainerWrapper>
                             ) : (
                                 userProfile && (
                                     <ProfileMenu
                                         userProfile={userProfile}
                                         logoutFn={logoutFn}
                                         setOpenModal={setOpenModal}
+                                        setTimeLeftText={(timeLeft: string) => setCountdownTimeLeft(timeLeft)}
                                         handleOpenTimeModal={() => handleToggleTimeModal(true)}
                                         CountdownTooltipContent={CountdownTooltipContent}
                                         expiry={expiry}
@@ -257,7 +255,7 @@ export default function Header({
                 cancel={t("logout.modal.close")}
                 variant="info"
             >
-                <p>{t("header.session.timeLeft", {time: "less than 1 minute"})}</p>
+                <p>{t("header.session.timeLeft", {time: countdownTimeLeft})}</p>
             </Dialog>
         </>
     )

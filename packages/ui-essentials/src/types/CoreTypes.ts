@@ -127,3 +127,15 @@ export enum EInvalidPlaintextErrorType {
     Implicit = "Implicit",
     EncodingError = "EncodingError",
 }
+
+export interface IVotingPortalCountdownPolicy {
+    policy: string
+    countdown_anticipation_secs: number
+    countdown_alert_anticipation_secs: number
+}
+
+export enum EVotingPortalCountdownPolicy {
+    NO_COUNTDOWN = "NO_COUNTDOWN",
+    COUNTDOWN = "COUNTDOWN",
+    COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT",
+}
