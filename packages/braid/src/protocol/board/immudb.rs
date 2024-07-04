@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use board_messages::braid::message::Message;
-use immu_board::{Board, BoardClient, BoardMessage};
+use immu_board::{Board as BoardData, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -32,34 +32,6 @@ impl ImmudbBoard {
             board_dbname: board_dbname.to_string(),
             store_root,
         })
-    }
-
-    // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
-    // If a store is used only the messages not previously received will be requested.
-    pub async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
-        let messages = if self.store_root.is_some() {
-            // When using a store, only the messages not previously received will be requested
-            self.store_and_get_messages(last_id).await?
-        } else {
-            // When not using a store, we get all messages, one at a time
-            // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            let messages = self
-                .get_remote_messages_consecutively(last_id.unwrap_or(0))
-                .await?;
-            // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
-
-            messages
-                .iter()
-                .map(|m| {
-                    let message = Message::strand_deserialize(&m.message)?;
-                    let id = m.id;
-                    Ok((message, id))
-                })
-                .collect::<Result<Vec<(Message, i64)>>>()?
-        };
-
-        Ok(messages)
     }
 
     // Returns all messages from immudb starting from last_id + 1,  using consecutive requests.
@@ -90,18 +62,6 @@ impl ImmudbBoard {
         }
 
         Ok(ret)
-    }
-
-    pub(crate) async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
-        if messages.len() > 0 {
-            let bm: Result<Vec<BoardMessage>> =
-                messages.into_iter().map(|m| m.try_into()).collect();
-            self.board_client
-                .insert_messages(&self.board_dbname, &bm?)
-                .await
-        } else {
-            Ok(())
-        }
     }
 
     // Returns all messages whose id > last_id.
@@ -189,6 +149,50 @@ impl ImmudbBoard {
     }
 }
 
+impl super::Board for ImmudbBoard {
+    type Params = BoardParams;
+
+    // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
+    // If a store is used only the messages not previously received will be requested.
+    async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
+        let messages = if self.store_root.is_some() {
+            // When using a store, only the messages not previously received will be requested
+            self.store_and_get_messages(last_id).await?
+        } else {
+            // When not using a store, we get all messages, one at a time
+            // If last_id is None, use 0 as last_id: immudb sequences start with 1
+            let messages = self
+                .get_remote_messages_consecutively(last_id.unwrap_or(0))
+                .await?;
+            // If last_id is None, use 0 as last_id: immudb sequences start with 1
+            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
+
+            messages
+                .iter()
+                .map(|m| {
+                    let message = Message::strand_deserialize(&m.message)?;
+                    let id = m.id;
+                    Ok((message, id))
+                })
+                .collect::<Result<Vec<(Message, i64)>>>()?
+        };
+
+        Ok(messages)
+    }
+
+    async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
+        if messages.len() > 0 {
+            let bm: Result<Vec<BoardMessage>> =
+                messages.into_iter().map(|m| m.try_into()).collect();
+            self.board_client
+                .insert_messages(&self.board_dbname, &bm?)
+                .await
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// A bulletin board index implemented on immudb
 pub struct ImmudbBoardIndex {
     board_client: BoardClient,
@@ -214,7 +218,7 @@ impl ImmudbBoardIndex {
             .get_boards(&self.index_dbname)
             .await?
             .iter()
-            .map(|board: &Board| Ok(board.database_name.clone()))
+            .map(|board: &BoardData| Ok(board.database_name.clone()))
             .collect()
     }
 }
@@ -222,4 +226,40 @@ impl ImmudbBoardIndex {
 struct MessageRow {
     id: i64,
     message: Vec<u8>,
+}
+
+pub struct BoardParams {
+    server_url: String,
+    user: String,
+    password: String,
+    board_name: String,
+    store_root: Option<PathBuf>,
+}
+impl BoardParams {
+    pub fn new(
+        server_url: &str,
+        user: &str,
+        password: &str,
+        board_dbname: &str,
+        store_root: Option<PathBuf>,
+    ) -> BoardParams {
+        BoardParams {
+            server_url: server_url.to_string(),
+            user: user.to_string(),
+            password: password.to_string(),
+            board_name: board_dbname.to_string(),
+            store_root: store_root,
+        }
+    }
+
+    pub async fn get_board(&self) -> Result<ImmudbBoard> {
+        ImmudbBoard::new(
+            &self.server_url,
+            &self.user,
+            &self.password,
+            self.board_name.to_string(),
+            self.store_root.clone(),
+        )
+        .await
+    }
 }

@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use std::path::PathBuf;
 use tracing::info;
 
 use strand::context::Ctx;
 
-use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::board::immudb::BoardParams;
 use crate::protocol::trustee::Trustee;
 use crate::util::ProtocolError;
+use crate::protocol::board::Board;
 
 pub struct Session<C: Ctx + 'static> {
     pub name: String,
@@ -37,6 +37,7 @@ impl<C: Ctx> Session<C> {
             .get_board()
             .await
             .map_err(|e| ProtocolError::BoardError(e.to_string()));
+        
         if let Err(err) = board {
             return (self, Err(err));
         }
@@ -57,7 +58,6 @@ impl<C: Ctx> Session<C> {
             return (self, Ok(()));
         }
 
-        // let (send_messages, _actions) = self.trustee.step(messages);
         let step_result = self.trustee.step(messages);
         if let Err(err) = step_result {
             return (self, Err(err));
@@ -73,41 +73,5 @@ impl<C: Ctx> Session<C> {
         self.last_message_id = Some(last_id);
         
         (self, result)
-    }
-}
-
-pub struct BoardParams {
-    server_url: String,
-    user: String,
-    password: String,
-    board_name: String,
-    store_root: Option<PathBuf>,
-}
-impl BoardParams {
-    pub fn new(
-        server_url: &str,
-        user: &str,
-        password: &str,
-        board_dbname: &str,
-        store_root: Option<PathBuf>,
-    ) -> BoardParams {
-        BoardParams {
-            server_url: server_url.to_string(),
-            user: user.to_string(),
-            password: password.to_string(),
-            board_name: board_dbname.to_string(),
-            store_root: store_root,
-        }
-    }
-
-    pub async fn get_board(&self) -> Result<ImmudbBoard> {
-        ImmudbBoard::new(
-            &self.server_url,
-            &self.user,
-            &self.password,
-            self.board_name.to_string(),
-            self.store_root.clone(),
-        )
-        .await
     }
 }

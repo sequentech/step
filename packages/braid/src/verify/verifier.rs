@@ -17,12 +17,14 @@ use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 
 use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
 use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
 use crate::verify::datalog::Verified;
+
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;

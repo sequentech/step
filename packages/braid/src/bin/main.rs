@@ -12,7 +12,8 @@ use tracing::instrument;
 use tracing::{error, info};
 
 use braid::protocol::board::immudb::ImmudbBoardIndex;
-use braid::protocol::session::{BoardParams, Session};
+use braid::protocol::session::Session;
+use braid::protocol::board::immudb::BoardParams;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use braid::util::assert_folder;

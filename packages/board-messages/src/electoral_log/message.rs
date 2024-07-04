@@ -6,7 +6,6 @@ use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use immu_board::BoardMessage;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
@@ -178,11 +177,11 @@ impl Message {
     }
 }
 
-impl TryFrom<Message> for BoardMessage {
+impl TryFrom<Message> for immu_board::BoardMessage {
     type Error = anyhow::Error;
 
-    fn try_from(message: Message) -> Result<BoardMessage> {
-        Ok(BoardMessage {
+    fn try_from(message: Message) -> Result<immu_board::BoardMessage> {
+        Ok(immu_board::BoardMessage {
             id: 0,
             created: crate::timestamp() as i64,
             statement_timestamp: message.statement.head.timestamp as i64,
