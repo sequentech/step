@@ -56,3 +56,8 @@ jobs:
       run: |
         cd packages && docker build -t ghcr.io/${{ github.repository }}/cargo-packages:latest -f Dockerfile.cargo-packages .
         docker push ghcr.io/${{ github.repository }}/cargo-packages:latest
+
+    - name: Build and push immudb-log-audit
+      run: |
+        cd vendor/immudb-log-audit && docker build -t ghcr.io/${{ github.repository }}/immudb-log-audit:latest -f Dockerfile.immudb .
+        docker push ghcr.io/${{ github.repository }}/cargo-packages:latest
