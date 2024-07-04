@@ -39,7 +39,7 @@ jobs:
 
     - name: Build and push Postgres
       run: |
-        cd .devcontainer/postgres && docker build -t ghcr.io/${{ github.repository }}/postgres:latest -f Dockerfile .
+        cd .devcontainer/postgresql && docker build -t ghcr.io/${{ github.repository }}/postgres:latest -f Dockerfile .
         docker push ghcr.io/${{ github.repository }}/postgres:latest
 
     - name: Build and push Minio
