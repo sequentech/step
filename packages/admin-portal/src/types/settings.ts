@@ -5,3 +5,9 @@
 export type TVotingSetting = {
     [key: string]: boolean
 }
+
+export enum EVotingPortalCountdownPolicy {
+    NO_COUNTDOWN = "NO_COUNTDOWN",
+    COUNTDOWN = "COUNTDOWN",
+    COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT",
+}
