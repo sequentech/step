@@ -4,14 +4,7 @@
 import {Box, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useRef} from "react"
 import {useTranslation} from "react-i18next"
-import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    QRCode,
-    Dialog
-} from "@sequentech/ui-essentials"
+import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
 import {stringToHtml, IElectionEventPresentation} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"

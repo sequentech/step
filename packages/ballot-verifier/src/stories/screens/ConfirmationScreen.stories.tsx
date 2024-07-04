@@ -13,7 +13,7 @@ import {
     IConfirmationBallot,
     provideBallotService,
 } from "../../services/BallotService"
-import {IDecodedVoteChoice, IContestLayoutProperties, IContest} from "@sequentech/ui-core"
+import {IDecodedVoteChoice, IContest, IContestLayoutProperties} from "@sequentech/ui-core"
 
 export default {
     title: "screens/ConfirmationScreen",

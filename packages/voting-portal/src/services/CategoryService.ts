@@ -2,13 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {
-    ICandidate,
-    IContest,
-    ITypePresentation,
-    shuffle,
-    splitList,
-} from "@sequentech/ui-core"
+import {ICandidate, IContest, ITypePresentation, shuffle, splitList} from "@sequentech/ui-core"
 import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
 import {sortBy} from "lodash"
 

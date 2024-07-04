@@ -11,7 +11,7 @@ import {
     Icon,
     InfoDataBox,
     IconButton,
-    Dialog
+    Dialog,
 } from "@sequentech/ui-essentials"
 import {stringToHtml} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button} from "@mui/material"

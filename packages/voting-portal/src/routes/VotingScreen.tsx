@@ -7,7 +7,13 @@ import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesS
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
-import {stringToHtml, isUndefined, translateElection} from "@sequentech/ui-core"
+import {
+    check_voting_error_dialog_bool,
+    check_voting_not_allowed_next_bool,
+    stringToHtml,
+    isUndefined,
+    translateElection,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -19,11 +25,7 @@ import {
     setBallotSelection,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    check_voting_error_dialog_bool,
-    check_voting_not_allowed_next_bool,
-    provideBallotService,
-} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"

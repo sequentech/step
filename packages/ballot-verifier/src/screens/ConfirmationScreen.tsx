@@ -10,8 +10,8 @@ import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
-import {IBallotService, IConfirmationBallot, checkIsBlank} from "../services/BallotService"
-import {IDecodedVoteContest} from "@sequentech/ui-core"
+import {IBallotService, IConfirmationBallot} from "../services/BallotService"
+import {IDecodedVoteContest, checkIsBlank} from "@sequentech/ui-core"
 import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
@@ -28,14 +28,9 @@ import {
     WarnBox,
     Dialog,
     theme,
-    BlankAnswer
+    BlankAnswer,
 } from "@sequentech/ui-essentials"
-import {
-    translate,
-    ICandidate,
-    IContest,
-    EInvalidVotePolicy,
-} from "@sequentech/ui-core"
+import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
 import Image from "mui-image"
 import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"

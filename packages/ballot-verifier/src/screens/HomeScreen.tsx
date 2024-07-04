@@ -18,8 +18,8 @@ import {
     IconButton,
     theme,
     Dialog,
-    IAuditableBallot,
 } from "@sequentech/ui-essentials"
+import {IAuditableBallot} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
