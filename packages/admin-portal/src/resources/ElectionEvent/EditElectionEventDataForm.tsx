@@ -28,6 +28,7 @@ import {
     Grid,
     Drawer,
     Box,
+    Typography,
 } from "@mui/material"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useContext, useEffect, useState} from "react"
@@ -159,7 +160,9 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-    const [countdownPolicy, setCountdownPolicy] = useState<EVotingPortalCountdownPolicy>(EVotingPortalCountdownPolicy.NO_COUNTDOWN);
+    const [countdownPolicy, setCountdownPolicy] = useState<EVotingPortalCountdownPolicy>(
+        EVotingPortalCountdownPolicy.NO_COUNTDOWN
+    )
     const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const notify = useNotify()
@@ -246,13 +249,13 @@ export const EditElectionEventDataForm: React.FC = () => {
             const enabled_item: any = {}
             enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item} 
+            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
-        if(!temp.presentation) {
+        if (!temp.presentation) {
             temp.presentation = {}
         }
 
-        if(!temp.presentation?.voting_portal_countdown_policy) {
+        if (!temp.presentation?.voting_portal_countdown_policy) {
             temp.presentation.voting_portal_countdown_policy = {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
@@ -425,13 +428,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         notify("Candidates successfully imported", {type: "success"})
     }
 
-    const votingPortalCountDownPolicies =  () => {
-        return (Object.keys(EVotingPortalCountdownPolicy)).map((key) => ({
-            id: key,
-            name: t(`electionEventScreen.field.countDownPolicyOptions.${key}`),
+    const votingPortalCountDownPolicies = () => {
+        return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
         }))
     }
-
 
     return (
         <>
@@ -677,44 +679,61 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 >
                                     <ElectionHeaderStyles.Wrapper>
                                         <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.votingPortalCountDown")}
+                                            {t("electionEventScreen.edit.advancedConfigurations")}
                                         </ElectionHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                   <SelectInput 
-                                    source={`presentation.voting_portal_countdown_policy.policy`}
-                                    choices={votingPortalCountDownPolicies()}
-                                    label={t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
-                                    defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
-                                    emptyText={undefined}
-                                    
-                                   />
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t(
+                                            "electionEventScreen.field.countDownPolicyOptions.sectionTitle"
+                                        )}
+                                    </Typography>
+                                    <SelectInput
+                                        source={`presentation.voting_portal_countdown_policy.policy`}
+                                        choices={votingPortalCountDownPolicies()}
+                                        label={t(
+                                            "electionEventScreen.field.countDownPolicyOptions.policyLabel"
+                                        )}
+                                        defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
+                                        emptyText={undefined}
+                                    />
                                     <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "flex-end",
-                    alignItems: "center",
-                    gap: "16px"
-                }}
-            >
-                                   <NumberInput
-                                    source={`presentation.voting_portal_countdown_policy.countdown_anticipation_secs`}
-                                    min={0}
-                                    label={"time in seconds before expiration to show countdown"}
-                                    style={{flex: 1}}
-                                   />
-                                   <NumberInput
-                                    source={`presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`}
-                                    min={0}
-                                    style={{flex: 1}}
-                                    label={"time in seconds before expiration to show Logout alret"}
-                                   />
-                                   </Box>
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "row",
+                                            justifyContent: "flex-end",
+                                            alignItems: "center",
+                                            gap: "16px",
+                                        }}
+                                    >
+                                        <NumberInput
+                                            source={`presentation.voting_portal_countdown_policy.countdown_anticipation_secs`}
+                                            min={0}
+                                            label={
+                                                "time in seconds before expiration to show countdown"
+                                            }
+                                            style={{flex: 1}}
+                                        />
+                                        <NumberInput
+                                            source={`presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`}
+                                            min={0}
+                                            style={{flex: 1}}
+                                            label={
+                                                "time in seconds before expiration to show Logout alret"
+                                            }
+                                        />
+                                    </Box>
                                 </AccordionDetails>
                             </Accordion>
-
                         </SimpleForm>
                     )
                 }}

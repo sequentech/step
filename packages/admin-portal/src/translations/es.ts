@@ -235,7 +235,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
-                votingPortalCountDown: "Voting Portal Countdown Policy",
+                advancedConfigurations: "Voting Portal Countdown Policy",
             },
             field: {
                 name: "Nombre",
@@ -255,11 +255,14 @@ const spanishTranslation: TranslationType = {
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
                 countDownPolicyOptions: {
-                    NO_COUNTDOWN: "No Countdown",
-                    COUNTDOWN: "Countdown",
-                    COUNTDOWN_WITH_ALERT: "Countdown with alret",
-                    sectionTitle: "Countdown policy",
-                }
+                    NO_COUNTDOWN: "Sin cuenta regresiva",
+                    COUNDOWN: "Cuenta regresiva",
+                    COUNTDOWN_WITH_ALRET: "Cuenta regresiva con alerta",
+                    sectionTitle: "Portal de votación",
+                    policyLabel: "Política de cuenta regresiva del portal de votación",
+                    coundownSecondsLabel: "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
+                    alertSecondsLabel: "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión"
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",

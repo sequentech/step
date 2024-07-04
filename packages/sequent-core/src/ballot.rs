@@ -480,7 +480,7 @@ pub struct ElectionEventPresentation {
     pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
-    pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>
+    pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
 }
 
 #[derive(
@@ -537,7 +537,7 @@ pub struct VotingPortalCountdownPolicy {
 pub enum ECountdownPolicy {
     NO_COUNTDOWN,
     COUNTDOWN,
-    COUNTDOWN_WITH_ALERT
+    COUNTDOWN_WITH_ALERT,
 }
 
 #[derive(
