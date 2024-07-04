@@ -2,18 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-use anyhow::anyhow;
+use anyhow::{Result, anyhow};
 use board_messages::braid::message::Message;
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
-use strand::serialization::StrandDeserialize;
+use std::time::{SystemTime, Duration};
 use tracing::{warn,info};
 use tokio_postgres::{NoTls, Row};
 use tracing::instrument;
 
 use strand::serialization::StrandSerialize;
+use strand::serialization::StrandDeserialize;
 
 /// A bulletin board implemented on immudb
 pub struct PgsqlBoard {
@@ -39,33 +39,7 @@ impl PgsqlBoard {
         })
     }
     
-    // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
-    // If a store is used only the messages not previously received will be requested.
-    pub async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i32)>> {
-        let messages = if self.store_root.is_some() {
-            // When using a store, only the messages not previously received will be requested
-            self.store_and_get_messages(last_id).await?
-        } else {
-            // When not using a store, we get all messages, one at a time
-            // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            let messages = self
-                .get_remote_messages_consecutively(last_id.unwrap_or(0))
-                .await?;
-            // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
-
-            messages
-                .iter()
-                .map(|m| {
-                    let message = Message::strand_deserialize(&m.message)?;
-                    let id = m.id;
-                    Ok((message, id))
-                })
-                .collect::<Result<Vec<(Message, i32)>>>()?
-        };
-
-        Ok(messages)
-    }
+    
 
     // Returns all messages from immudb starting from last_id + 1,  using consecutive requests.
     // If the value at last_id + 1 does not exist, an empty vector will be returned.
@@ -97,20 +71,8 @@ impl PgsqlBoard {
         Ok(ret)
     }
 
-    pub(crate) async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
-        if messages.len() > 0 {
-            let bm: Result<Vec<BoardMessage>> =
-                messages.into_iter().map(|m| m.try_into()).collect();
-            self.board_client
-                .insert_messages(&self.board_name, &bm?)
-                .await
-        } else {
-            Ok(())
-        }
-    }
-
     // Returns all messages whose id > last_id.
-    async fn get_remote_messages(&mut self, last_id: i32) -> Result<Vec<BoardMessage>> {
+    async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<BoardMessage>> {
         let messages = self
             .board_client
             .get_messages(&self.board_name, last_id)
@@ -134,7 +96,7 @@ impl PgsqlBoard {
         Ok(connection)
     }
 
-    async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i32)>> {
+    async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
         let connection = self.get_store()?;
 
         let external_last_id =
@@ -181,10 +143,10 @@ impl PgsqlBoard {
         })?;
 
         info!("Deserializing rows into Message structs..");
-        let messages: Result<Vec<(Message, i32)>> = rows
+        let messages: Result<Vec<(Message, i64)>> = rows
             .map(|mr| {
                 let row = mr?;
-                let id = row.id as i32;
+                let id = row.id;
                 let message = Message::strand_deserialize(&row.message)?;
                 Ok((message, id))
             })
@@ -193,6 +155,91 @@ impl PgsqlBoard {
         messages
     }
     
+}
+
+impl super::Board for PgsqlBoard {
+    type Params = BoardParams;
+    
+    // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
+    // If a store is used only the messages not previously received will be requested.
+    async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
+        let messages = if self.store_root.is_some() {
+            // When using a store, only the messages not previously received will be requested
+            self.store_and_get_messages(last_id).await?
+        } else {
+            // When not using a store, we get all messages, one at a time
+            // If last_id is None, use 0 as last_id: immudb sequences start with 1
+            let messages = self
+                .get_remote_messages_consecutively(last_id.unwrap_or(0))
+                .await?;
+            // If last_id is None, use 0 as last_id: immudb sequences start with 1
+            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
+
+            messages
+                .iter()
+                .map(|m| {
+                    let message = Message::strand_deserialize(&m.message)?;
+                    let id = m.id;
+                    Ok((message, id))
+                })
+                .collect::<Result<Vec<(Message, i64)>>>()?
+        };
+
+        Ok(messages)
+    }
+
+    async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
+        if messages.len() > 0 {
+            let bm: Result<Vec<BoardMessage>> =
+                messages.into_iter().map(|m| m.try_into()).collect();
+            self.board_client
+                .insert_messages(&self.board_name, &bm?)
+                .await
+        } else {
+            Ok(())
+        }
+    }
+}
+
+pub struct BoardParams {
+    host: String,
+    username: String,
+    password: String,
+    dbname: String,
+    board_name: String,
+    store_root: Option<PathBuf>,
+}
+impl BoardParams {
+    pub fn new(
+        host: &str,
+        username: &str,
+        password: &str,
+        dbname: &str,
+        board_name: String,
+        store_root: Option<PathBuf>,
+    ) -> BoardParams {
+        BoardParams {
+            host: host.to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
+            dbname: dbname.to_string(),
+            board_name,
+            store_root,
+        }
+    }
+
+    pub async fn get_board(&self) -> Result<PgsqlBoard> {
+        PgsqlBoard::new(
+            &self.host,
+            &self.username,
+            &self.password,
+            &self.dbname,
+            self.board_name.clone(),
+            self.store_root.clone()
+            
+        )
+        .await
+    }
 }
 
 /* 
@@ -229,18 +276,6 @@ impl PgsqlBoardIndex {
 struct MessageRow {
     id: i64,
     message: Vec<u8>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoardMessage {
-    pub id: i32,
-    pub created: SystemTime,
-    // Base64 encoded spki der representation.
-    pub sender_pk: String,
-    pub statement_timestamp: SystemTime,
-    pub statement_kind: String,
-    pub message: Vec<u8>,
-    pub version: String,
 }
 
 #[derive(Debug, Clone)]
@@ -289,8 +324,6 @@ impl TryFrom<&Row> for Board {
         })
     }
 }
-
-use std::time::{SystemTime, Duration};
 
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
@@ -401,6 +434,10 @@ pub(crate) mod tests {
 }
 
 
+///////////////////////////////////////////////////////////////////////////
+// PostgreSql client
+//
+///////////////////////////////////////////////////////////////////////////
 
 const INDEX_TABLE: &'static str = "BULLETIN_BOARDS";
 const PG_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
@@ -471,7 +508,7 @@ impl BoardClient {
             &format!(
             r#"
             CREATE TABLE IF NOT EXISTS {} (
-                id SERIAL PRIMARY KEY,
+                id BIGSERIAL PRIMARY KEY,
                 created TIMESTAMP,
                 sender_pk VARCHAR,
                 statement_timestamp TIMESTAMP,
@@ -528,7 +565,7 @@ impl BoardClient {
     pub async fn get_messages(
         &mut self,
         board_name: &str,
-        last_id: i32,
+        last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
         let mut offset: usize = 0;
         let mut last_batch = self
@@ -558,7 +595,7 @@ impl BoardClient {
     async fn get(
         &mut self,
         board: &str,
-        last_id: i32,
+        last_id: i64,
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<Vec<BoardMessage>> {
@@ -767,4 +804,16 @@ impl BoardClient {
 
         Ok(client)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoardMessage {
+    pub id: i64,
+    pub created: SystemTime,
+    // Base64 encoded spki der representation.
+    pub sender_pk: String,
+    pub statement_timestamp: SystemTime,
+    pub statement_kind: String,
+    pub message: Vec<u8>,
+    pub version: String,
 }

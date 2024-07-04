@@ -60,7 +60,7 @@ impl VectorBoard {
     }
 
     pub fn add(&mut self, message: Message) {
-        let last_id: i64= self.messages.len() as i64;
+        let last_id: i64 = self.messages.len() as i64;
         self.messages.push((message, last_id + 1));
     }
 

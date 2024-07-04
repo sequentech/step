@@ -193,36 +193,6 @@ impl super::Board for ImmudbBoard {
     }
 }
 
-/// A bulletin board index implemented on immudb
-pub struct ImmudbBoardIndex {
-    board_client: BoardClient,
-    index_dbname: String,
-}
-
-impl ImmudbBoardIndex {
-    pub async fn new(
-        server_url: &str,
-        username: &str,
-        password: &str,
-        index_dbname: String,
-    ) -> Result<ImmudbBoardIndex> {
-        let board_client = BoardClient::new(server_url, username, password).await?;
-        Ok(ImmudbBoardIndex {
-            board_client: board_client,
-            index_dbname,
-        })
-    }
-
-    pub async fn get_board_names(&mut self) -> Result<Vec<String>> {
-        self.board_client
-            .get_boards(&self.index_dbname)
-            .await?
-            .iter()
-            .map(|board: &BoardData| Ok(board.database_name.clone()))
-            .collect()
-    }
-}
-
 struct MessageRow {
     id: i64,
     message: Vec<u8>,
@@ -257,9 +227,39 @@ impl BoardParams {
             &self.server_url,
             &self.user,
             &self.password,
-            self.board_name.to_string(),
+            self.board_name.clone(),
             self.store_root.clone(),
         )
         .await
+    }
+}
+
+/// A bulletin board index implemented on immudb
+pub struct ImmudbBoardIndex {
+    board_client: BoardClient,
+    index_dbname: String,
+}
+
+impl ImmudbBoardIndex {
+    pub async fn new(
+        server_url: &str,
+        username: &str,
+        password: &str,
+        index_dbname: String,
+    ) -> Result<ImmudbBoardIndex> {
+        let board_client = BoardClient::new(server_url, username, password).await?;
+        Ok(ImmudbBoardIndex {
+            board_client: board_client,
+            index_dbname,
+        })
+    }
+
+    pub async fn get_board_names(&mut self) -> Result<Vec<String>> {
+        self.board_client
+            .get_boards(&self.index_dbname)
+            .await?
+            .iter()
+            .map(|board: &BoardData| Ok(board.database_name.clone()))
+            .collect()
     }
 }

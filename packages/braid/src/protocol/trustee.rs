@@ -113,6 +113,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
+    // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
     fn update_local_board(&mut self, messages: Vec<(Message, i64)>) -> Result<(i32, i64), ProtocolError> {
         trace!("Updating with {} messages", messages.len());
 
@@ -128,6 +129,8 @@ impl<C: Ctx> Trustee<C> {
     // General (non-bootstrap) update
     //
     // Each message is verified and added to the local board.
+    //
+    // Takes a vector of (message, message_id) pairs as input plus configuration, returns a pair of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
     fn update(
         &mut self,
@@ -181,6 +184,8 @@ impl<C: Ctx> Trustee<C> {
     //
     // There is no configuration. We retrieve message zero, check that it's the
     // configuration and add it to the local board.
+    //
+    // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
     fn update_bootstrap(&mut self, mut messages: Vec<(Message, i64)>) -> Result<(i32, i64), ProtocolError> {
         let mut added = 0;
