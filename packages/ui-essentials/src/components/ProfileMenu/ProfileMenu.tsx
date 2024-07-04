@@ -101,6 +101,9 @@ export const ProfileMenu = ({
                 handleOpenTimeModal?.()
             }
             const timerId = setInterval(() => {
+                if (timeLeft == 2) {
+                    logoutFn?.() //TODO: still needs to better figure out how the access token vs refresh token is working
+                }
                 setTimeLeft(timeLeft - 1)
                 if (timeLeft > 60) {
                     const timeLeftInMinutes: number = Math.floor(timeLeft / 60)
