@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
@@ -10,12 +10,19 @@ import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
 import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
-import {Box, Button, IconButton, Menu, MenuItem} from "@mui/material"
+import {
+    Box,
+    Button,
+    Tooltip,
+    TooltipProps,
+    Typography,
+    tooltipClasses,
+} from "@mui/material"
 import Version from "../Version/Version"
-import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
+import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -25,11 +32,6 @@ const HeaderWrapper = styled(PageBanner)`
     @media (max-width: ${theme.breakpoints.values.lg}px) {
         padding: 9px;
     }
-`
-
-const Span = styled.span`
-    font-size: 14px;
-    color: ${theme.palette.customGrey.dark};
 `
 
 const StyledLink = styled.a`
@@ -45,10 +47,61 @@ const StyledImage = styled(Image)`
     }
 `
 
-const StyledButton = styled(Button)`
+export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
+    <Tooltip {...props} classes={{popper: className}} />
+))(({theme}) => ({
+    [`& .${tooltipClasses.tooltip}`]: {
+        backgroundColor: theme.palette.blue.light,
+        color: "rgba(0, 0, 0)",
+        width: 220,
+        fontSize: theme.typography.pxToRem(12),
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+    },
+    [`& .MuiTooltip-arrow`]: {
+        color: theme.palette.blue.light,
+        fontSize: 20,
+        transform: "translate3d(200px, 0px, 0px) !important",
+    },
+}))
+
+export const StyledButtonTooltipText = styled(Typography)`
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+`
+
+export const StyledButtonContainerWrapper = styled.div`
+    position: relative;
+    padding: 0;
+    margin: 0;
+    width: 125px;
+    height: 44px;
+`
+
+export const StyledButtonContainer = styled.div`
+    position: absolute;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+`
+
+export const StyledButton = styled(Button)`
     color: ${({theme}) => theme.palette.brandColor} !important;
-    background: none;
+    background: transparent !important;
     border: none;
+    display: flex;
+    width: 100%;
+    // border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
+    outline: "none";
+    box-sizing: "border-box";
 
     &:hover,
     &:focus,
@@ -82,6 +135,33 @@ export interface HeaderProps {
     logoUrl?: string
     languagesList?: Array<string>
     errorVariant?: HeaderErrorVariant
+    expiry?: {
+        startTime: Date
+        endTime: Date | undefined
+        countdown: "countdownWithAlert" | "countdown" | "none"
+        duration: number
+        alertAt: number
+    }
+}
+
+function CountdownTooltipContent({timeLeft = ""}) {
+    const {t} = useTranslation()
+
+    return (
+        <>
+            <StyledButtonTooltipText
+                sx={{
+                    fontWeight: 500,
+                    color: theme.palette.brandColor,
+                }}
+            >
+                {t("header.session.title")}
+            </StyledButtonTooltipText>
+            <StyledButtonTooltipText>
+                {t("header.session.timeLeft", {time: timeLeft})}
+            </StyledButtonTooltipText>
+        </>
+    )
 }
 
 export default function Header({
@@ -92,21 +172,19 @@ export default function Header({
     logoUrl,
     languagesList,
     errorVariant,
+    expiry = undefined,
 }: HeaderProps) {
+    console.log("Header Props", errorVariant, logoutFn)
     const {t} = useTranslation()
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState<boolean>(false)
+    const [openTimeModal, setOpenTimeModal] = useState<boolean>(false)
 
     function handleCloseModal(value: boolean) {
         return value && logoutFn ? logoutFn() : setOpenModal(false)
     }
 
-    function handleMenu(event: React.MouseEvent<HTMLElement>) {
-        setAnchorEl(event.currentTarget)
-    }
-
-    function handleClose() {
-        setAnchorEl(null)
+    function handleToggleTimeModal(value: boolean) {
+        return setOpenTimeModal(value)
     }
 
     return (
@@ -128,101 +206,32 @@ export default function Header({
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
-                                <Box>
-                                    <StyledButton
-                                        className="logout-button"
-                                        aria-label="log out button"
-                                        onClick={() => {
-                                            setOpenModal(true)
-                                        }}
-                                    >
-                                        <LogoutIcon />
-                                        <Box sx={{display: {xs: "none", sm: "block"}}}>
-                                            {t("logout.buttonText")}
-                                        </Box>
-                                    </StyledButton>
-                                </Box>
+                                    <StyledButtonContainerWrapper>
+                                        <StyledButtonContainer className="logout-button-container">
+                                            <StyledButton
+                                                className="logout-button"
+                                                aria-label="log out button"
+                                                onClick={() => {
+                                                    setOpenModal(true)
+                                                }}
+                                            >
+                                                <LogoutIcon />
+                                                <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                                    {t("logout.buttonText")}
+                                                </Box>
+                                            </StyledButton>
+                                        </StyledButtonContainer>
+                                    </StyledButtonContainerWrapper>
                             ) : (
                                 userProfile && (
-                                    <Box>
-                                        <IconButton
-                                            className="profile-menu-button"
-                                            size="large"
-                                            aria-label="account of current user"
-                                            aria-controls="menu-appbar"
-                                            aria-haspopup="true"
-                                            onClick={handleMenu}
-                                            color="inherit"
-                                        >
-                                            <AccountCircle sx={{fontSize: 40}} />
-                                        </IconButton>
-
-                                        <Menu
-                                            id="menu-appbar"
-                                            anchorEl={anchorEl}
-                                            anchorOrigin={{
-                                                vertical: "bottom",
-                                                horizontal: "right",
-                                            }}
-                                            keepMounted
-                                            transformOrigin={{
-                                                vertical: "top",
-                                                horizontal: "right",
-                                            }}
-                                            sx={{maxWidth: 220}}
-                                            open={Boolean(anchorEl)}
-                                            onClose={handleClose}
-                                        >
-                                            {(!!userProfile.username || !!userProfile.email) && (
-                                                <MenuItem>
-                                                    <Box
-                                                        sx={{
-                                                            textOverflow: "ellipsis",
-                                                            whiteSpace: "nowrap",
-                                                            overflow: "hidden",
-                                                        }}
-                                                    >
-                                                        {!!userProfile.username && (
-                                                            <>
-                                                                <span title={userProfile.username}>
-                                                                    {userProfile.username}
-                                                                </span>
-                                                                <br />
-                                                            </>
-                                                        )}
-                                                        {!!userProfile.email && (
-                                                            <Span title={userProfile.email}>
-                                                                {userProfile.email}
-                                                            </Span>
-                                                        )}
-                                                    </Box>
-                                                </MenuItem>
-                                            )}
-                                            {userProfile.openLink && (
-                                                <MenuItem
-                                                    onClick={() => {
-                                                        handleClose()
-                                                        userProfile?.openLink?.()
-                                                    }}
-                                                >
-                                                    <AccountCircle sx={{marginRight: "14px"}} />
-                                                    {t("header.profile")}
-                                                </MenuItem>
-                                            )}
-                                            {logoutFn && (
-                                                <MenuItem
-                                                    className="logout-button"
-                                                    onClick={() => {
-                                                        setOpenModal(true)
-                                                        handleClose()
-                                                    }}
-                                                >
-                                                    <LogoutIcon sx={{marginRight: "14px"}} />
-                                                    {t("logout.buttonText")}
-                                                </MenuItem>
-                                            )}
-                                        </Menu>
-                                    </Box>
+                                    <ProfileMenu
+                                        userProfile={userProfile}
+                                        logoutFn={logoutFn}
+                                        setOpenModal={setOpenModal}
+                                        handleOpenTimeModal={() => handleToggleTimeModal(true)}
+                                        CountdownTooltipContent={CountdownTooltipContent}
+                                        expiry={expiry}
+                                    />
                                 )
                             )}
                         </Box>
@@ -239,6 +248,16 @@ export default function Header({
                 variant="action"
             >
                 <p>{t("logout.modal.content")}</p>
+            </Dialog>
+            <Dialog
+                handleClose={() => handleToggleTimeModal(false)}
+                open={openTimeModal}
+                title={t("header.session.title")}
+                ok={t("logout.modal.ok")}
+                cancel={t("logout.modal.close")}
+                variant="info"
+            >
+                <p>{t("header.session.timeLeft", {time: "less than 1 minute"})}</p>
             </Dialog>
         </>
     )
