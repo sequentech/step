@@ -69,6 +69,19 @@ const router = createBrowserRouter(
             element: <App />,
             errorElement: <ErrorPage />,
             children: [
+                // {
+                //     path: "/demo",
+                //     element: (
+                //         <Suspense fallback={<Loader />}>
+                //             <DemoEvent />
+                //             {/* inside demo event - 
+                //                 do mock authentication and demo logic, 
+                //                 save demo mode in context
+                //                 navigate to  path: "/tenant/:tenantId/event/:eventId" 
+                //                  add tenant event*/}
+                //         </Suspense>
+                //     ),
+                // },
                 {
                     path: "/tenant/:tenantId/event/:eventId",
                     element: (
