@@ -9,5 +9,5 @@ export type TVotingSetting = {
 export enum EVotingPortalCountdownPolicy {
     NO_COUNTDOWN = "NO_COUNTDOWN",
     COUNTDOWN = "COUNTDOWN",
-    COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALRET"
+    COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT"
 }
