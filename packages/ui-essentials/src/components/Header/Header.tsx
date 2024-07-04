@@ -16,7 +16,7 @@ import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
-import {EVotingPortalCountdownPolicy} from "@root/types/CoreTypes"
+import {EVotingPortalCountdownPolicy} from "../../types/CoreTypes"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -120,6 +120,7 @@ export interface IExpiryCountdown {
     countdown?: EVotingPortalCountdownPolicy
     countdownAt?: number
     alertAt?: number
+    duration?: number
 }
 
 export interface HeaderProps {

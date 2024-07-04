@@ -14,7 +14,7 @@ import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import styled from "@emotion/styled"
 import theme from "../../services/theme"
-import {EVotingPortalCountdownPolicy} from "@root/types/CoreTypes"
+import {EVotingPortalCountdownPolicy} from "../../types/CoreTypes"
 
 const Span = styled.span`
     font-size: 14px;
@@ -78,7 +78,9 @@ export const ProfileMenu = ({
             const timeLeftInSeconds = Math.floor((futureTime.getTime() - Date.now()) / 1000)
             setTimeLeft(timeLeftInSeconds)
             setTotalDuration(
-                expiry?.countdownAt && expiry?.countdownAt < timeLeftInSeconds
+                expiry.duration
+                    ? expiry.duration
+                    : expiry?.countdownAt && expiry?.countdownAt < timeLeftInSeconds
                     ? expiry.countdownAt
                     : timeLeftInSeconds
             )
@@ -104,9 +106,11 @@ export const ProfileMenu = ({
                 if (timeLeft > 60) {
                     const timeLeftInMinutes: number = Math.floor(timeLeft / 60)
                     const time = timeLeft % 60
-                    setTimeLeftText(`${timeLeftInMinutes} minutes and ${time} seconds`)
+                    setTimeLeftText(
+                        t("header.session.timeLeftMinutesAndSeconds", {time, timeLeftInMinutes})
+                    )
                 } else {
-                    setTimeLeftText(`${timeLeft} seconds`)
+                    setTimeLeftText(t("header.session.timeLeftSeconds", {timeLeft}))
                 }
             }, 1000)
             return () => clearInterval(timerId)

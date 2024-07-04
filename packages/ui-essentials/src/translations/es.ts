@@ -124,6 +124,8 @@ const spanishTranslation: TranslationType = {
             session: {
                 title: "Your session is going to expire.",
                 timeLeft: "You have {{time}} left to cast your vote.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
+                timeLeftSeconds: "{{timeLeft}} seconds",
             },
         },
     },

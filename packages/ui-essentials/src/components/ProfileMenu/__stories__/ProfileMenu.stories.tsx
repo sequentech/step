@@ -8,7 +8,7 @@ import {ProfileMenu, StyledButtonTooltipText} from "../ProfileMenu"
 import {StyledButtonTooltip} from "../../../components/Header/Header"
 import theme from "../../../services/theme"
 import {Box} from "@mui/material"
-import {EVotingPortalCountdownPolicy} from "@root/types/CoreTypes"
+import {EVotingPortalCountdownPolicy} from "../../../types/CoreTypes"
 
 const meta: Meta<typeof ProfileMenu> = {
     title: "components/ProfileMenu",
@@ -63,7 +63,9 @@ export const CountdownWithAlert: Story = {
             countdown: EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT,
             countdownAt: 120,
             alertAt: 60,
+            duration: 300,
         },
+        setTimeLeftDialogText: (v: string) => console.log({v}),
     },
     parameters: {
         viewport: {
@@ -92,7 +94,9 @@ export const CountdownOnly: Story = {
             countdown: EVotingPortalCountdownPolicy.COUNTDOWN,
             countdownAt: 120,
             alertAt: 60,
+            duration: 500,
         },
+        setTimeLeftDialogText: (v: string) => console.log({v}),
     },
     parameters: {
         viewport: {
@@ -116,6 +120,7 @@ export const NoCountdown: Story = {
         },
         setOpenModal: () => alert("open log out modal"),
         handleOpenTimeModal: () => alert("open time modal"),
+        setTimeLeftDialogText: (v: string) => console.log({v}),
     },
     parameters: {
         viewport: {
