@@ -255,11 +255,11 @@ const englishTranslation = {
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
-                    COUNTDOWN_WITH_ALERT: "Countdown with alret",
+                    COUNTDOWN_WITH_ALERT: "Countdown with alert",
                     sectionTitle: "Voting Portal",
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
-                    alertSecondsLabel: "time in seconds before expiration to show Logout alret",
+                    alertSecondsLabel: "time in seconds before expiration to show Logout alert",
                 },
             },
             error: {

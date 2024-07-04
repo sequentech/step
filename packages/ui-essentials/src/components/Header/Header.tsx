@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 
 import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
@@ -10,7 +10,7 @@ import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
 import LogoImg from "../../../public/Sequent_logo.svg"
 import styled from "@emotion/styled"
-import {Box, Button, Tooltip, TooltipProps, Typography, tooltipClasses} from "@mui/material"
+import {Box, Button, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
@@ -116,7 +116,6 @@ export enum HeaderErrorVariant {
 }
 
 export interface IExpiryCountdown {
-    startTime: Date
     endTime?: Date
     countdown?: EVotingPortalCountdownPolicy
     countdownAt?: number

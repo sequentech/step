@@ -260,7 +260,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation = {}
         }
 
-        if (!temp.presentation?.voting_portal_countdown_policy) {
+        if (!(temp.presentation as IElectionEventPresentation)?.voting_portal_countdown_policy) {
             temp.presentation.voting_portal_countdown_policy = {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
@@ -723,18 +723,18 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         <NumberInput
                                             source={`presentation.voting_portal_countdown_policy.countdown_anticipation_secs`}
                                             min={0}
-                                            label={
-                                                "time in seconds before expiration to show countdown"
-                                            }
+                                            label={t(
+                                                "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
+                                            )}
                                             style={{flex: 1}}
                                         />
                                         <NumberInput
                                             source={`presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`}
                                             min={0}
                                             style={{flex: 1}}
-                                            label={
-                                                "time in seconds before expiration to show Logout alret"
-                                            }
+                                            label={t(
+                                                "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
+                                            )}
                                         />
                                     </Box>
                                 </AccordionDetails>

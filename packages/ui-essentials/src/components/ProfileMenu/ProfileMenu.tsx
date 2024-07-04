@@ -75,10 +75,6 @@ export const ProfileMenu = ({
     useEffect(() => {
         if (expiry && expiry.endTime) {
             const futureTime = expiry.endTime
-            const currentTime = expiry.startTime
-            const totalDuration: number = Math.floor(
-                (futureTime.getTime() - currentTime.getTime()) / 1000
-            )
             const timeLeftInSeconds = Math.floor((futureTime.getTime() - Date.now()) / 1000)
             setTimeLeft(timeLeftInSeconds)
             setTotalDuration(
@@ -101,7 +97,7 @@ export const ProfileMenu = ({
                 handleOpenTimeModal?.()
             }
             const timerId = setInterval(() => {
-                if (timeLeft == 2) {
+                if (timeLeft === 2) {
                     logoutFn?.() //TODO: still needs to better figure out how the access token vs refresh token is working
                 }
                 setTimeLeft(timeLeft - 1)
