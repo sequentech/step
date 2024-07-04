@@ -6,18 +6,8 @@ import React, {useContext, useEffect, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
-import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    Dialog,
-} from "@sequentech/ui-essentials"
-import {
-    stringToHtml,
-    isUndefined,
-    translateElection,
-} from "@sequentech/ui-core"
+import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
+import {stringToHtml, isUndefined, translateElection} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"

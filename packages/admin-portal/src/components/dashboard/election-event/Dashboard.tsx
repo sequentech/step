@@ -19,11 +19,7 @@ import {
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
-import {
-    EVotingStatus,
-    IElectionEventStatistics,
-    IElectionEventStatus,
-} from "@sequentech/ui-core"
+import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 

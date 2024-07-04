@@ -5,13 +5,7 @@
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {
-    Dialog,
-    IconButton,
-    PageLimit,
-    SelectElection,
-    theme
-} from "@sequentech/ui-essentials"
+import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,

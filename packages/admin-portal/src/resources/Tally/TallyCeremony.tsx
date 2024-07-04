@@ -2,12 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {
-    BreadCrumbSteps,
-    BreadCrumbStepsVariant,
-    Dialog,
-    theme,
-} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog, theme} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"

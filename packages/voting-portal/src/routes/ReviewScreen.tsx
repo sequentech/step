@@ -14,14 +14,7 @@ import {
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
-import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    BallotHash,
-    Dialog
-} from "@sequentech/ui-essentials"
+import {PageLimit, Icon, IconButton, theme, BallotHash, Dialog} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     EVotingStatus,
