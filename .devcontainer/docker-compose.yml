@@ -308,10 +308,7 @@ services:
   immudb:
     profiles: ["full", "base"]
     container_name: immudb
-    image: sequentech.local/immudb
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
+    image: ghcr.io/sequentech/step/immudb:latest
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
