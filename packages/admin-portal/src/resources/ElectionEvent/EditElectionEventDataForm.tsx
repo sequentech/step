@@ -197,7 +197,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         languageSettings: Array<string>
     ): Sequent_Backend_Election_Event_Extended => {
         const temp = {...incoming}
-        console.log('temp', temp);
 
         // languages
         temp.enabled_languages = {}
@@ -247,15 +246,17 @@ export const EditElectionEventDataForm: React.FC = () => {
             const enabled_item: any = {}
             enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            temp.voting_channels = {...temp.voting_channels, ...enabled_item} 
+        }
+        if(!temp.presentation) {
+            temp.presentation = {}
         }
 
-        if(!temp.presentation.voting_portal_countdown_policy) {
+        if(!temp.presentation?.voting_portal_countdown_policy) {
             temp.presentation.voting_portal_countdown_policy = {
-                policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN
+                policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
         }
-
         return temp
     }
 
@@ -427,7 +428,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const votingPortalCountDownPolicies =  () => {
         return (Object.keys(EVotingPortalCountdownPolicy)).map((key) => ({
             id: key,
-            name: t(`electionEventScreen.field.countDownPolicyOptions.${key}}`),
+            name: t(`electionEventScreen.field.countDownPolicyOptions.${key}`),
         }))
     }
 
@@ -703,16 +704,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     min={0}
                                     label={"time in seconds before expiration to show countdown"}
                                     style={{flex: 1}}
-                                    defaultValue={0}
-                                    required={true}
                                    />
                                    <NumberInput
                                     source={`presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`}
                                     min={0}
                                     style={{flex: 1}}
                                     label={"time in seconds before expiration to show Logout alret"}
-                                    defaultValue={0}
-                                    required={true}
                                    />
                                    </Box>
                                 </AccordionDetails>

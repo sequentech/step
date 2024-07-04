@@ -257,7 +257,7 @@ const frenchTranslation: TranslationType = {
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
-                    COUNTDOWN_WITH_ALRET: "Countdown with alret",
+                    COUNTDOWN_WITH_ALERT: "Countdown with alret",
                     sectionTitle: "Countdown policy",
                 }
             },
