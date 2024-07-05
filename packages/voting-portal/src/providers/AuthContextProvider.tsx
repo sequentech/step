@@ -48,6 +48,8 @@ export interface AuthContextValues {
      */
     hasRole: (role: string) => boolean
 
+    getExpiry: () => Date | undefined
+
     /**
      * Keycloak access token
      */
@@ -81,6 +83,7 @@ const defaultAuthContextValues: AuthContextValues = {
     firstName: "",
     keycloakAccessToken: undefined,
     logout: () => {},
+    getExpiry: () => undefined,
     setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
     openProfileLink: () => new Promise(() => undefined),
@@ -332,6 +335,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
+    const getExpiry = () => {
+        let exp = keycloak?.tokenParsed?.exp
+        return exp ? new Date(exp * 1000) : undefined
+    }
+
     // Setup the context provider
     return (
         <AuthContext.Provider
@@ -343,6 +351,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 email: userProfile?.email ?? "",
                 firstName: userProfile?.firstName ?? "",
                 setTenantEvent,
+                getExpiry,
                 logout,
                 hasRole,
                 openProfileLink,

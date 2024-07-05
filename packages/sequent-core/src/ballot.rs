@@ -480,6 +480,7 @@ pub struct ElectionEventPresentation {
     pub hide_audit: Option<bool>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
+    pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
 }
 
 #[derive(
@@ -499,6 +500,44 @@ pub struct ElectionDates {
     pub end_date: Option<String>,
     pub scheduled_closing: Option<bool>,
     pub scheduled_opening: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct VotingPortalCountdownPolicy {
+    pub policy: Option<ECountdownPolicy>,
+    pub countdown_anticipation_secs: Option<u64>,
+    pub countdown_alert_anticipation_secs: Option<u64>,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum ECountdownPolicy {
+    NO_COUNTDOWN,
+    COUNTDOWN,
+    COUNTDOWN_WITH_ALERT,
 }
 
 #[derive(
