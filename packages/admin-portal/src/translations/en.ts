@@ -225,6 +225,8 @@ const englishTranslation = {
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",
+                showMore: "Show More",
+                showLess: "Show Less",
             },
             edit: {
                 general: "General",
@@ -983,6 +985,7 @@ const englishTranslation = {
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
+                diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
             },
             notifications: {
                 generated: "Ballot generated",

@@ -227,6 +227,8 @@ const frenchTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
+                showMore: "Afficher plus",
+                showLess: "Afficher moins",
             },
             edit: {
                 general: "Général",
@@ -984,6 +986,7 @@ const frenchTranslation: TranslationType = {
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
                 error_status: "Erreur lors du changement d'état de la publication",
+                diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",
             },
             label: {
                 current: "Actuel",
