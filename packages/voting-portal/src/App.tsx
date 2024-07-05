@@ -65,6 +65,7 @@ const HeaderWithContext: React.FC = () => {
                 countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,
                 countdownAt: countdownPolicy?.countdown_anticipation_secs,
                 endTime: authContext.getExpiry(),
+                duration: countdownPolicy?.countdown_anticipation_secs,
             }}
         />
     )
