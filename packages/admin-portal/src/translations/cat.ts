@@ -227,6 +227,8 @@ const catalanTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
+                showMore: "Mostra'n més",
+                showLess: "Mostra'n menys",
             },
             edit: {
                 general: "General",
@@ -993,6 +995,7 @@ const catalanTranslation: TranslationType = {
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
+                diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
             },
             label: {
                 current: "Actual",

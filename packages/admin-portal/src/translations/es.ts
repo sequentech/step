@@ -227,6 +227,8 @@ const spanishTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento Electoral.",
+                showMore: "Mostrar más",
+                showLess: "Mostrar menos",
             },
             edit: {
                 general: "General",
@@ -992,6 +994,7 @@ const spanishTranslation: TranslationType = {
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
+                diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
             },
             label: {
                 current: "Actual",
