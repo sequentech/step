@@ -68,7 +68,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="${properties.kcLoginClass!}">
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
-             class="${properties.kcHeaderWrapperClass!}">${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}</div>
+             class="${properties.kcHeaderWrapperClass!}"></div>
+    </div>
+    <div id="kc-title" class="${properties.kcTitleClass!}">
+        ${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}
     </div>
     <div class="${properties.kcFormCardClass!}">
         <header class="${properties.kcFormHeaderClass!}">
