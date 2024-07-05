@@ -156,13 +156,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const newKeycloak = new Keycloak(keycloakConfig)
 
             newKeycloak.onTokenExpired = async () => {
-                const refreshed = await newKeycloak.updateToken(0)
+                /*const refreshed = await newKeycloak.updateToken(0)
 
                 if (refreshed) {
                     setKeycloakAccessToken(newKeycloak.token)
                 } else {
                     newKeycloak.logout()
-                }
+                }*/
+                newKeycloak.logout()
             }
 
             setKeycloak(newKeycloak)

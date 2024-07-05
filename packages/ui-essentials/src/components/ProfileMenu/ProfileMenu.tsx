@@ -31,7 +31,7 @@ export const StyledButtonTooltipText = styled(Typography)`
     font-size: 12px;
 `
 
-function CountdownTooltipContent({timeLeft = ""}) {
+const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""}) => {
     const {t} = useTranslation()
 
     return (
@@ -104,9 +104,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 handleOpenTimeModal?.()
             }
             const timerId = setInterval(() => {
-                if (timeLeft === 2) {
+                /*if (timeLeft === 2) {
                     logoutFn?.() //TODO: still needs to better figure out how the access token vs refresh token is working
-                }
+                }*/
                 setTimeLeft(timeLeft - 1)
                 if (timeLeft > 60) {
                     const timeLeftInMinutes: number = Math.floor(timeLeft / 60)
