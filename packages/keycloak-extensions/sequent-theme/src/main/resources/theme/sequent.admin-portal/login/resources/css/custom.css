@@ -200,6 +200,8 @@ button#kc-current-locale-link img {
 #kc-locale-dropdown a {
     text-align: left;
     text-decoration: none;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 #kc-locale ul {
