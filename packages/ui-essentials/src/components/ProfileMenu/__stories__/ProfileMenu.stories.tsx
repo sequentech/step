@@ -59,11 +59,10 @@ export const CountdownWithAlert: Story = {
         setOpenModal: () => alert("open log out modal"),
         handleOpenTimeModal: () => alert("open time modal"),
         expiry: {
-            endTime: new Date(Date.now() + 120000), //current time plus 2 minutes
+            endTime: new Date(Date.now() + 60000), //current time plus 2 minutes
             countdown: EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT,
-            countdownAt: 120,
-            alertAt: 60,
-            duration: 300,
+            countdownAt: 60,
+            alertAt: 30,
         },
         setTimeLeftDialogText: (v: string) => console.log({v}),
     },
@@ -90,11 +89,11 @@ export const CountdownOnly: Story = {
         setOpenModal: () => alert("open log out modal"),
         handleOpenTimeModal: () => alert("open time modal"),
         expiry: {
-            endTime: new Date(Date.now() + 120000), //current time plus 2 minutes
+            endTime: new Date(Date.now() + 30000), //current time plus 2 minutes
             countdown: EVotingPortalCountdownPolicy.COUNTDOWN,
-            countdownAt: 120,
-            alertAt: 60,
-            duration: 500,
+            countdownAt: 30,
+            alertAt: 10,
+            duration: 60,
         },
         setTimeLeftDialogText: (v: string) => console.log({v}),
     },

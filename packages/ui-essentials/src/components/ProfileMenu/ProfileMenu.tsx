@@ -60,14 +60,14 @@ interface ProfileMenuProps {
     setTimeLeftDialogText: (dialogText: string) => void
 }
 
-export const ProfileMenu = ({
+export const ProfileMenu: React.FC<ProfileMenuProps> = ({
     userProfile,
     logoutFn,
     setOpenModal,
     handleOpenTimeModal,
     expiry,
     setTimeLeftDialogText,
-}: ProfileMenuProps) => {
+}) => {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [timeLeftText, setTimeLeftText] = useState("")
@@ -81,13 +81,14 @@ export const ProfileMenu = ({
             const futureTime = expiry.endTime
             const timeLeftInSeconds = Math.floor((futureTime.getTime() - Date.now()) / 1000)
             setTimeLeft(timeLeftInSeconds)
-            setTotalDuration(
-                expiry.duration
-                    ? expiry.duration
-                    : expiry?.countdownAt && expiry?.countdownAt < timeLeftInSeconds
-                    ? expiry.countdownAt
-                    : timeLeftInSeconds
-            )
+
+            if (expiry.duration) {
+                setTotalDuration(expiry.duration)
+            } else if (expiry?.countdownAt && expiry?.countdownAt < timeLeftInSeconds) {
+                setTotalDuration(expiry.countdownAt)
+            } else {
+                setTotalDuration(timeLeftInSeconds)
+            }
         }
     }, [expiry])
 
