@@ -161,10 +161,6 @@ html, body {
     margin: auto;
 }
 
-#kc-locale-dropdown {
-    display: flex;
-}
-
 .menu-button-links{
     margin-left: auto;
 }
@@ -198,6 +194,15 @@ button#kc-current-locale-link img {
     .menu-button-links span{
         display: none;
     }
+}
+
+.pf-c-dropdown__menu {
+    position: relative;
+}
+
+#kc-locale-dropdown a {
+    text-align: left;
+    text-decoration: none;
 }
 
 /* Move Language dropdown to top right */
