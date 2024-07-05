@@ -235,6 +235,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                advancedConfigurations: "Advanced Configurations",
             },
             field: {
                 name: "Name",
@@ -253,6 +254,15 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "No Countdown",
+                    COUNTDOWN: "Countdown",
+                    COUNTDOWN_WITH_ALERT: "Countdown with alert",
+                    sectionTitle: "Voting Portal",
+                    policyLabel: "Voting Portal Countdown policy",
+                    coundownSecondsLabel: "time in seconds before expiration to show countdown",
+                    alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
             },
             error: {
                 endDate: "End date must be after start date",

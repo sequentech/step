@@ -237,6 +237,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                advancedConfigurations: "Voting Portal Countdown Policy",
             },
             field: {
                 name: "Nom",
@@ -255,6 +256,17 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "Pas de compte à rebours",
+                    COUNTDOWN: "Compte à rebours",
+                    COUNTDOWN_WITH_ALERT: "Compte à rebours avec alerte",
+                    sectionTitle: "Portail de vote",
+                    policyLabel: "Politique de compte à rebours du portail de vote",
+                    coundownSecondsLabel:
+                        "temps en secondes avant expiration pour afficher le compte à rebours",
+                    alertSecondsLabel:
+                        "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
