@@ -68,13 +68,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="${properties.kcLoginClass!}">
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
-             class="${properties.kcHeaderWrapperClass!}"></div>
-    </div>
-    <div id="kc-title" class="${properties.kcTitleClass!}">
-        ${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}
-    </div>
-    <div class="${properties.kcFormCardClass!}">
-        <header class="${properties.kcFormHeaderClass!}">
+             class="${properties.kcHeaderWrapperClass!}">
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">
@@ -98,7 +92,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </div>
                     </div>
                 </div>
-            </#if>
+             </#if>
+             </div>
+    </div>
+    <div id="kc-title" class="${properties.kcTitleClass!}">
+        ${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}
+    </div>
+    <div class="${properties.kcFormCardClass!}">
+        <header class="${properties.kcFormHeaderClass!}">
         <#if !(auth?has_content && auth.showUsername() && !auth.showResetCredentials())>
             <#if displayRequiredFields>
                 <div class="${properties.kcContentWrapperClass!}">

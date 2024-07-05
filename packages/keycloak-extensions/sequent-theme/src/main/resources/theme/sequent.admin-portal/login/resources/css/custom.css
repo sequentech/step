@@ -33,12 +33,9 @@ html, body {
     padding: 16px 0;
 }
 
-.pf-c-dropdown {
-    padding: 16px 0;
-}
 
 @media (max-width: 1170px) {
-    .login-pf-page-header,.pf-c-dropdown  {
+    .login-pf-page-header {
         padding: 9px;
     }
 }
@@ -205,9 +202,12 @@ button#kc-current-locale-link img {
     text-decoration: none;
 }
 
+#kc-locale ul {
+    top: 0;
+}
+
 /* Move Language dropdown to top right */
 #kc-locale {
-    position: absolute;
     width: 100%;
     top: 0px;
     right: 0px;
@@ -217,7 +217,7 @@ button#kc-current-locale-link img {
 
 @media (max-width: 767px) {
     #kc-locale {
-        position: absolute;
+        position: relative;
         width: 100%;
         top: 0px;
         right: 0px;
