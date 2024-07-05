@@ -129,7 +129,7 @@ export enum EInvalidPlaintextErrorType {
 }
 
 export interface IVotingPortalCountdownPolicy {
-    policy: string
+    policy: EVotingPortalCountdownPolicy
     countdown_anticipation_secs: number
     countdown_alert_anticipation_secs: number
 }

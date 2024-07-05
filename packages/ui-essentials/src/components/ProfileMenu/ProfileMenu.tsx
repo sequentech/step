@@ -119,11 +119,11 @@ export const ProfileMenu = ({
             }, 1000)
             return () => clearInterval(timerId)
         }
-    }, [expiry, timeLeft])
+    }, [expiry, timeLeft, handleOpenTimeModal, logoutFn, timeMinReached, t])
 
     useEffect(() => {
         setTimeLeftDialogText(timeLeftText)
-    }, [timeLeftText])
+    }, [timeLeftText, setTimeLeftDialogText])
 
     function handleMenu(event: React.MouseEvent<HTMLElement>) {
         setAnchorEl(event.currentTarget)

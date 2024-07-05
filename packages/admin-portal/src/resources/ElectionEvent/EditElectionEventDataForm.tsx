@@ -26,7 +26,6 @@ import {
     Tabs,
     Tab,
     Grid,
-    Drawer,
     Box,
     Typography,
 } from "@mui/material"
@@ -60,7 +59,6 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
-import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -165,9 +163,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-    const [countdownPolicy, setCountdownPolicy] = useState<EVotingPortalCountdownPolicy>(
-        EVotingPortalCountdownPolicy.NO_COUNTDOWN
-    )
     const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const notify = useNotify()
@@ -196,6 +191,8 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         setLanguageSettings(completeList)
     }, [
+        tenant?.settings,
+        record?.presentation,
         tenant?.settings?.language_conf?.enabled_language_codes,
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
@@ -260,7 +257,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation = {}
         }
 
-        if (!(temp.presentation as IElectionEventPresentation)?.voting_portal_countdown_policy) {
+        if (
+            !(temp.presentation as IElectionEventPresentation | undefined)
+                ?.voting_portal_countdown_policy
+        ) {
             temp.presentation.voting_portal_countdown_policy = {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
