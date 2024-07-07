@@ -2,23 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
 import {Dialog, isString} from "@sequentech/ui-essentials"
-import React, {useContext, useState} from "react"
+import React, {useState} from "react"
 import {
     Datagrid,
-    DatagridConfigurable,
-    EditButton,
     Identifier,
     List,
-    RecordContextProvider,
     SaveButton,
     SelectInput,
     SimpleForm,
     TextField,
     TextInput,
-    Toolbar,
     WrapperField,
     required,
     useNotify,
@@ -39,13 +33,7 @@ const EditElectionEventTextDataTable = () => {
     const [update, {isLoading}] = useUpdate()
 
     const {t} = useTranslation()
-    const authContext = useContext(AuthContext)
     const notify = useNotify()
-    const canEdit = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
-    )
 
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code || "en"
@@ -113,11 +101,11 @@ const EditElectionEventTextDataTable = () => {
             },
             {
                 onError() {
-                    notify("Translations updates failed", {type: "warning"})
+                    notify(t("electionEventScreen.texts.notify.error"), {type: "error"})
                     setOpenCreate(false)
                 },
                 onSuccess() {
-                    notify("Translations updated successfully", {type: "success"})
+                    notify(t("electionEventScreen.texts.notify.success"), {type: "success"})
                     setOpenCreate(false)
                 },
             }
@@ -148,11 +136,11 @@ const EditElectionEventTextDataTable = () => {
             },
             {
                 onError() {
-                    notify("Translations updates failed", {type: "warning"})
+                    notify(t("electionEventScreen.texts.notify.error"), {type: "error"})
                     handleCloseEditDrawer()
                 },
                 onSuccess() {
-                    notify("Translations updated successfully", {type: "success"})
+                    notify(t("electionEventScreen.texts.notify.success"), {type: "success"})
                     handleCloseEditDrawer()
                 },
             }
@@ -181,11 +169,11 @@ const EditElectionEventTextDataTable = () => {
             },
             {
                 onError() {
-                    notify("Translations updates failed", {type: "warning"})
+                    notify(t("electionEventScreen.texts.notify.error"), {type: "error"})
                     handleCloseEditDrawer()
                 },
                 onSuccess() {
-                    notify("Translations updated successfully", {type: "success"})
+                    notify(t("electionEventScreen.texts.notify.success"), {type: "success"})
                     handleCloseEditDrawer()
                 },
             }
@@ -201,7 +189,7 @@ const EditElectionEventTextDataTable = () => {
         return (
             <>
                 <Typography variant="h4" paragraph>
-                    {t("areas.empty.header")}
+                    {t("electionEventScreen.texts.emptyHeader")}
                 </Typography>
             </>
         )
@@ -219,7 +207,7 @@ const EditElectionEventTextDataTable = () => {
                     optionText="name"
                     optionValue="id"
                     validate={required()}
-                    label="Select Language" //TODO: Place in translations file
+                    label={t("electionEventScreen.texts.selectLanguage")}
                 />
                 <List
                     actions={
@@ -236,21 +224,20 @@ const EditElectionEventTextDataTable = () => {
                                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                                 >
                                     <>
-                                        {/* TODO: Update texts */}
                                         <PageHeaderStyles.Title>
-                                            {t("areas.common.title")}
+                                            {t("electionEventScreen.texts.common.title")}
                                         </PageHeaderStyles.Title>
                                         <PageHeaderStyles.SubTitle>
-                                            {t("areas.common.subTitle")}
+                                            {t("electionEventScreen.texts.common.subTitle")}
                                         </PageHeaderStyles.SubTitle>
 
                                         <TextInput
                                             source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                            label="Key"
+                                            label={t("electionEventScreen.texts.labels.key")}
                                         />
                                         <TextInput
                                             source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                            label="Value"
+                                            label={t("electionEventScreen.texts.labels.value")}
                                         />
                                     </>
                                 </SimpleForm>
@@ -264,8 +251,11 @@ const EditElectionEventTextDataTable = () => {
                         total={translationData.length}
                         bulkActionButtons={false}
                     >
-                        <TextField source="id" label={"Key"} />
-                        <TextField source="value" />
+                        <TextField source="id" label={t("electionEventScreen.texts.labels.key")} />
+                        <TextField
+                            source="value"
+                            label={t("electionEventScreen.texts.labels.value")}
+                        />
                         <WrapperField label="Actions">
                             <ActionsColumn actions={actions} />
                         </WrapperField>
@@ -287,21 +277,22 @@ const EditElectionEventTextDataTable = () => {
                     onSubmit={handleEditText}
                 >
                     <>
-                        {/* TODO: Replace texts */}
-                        <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
+                        <PageHeaderStyles.Title>
+                            {t("electionEventScreen.texts.common.title")}
+                        </PageHeaderStyles.Title>
                         <PageHeaderStyles.SubTitle>
-                            {t("areas.common.subTitle")}
+                            {t("electionEventScreen.texts.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
                         <TextInput
                             source="editableKey"
-                            label={"Key"}
+                            label={t("electionEventScreen.texts.labels.key")}
                             defaultValue={recordId ?? undefined}
                             disabled
                         />
                         <TextInput
                             source="editableVal"
-                            label={"Value"}
+                            label={t("electionEventScreen.texts.labels.value")}
                             defaultValue={
                                 recordId
                                     ? record.presentation.i18n[selectedLanguage][recordId]

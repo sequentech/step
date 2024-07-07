@@ -239,6 +239,22 @@ const frenchTranslation: TranslationType = {
                 ballotDesign: "Design du Bulletin",
                 advancedConfigurations: "Voting Portal Countdown Policy",
             },
+            texts: {
+                emptyHeader: "Aucune langue n'a été définie pour l'événement",
+                selectLanguage: "Sélectionner la langue",
+                notify: {
+                    success: "Les mises à jour des textes ont réussi",
+                    error: "Les mises à jour des textes ont échoué",
+                },
+                common: {
+                    title: "Textes",
+                    subTitle: "Configuration du texte",
+                },
+                labels: {
+                    key: "Clé",
+                    value: "Valeur",
+                },
+            },
             field: {
                 name: "Nom",
                 alias: "Alias",

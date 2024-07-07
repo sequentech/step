@@ -237,6 +237,22 @@ const englishTranslation = {
                 ballotDesign: "Ballot Design",
                 advancedConfigurations: "Advanced Configurations",
             },
+            texts: {
+                emptyHeader: "No languages were set for the event",
+                selectLanguage: "Select Language",
+                notify: {
+                    success: "Texts updates were successfull",
+                    error: "Texts updates failed",
+                },
+                common: {
+                    title: "Texts",
+                    subTitle: "Text configuration",
+                },
+                labels: {
+                    key: "Key",
+                    value: "Value",
+                },
+            },
             field: {
                 name: "Name",
                 alias: "Alias",

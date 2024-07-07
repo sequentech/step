@@ -239,6 +239,22 @@ const spanishTranslation: TranslationType = {
                 ballotDesign: "Diseño de la Papeleta",
                 advancedConfigurations: "Voting Portal Countdown Policy",
             },
+            texts: {
+                emptyHeader: "No se establecieron idiomas para el evento",
+                selectLanguage: "Seleccionar idioma",
+                notify: {
+                    success: "Las actualizaciones de textos fueron exitosas",
+                    error: "Las actualizaciones de textos fallaron",
+                },
+                common: {
+                    title: "Textos",
+                    subTitle: "Configuración del texto",
+                },
+                labels: {
+                    key: "Clave",
+                    value: "Valor",
+                },
+            },
             field: {
                 name: "Nombre",
                 alias: "Alias",

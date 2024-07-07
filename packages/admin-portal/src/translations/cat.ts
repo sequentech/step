@@ -239,6 +239,22 @@ const catalanTranslation: TranslationType = {
                 ballotDesign: "Disseny de la Papereta",
                 advancedConfigurations: "Voting Portal Countdown Policy",
             },
+            texts: {
+                emptyHeader: "No s'han establert idiomes per a l'esdeveniment",
+                selectLanguage: "Selecciona l'idioma",
+                notify: {
+                    success: "Les actualitzacions dels textos han tingut èxit",
+                    error: "Les actualitzacions dels textos han fallat",
+                },
+                common: {
+                    title: "Texts",
+                    subTitle: "Configuració del text",
+                },
+                labels: {
+                    key: "Clau",
+                    value: "Valor",
+                },
+            },
             field: {
                 name: "Nom",
                 alias: "Àlies",
