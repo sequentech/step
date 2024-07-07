@@ -37,7 +37,7 @@ pub struct ElectionEventStatsOutput {
     votes_per_day: Vec<CastVotesPerDay>,
 }
 
-#[instrument(skip(claims))]
+#[instrument]
 #[post("/election-event/stats", format = "json", data = "<body>")]
 pub async fn get_election_event_stats(
     body: Json<ElectionEventStatsInput>,
