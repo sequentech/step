@@ -36,7 +36,7 @@ const EditElectionEventTextDataTable = () => {
     const notify = useNotify()
 
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
-        record?.presentation?.language_conf?.default_language_code || "en"
+        record?.presentation?.language_conf?.default_language_code ?? "en"
     )
     const [openEdit, setOpenEdit] = useState(false)
     const [openCreate, setOpenCreate] = useState(false)
@@ -185,7 +185,7 @@ const EditElectionEventTextDataTable = () => {
         {icon: <DeleteIcon />, action: deleteAction},
     ]
 
-    if (!languageOptions) {
+    if (!languageOptions || !selectedLanguage) {
         return (
             <>
                 <Typography variant="h4" paragraph>
