@@ -21,6 +21,7 @@ import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
+// import useDemo from "./hooks/useDemo"
 
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
@@ -57,9 +58,15 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 }
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
+    // const isDemo = useDemo()  // TODO: maybe move to redux
+    const isDemo = true; //TODO: delete
     const {globalSettings} = useContext(SettingsContext)
-
-    return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
+    // 1) TODO: check location - if demo: put disable=true
+    return (
+        <KeycloakProvider disable={isDemo || globalSettings.DISABLE_AUTH}>
+            {children}
+        </KeycloakProvider>
+    )
 }
 
 const router = createBrowserRouter(
@@ -74,10 +81,10 @@ const router = createBrowserRouter(
                 //     element: (
                 //         <Suspense fallback={<Loader />}>
                 //             <DemoEvent />
-                //             {/* inside demo event - 
-                //                 do mock authentication and demo logic, 
+                //             {/* inside demo event -
+                //                 do mock authentication and demo logic,
                 //                 save demo mode in context
-                //                 navigate to  path: "/tenant/:tenantId/event/:eventId" 
+                //                 navigate to  path: "/tenant/:tenantId/event/:eventId"
                 //                  add tenant event*/}
                 //         </Suspense>
                 //     ),
@@ -182,13 +189,13 @@ const router = createBrowserRouter(
 root.render(
     <React.StrictMode>
         <SettingsWrapper>
-            <KeycloakProviderContainer>
-                <Provider store={store}>
+            <Provider store={store}>
+                <KeycloakProviderContainer>
                     <ThemeProvider theme={theme}>
                         <RouterProvider router={router} />
                     </ThemeProvider>
-                </Provider>
-            </KeycloakProviderContainer>
+                </KeycloakProviderContainer>
+            </Provider>
         </SettingsWrapper>
     </React.StrictMode>
 )
