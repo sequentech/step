@@ -1,23 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useAppSelector } from '../store/hooks';
-import { selectFirstBallotStyle } from '../store/ballotStyles/ballotStylesSlice';
+import {useState, useEffect, useMemo} from "react"
 
 const useDemo = () => {
-    const [isDemo, setIsDemo] = useState(false);
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const [isDemo, setIsDemo] = useState(false)
 
     useEffect(() => {
-        const url = window.location.href;
+        const url = window.location.href
         if (url.includes("demo")) {
-            setIsDemo(true);
+            setIsDemo(true)
         }
-    }, []);
+    }, [])
 
     const isDemoMemoized = useMemo(() => {
-        return isDemo || oneBallotStyle?.ballot_eml?.public_key?.is_demo;
-    }, [isDemo, oneBallotStyle]);
+        return isDemo
+    }, [isDemo])
 
-    return isDemoMemoized;
-};
+    return isDemoMemoized
+}
 
-export default useDemo;
+export default useDemo
