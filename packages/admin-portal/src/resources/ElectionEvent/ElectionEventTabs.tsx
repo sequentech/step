@@ -20,6 +20,7 @@ import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
 import {ElectoralLog} from "./ElectoralLog"
+import EditElectionEventTextData from "./EditElectionEventTextData"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -107,7 +108,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showTextData ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.text")}>
-                        <EditElectionEventData />
+                        <EditElectionEventTextData />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showVoters ? (
