@@ -219,6 +219,7 @@ const EditElectionEventTextDataTable = () => {
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                 >
                     <>
+                        {/* TODO: Replace texts */}
                         <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
                         <PageHeaderStyles.SubTitle>
                             {t("areas.common.subTitle")}
