@@ -36,7 +36,7 @@ import {ListActions} from "@/components/ListActions"
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
-    const [update, {isLoading, error}] = useUpdate()
+    const [update, {isLoading}] = useUpdate()
 
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -70,17 +70,18 @@ const EditElectionEventTextDataTable = () => {
     const translationData = Object.entries(
         record?.presentation?.i18n?.[selectedLanguage] || {}
     ).map(([key, value]) => ({
-        key: key,
+        id: key,
         value: value,
     }))
 
-    const confirmDeleteAction = () => {
-        setOpenDeleteModal(false)
-    }
-
+    
     const editAction = (id: Identifier) => {
         setOpenEdit(true)
         setRecordId(id)
+    }
+    const deleteAction = (id: Identifier) => {
+        setOpenDeleteModal(true)
+        setDeleteId(id)
     }
 
     const handleCloseEditDrawer = () => {
@@ -123,11 +124,75 @@ const EditElectionEventTextDataTable = () => {
             }
         )
     }
-
-    const deleteAction = (id: Identifier) => {
-        setOpenDeleteModal(true)
-        setDeleteId(id)
+    const handleEditText = (e:any) =>{
+        if (!e || !recordId) return
+        const editVal: string = e?.editableVal ?? ""
+        if (!editVal) return
+        update(
+            "sequent_backend_election_event",
+            {
+                id: record.id,
+                data: {
+                    ...record,
+                    presentation: {
+                        ...record.presentation,
+                        i18n: {
+                            ...record.presentation.i18n,
+                            [selectedLanguage]: {
+                                ...record.presentation.i18n?.[selectedLanguage],
+                                [recordId as string]: editVal,
+                            },
+                        },
+                    },
+                },
+                previousData: record,
+            },
+            {
+                onError() {
+                    notify("Translations updates failed", {type: "warning"})
+                    handleCloseEditDrawer()
+                },
+                onSuccess() {
+                    notify("Translations updated successfully", {type: "success"})
+                    handleCloseEditDrawer()
+                },
+            }
+        )
     }
+    const confirmDeleteAction = () => {
+        if(!deleteId || !selectedLanguage) return
+        const updatedI18nForLanguage = { ...record.presentation.i18n[selectedLanguage] }
+        delete updatedI18nForLanguage[deleteId as string]
+
+        update(
+            "sequent_backend_election_event",
+            {
+                id: record.id,
+                data: {
+                    ...record,
+                    presentation: {
+                        ...record.presentation,
+                        i18n: {
+                            ...record.presentation.i18n,
+                            [selectedLanguage]: updatedI18nForLanguage,
+                        },
+                    },
+                },
+                previousData: record,
+            },
+            {
+                onError() {
+                    notify("Translations updates failed", {type: "warning"})
+                    handleCloseEditDrawer()
+                },
+                onSuccess() {
+                    notify("Translations updated successfully", {type: "success"})
+                    handleCloseEditDrawer()
+                },
+            }
+        )
+    }
+   
 
     const actions: Action[] = [
         {icon: <EditIcon />, action: editAction},
@@ -201,7 +266,7 @@ const EditElectionEventTextDataTable = () => {
                         total={translationData.length}
                         bulkActionButtons={false}
                     >
-                        <TextField source="key" />
+                        <TextField source="id" label={"Key"}/>
                         <TextField source="value" />
                         <WrapperField label="Actions">
                             <ActionsColumn actions={actions} />
@@ -219,8 +284,9 @@ const EditElectionEventTextDataTable = () => {
                 }}
             >
                 <SimpleForm
-                    //    record={}
+                    record={record.presentation.i18n[selectedLanguage]}
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
+                    onSubmit={handleEditText}
                 >
                     <>
                         {/* TODO: Replace texts */}
@@ -229,8 +295,8 @@ const EditElectionEventTextDataTable = () => {
                             {t("areas.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
-                        <TextInput source="key" />
-                        <TextInput source="name" />
+                        <TextInput source="editableKey" label={"Key"} defaultValue={recordId??undefined} disabled/>
+                        <TextInput source="editableVal" label={"Value"} defaultValue={recordId ? record.presentation.i18n[selectedLanguage][recordId] : undefined}/>
                     </>
                 </SimpleForm>
             </Drawer>
@@ -246,6 +312,7 @@ const EditElectionEventTextDataTable = () => {
                         confirmDeleteAction()
                     }
                     setOpenDeleteModal(false)
+                    setDeleteId(null)
                 }}
             >
                 {t("common.message.delete")}
