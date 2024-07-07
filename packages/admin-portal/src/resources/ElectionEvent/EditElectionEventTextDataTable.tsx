@@ -74,7 +74,6 @@ const EditElectionEventTextDataTable = () => {
         value: value,
     }))
 
-    
     const editAction = (id: Identifier) => {
         setOpenEdit(true)
         setRecordId(id)
@@ -124,7 +123,7 @@ const EditElectionEventTextDataTable = () => {
             }
         )
     }
-    const handleEditText = (e:any) =>{
+    const handleEditText = (e: any) => {
         if (!e || !recordId) return
         const editVal: string = e?.editableVal ?? ""
         if (!editVal) return
@@ -160,8 +159,8 @@ const EditElectionEventTextDataTable = () => {
         )
     }
     const confirmDeleteAction = () => {
-        if(!deleteId || !selectedLanguage) return
-        const updatedI18nForLanguage = { ...record.presentation.i18n[selectedLanguage] }
+        if (!deleteId || !selectedLanguage) return
+        const updatedI18nForLanguage = {...record.presentation.i18n[selectedLanguage]}
         delete updatedI18nForLanguage[deleteId as string]
 
         update(
@@ -192,7 +191,6 @@ const EditElectionEventTextDataTable = () => {
             }
         )
     }
-   
 
     const actions: Action[] = [
         {icon: <EditIcon />, action: editAction},
@@ -266,7 +264,7 @@ const EditElectionEventTextDataTable = () => {
                         total={translationData.length}
                         bulkActionButtons={false}
                     >
-                        <TextField source="id" label={"Key"}/>
+                        <TextField source="id" label={"Key"} />
                         <TextField source="value" />
                         <WrapperField label="Actions">
                             <ActionsColumn actions={actions} />
@@ -295,8 +293,21 @@ const EditElectionEventTextDataTable = () => {
                             {t("areas.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
-                        <TextInput source="editableKey" label={"Key"} defaultValue={recordId??undefined} disabled/>
-                        <TextInput source="editableVal" label={"Value"} defaultValue={recordId ? record.presentation.i18n[selectedLanguage][recordId] : undefined}/>
+                        <TextInput
+                            source="editableKey"
+                            label={"Key"}
+                            defaultValue={recordId ?? undefined}
+                            disabled
+                        />
+                        <TextInput
+                            source="editableVal"
+                            label={"Value"}
+                            defaultValue={
+                                recordId
+                                    ? record.presentation.i18n[selectedLanguage][recordId]
+                                    : undefined
+                            }
+                        />
                     </>
                 </SimpleForm>
             </Drawer>
