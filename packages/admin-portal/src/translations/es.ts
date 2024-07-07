@@ -314,6 +314,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 dashboard: "Panel de Control",
                 data: "Datos",
+                text: "Texto",
                 voters: "Votantes",
                 areas: "Áreas",
                 keys: "Claves",

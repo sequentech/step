@@ -314,6 +314,7 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tauler de Control",
                 data: "Dades",
+                text: "Text",
                 voters: "Votants",
                 areas: "Àrees",
                 keys: "Claus",

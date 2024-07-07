@@ -42,6 +42,11 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
     )
+    const showTextData = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_WRITE
+    )
     const showAreas = authContext.isAuthorized(true, authContext.tenantId, IPermissions.AREA_READ)
     const showKeys = authContext.isAuthorized(true, authContext.tenantId, [
         IPermissions.ADMIN_CEREMONY,
@@ -97,6 +102,11 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showData ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.data")}>
+                        <EditElectionEventData />
+                    </TabbedShowLayout.Tab>
+                ) : null}
+                {showTextData ? (
+                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.text")}>
                         <EditElectionEventData />
                     </TabbedShowLayout.Tab>
                 ) : null}

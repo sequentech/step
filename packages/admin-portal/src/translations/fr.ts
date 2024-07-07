@@ -314,6 +314,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tableau de Bord",
                 data: "Données",
+                text: "Texte",
                 voters: "Électeurs",
                 areas: "Zones",
                 keys: "Clés",

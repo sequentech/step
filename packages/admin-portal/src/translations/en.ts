@@ -310,6 +310,7 @@ const englishTranslation = {
             tabs: {
                 dashboard: "Dashboard",
                 data: "Data",
+                text: "Text",
                 voters: "Voters",
                 areas: "Areas",
                 keys: "Keys",
