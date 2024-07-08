@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <leagal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {useState, useEffect, useMemo} from "react"
 import {useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
@@ -11,7 +15,7 @@ const useDemo = () => {
         if (url.includes("demo") || oneBallotStyle?.ballot_eml.public_key?.is_demo) {
             setIsDemo(true)
         }
-    }, [])
+    }, [oneBallotStyle?.ballot_eml.public_key?.is_demo])
 
     const isDemoMemoized = useMemo(() => {
         return isDemo

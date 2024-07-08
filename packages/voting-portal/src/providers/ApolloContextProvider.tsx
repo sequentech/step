@@ -15,11 +15,11 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
 
     useEffect(() => {
-        if (!globalSettings.DISABLE_AUTH && !isAuthContextInitialized) {
+        if (!isAuthContextInitialized) {
             return
         }
 
-        if (!globalSettings.DISABLE_AUTH && !keycloakAccessToken) {
+        if (!keycloakAccessToken) {
             return
         }
 
