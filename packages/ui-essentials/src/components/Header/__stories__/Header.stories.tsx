@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {Meta, StoryObj} from "@storybook/react"
-import Header from "../Header"
+import Header, {HeaderErrorVariant} from "../Header"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 
 const meta: Meta<typeof Header> = {
@@ -78,6 +78,27 @@ export const WithUserProfileLong: Story = {
         logoutFn() {
             alert("logging out")
         },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const HiddenUserProfile: Story = {
+    args: {
+        userProfile: {
+            email: "john@sequentech.io",
+            username: "John Doe",
+            openLink() {
+                alert("rouge")
+            },
+        },
+        logoutFn() {
+            alert("logging out")
+        },
+        errorVariant: HeaderErrorVariant.HIDE_PROFILE,
     },
     parameters: {
         viewport: {

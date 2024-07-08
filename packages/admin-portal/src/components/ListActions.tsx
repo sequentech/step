@@ -122,7 +122,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 ) : // <ExportButton />
                 null}
 
-                {extraActions.length > 0 && extraActions.map((item) => item)}
+                {extraActions.length > 0 ? extraActions : null}
             </TopToolbar>
         </div>
     )

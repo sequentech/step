@@ -39,6 +39,7 @@ num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
 num-modular = { version = "0.5", features = ["num-bigint"], optional = true }
 malachite = { version = "0.3.2", default-features = false, features = [ "naturals_and_integers" ], optional = true }
+rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
 ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
@@ -73,6 +74,12 @@ wasm-bindgen = {version = "=0.2.79", optional = true}
 serde-wasm-bindgen = {version = "0.4", optional = true}
 web-sys = { version = "0.3", features = ['Performance'], optional = true }
 
+# RNG, ecdsa, sha512, shake256, aes-gcm
+# OpenSSL needs to be configured to operate in FIPS mode
+# https://github.com/sfackler/rust-openssl/issues/1924
+# https://www.openssl.org/docs/man3.0/man7/fips_module.html
+openssl = { version = "0.10.57", optional = true }
+
 rayon = { version = "1.5", optional = true }
 cfg-if = "1.0"
 thiserror = "1.0.50"
@@ -82,14 +89,6 @@ serde = { version = "1.0", features = ["derive"] }
 
 # Used for debug impl and demo
 hex = { version = "0.4.2" }
-
-[target.'cfg(unix)'.dependencies]
-rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"]}
-# RNG, ecdsa, sha512, shake256, aes-gcm
-# OpenSSL needs to be configured to operate in FIPS mode
-# https://github.com/sfackler/rust-openssl/issues/1924
-# https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10.57", optional = true }
 
 [dev-dependencies]
 criterion = "0.5.1"

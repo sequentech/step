@@ -10,7 +10,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
-use windmill::services::ballot_publication::{
+use windmill::services::ballot_styles::ballot_publication::{
     add_ballot_publication, get_ballot_publication_diff, update_publish_ballot,
     PublicationDiff,
 };
@@ -99,6 +99,7 @@ pub async fn publish_ballot(
 pub struct GetBallotPublicationChangesInput {
     election_event_id: String,
     ballot_publication_id: String,
+    limit: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -132,6 +133,7 @@ pub async fn get_ballot_publication_changes(
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.ballot_publication_id.clone(),
+        input.limit,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

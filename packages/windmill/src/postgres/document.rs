@@ -3,46 +3,41 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use chrono::NaiveDate;
-use chrono::{DateTime, Utc};
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::types::keycloak::{User, VotesInfo};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use sequent_core::types::hasura::core::Document;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct Document {
-    pub id: String,
-    pub tenant_id: String,
-    pub election_event_id: Option<String>,
-    pub name: Option<String>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub last_updated_at: Option<DateTime<Utc>>,
-    pub is_public: Option<bool>,
-}
+pub struct DocumentWrapper(pub Document);
 
-impl TryFrom<Row> for Document {
+impl TryFrom<Row> for DocumentWrapper {
     type Error = anyhow::Error;
+
     fn try_from(item: Row) -> Result<Self> {
-        Ok(Document {
+        let size: Option<i32> = item.try_get("size")?;
+
+        Ok(DocumentWrapper(Document {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
-            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            tenant_id: item
+                .try_get::<_, Option<Uuid>>("tenant_id")?
+                .map(|val| val.to_string()),
             election_event_id: item
                 .try_get::<_, Option<Uuid>>("election_event_id")?
                 .map(|val| val.to_string()),
-            name: item.get("name"),
+            name: item.try_get("name")?,
+            media_type: item.try_get("media_type")?,
+            size: size.map(|val| val as i64),
+            labels: item.try_get("labels")?,
+            annotations: item.try_get("annotations")?,
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
-            is_public: item.get("is_public"),
-        })
+            is_public: item.try_get("is_public")?,
+        }))
     }
 }
 
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -83,11 +78,84 @@ pub async fn get_document(
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
 
-    let documents = rows
+    let documents: Vec<Document> = rows
         .into_iter()
-        .map(|row| -> Result<Document> { row.try_into() })
+        .map(|row| -> Result<Document> {
+            row.try_into()
+                .map(|res: DocumentWrapper| -> Document { res.0 })
+        })
         .collect::<Result<Vec<Document>>>()
         .with_context(|| "Error converting rows into documents")?;
 
     Ok(documents.get(0).cloned())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn insert_document(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<String>,
+    name: &str,
+    media_type: &str,
+    size: i32,
+    is_public: bool,
+    document_id: Option<String>,
+) -> Result<Document> {
+    let document_uuid: uuid::Uuid = document_id
+        .map(|id| Uuid::parse_str(&id))
+        .unwrap_or(Ok(Uuid::new_v4()))?;
+    let election_event_uuid: Option<uuid::Uuid> = election_event_id
+        .map(|id| Uuid::parse_str(&id))
+        .transpose()?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.document
+                (id, tenant_id, election_event_id, name, media_type, size, is_public, created_at)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    NOW()
+                )
+                RETURNING
+                    id, tenant_id, election_event_id, name, media_type, size, labels, annotations, created_at, last_updated_at, is_public;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &document_uuid,
+                &Uuid::parse_str(tenant_id)?,
+                &election_event_uuid,
+                &name,
+                &media_type,
+                &size,
+                &is_public,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting document: {}", err))?;
+
+    let documents: Vec<Document> = rows
+        .into_iter()
+        .map(|row| -> Result<Document> {
+            row.try_into()
+                .map(|res: DocumentWrapper| -> Document { res.0 })
+        })
+        .collect::<Result<Vec<Document>>>()
+        .with_context(|| "Error converting rows into documents")?;
+
+    documents
+        .get(0)
+        .map(|val| val.clone())
+        .ok_or(anyhow!("Row not inserted"))
 }

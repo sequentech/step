@@ -295,6 +295,8 @@ services:
     entrypoint: ["./init.sh", "start:admin:container"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+    environment:
+        MAX_DIFF_LINES: ${MAX_DIFF_LINES}
 
   voting-portal:
     profiles: ["full"]
@@ -318,7 +320,10 @@ services:
   immudb:
     profiles: ["full", "base"]
     container_name: immudb
-    image: codenotary/immudb:1.5
+    image: sequentech.local/immudb
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.immudb
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -684,6 +689,7 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+      AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
@@ -739,6 +745,9 @@ services:
       PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
       VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
+       #Demo key
+      DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
+      
 
   beat:
     profiles: ["full"]

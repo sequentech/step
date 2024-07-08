@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: backend-services
+Upstream-Name: step
 Upstream-Contact: Eduardo Robles <edu@sequentech.io>
 Source: https://github.com/sequentech
 
@@ -18,6 +18,15 @@ Files:
   devenv.nix
   graphql.schema.json
   yarn.lock
+  packages/.ignore
+  packages/admin-portal/.ignore
+  packages/ballot-verifier/.ignore
+  packages/braid/.ignore
+  packages/sequent-core/.ignore
+  packages/strand/.ignore
+  packages/ui-essentials/.ignore
+  packages/voting-portal/.ignore
+  packages/windmill/.ignore
   packages/package.json
   packages/admin-portal/graphql.schema.json
   packages/admin-portal/logs/*
@@ -29,6 +38,8 @@ Files:
   packages/voting-portal/reports/*
   packages/windmill/src/graphql/*
   packages/immudb-rs/proto/immudb/*
+  packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/text/send-code-email.ftl
+  packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/html/send-code-email.ftl
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 

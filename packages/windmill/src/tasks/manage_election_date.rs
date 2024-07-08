@@ -138,8 +138,9 @@ pub async fn manage_election_date(
             )));
         }
     };
+    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 
-    let commit = hasura_transaction
+    let _commit = hasura_transaction
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed: {}", e));

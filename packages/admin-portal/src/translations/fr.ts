@@ -227,6 +227,8 @@ const frenchTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuration de l'Événement Électoral.",
+                showMore: "Afficher plus",
+                showLess: "Afficher moins",
             },
             edit: {
                 general: "Général",
@@ -235,6 +237,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                advancedConfigurations: "Voting Portal Countdown Policy",
             },
             field: {
                 name: "Nom",
@@ -253,6 +256,17 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "Pas de compte à rebours",
+                    COUNTDOWN: "Compte à rebours",
+                    COUNTDOWN_WITH_ALERT: "Compte à rebours avec alerte",
+                    sectionTitle: "Portail de vote",
+                    policyLabel: "Politique de compte à rebours du portail de vote",
+                    coundownSecondsLabel:
+                        "temps en secondes avant expiration pour afficher le compte à rebours",
+                    alertSecondsLabel:
+                        "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -331,6 +345,15 @@ const frenchTranslation: TranslationType = {
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },
             },
+            importAreas: {
+                title: "Importer des Zones",
+                subtitle: "Importer des données de zones",
+                areaParagraph:
+                    "Importer des zones en utilisant un fichier tableur au format Valeurs Séparées par des Virgules (CSV).",
+                importSuccess: "Zones Importées avec Succès",
+                importError: "Erreur lors de l'importation des Zones",
+                upsert: "Upsert Areas",
+            },
             import: {
                 eetitle: "Importer un Événement Électoral",
                 eesubtitle: "Importer des données de l'Événement Électoral",
@@ -359,6 +382,7 @@ const frenchTranslation: TranslationType = {
                         "Vous n'avez pas entré le champ de Vérification de l'Intégrité (SHA-256). Confirmez que vous importez le fichier correct et que vous souhaitez l'importer.",
                 },
             },
+            exportError: "Erreur lors de l'exportation de l'événement électoral",
         },
         electionScreen: {
             common: {
@@ -460,6 +484,7 @@ const frenchTranslation: TranslationType = {
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
                 },
                 notifications: {
+                    exportError: "Erreur lors de l'exportation des utilisateurs",
                     deleteError: "Erreur lors de la suppression de l'utilisateur",
                     deleteSuccess: "Utilisateur supprimé",
                 },
@@ -488,6 +513,7 @@ const frenchTranslation: TranslationType = {
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
                 },
                 notifications: {
+                    exportError: "Erreur lors de l'exportation des électeurs",
                     deleteError: "Erreur lors de la suppression de l'électeur",
                     deleteSuccess: "Électeur supprimé",
                     manualVerificationError:
@@ -972,6 +998,7 @@ const frenchTranslation: TranslationType = {
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
                 error_status: "Erreur lors du changement d'état de la publication",
+                diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",
             },
             label: {
                 current: "Actuel",

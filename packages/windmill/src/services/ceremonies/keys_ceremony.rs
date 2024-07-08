@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::{get_election_event_helper, update_election_event_status};
+use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::keys_ceremony::{
-    get_keys_ceremonies, get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
+    get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
@@ -223,8 +224,12 @@ pub async fn check_private_key(
     )
     .await?;
     // check keys_ceremony has correct execution status
-    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string()) {
-        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS"));
+    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())
+        && keys_ceremony.execution_status != Some(ExecutionStatus::SUCCESS.to_string())
+    {
+        return Err(anyhow!(
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS"
+        ));
     }
 
     // get ceremony status

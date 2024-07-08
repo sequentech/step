@@ -11,8 +11,8 @@ use dotenv::dotenv;
 use sequent_core::services::probe::ProbeHandler;
 use structopt::StructOpt;
 use tokio::time::Duration;
+use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
-use windmill::tasks::{review_boards::review_boards, start_stop_election::start_stop_election};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
             },
             "scheduled_events" => {
                 scheduled_events,
-                schedule = DeltaSchedule::new(Duration::from_secs(60)),
+                schedule = DeltaSchedule::new(Duration::from_secs(10)),
                 args = (),
             }
         ],

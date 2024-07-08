@@ -7,6 +7,8 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::str::FromStr;
+use strum_macros::EnumString;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -31,16 +33,9 @@ impl TryFrom<Row> for PostgresScheduledEvent {
 
     #[instrument(skip_all, err)]
     fn try_from(item: Row) -> Result<Self> {
-        let event_processors: Option<String> = item
-            .try_get("event_processor")
-            .map_err(|err| anyhow!("Error deserializing event_processor: {err}"))?;
-        let event_processors: Option<EventProcessors> = match event_processors {
-            Some(str) => Some(
-                str.parse::<EventProcessors>()
-                    .map_err(|err| anyhow!("Error parsing event_processor: {err}"))?,
-            ),
-            None => None,
-        };
+        let event_processors_js: Option<Value> = item.try_get("event_processor")?;
+        let event_processors: Option<EventProcessors> =
+            event_processors_js.map(|val| serde_json::from_value(val).unwrap());
 
         let cron_config_js: Option<Value> = item
             .try_get("cron_config")
@@ -179,7 +174,8 @@ pub async fn find_scheduled_event_by_task_id(
                 AND stopped_at IS NULL
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid, &task_id])

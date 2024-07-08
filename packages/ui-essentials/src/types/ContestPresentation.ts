@@ -47,4 +47,5 @@ export interface IContestPresentation {
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>
+    under_vote_alert?: boolean
 }

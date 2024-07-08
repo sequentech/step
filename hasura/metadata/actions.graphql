@@ -104,6 +104,18 @@ type Mutation {
 }
 
 type Mutation {
+  export_election_event (
+    election_event_id: String
+  ): ExportUsersOutput
+}
+
+type Mutation {
+  export_election_event_logs (
+    election_event_id: String
+  ): ExportLogsOutput
+}
+
+type Mutation {
   export_users (
     tenant_id: String!
     election_event_id: String
@@ -141,6 +153,7 @@ type Mutation {
   get_ballot_publication_changes (
     election_event_id: uuid!
     ballot_publication_id: uuid!
+    limit: Int
   ): GetBallotPublicationChangesOutput
 }
 
@@ -190,6 +203,20 @@ type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
+}
+
+type Mutation {
+  import_areas (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
+  import_candidates (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
 }
 
 type Mutation {
@@ -323,6 +350,13 @@ type Mutation {
     tally_session_id: uuid!
     status: String!
   ): StartTallyOutput
+}
+
+type Mutation {
+  upsert_areas (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
 }
 
 enum OrderDirection {
@@ -811,3 +845,7 @@ type ManageElectionDatesOutput {
   something : String
 }
 
+type ExportLogsOutput {
+  task_id : String!
+  document_id : String!
+}

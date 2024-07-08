@@ -19,4 +19,24 @@ $> velvet run {stage} {optional-pipe} \
 
 See more: 
 
-https://github.com/sequentech/backend-services/blob/main/docs/design/velvet/README.md
+https://github.com/sequentech/step/blob/main/docs/design/velvet/README.md
+
+## Development
+
+For example if you are testing a specific vote receipts template, you could do:
+
+```bash
+cargo build
+# update velvet config with vote receipts template
+python3 testing/bin/utils/update_velvet_config.py \
+    --config-path ./velvet-config.json \
+    --template-path ./src/resources/vote_receipts.hbs && \
+
+# run velvet
+rm -rf output2 && \
+cargo run --bin velvet -- run \
+    main decode-ballots \
+    --config ./velvet-config.json \
+    --input-dir ./input \
+    --output-dir ./output2
+```

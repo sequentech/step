@@ -197,6 +197,33 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: export_election_event
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-election-event
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-read
+- name: export_election_event_logs
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-election-event-logs
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-read
+  - role: logs-read
 - name: export_users
   definition:
     kind: synchronous
@@ -391,6 +418,32 @@ actions:
   permissions:
   - role: voter-read
   - role: user-read
+  - role: admin-user
+- name: import_areas
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-areas
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: area-write
+- name: import_candidates
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/import-candidates
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
   - role: admin-user
 - name: import_election_event
   definition:
@@ -659,6 +712,20 @@ actions:
   permissions:
   - role: trustee-read
   - role: admin-user
+- name: upsert_areas
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/upsert-areas
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: area-write
+  comment: upsert_areas
 custom_types:
   enums:
   - name: OrderDirection
@@ -752,4 +819,5 @@ custom_types:
   - name: CreateVoteReceiptOutput
   - name: OptionalImportEvent
   - name: ManageElectionDatesOutput
+  - name: ExportLogsOutput
   scalars: []

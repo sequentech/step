@@ -17,7 +17,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
+                    "This screen shows the contest you are eligible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
                 ok: "OK",
             },
         },
@@ -225,6 +225,8 @@ const englishTranslation = {
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",
+                showMore: "Show More",
+                showLess: "Show Less",
             },
             edit: {
                 general: "General",
@@ -233,6 +235,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                advancedConfigurations: "Advanced Configurations",
             },
             field: {
                 name: "Name",
@@ -251,6 +254,15 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "No Countdown",
+                    COUNTDOWN: "Countdown",
+                    COUNTDOWN_WITH_ALERT: "Countdown with alert",
+                    sectionTitle: "Voting Portal",
+                    policyLabel: "Voting Portal Countdown policy",
+                    coundownSecondsLabel: "time in seconds before expiration to show countdown",
+                    alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
             },
             error: {
                 endDate: "End date must be after start date",
@@ -262,7 +274,7 @@ const englishTranslation = {
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
             stats: {
-                elegibleVoters: "Elegible Voters",
+                elegibleVoters: "Eligible Voters",
                 voters: "Actual Voters",
                 elections: "Elections",
                 contests: "Contests",
@@ -329,6 +341,15 @@ const englishTranslation = {
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
+            importAreas: {
+                title: "Import Areas",
+                subtitle: "Import areas data",
+                areaParagraph:
+                    "Import areas using a spreadsheet file in Comma Separated Values (CSV) format.",
+                importSuccess: "Areas Imported Successfully",
+                importError: "Error importing Areas",
+                upsert: "Upsert Areas",
+            },
             import: {
                 eetitle: "Import Election Event",
                 eesubtitle: "Import election event data",
@@ -355,6 +376,7 @@ const englishTranslation = {
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
             },
+            exportError: "Error exporting Election Event",
         },
         electionScreen: {
             common: {
@@ -456,6 +478,7 @@ const englishTranslation = {
                     bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
+                    exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
                 },
@@ -484,6 +507,7 @@ const englishTranslation = {
                     bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
+                    exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
                     manualVerificationError: "Error manually verifying the voter",
@@ -913,14 +937,14 @@ const englishTranslation = {
                 status: "Status",
                 progress: "Progress",
                 method: "Tally Method",
-                elegible: "Elegible Voters",
+                elegible: "Eligible Voters",
                 number: "Number of Votes",
                 total: "Total",
                 turnout: "%",
                 candidates: "Candidate Results",
                 options: "Options",
                 global: "Participation Summary",
-                elegible_census: "Elegible Voters",
+                elegible_census: "Eligible Voters",
                 cast_votes: "Number of Votes",
                 cast_votes_percent: "Percent of Votes",
                 total_votes: "Total Voters",
@@ -971,6 +995,7 @@ const englishTranslation = {
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
+                diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
             },
             notifications: {
                 generated: "Ballot generated",

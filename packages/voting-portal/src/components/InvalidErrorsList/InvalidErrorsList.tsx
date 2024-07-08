@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {WarnBox, IContest} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
@@ -37,11 +37,20 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 }) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
+    const [decodedContestSelection, setDecodedContestSelection] = useState<
+        IDecodedVoteContest | undefined
+    >(undefined)
+    const [filteredSelection, setFilteredSelection] = useState<IDecodedVoteContest | undefined>(
+        undefined
+    )
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
-    const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
+    const contestSelection = useMemo(
+        () => selectionState?.find((contest) => contest.contest_id === question.id),
+        [selectionState]
+    )
 
     useEffect(() => {
         if (isTouched || !contestSelection) {
@@ -53,20 +62,38 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [contestSelection, isTouched])
 
-    const decodedContestSelection =
-        contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+    useEffect(() => {
+        const state =
+            contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+        setDecodedContestSelection(state)
+        setFilteredSelection(state)
+    }, [contestSelection])
 
-    if (!isReview && !isTouched && decodedContestSelection) {
-        decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
-            (error) => error.message !== "errors.implicit.selectedMin"
-        )
-    }
+    useEffect(() => {
+        if (!isReview && !isTouched) {
+            // Filter min selection error in case where no user interaction was yet made
+            setFilteredSelection((prev) => {
+                if (!prev) return undefined
+                return {
+                    ...prev,
+                    invalid_errors:
+                        prev?.invalid_errors.filter(
+                            (error) => error.message !== "errors.implicit.selectedMin"
+                        ) || [],
+                    invalid_alerts:
+                        prev?.invalid_alerts.filter(
+                            (error) => error.message !== "errors.implicit.underVote"
+                        ) || [],
+                }
+            })
+        }
+    }, [isReview, isTouched])
 
     useEffect(() => {
         if (decodedContestSelection) {
             setDecodedContests(decodedContestSelection)
         }
-    }, [decodedContestSelection, decodedContestSelection?.invalid_errors])
+    }, [decodedContestSelection])
 
     const numAvailableChars = contestSelection
         ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
@@ -88,8 +115,13 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     })}
                 </WarnBox>
             ) : null}
-            {decodedContestSelection?.invalid_errors.map((error, index) => (
+            {filteredSelection?.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
+                    {t(error.message || "", error.message_map ?? {})}
+                </WarnBox>
+            ))}
+            {filteredSelection?.invalid_alerts.map((error, index) => (
+                <WarnBox variant="info" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}

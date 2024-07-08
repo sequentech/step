@@ -27,7 +27,7 @@ pub struct VotesInfo {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct User {
     pub id: Option<String>,
-    pub attributes: Option<HashMap<String, Value>>,
+    pub attributes: Option<HashMap<String, Vec<String>>>,
     pub email: Option<String>,
     pub email_verified: Option<bool>,
     pub enabled: Option<bool>,
@@ -41,7 +41,7 @@ pub struct User {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Permission {
     pub id: Option<String>,
-    pub attributes: Option<HashMap<String, Value>>,
+    pub attributes: Option<HashMap<String, Vec<String>>>,
     pub container_id: Option<String>,
     pub description: Option<String>,
     pub name: Option<String>,
@@ -52,7 +52,7 @@ pub struct Role {
     pub id: Option<String>,
     pub name: Option<String>,
     pub permissions: Option<Vec<String>>,
-    pub access: Option<HashMap<String, Value>>,
-    pub attributes: Option<HashMap<String, Value>>,
-    pub client_roles: Option<HashMap<String, Value>>,
+    pub access: Option<HashMap<String, bool>>,
+    pub attributes: Option<HashMap<String, Vec<String>>>,
+    pub client_roles: Option<HashMap<String, Vec<String>>>,
 }

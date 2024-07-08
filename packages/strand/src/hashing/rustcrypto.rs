@@ -15,7 +15,6 @@ use crate::util::StrandError;
 /// Sha-512 hashes are 64 bytes.
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
 /// Sha-512 hashes are 64 byte arrays: [u8; 64].
-
 pub type Hash = [u8; STRAND_HASH_LENGTH_BYTES];
 
 // Create a new struct that wraps the Hash type
@@ -88,13 +87,13 @@ impl<'de> Deserialize<'de> for HashWrapper {
 pub(crate) type Hasher = Sha512;
 pub(crate) use sha2::Digest;
 
-/// Single entry point for all hashing, vector version.
+/// Single entry point for all hashing, returns a vector.
 pub fn hash(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
     let mut hasher = hasher();
     curve25519_dalek::digest::Update::update(&mut hasher, bytes);
     Ok(hasher.finalize().to_vec())
 }
-/// Single entry point for all hashing, array version.
+/// Single entry point for all hashing, returns an array.
 pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
     let mut hasher = hasher();
     curve25519_dalek::digest::Update::update(&mut hasher, bytes);

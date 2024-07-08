@@ -16,9 +16,9 @@ use board_messages::braid::message::VerifiedMessage;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::predicate::Predicate;
-use crate::protocol2::trustee::Trustee;
+use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::predicate::Predicate;
+use crate::protocol::trustee::Trustee;
 
 use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
@@ -53,12 +53,11 @@ The verifier performs checks that map to these steps, as well as additional cons
 // Check symbolic constants
 ///////////////////////////////////////////////////////////////////////////
 
-// TODO use this instead of strings
 #[derive(PartialEq, Eq, Hash, Display, Serialize)]
 enum Check {
     /*
     The configuration is valid as per Configuration::is_valid:
-    1) The number of trustees ranges from 2 to 12 (crate::protocol2::MAX_TRUSTEES).
+    1) The number of trustees ranges from 2 to 12 (crate::protocol::MAX_TRUSTEES).
     2) The threshold ranges from 2 to the number of trustees.
     3) There are no duplicate trustees.
     */

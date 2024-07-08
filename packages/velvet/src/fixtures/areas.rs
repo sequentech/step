@@ -12,6 +12,7 @@ pub fn get_area_config(
     election_event_id: &Uuid,
     election_id: &Uuid,
     census: u64,
+    parent_id: Option<Uuid>,
 ) -> AreaConfig {
     AreaConfig {
         id: Uuid::new_v4(),
@@ -19,5 +20,6 @@ pub fn get_area_config(
         election_event_id: *election_event_id,
         election_id: *election_id,
         census,
+        parent_id,
     }
 }

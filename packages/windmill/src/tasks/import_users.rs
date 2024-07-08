@@ -7,6 +7,7 @@ use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::documents::get_document_as_temp_file;
 use crate::services::s3;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -111,19 +112,7 @@ impl ImportUsersBody {
         };
         info!("postfix={postfix:?} separator={separator:?}");
 
-        // Obtain the key for the document in S3
-        let document_s3_key =
-            s3::get_document_key(&self.tenant_id, "", &self.document_id, &document_name);
-
-        // Retrieve the S3 object and save it to a temporary file
-        let temp_file = s3::get_object_into_temp_file(
-            s3_bucket.as_str(),
-            document_s3_key.as_str(),
-            "import-users-",
-            postfix,
-        )
-        .await
-        .with_context(|| "Failed to get S3 object into temporary file")?;
+        let temp_file = get_document_as_temp_file(self.tenant_id.as_str(), &document).await?;
 
         // Return the temporary file and the separator as a tuple
         Ok((temp_file, separator))

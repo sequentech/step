@@ -1,16 +1,27 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod area;
+pub mod area_contest;
+pub mod ballot_publication;
+pub mod ballot_style;
+pub mod candidate;
 pub mod cast_vote;
 pub mod communication_template;
+pub mod contest;
 pub mod document;
 pub mod election;
+pub mod election_event;
 pub mod keycloak_realm;
+pub mod keys_ceremony;
 pub mod lock;
 pub mod results_area_contest;
 pub mod results_contest;
 pub mod results_election;
 pub mod results_event;
 pub mod scheduled_event;
+pub mod tally_session;
+pub mod tally_session_contest;
+pub mod tally_session_execution;
+pub mod tally_sheet;

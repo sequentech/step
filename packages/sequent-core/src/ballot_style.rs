@@ -7,9 +7,8 @@ use crate::ballot::{
     ElectionEventPresentation, ElectionPresentation, I18nContent,
 };
 use crate::types::hasura::core as hasura_types;
-use anyhow::{anyhow, Result};
-
-pub const DEMO_PUBLIC_KEY: &str = "eh8l6lsmKSnzhMewrdLXEKGe9KVxxo//QsCT2wwAkBo";
+use anyhow::{anyhow, Context, Result};
+use std::env;
 
 fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
@@ -37,9 +36,14 @@ pub fn create_ballot_style(
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
 ) -> Result<ballot::BallotStyle> {
-    let mut sorted_contests = contests.clone();
+    let mut sorted_contests = contests
+        .clone()
+        .into_iter()
+        .filter(|contest| contest.election_id == election.id)
+        .collect::<Vec<hasura_types::Contest>>();
     sorted_contests.sort_by_key(|k| k.id.clone());
-
+    let demo_public_key_env = env::var("DEMO_PUBLIC_KEY")
+        .with_context(|| "DEMO_PUBLIC_KEY env var not found")?;
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
@@ -97,7 +101,7 @@ pub fn create_ballot_style(
                     is_demo: false,
                 })
                 .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: DEMO_PUBLIC_KEY.to_string(),
+                    public_key: demo_public_key_env.to_string(),
                     is_demo: true,
                 }),
         ),

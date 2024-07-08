@@ -66,7 +66,7 @@ impl<P: RugCtxParams> RugCtx<P> {
                 assert!(count != 0);
                 next.extend(index.to_le_bytes());
                 next.extend(count.to_le_bytes());
-                let elem: Integer = self.hash_to_element(&next)?;
+                let elem: Integer = self.hash_to_integer(&next)?;
                 let g = elem
                     .pow_mod(self.params.co_factor(), &self.params.modulus().0)
                     .expect("an answer always exists for prime modulus p");
@@ -81,7 +81,7 @@ impl<P: RugCtxParams> RugCtx<P> {
         Ok(ret)
     }
 
-    fn hash_to_element(&self, bytes: &[u8]) -> Result<Integer, StrandError> {
+    fn hash_to_integer(&self, bytes: &[u8]) -> Result<Integer, StrandError> {
         let hashed = crate::hash::hash(bytes)?;
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)

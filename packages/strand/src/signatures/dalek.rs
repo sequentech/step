@@ -2,6 +2,32 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-License-Identifier: MIT
+//! # Examples
+//!
+//! ```
+//! // This example shows how to sign bytes, and serialize
+//! // and deserialize a signature.
+//! use strand::rng::StrandRng;
+//! use strand::signature::StrandSignatureSk;
+//! use strand::signature::StrandSignaturePk;
+//! use strand::signature::StrandSignature;
+//! use strand::serialization::{StrandDeserialize, StrandSerialize};
+//!
+//! let msg = b"message";
+//! let mut rng = StrandRng;
+//! // generate signing (private) and verification (public) keys
+//! let sk = StrandSignatureSk::gen().unwrap();
+//! let vk = StrandSignaturePk::from_sk(&sk).unwrap();
+//! // sign data
+//! let sig = sk.sign(msg);
+//!
+//! // serialize + deserialize
+//! let sig_bytes = sig.unwrap().strand_serialize().unwrap();
+//! let sig = StrandSignature::strand_deserialize(&sig_bytes).unwrap();
+//! // verify
+//! let ok = vk.verify(&sig, msg);
+//! assert!(ok.is_ok());
+//! ```
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};

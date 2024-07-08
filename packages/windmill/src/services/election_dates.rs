@@ -98,12 +98,12 @@ pub async fn manage_dates(
         };
         info!("manage_date_str = {manage_date_str}");
         let manage_date_date = ISO8601::to_date(&manage_date_str)?;
-        let now = ISO8601::now();
+        /*let now = ISO8601::now();
         let now_str = now.to_string();
         if manage_date_date < now {
             info!("date {manage_date_str} can't be before now {now_str}");
             return Err(anyhow!("date can't be before now"));
-        }
+        }*/
 
         let cron_config = CronConfig {
             cron: None,

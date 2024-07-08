@@ -4,7 +4,13 @@
 import React, {useContext, useEffect, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
+import {
+    Footer,
+    Header,
+    IElectionEventPresentation,
+    NotFoundScreen,
+    PageBanner,
+} from "@sequentech/ui-essentials"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
@@ -14,6 +20,8 @@ import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {LoginScreen} from "./screens/LoginScreen"
 import {SettingsContext} from "./providers/SettingsContextProvider"
+import {useAppSelector} from "./store/hooks"
+import {selectFirstBallotStyle} from "./store/ballotStyles/ballotStylesSlice"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -21,17 +29,25 @@ const StyledApp = styled(Stack)`
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
-    const languagesList = ["en", "es", "cat", "fr"]
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
+
+    let presentation: IElectionEventPresentation | undefined =
+        ballotStyle?.ballot_eml.election_event_presentation
+
+    let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
+    let showUserProfile = presentation?.show_user_profile ?? true
 
     return (
         <Header
+            appVersion={{main: "10.4.2"}}
             userProfile={{
                 username: authContext.username,
                 email: authContext.email,
-                openLink: authContext.openProfileLink,
+                openLink: showUserProfile ? authContext.openProfileLink : undefined,
             }}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             languagesList={languagesList}
+            logoUrl={presentation?.logo_url}
         />
     )
 }

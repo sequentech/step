@@ -227,6 +227,8 @@ const catalanTranslation: TranslationType = {
         electionEventScreen: {
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
+                showMore: "Mostra'n més",
+                showLess: "Mostra'n menys",
             },
             edit: {
                 general: "General",
@@ -235,6 +237,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                advancedConfigurations: "Voting Portal Countdown Policy",
             },
             field: {
                 name: "Nom",
@@ -253,6 +256,17 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "Sense compte enrere",
+                    COUNTDOWN: "Compte enrere",
+                    COUNTDOWN_WITH_ALERT: "Compte enrere amb avís",
+                    sectionTitle: "Portal de votació",
+                    policyLabel: "Política de compte enrere del portal de votació",
+                    coundownSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar el compte enrere",
+                    alertSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -331,6 +345,15 @@ const catalanTranslation: TranslationType = {
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
             },
+            importAreas: {
+                title: "Importar Àrees",
+                subtitle: "Importar dades d'àrees",
+                areaParagraph:
+                    "Importar àrees utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                importSuccess: "Àrees Importades amb Èxit",
+                importError: "Error en importar Àrees",
+                upsert: "Upsert Areas",
+            },
             import: {
                 eetitle: "Importar Esdeveniment Electoral",
                 eesubtitle: "Importar dades de l'Esdeveniment Electoral",
@@ -358,6 +381,7 @@ const catalanTranslation: TranslationType = {
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
             },
+            exportError: "Error exportant l'esdeveniment electoral",
         },
         electionScreen: {
             common: {
@@ -459,6 +483,7 @@ const catalanTranslation: TranslationType = {
                     bulkBody: "Estàs segur que vols esborrar els usuaris seleccionats?",
                 },
                 notifications: {
+                    exportError: "Error exportant usuaris",
                     deleteError: "Error esborrant usuari",
                     deleteSuccess: "Usuari esborrat",
                 },
@@ -487,6 +512,7 @@ const catalanTranslation: TranslationType = {
                     bulkBody: "Estàs segur que vols esborrar els votants seleccionats?",
                 },
                 notifications: {
+                    exportError: "Error exportant votants",
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
                     manualVerificationError: "Error verificant manualment al votant",
@@ -969,6 +995,7 @@ const catalanTranslation: TranslationType = {
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
+                diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
             },
             label: {
                 current: "Actual",

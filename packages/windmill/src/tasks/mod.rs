@@ -6,7 +6,11 @@
 pub mod create_keys;
 pub mod create_vote_receipt;
 pub mod execute_tally_session;
+pub mod export_election_event;
+pub mod export_election_event_logs;
 pub mod export_users;
+pub mod import_areas;
+pub mod import_candidates;
 pub mod import_election_event;
 pub mod import_users;
 pub mod insert_election_event;
@@ -19,5 +23,5 @@ pub mod review_boards;
 pub mod scheduled_events;
 pub mod send_communication;
 pub mod set_public_key;
-pub mod start_stop_election;
 pub mod update_election_event_ballot_styles;
+pub mod upsert_areas;
