@@ -219,7 +219,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
     const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
     const isDemo = useMemo(() => {
-        // TODO: fetch the demo hook, if false then get the demo mode from the following data
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
     const bypassChooser = useAppSelector(selectBypassChooser())
@@ -340,7 +339,6 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        console.log("openDemoModal", openDemoModal)
         if (isDemo && openDemoModal === undefined) {
             setOpenDemoModal(true)
         }
