@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useState, useEffect, useMemo} from "react"
+import {useState, useEffect} from "react"
 import {useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 
@@ -11,17 +11,13 @@ const useDemo = () => {
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
 
     useEffect(() => {
-        const url = window.location.href
+        const url = window.location.search
         if (url.includes("demo") || oneBallotStyle?.ballot_eml.public_key?.is_demo) {
             setIsDemo(true)
         }
     }, [oneBallotStyle?.ballot_eml.public_key?.is_demo])
 
-    const isDemoMemoized = useMemo(() => {
-        return isDemo
-    }, [isDemo])
-
-    return isDemoMemoized
+    return isDemo
 }
 
 export default useDemo
