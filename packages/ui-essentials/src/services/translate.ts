@@ -28,3 +28,11 @@ export const translateElection = (object: any, key: string, lang: string): strin
         return object?.[key] || undefined
     }
 }
+
+export const translateText = (object: any, key: string, lang: string, fallback: string): string => {
+    if (!object || !key || !lang) return fallback
+    if (object?.["presentation"]?.["i18n"]?.[lang]?.[key]) {
+        return object["presentation"]["i18n"][lang]?.[key]
+    }
+    return fallback
+}

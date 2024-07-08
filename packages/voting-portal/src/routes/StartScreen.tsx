@@ -4,7 +4,13 @@
 import React, {useEffect} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme, stringToHtml, translateElection} from "@sequentech/ui-essentials"
+import {
+    PageLimit,
+    theme,
+    stringToHtml,
+    translateElection,
+    translateText,
+} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -16,6 +22,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -65,8 +72,9 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const location = useLocation()
 
     return (
@@ -76,7 +84,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
                 sx={{margin: "auto 0", width: "100%"}}
             >
                 <StyledButton className="start-voting-button" sx={{width: "100%"}}>
-                    {t("startScreen.startButton")}
+                    {translateText(
+                        electionEvent,
+                        "startScreen.startButton",
+                        i18n.language,
+                        t("startScreen.startButton")
+                    )}
                 </StyledButton>
             </StyledLink>
         </ActionsContainer>
@@ -85,8 +98,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
 
 const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
+    const {eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
@@ -115,8 +130,22 @@ const StartScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
-            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
+            <Typography variant="h5">
+                {translateText(
+                    electionEvent,
+                    "startScreen.instructionsTitle",
+                    i18n.language,
+                    t("startScreen.instructionsTitle")
+                )}
+            </Typography>
+            <Typography variant="body2">
+                {translateText(
+                    electionEvent,
+                    "startScreen.instructionsDescription",
+                    i18n.language,
+                    t("startScreen.instructionsDescription")
+                )}
+            </Typography>
             <Box
                 sx={{
                     display: "flex",
@@ -126,21 +155,57 @@ const StartScreen: React.FC = () => {
             >
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
                     <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
-                        {t("startScreen.step1Title")}
+                        {translateText(
+                            electionEvent,
+                            "startScreen.step1Title",
+                            i18n.language,
+                            t("startScreen.step1Title")
+                        )}
                     </Typography>
-                    <Typography variant="body2">{t("startScreen.step1Description")}</Typography>
+                    <Typography variant="body2">
+                        {translateText(
+                            electionEvent,
+                            "startScreen.step1Description",
+                            i18n.language,
+                            t("startScreen.step1Description")
+                        )}
+                    </Typography>
                 </Box>
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
                     <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
-                        {t("startScreen.step2Title")}
+                        {translateText(
+                            electionEvent,
+                            "startScreen.step2Title",
+                            i18n.language,
+                            t("startScreen.step2Title")
+                        )}
                     </Typography>
-                    <Typography variant="body2">{t("startScreen.step2Description")}</Typography>
+                    <Typography variant="body2">
+                        {translateText(
+                            electionEvent,
+                            "startScreen.step2Description",
+                            i18n.language,
+                            t("startScreen.step2Description")
+                        )}
+                    </Typography>
                 </Box>
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
                     <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
-                        {t("startScreen.step3Title")}
+                        {translateText(
+                            electionEvent,
+                            "startScreen.step3Title",
+                            i18n.language,
+                            t("startScreen.step3Title")
+                        )}
                     </Typography>
-                    <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
+                    <Typography variant="body2">
+                        {translateText(
+                            electionEvent,
+                            "startScreen.step3Description",
+                            i18n.language,
+                            t("startScreen.step3Description")
+                        )}
+                    </Typography>
                 </Box>
             </Box>
             <ActionButtons election={election} />

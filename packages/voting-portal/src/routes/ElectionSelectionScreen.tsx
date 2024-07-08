@@ -14,6 +14,7 @@ import {
     stringToHtml,
     theme,
     translateElection,
+    translateText,
     EVotingStatus,
     IElectionEventStatus,
     IBallotStyle as IElectionDTO,
@@ -93,10 +94,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const {i18n} = useTranslation()
 
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
 
     if (!election) {
@@ -197,16 +198,16 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 }
 
 const ElectionSelectionScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
@@ -214,7 +215,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const castVotesTestElection = useAppSelector(
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
-
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
     const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
@@ -259,7 +259,14 @@ const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-            throw new Error(t("electionSelectionScreen.noVotingAreaError"))
+            throw new Error(
+                translateText(
+                    electionEvent,
+                    "electionSelectionScreen.noVotingAreaError",
+                    i18n.language,
+                    t("electionSelectionScreen.noVotingAreaError")
+                )
+            )
         } else if (errorElections || errorElectionEvent || errorBallotStyles) {
             throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
         }
@@ -361,7 +368,14 @@ const ElectionSelectionScreen: React.FC = () => {
             >
                 <Box>
                     <StyledTitle variant="h1">
-                        <Box>{t("electionSelectionScreen.title")}</Box>
+                        <Box>
+                            {translateText(
+                                electionEvent,
+                                "electionSelectionScreen.title",
+                                i18n.language,
+                                t("electionSelectionScreen.title")
+                            )}
+                        </Box>
                         <IconButton
                             icon={faCircleQuestion}
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -371,28 +385,76 @@ const ElectionSelectionScreen: React.FC = () => {
                         <Dialog
                             handleClose={() => setOpenChooserHelp(false)}
                             open={openChooserHelp}
-                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
-                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
+                            title={translateText(
+                                electionEvent,
+                                "electionSelectionScreen.chooserHelpDialog.title",
+                                i18n.language,
+                                t("electionSelectionScreen.chooserHelpDialog.title")
+                            )}
+                            ok={translateText(
+                                electionEvent,
+                                "electionSelectionScreen.chooserHelpDialog.ok",
+                                i18n.language,
+                                t("electionSelectionScreen.chooserHelpDialog.ok")
+                            )}
                             variant="info"
                         >
-                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
+                            {stringToHtml(
+                                translateText(
+                                    electionEvent,
+                                    "electionSelectionScreen.chooserHelpDialog.content",
+                                    i18n.language,
+                                    t("electionSelectionScreen.chooserHelpDialog.content")
+                                )
+                            )}
                         </Dialog>
                         <Dialog
                             handleClose={() => setOpenDemoModal(false)}
                             open={openDemoModal ? openDemoModal : false}
-                            title={t("electionSelectionScreen.demoDialog.title")}
-                            ok={t("electionSelectionScreen.demoDialog.ok")}
+                            title={translateText(
+                                electionEvent,
+                                "electionSelectionScreen.demoDialog.title",
+                                i18n.language,
+                                t("electionSelectionScreen.demoDialog.title")
+                            )}
+                            ok={translateText(
+                                electionEvent,
+                                "electionSelectionScreen.demoDialog.ok",
+                                i18n.language,
+                                t("electionSelectionScreen.demoDialog.ok")
+                            )}
                             variant="warning"
                         >
-                            {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
+                            {stringToHtml(
+                                translateText(
+                                    electionEvent,
+                                    "electionSelectionScreen.demoDialog.content",
+                                    i18n.language,
+                                    t("electionSelectionScreen.demoDialog.content")
+                                )
+                            )}
                         </Dialog>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {stringToHtml(t("electionSelectionScreen.description"))}
+                        {stringToHtml(
+                            translateText(
+                                electionEvent,
+                                "electionSelectionScreen.description",
+                                i18n.language,
+                                t("electionSelectionScreen.description")
+                            )
+                        )}
                     </Typography>
                 </Box>
                 {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
+                    <Button onClick={handleNavigateMaterials}>
+                        {translateText(
+                            electionEvent,
+                            "materials.common.label",
+                            i18n.language,
+                            t("materials.common.label")
+                        )}
+                    </Button>
                 ) : null}
             </Box>
             <ElectionContainer className="elections-list">
@@ -407,7 +469,14 @@ const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>
-                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
+                        <Typography>
+                            {translateText(
+                                electionEvent,
+                                "electionSelectionScreen.noResults",
+                                i18n.language,
+                                t("electionSelectionScreen.noResults")
+                            )}
+                        </Typography>
                     </Box>
                 )}
 

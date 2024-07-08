@@ -13,6 +13,7 @@ import {
     IconButton,
     Dialog,
     stringToHtml,
+    translateText,
 } from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -27,6 +28,7 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {getLanguageFromURL} from "../utils/queryParams"
 import useLanguage from "../hooks/useLanguage"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -91,7 +93,7 @@ const BallotLocator: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const {t, i18n} = useTranslation()
-
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [inputBallotId, setInputBallotId] = useState<string>("")
 
     const hasBallotId = !!ballotId
@@ -151,9 +153,23 @@ const BallotLocator: React.FC = () => {
                     <Box>
                         <StyledTitle variant="h1">
                             {!hasBallotId ? (
-                                <Box>{t("ballotLocator.title")}</Box>
+                                <Box>
+                                    {translateText(
+                                        electionEvent,
+                                        "ballotLocator.title",
+                                        i18n.language,
+                                        t("ballotLocator.title")
+                                    )}
+                                </Box>
                             ) : (
-                                <Box>{t("ballotLocator.titleResult")}</Box>
+                                <Box>
+                                    {translateText(
+                                        electionEvent,
+                                        "ballotLocator.titleResult",
+                                        i18n.language,
+                                        t("ballotLocator.titleResult")
+                                    )}
+                                </Box>
                             )}
                             <IconButton
                                 icon={faCircleQuestion}
@@ -164,11 +180,28 @@ const BallotLocator: React.FC = () => {
                             <Dialog
                                 handleClose={() => setOpenTitleHelp(false)}
                                 open={openTitleHelp}
-                                title={t("ballotLocator.titleHelpDialog.title")}
-                                ok={t("ballotLocator.titleHelpDialog.ok")}
+                                title={translateText(
+                                    electionEvent,
+                                    "ballotLocator.titleHelpDialog.title",
+                                    i18n.language,
+                                    t("ballotLocator.titleHelpDialog.title")
+                                )}
+                                ok={translateText(
+                                    electionEvent,
+                                    "ballotLocator.titleHelpDialog.ok",
+                                    i18n.language,
+                                    t("ballotLocator.titleHelpDialog.ok")
+                                )}
                                 variant="info"
                             >
-                                {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
+                                {stringToHtml(
+                                    translateText(
+                                        electionEvent,
+                                        "ballotLocator.titleHelpDialog.content",
+                                        i18n.language,
+                                        t("ballotLocator.titleHelpDialog.content")
+                                    )
+                                )}
                             </Dialog>
                         </StyledTitle>
 
@@ -176,7 +209,12 @@ const BallotLocator: React.FC = () => {
                             variant="body1"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
-                            {t("ballotLocator.description")}
+                            {translateText(
+                                electionEvent,
+                                "ballotLocator.description",
+                                i18n.language,
+                                t("ballotLocator.description")
+                            )}
                         </Typography>
                     </Box>
                     <Box sx={{marginTop: "20px"}}>
@@ -185,7 +223,14 @@ const BallotLocator: React.FC = () => {
                         >
                             <Button variant="secondary" className="secondary">
                                 <Icon icon={faAngleLeft} size="sm" />
-                                <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
+                                <Box paddingLeft="12px">
+                                    {translateText(
+                                        electionEvent,
+                                        "votingScreen.backButton",
+                                        i18n.language,
+                                        t("votingScreen.backButton")
+                                    )}
+                                </Box>
                             </Button>
                         </StyledLink>
                     </Box>
@@ -194,9 +239,23 @@ const BallotLocator: React.FC = () => {
                 {hasBallotId && !loading && (
                     <Box>
                         {hasBallotId && !!ballotContent ? (
-                            <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
+                            <MessageSuccess>
+                                {translateText(
+                                    electionEvent,
+                                    "ballotLocator.found",
+                                    i18n.language,
+                                    t("ballotLocator.found", {ballotId})
+                                )}
+                            </MessageSuccess>
                         ) : (
-                            <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
+                            <MessageFailed>
+                                {translateText(
+                                    electionEvent,
+                                    "ballotLocator.notFound",
+                                    i18n.language,
+                                    t("ballotLocator.notFound", {ballotId})
+                                )}
+                            </MessageFailed>
                         )}
                     </Box>
                 )}
@@ -211,18 +270,37 @@ const BallotLocator: React.FC = () => {
                                 shrink: true,
                             }}
                             label="Ballot ID"
-                            placeholder={t("ballotLocator.description")}
+                            placeholder={translateText(
+                                electionEvent,
+                                "ballotLocator.description",
+                                i18n.language,
+                                t("ballotLocator.description")
+                            )}
                             onKeyDown={captureEnter}
                         />
                         {!validatedBallotId && (
-                            <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                            <StyledError>
+                                {translateText(
+                                    electionEvent,
+                                    "ballotLocator.wrongFormatBallotId",
+                                    i18n.language,
+                                    t("ballotLocator.wrongFormatBallotId")
+                                )}
+                            </StyledError>
                         )}
                     </>
                 )}
 
                 {hasBallotId && ballotContent && (
                     <>
-                        <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                        <Typography>
+                            {translateText(
+                                electionEvent,
+                                "ballotLocator.contentDesc",
+                                i18n.language,
+                                t("ballotLocator.contentDesc")
+                            )}
+                        </Typography>
                         <InfoDataBox>{ballotContent}</InfoDataBox>
                     </>
                 )}
@@ -234,7 +312,14 @@ const BallotLocator: React.FC = () => {
                         className="normal"
                         onClick={() => locate(true)}
                     >
-                        <span>{t("ballotLocator.locate")}</span>
+                        <span>
+                            {translateText(
+                                electionEvent,
+                                "ballotLocator.locate",
+                                i18n.language,
+                                t("ballotLocator.locate")
+                            )}
+                        </span>
                     </Button>
                 ) : (
                     <>
@@ -243,7 +328,14 @@ const BallotLocator: React.FC = () => {
                             className="normal"
                             onClick={() => locate()}
                         >
-                            <span>{t("ballotLocator.locateAgain")}</span>
+                            <span>
+                                {translateText(
+                                    electionEvent,
+                                    "ballotLocator.locateAgain",
+                                    i18n.language,
+                                    t("ballotLocator.locateAgain")
+                                )}
+                            </span>
                         </Button>
                     </>
                 )}

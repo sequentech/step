@@ -4,15 +4,18 @@
 
 import React, {useContext} from "react"
 import {Box} from "@mui/system"
-import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
+import {isRouteErrorResponse, Link, useParams, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {Button, Typography} from "@mui/material"
-import {Header, HeaderErrorVariant} from "@sequentech/ui-essentials"
+import {Header, HeaderErrorVariant, translateText} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {TenantEventType} from ".."
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {useAppSelector} from "../store/hooks"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -30,7 +33,9 @@ const StyledTitle = styled(Typography)`
 
 export function ErrorPage() {
     const error = useRouteError()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+    const {eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const backLink = useRootBackLink()
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
@@ -40,10 +45,20 @@ export function ErrorPage() {
     let content = (
         <>
             <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
-                {t("errors.page.oopsWithoutStatus")}
+                {translateText(
+                    electionEvent,
+                    "errors.page.oopsWithoutStatus",
+                    i18n.language,
+                    t("errors.page.oopsWithoutStatus")
+                )}
             </StyledTitle>
             <Typography variant="h6" sx={{marginBottom: "24px"}}>
-                {t("errors.page.somethingWrong")}
+                {translateText(
+                    electionEvent,
+                    "errors.page.somethingWrong",
+                    i18n.language,
+                    t("errors.page.somethingWrong")
+                )}
             </Typography>
         </>
     )
@@ -52,7 +67,12 @@ export function ErrorPage() {
         content = (
             <>
                 <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
-                    {t("errors.page.oopsWithStatus", {status: error.status})}
+                    {translateText(
+                        electionEvent,
+                        "errors.page.oopsWithStatus",
+                        i18n.language,
+                        t("errors.page.oopsWithStatus", {status: error.status})
+                    )}
                 </StyledTitle>
                 <Typography variant="h6" sx={{marginBottom: "24px"}}>
                     {error.statusText}
@@ -68,10 +88,20 @@ export function ErrorPage() {
         content = (
             <>
                 <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
-                    {t("errors.page.oopsWithoutStatus")}
+                    {translateText(
+                        electionEvent,
+                        "errors.page.oopsWithoutStatus",
+                        i18n.language,
+                        t("errors.page.oopsWithoutStatus")
+                    )}
                 </StyledTitle>
                 <Typography variant="h6" sx={{marginBottom: "24px"}}>
-                    {t("errors.page.somethingWrong")}
+                    {translateText(
+                        electionEvent,
+                        "errors.page.somethingWrong",
+                        i18n.language,
+                        t("errors.page.somethingWrong")
+                    )}
                 </Typography>
                 <Typography>
                     <i>{error.message}</i>
@@ -105,7 +135,14 @@ export function ErrorPage() {
                     error.type === VotingPortalErrorType.NO_ELECTION_EVENT
                 ) && (
                     <StyledLink to={backLink}>
-                        <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
+                        <Button sx={{textDecoration: "none"}}>
+                            {translateText(
+                                electionEvent,
+                                "common.goBack",
+                                i18n.language,
+                                t("common.goBack")
+                            )}
+                        </Button>
                     </StyledLink>
                 )}
             </Box>

@@ -11,6 +11,7 @@ import {
     theme,
     translate,
     translateElection,
+    translateText,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
@@ -186,7 +187,12 @@ const SupportMaterialsScreen: React.FC = () => {
                     </Typography>
                 </Box>
                 <Button startIcon={<ChevronLeftIcon />} onClick={handleNavigateMaterials}>
-                    {t("materials.common.back")}
+                    {translateText(
+                        electionEvent,
+                        "materials.common.back",
+                        i18n.language,
+                        t("materials.common.back")
+                    )}
                 </Button>
             </Box>
             <ElectionContainer>
