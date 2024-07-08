@@ -140,7 +140,12 @@ async fn main() -> Result<()> {
             }
 
             info!("Creating new session for board '{}'..", board_name.clone());
-            let trustee: Trustee<RistrettoCtx> = Trustee::new(name.clone(), sk.clone(), ek.clone());
+            
+            let trustee: Trustee<RistrettoCtx> = Trustee::new(
+                std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
+                sk.clone(),
+                ek.clone(),
+            );
             let board = ImmudbBoardParams::new(
                 &args.server_url,
                 &args.user,

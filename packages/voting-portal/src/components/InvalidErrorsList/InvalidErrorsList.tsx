@@ -37,6 +37,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 }) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
+    const [decodedContestSelection, setDecodedContestSelection] = useState<
+        IDecodedVoteContest | undefined
+    >(undefined)
+    const [filteredSelection, setFilteredSelection] = useState<IDecodedVoteContest | undefined>(
+        undefined
+    )
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
@@ -56,25 +62,38 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         }
     }, [contestSelection, isTouched])
 
-    const decodedContestSelection = useMemo(() => {
-        return (
+    useEffect(() => {
+        const state =
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
-        )
+        setDecodedContestSelection(state)
+        setFilteredSelection(state)
     }, [contestSelection])
 
     useEffect(() => {
-        if (!isReview && !isTouched && decodedContestSelection) {
-            decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
-                (error) => error.message !== "errors.implicit.selectedMin"
-            )
+        if (!isReview && !isTouched) {
+            // Filter min selection error in case where no user interaction was yet made
+            setFilteredSelection((prev) => {
+                if (!prev) return undefined
+                return {
+                    ...prev,
+                    invalid_errors:
+                        prev?.invalid_errors.filter(
+                            (error) => error.message !== "errors.implicit.selectedMin"
+                        ) || [],
+                    invalid_alerts:
+                        prev?.invalid_alerts.filter(
+                            (error) => error.message !== "errors.implicit.underVote"
+                        ) || [],
+                }
+            })
         }
-    }, [isReview, isTouched, decodedContestSelection])
+    }, [isReview, isTouched])
 
     useEffect(() => {
         if (decodedContestSelection) {
             setDecodedContests(decodedContestSelection)
         }
-    }, [decodedContestSelection, decodedContestSelection?.invalid_errors])
+    }, [decodedContestSelection])
 
     const numAvailableChars = contestSelection
         ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
@@ -96,12 +115,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     })}
                 </WarnBox>
             ) : null}
-            {decodedContestSelection?.invalid_errors.map((error, index) => (
+            {filteredSelection?.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
-            {decodedContestSelection?.invalid_alerts.map((error, index) => (
+            {filteredSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox variant="info" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>

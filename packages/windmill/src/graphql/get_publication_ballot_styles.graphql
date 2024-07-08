@@ -2,6 +2,7 @@ query GetPublicationBallotStyles(
     $tenantId: uuid!,
     $electionEventId: uuid!,
     $ballotPublicationId: uuid!,
+    $limit: Int
 ) {
   sequent_backend_ballot_style(
       where: {
@@ -13,6 +14,7 @@ query GetPublicationBallotStyles(
         {election_id: asc},
         {area_id: asc}
       ]
+      limit: $limit
   ) {
       id
       tenant_id

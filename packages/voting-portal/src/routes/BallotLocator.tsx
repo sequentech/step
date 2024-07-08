@@ -16,7 +16,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {Link, useNavigate, useParams} from "react-router-dom"
+import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
 import {GetBallotStylesQuery, GetCastVoteQuery} from "../gql/graphql"
@@ -25,6 +25,8 @@ import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {getLanguageFromURL} from "../utils/queryParams"
+import useLanguage from "../hooks/useLanguage"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -87,6 +89,7 @@ const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
+    const location = useLocation()
     const {t, i18n} = useTranslation()
 
     const [inputBallotId, setInputBallotId] = useState<string>("")
@@ -95,6 +98,7 @@ const BallotLocator: React.FC = () => {
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    useLanguage({ballotStyle})
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
@@ -111,13 +115,6 @@ const BallotLocator: React.FC = () => {
         }
     }, [dataBallotStyles, dispatch])
 
-    useEffect(() => {
-        let defaultLangCode =
-            ballotStyle?.ballot_eml?.election_event_presentation?.language_conf
-                ?.default_language_code ?? "en"
-        i18n.changeLanguage(defaultLangCode)
-    }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
-
     const validatedBallotId = isHex(inputBallotId ?? "")
 
     const ballotContent =
@@ -129,7 +126,9 @@ const BallotLocator: React.FC = () => {
 
         setInputBallotId("")
 
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
+        navigate(
+            `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}${location.search}`
+        )
     }
 
     const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
@@ -181,7 +180,9 @@ const BallotLocator: React.FC = () => {
                         </Typography>
                     </Box>
                     <Box sx={{marginTop: "20px"}}>
-                        <StyledLink to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
+                        <StyledLink
+                            to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                        >
                             <Button variant="secondary" className="secondary">
                                 <Icon icon={faAngleLeft} size="sm" />
                                 <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>

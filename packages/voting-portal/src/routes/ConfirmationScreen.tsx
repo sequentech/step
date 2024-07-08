@@ -18,7 +18,7 @@ import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
 
-import {useNavigate, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -123,6 +123,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
     const navigate = useNavigate()
+    const location = useLocation()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -141,7 +142,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
     const onClickToScreen = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
     }
 
     const onClickRedirect = () => {
@@ -316,7 +317,7 @@ const ConfirmationScreen: React.FC = () => {
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
-
+    console.log({backLink})
     useEffect(() => {
         if (!ballotId) {
             navigate(backLink)

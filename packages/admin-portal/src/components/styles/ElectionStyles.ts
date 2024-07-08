@@ -13,6 +13,12 @@ export const ElectionStyles = {
         padding: var(--2, 16px);
         align-items: left;
     `,
+    Container: styled.div`
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding-block: var(--2, 16px);
+    `,
     AccordionContainer: styled.div`
         display: flex;
         flex-direction: column;

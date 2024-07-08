@@ -15,7 +15,7 @@ import {
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {useNavigate, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {
     GetElectionEventQuery,
@@ -79,6 +79,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({material}) => {
 const SupportMaterialsScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const navigate = useNavigate()
+    const location = useLocation()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const dispatch = useAppDispatch()
     const materials = useAppSelector(getSupportMaterialsList())
@@ -143,7 +144,7 @@ const SupportMaterialsScreen: React.FC = () => {
     }, [electionEvent])
 
     const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
     }
 
     return (

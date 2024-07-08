@@ -203,16 +203,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             })
 
             if (errors) {
-                notify(t("tally.cancelTallyError"), {type: "error"})
+                notify(t("tally.cancelTallyCeremonyError"), {type: "error"})
             }
 
             if (nextStatus) {
-                notify(t("tally.cancelTallySuccess"), {type: "success"})
+                notify(t("tally.cancelTallyCeremonySuccess"), {type: "success"})
                 setCreatingFlag(false)
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
-            notify(t("tally.cancelTallyError"), {type: "error"})
+            notify(t("tally.cancelTallyCeremonyError"), {type: "error"})
         }
     }
 

@@ -7,6 +7,7 @@ import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 import {sleep} from "@sequentech/ui-essentials"
 import {SettingsContext} from "./SettingsContextProvider"
+import {getLanguageFromURL} from "../utils/queryParams"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -47,6 +48,8 @@ export interface AuthContextValues {
      */
     hasRole: (role: string) => boolean
 
+    getExpiry: () => Date | undefined
+
     /**
      * Keycloak access token
      */
@@ -80,6 +83,7 @@ const defaultAuthContextValues: AuthContextValues = {
     firstName: "",
     keycloakAccessToken: undefined,
     logout: () => {},
+    getExpiry: () => undefined,
     setTenantEvent: (_tenantId: string, _eventId: string) => {},
     hasRole: () => false,
     openProfileLink: () => new Promise(() => undefined),
@@ -152,13 +156,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const newKeycloak = new Keycloak(keycloakConfig)
 
             newKeycloak.onTokenExpired = async () => {
-                const refreshed = await newKeycloak.updateToken(0)
+                /*const refreshed = await newKeycloak.updateToken(0)
 
                 if (refreshed) {
                     setKeycloakAccessToken(newKeycloak.token)
                 } else {
                     newKeycloak.logout()
-                }
+                }*/
+                newKeycloak.logout()
             }
 
             setKeycloak(newKeycloak)
@@ -211,6 +216,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // be send to the login form. If already authenticated the webapp will open.
                     onLoad: "login-required",
                     checkLoginIframe: false,
+                    locale: getLanguageFromURL(),
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
@@ -330,6 +336,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
+    const getExpiry = () => {
+        let exp = keycloak?.tokenParsed?.exp
+        return exp ? new Date(exp * 1000) : undefined
+    }
+
     // Setup the context provider
     return (
         <AuthContext.Provider
@@ -341,6 +352,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 email: userProfile?.email ?? "",
                 firstName: userProfile?.firstName ?? "",
                 setTenantEvent,
+                getExpiry,
                 logout,
                 hasRole,
                 openProfileLink,

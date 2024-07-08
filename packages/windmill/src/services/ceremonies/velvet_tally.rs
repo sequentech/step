@@ -1,26 +1,23 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
-    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
-};
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3;
+use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::services::area_tree::TreeNode;
 use sequent_core::types::hasura::core::{Area, Election, TallySheet};
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tokio::task;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
@@ -28,8 +25,6 @@ use velvet::cli::CliRun;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
-
-use deadpool_postgres::Client as DbClient;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
@@ -76,24 +71,6 @@ fn decode_plantexts_to_biguints(
             }
         })
         .collect::<Vec<_>>()
-}
-
-// Returns a Map<(area_id,contest_id), Vec<tally_sheet>>
-#[instrument(skip_all)]
-fn create_tally_sheets_map(
-    tally_sheets: &Vec<TallySheet>,
-) -> HashMap<(String, String), Vec<TallySheet>> {
-    let mut area_contest_tally_sheet_map: HashMap<(String, String), Vec<TallySheet>> =
-        HashMap::new();
-    for tally_sheet in tally_sheets {
-        area_contest_tally_sheet_map
-            .entry((tally_sheet.area_id.clone(), tally_sheet.contest_id.clone()))
-            .and_modify(|tally_sheets_vec| {
-                tally_sheets_vec.push(tally_sheet.clone());
-            })
-            .or_insert_with(|| vec![tally_sheet.clone()]);
-    }
-    area_contest_tally_sheet_map
 }
 
 #[instrument(skip_all, err)]

@@ -295,6 +295,8 @@ services:
     entrypoint: ["./init.sh", "start:admin:container"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+    environment:
+        MAX_DIFF_LINES: ${MAX_DIFF_LINES}
 
   voting-portal:
     profiles: ["full"]
