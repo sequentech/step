@@ -140,12 +140,19 @@ async fn main() -> Result<()> {
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
             let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
-            create_boards(&args.server_url, IMMUDB_USER, IMMUDB_PW, &args.indexdb, &args.dbname, args.count).await?; 
+            create_boards(
+                &args.server_url,
+                IMMUDB_USER,
+                IMMUDB_PW,
+                &args.indexdb,
+                &args.dbname,
+                args.count,
+            )
+            .await?;
             for i in 0..args.count {
                 let name = if i == 0 {
                     args.dbname.to_string()
-                }
-                else {
+                } else {
                     format!("{}_{}", &args.dbname, i + 1)
                 };
                 init(&mut board, &name, configuration.clone()).await?;
@@ -156,8 +163,7 @@ async fn main() -> Result<()> {
             for i in 0..args.count {
                 let name = if i == 0 {
                     args.dbname.to_string()
-                }
-                else {
+                } else {
                     format!("{}_{}", &args.dbname, i + 1)
                 };
                 post_ballots(&mut board, &name, args.batches, &ctx).await?;
@@ -172,7 +178,15 @@ async fn main() -> Result<()> {
             list_boards(&mut board, &args.indexdb).await?;
         }
         Command::DeleteBoards => {
-            delete_boards(&args.server_url, IMMUDB_USER, IMMUDB_PW, &args.indexdb, &args.dbname, args.count).await?; 
+            delete_boards(
+                &args.server_url,
+                IMMUDB_USER,
+                IMMUDB_PW,
+                &args.indexdb,
+                &args.dbname,
+                args.count,
+            )
+            .await?;
         }
     }
 
@@ -283,7 +297,12 @@ public key is present on the board and can be downloaded to allow the encryption
 are randomly generated.
 */
 #[instrument(skip(board))]
-async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, batches: u32, ctx: &C) -> Result<()> {
+async fn post_ballots<C: Ctx>(
+    board: &mut BoardClient,
+    board_name: &str,
+    batches: u32,
+    ctx: &C,
+) -> Result<()> {
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk = sender_pk.to_der_b64_string()?;
@@ -347,7 +366,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, batches
 
         let ballot_batch = board_messages::braid::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
-        
+
         for i in 0..batches {
             let message = board_messages::braid::message::Message::ballots_msg(
                 &configuration,
@@ -357,12 +376,11 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, batches
                 PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
                 &pm,
             )?;
-    
+
             info!("Adding ballots to the board..");
             let bm: BoardMessage = message.try_into()?;
             board.insert_messages(board_name, &vec![bm]).await?;
         }
-        
     } else {
         return Err(anyhow!(
             "Could not find public key or configuration artifact(s)"
@@ -421,7 +439,14 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
 }
 
 #[instrument()]
-async fn create_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, indexdb: &str, dbname: &str, count: u32) -> Result<()> {
+async fn create_boards(
+    server_url: &str,
+    immudb_user: &str,
+    immudb_pw: &str,
+    indexdb: &str,
+    dbname: &str,
+    count: u32,
+) -> Result<()> {
     let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
     board.delete_database(indexdb).await?;
     board.upsert_index_db(indexdb).await?;
@@ -429,11 +454,10 @@ async fn create_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, ind
     for i in 0..count {
         let name = if i == 0 {
             dbname.to_string()
-        }
-        else {
+        } else {
             format!("{}_{}", dbname, i + 1)
         };
-        board.delete_database(&name).await?;    
+        board.delete_database(&name).await?;
         board.create_board(indexdb, &name).await?;
     }
 
@@ -441,15 +465,21 @@ async fn create_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, ind
 }
 
 #[instrument()]
-async fn delete_boards(server_url: &str, immudb_user: &str, immudb_pw: &str, indexdb: &str, dbname: &str, count: u32) -> Result<()> {
+async fn delete_boards(
+    server_url: &str,
+    immudb_user: &str,
+    immudb_pw: &str,
+    indexdb: &str,
+    dbname: &str,
+    count: u32,
+) -> Result<()> {
     let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
     board.delete_database(indexdb).await?;
 
     for i in 0..count {
         let name = if i == 0 {
             dbname.to_string()
-        }
-        else {
+        } else {
             format!("{}_{}", dbname, i + 1)
         };
         board.delete_database(&name).await?;

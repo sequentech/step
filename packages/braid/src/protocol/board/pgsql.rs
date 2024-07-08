@@ -2,18 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use board_messages::braid::message::Message;
 use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
-use std::time::{SystemTime, Duration};
-use tracing::{warn,info};
+use std::time::{Duration, SystemTime};
 use tokio_postgres::{NoTls, Row};
 use tracing::instrument;
+use tracing::{info, warn};
 
-use strand::serialization::StrandSerialize;
 use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 
 /// A bulletin board implemented on immudb
 pub struct PgsqlBoard {
@@ -35,36 +35,6 @@ impl PgsqlBoard {
             store_root,
         })
     }
-    
-    // Returns all messages from immudb starting from last_id + 1,  using consecutive requests.
-    // If the value at last_id + 1 does not exist, an empty vector will be returned.
-    // If there are gaps in the sequence, the returned vector will contain messages until
-    // the last value before the gap.
-    // Note that there should be no gaps according to
-    // https://docs.immudb.io/1.1.0/reference/sql.html?
-    // The type of an AUTO_INCREMENT column must be INTEGER. Internally immudb will assign
-    // sequentially increasing values for new rows ensuring this value is unique within a single table
-    /*async fn get_remote_messages_consecutively(
-        &mut self,
-        last_id: i64,
-    ) -> Result<Vec<BoardMessage>> {
-        let mut ret = vec![];
-        let mut next_id = last_id + 1;
-        loop {
-            let message = self
-                .board_client
-                .get_one_message(&self.board_name, next_id)
-                .await?;
-            if let Some(message) = message {
-                ret.push(message);
-                next_id = next_id + 1;
-            } else {
-                break;
-            }
-        }
-
-        Ok(ret)
-    }*/
 
     // Returns all messages whose id > last_id.
     async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<BoardMessage>> {
@@ -91,7 +61,10 @@ impl PgsqlBoard {
         Ok(connection)
     }
 
-    async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
+    async fn store_and_get_messages(
+        &mut self,
+        last_id: Option<i64>,
+    ) -> Result<Vec<(Message, i64)>> {
         let connection = self.get_store()?;
 
         let external_last_id =
@@ -107,19 +80,25 @@ impl PgsqlBoard {
         }
 
         // When querying for all messages we use -1 as default lower limit (this requests uses the > comparator in sql)
-        let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
+        let messages = self
+            .get_remote_messages(external_last_id.unwrap_or(-1))
+            .await?;
 
         // One by one implementation
         // When retrieving messages one at a time from immudb we use 0 as default value since
         // immudb ids start at 1 (this requests uses the = comparator in sql)
         /* let messages = self
-            .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
-            .await?;*/
+        .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
+        .await?;*/
 
-        info!("Retrieved {} messages remotely, storing locally", messages.len());
+        info!(
+            "Retrieved {} messages remotely, storing locally",
+            messages.len()
+        );
 
         // FIXME verify message signatures before inserting in local store
-        let mut statement = connection.prepare("INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)")?;
+        let mut statement =
+            connection.prepare("INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)")?;
         connection.execute("BEGIN TRANSACTION", [])?;
         for message in messages {
             statement.execute(params![message.id, message.message])?;
@@ -148,12 +127,11 @@ impl PgsqlBoard {
 
         messages
     }
-    
 }
 
 impl super::Board for PgsqlBoard {
     type Factory = PgsqlBoardParams;
-    
+
     // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
     // If a store is used only the messages not previously received will be requested.
     async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
@@ -164,8 +142,8 @@ impl super::Board for PgsqlBoard {
             // When not using a store, we get all messages, one at a time
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
             /* let messages = self
-                .get_remote_messages_consecutively(last_id.unwrap_or(0))
-                .await?;*/
+            .get_remote_messages_consecutively(last_id.unwrap_or(0))
+            .await?;*/
             // If last_id is None, use -1 as last_id
             let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
 
@@ -202,13 +180,8 @@ pub struct PgsqlConnectionParams {
     username: String,
     password: String,
 }
-impl PgsqlConnectionParams{ 
-    pub fn new(
-        host: &str,
-        port: u32,
-        username: &str,
-        password: &str,
-    ) -> PgsqlConnectionParams {
+impl PgsqlConnectionParams {
+    pub fn new(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
         PgsqlConnectionParams {
             host: host.to_string(),
             port: port,
@@ -217,7 +190,10 @@ impl PgsqlConnectionParams{
         }
     }
     pub fn connection_string(&self) -> String {
-        format!("host={} port={} user={} password={}", self.host, self.port, self.username, self.password)
+        format!(
+            "host={} port={} user={} password={}",
+            self.host, self.port, self.username, self.password
+        )
     }
     pub fn with_database(&self, db_name: &str) -> PgsqlDbConnectionParams {
         PgsqlDbConnectionParams::new(self, db_name)
@@ -227,20 +203,23 @@ impl PgsqlConnectionParams{
 #[derive(Clone)]
 pub struct PgsqlDbConnectionParams {
     connection: PgsqlConnectionParams,
-    db_name: String
+    db_name: String,
 }
 impl PgsqlDbConnectionParams {
     pub fn new(connection: &PgsqlConnectionParams, db_name: &str) -> PgsqlDbConnectionParams {
         PgsqlDbConnectionParams {
             connection: connection.clone(),
-            db_name: db_name.to_string()
+            db_name: db_name.to_string(),
         }
     }
     pub fn connection_string(&self) -> String {
-        format!("{} dbname={}", self.connection.connection_string(), self.db_name)
+        format!(
+            "{} dbname={}",
+            self.connection.connection_string(),
+            self.db_name
+        )
     }
 }
-
 
 pub struct PgsqlBoardParams {
     connection: PgsqlDbConnectionParams,
@@ -266,14 +245,13 @@ impl super::BoardFactory<PgsqlBoard> for PgsqlBoardParams {
         PgsqlBoard::new(
             &self.connection,
             self.board_name.clone(),
-            self.store_root.clone()
-            
+            self.store_root.clone(),
         )
         .await
     }
 }
 
-/* 
+/*
 /// A bulletin board index implemented on immudb
 pub struct PgsqlBoardIndex {
     board_client: BoardClient,
@@ -361,9 +339,10 @@ impl TryFrom<Message> for BoardMessage {
 
     fn try_from(message: Message) -> Result<BoardMessage> {
         let duration = Duration::new(message.statement.get_timestamp(), 0);
-        let statement_timestamp = SystemTime::UNIX_EPOCH.checked_add(duration)
+        let statement_timestamp = SystemTime::UNIX_EPOCH
+            .checked_add(duration)
             .ok_or(anyhow!("Could not convert incoming timestamp"))?;
-        
+
         Ok(BoardMessage {
             id: 0,
             created: SystemTime::now(),
@@ -390,19 +369,20 @@ pub(crate) mod tests {
     const PG_PASSW: &'static str = "postgrespassword";
     const PG_PORT: u32 = 5432;
     const TEST_BOARD: &'static str = "testboard";
-    
-    
+
     // We cannot use create_database_and_index because we additionally drop the database here
     async fn set_up() -> BoardClient {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
 
-        let mut client = BoardClient::new(&c.with_database(PG_DATABASE)).await.unwrap();
+        let mut client = BoardClient::new(&c.with_database(PG_DATABASE))
+            .await
+            .unwrap();
         client.create_index_ine().await.unwrap();
 
         client
     }
-    
+
     #[tokio::test]
     #[ignore]
     #[serial]
@@ -417,7 +397,6 @@ pub(crate) mod tests {
         client.delete_board(TEST_BOARD).await.unwrap();
         let board = client.get_board(TEST_BOARD).await;
         assert!(board.is_err());
-
     }
 
     #[tokio::test]
@@ -439,7 +418,7 @@ pub(crate) mod tests {
         };
         let messages = vec![board_message.clone()];
         client.insert_messages(TEST_BOARD, &messages).await.unwrap();
-        
+
         let ret = client.get_messages(TEST_BOARD, 0).await.unwrap();
         assert_eq!(messages.len(), 1);
         let msg = ret.get(0).unwrap();
@@ -452,7 +431,6 @@ pub(crate) mod tests {
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////
 // PostgreSql client
 //
@@ -463,7 +441,6 @@ const PG_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const PG_DEFAULT_OFFSET: usize = 0;
 const PG_DEFAULT_LIMIT: usize = 2500;
 
-
 pub struct BoardClient {
     client: tokio_postgres::Client,
 }
@@ -472,7 +449,7 @@ impl BoardClient {
     /// Creates a new BoardClient. The underlying connection will be closed when the client is dropped.
     pub async fn new(connection: &PgsqlDbConnectionParams) -> Result<BoardClient> {
         let (client, connection) =
-        tokio_postgres::connect(&connection.connection_string(), NoTls).await?;
+            tokio_postgres::connect(&connection.connection_string(), NoTls).await?;
 
         // The connection object performs the actual communication with the database,
         // so spawn it off to run on its own.
@@ -482,9 +459,7 @@ impl BoardClient {
             }
         });
 
-        let ret = BoardClient {
-            client
-        };
+        let ret = BoardClient { client };
 
         Ok(ret)
     }
@@ -493,26 +468,32 @@ impl BoardClient {
     #[instrument(skip(self))]
     pub async fn create_index_ine(&mut self) -> Result<()> {
         let transaction = self.client.transaction().await?;
-        transaction.execute(
-            &format!(r#"
+        transaction
+            .execute(
+                &format!(
+                    r#"
             CREATE TABLE IF NOT EXISTS {} (
                 id SERIAL PRIMARY KEY,
                 board_name VARCHAR,
                 is_archived BOOLEAN
             );
             "#,
-            INDEX_TABLE),
-            &[]
-        ).await?;
-        transaction.execute(
-            &format!(
-            r#"
+                    INDEX_TABLE
+                ),
+                &[],
+            )
+            .await?;
+        transaction
+            .execute(
+                &format!(
+                    r#"
             CREATE UNIQUE INDEX IF NOT EXISTS BOARD_NAME_IDX ON {}(board_name);
             "#,
-            INDEX_TABLE),
-            &[]
-        )
-        .await?;
+                    INDEX_TABLE
+                ),
+                &[],
+            )
+            .await?;
         transaction.commit().await?;
 
         Ok(())
@@ -522,9 +503,10 @@ impl BoardClient {
     #[instrument(skip(self))]
     pub async fn create_board_ine(&mut self, board: &str) -> Result<()> {
         let transaction = self.client.transaction().await?;
-        transaction.execute(
-            &format!(
-            r#"
+        transaction
+            .execute(
+                &format!(
+                    r#"
             CREATE TABLE IF NOT EXISTS {} (
                 id BIGSERIAL PRIMARY KEY,
                 created TIMESTAMP,
@@ -535,9 +517,11 @@ impl BoardClient {
                 version VARCHAR
             );
             "#,
-            board),
-            &[]
-        ).await?;
+                    board
+                ),
+                &[],
+            )
+            .await?;
 
         let message_sql = r#"
             INSERT INTO bulletin_boards(
@@ -551,12 +535,12 @@ impl BoardClient {
         transaction.execute(message_sql, &[&board, &false]).await?;
         transaction.commit().await?;
         Ok(())
-        
     }
 
     /// Gets the requested board from the index.
     pub async fn get_board(&mut self, board_name: &str) -> Result<Board> {
-        let message_sql = format!(r#"
+        let message_sql = format!(
+            r#"
         SELECT
             id,
             board_name,
@@ -564,8 +548,9 @@ impl BoardClient {
         FROM {}
         WHERE board_name = $1;
         "#,
-        INDEX_TABLE);
-        
+            INDEX_TABLE
+        );
+
         let sql_query_response = self.client.query(&message_sql, &[&board_name]).await?;
         let boards = sql_query_response
             .iter()
@@ -587,23 +572,13 @@ impl BoardClient {
     ) -> Result<Vec<BoardMessage>> {
         let mut offset: usize = 0;
         let mut last_batch = self
-            .get(
-                board_name,
-                last_id,
-                Some(PG_DEFAULT_LIMIT),
-                Some(offset),
-            )
+            .get(board_name, last_id, Some(PG_DEFAULT_LIMIT), Some(offset))
             .await?;
         let mut messages = last_batch.clone();
         while PG_DEFAULT_LIMIT == last_batch.len() {
             offset += last_batch.len();
             last_batch = self
-                .get(
-                    board_name,
-                    last_id,
-                    Some(PG_DEFAULT_LIMIT),
-                    Some(offset),
-                )
+                .get(board_name, last_id, Some(PG_DEFAULT_LIMIT), Some(offset))
                 .await?;
             messages.extend(last_batch.clone());
         }
@@ -617,7 +592,6 @@ impl BoardClient {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<Vec<BoardMessage>> {
-    
         let sql = format!(
             r#"
         SELECT
@@ -676,7 +650,6 @@ impl BoardClient {
         kind: &str,
         sender_pk: &str,
     ) -> Result<Vec<BoardMessage>> {
-        
         let sql = format!(
             r#"
         SELECT
@@ -711,19 +684,14 @@ impl BoardClient {
     ) -> Result<()> {
         for chunk in messages.chunks(PG_DEFAULT_ENTRIES_TX_LIMIT) {
             let chunk_vec: Vec<BoardMessage> = chunk.to_vec();
-            self.insert(board_name, &chunk_vec)
-                .await?;
+            self.insert(board_name, &chunk_vec).await?;
         }
         Ok(())
     }
 
-    async fn insert(
-        &mut self,
-        board_name: &str,
-        messages: &Vec<BoardMessage>,
-    ) -> Result<()> {
+    async fn insert(&mut self, board_name: &str, messages: &Vec<BoardMessage>) -> Result<()> {
         info!("Insert {} messages..", messages.len());
-        
+
         // Start a new transaction
         let transaction = self.client.transaction().await?;
 
@@ -748,19 +716,20 @@ impl BoardClient {
             "#,
                 board_name
             );
-            
-            transaction.execute(&message_sql, 
-                &[
-                    &message.created, 
-                    &message.sender_pk,
-                    &message.statement_timestamp,
-                    &message.statement_kind,
-                    &message.message,
-                    &message.version
-                ]
-            )
-            .await?;
-            
+
+            transaction
+                .execute(
+                    &message_sql,
+                    &[
+                        &message.created,
+                        &message.sender_pk,
+                        &message.statement_timestamp,
+                        &message.statement_kind,
+                        &message.message,
+                        &message.version,
+                    ],
+                )
+                .await?;
         }
 
         transaction.commit().await?;
@@ -777,11 +746,7 @@ impl BoardClient {
         self.get_one(board_name, id).await
     }
 
-    async fn get_one(
-        &mut self,
-        board_name: &str,
-        id: i64,
-    ) -> Result<Option<BoardMessage>> {
+    async fn get_one(&mut self, board_name: &str, id: i64) -> Result<Option<BoardMessage>> {
         let sql = format!(
             r#"
         SELECT
@@ -811,16 +776,22 @@ impl BoardClient {
     #[instrument(skip(self))]
     pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
         let transaction = self.client.transaction().await?;
-        let message_sql = format!(r#"
+        let message_sql = format!(
+            r#"
             DELETE from {} where 
             board_name = $1
             AND
             is_archived = $2;
         "#,
-        INDEX_TABLE);
+            INDEX_TABLE
+        );
 
-        transaction.execute(&message_sql, &[&board_name, &false]).await?;
-        transaction.execute(&format!("DROP TABLE IF EXISTS {};", board_name), &[]).await?;
+        transaction
+            .execute(&message_sql, &[&board_name, &false])
+            .await?;
+        transaction
+            .execute(&format!("DROP TABLE IF EXISTS {};", board_name), &[])
+            .await?;
 
         transaction.commit().await?;
 
@@ -830,27 +801,33 @@ impl BoardClient {
     /// Clears all data in the database.
     pub async fn clear_database(&mut self) -> Result<()> {
         let transaction = self.client.transaction().await?;
-        transaction.execute("drop schema if exists public cascade;", &[]).await?;
-        transaction.execute("create schema if not exists public;", &[]).await?;
+        transaction
+            .execute("drop schema if exists public cascade;", &[])
+            .await?;
+        transaction
+            .execute("create schema if not exists public;", &[])
+            .await?;
         transaction.commit().await?;
         Ok(())
     }
-
 }
 
-
 /// Utility function to create a database and the index table.
-pub(crate) async fn create_database_and_index(c: &PgsqlConnectionParams, dbname: &str) -> Result<BoardClient> {
-    let (client, connection) =
-    tokio_postgres::connect(&c.connection_string(), NoTls).await?;
+pub(crate) async fn create_database_and_index(
+    c: &PgsqlConnectionParams,
+    dbname: &str,
+) -> Result<BoardClient> {
+    let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls).await?;
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
             eprintln!("connection error: {}", e);
         }
     });
-    
-    client.execute(&format!("CREATE DATABASE {}", dbname), &[]).await?;
+
+    client
+        .execute(&format!("CREATE DATABASE {}", dbname), &[])
+        .await?;
     drop(client);
 
     let mut client = BoardClient::new(&c.with_database(dbname)).await?;
@@ -861,8 +838,9 @@ pub(crate) async fn create_database_and_index(c: &PgsqlConnectionParams, dbname:
 
 /// Utility function to drop a database (will not pass a database parameter in the connection string).
 pub(crate) async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
-    let (client, connection) =
-    tokio_postgres::connect(&c.connection_string(), NoTls).await.unwrap();
+    let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
+        .await
+        .unwrap();
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
@@ -870,11 +848,13 @@ pub(crate) async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Re
         }
     });
 
-    client.execute(&format!("DROP DATABASE IF EXISTS {}", dbname), &[]).await.unwrap();
+    client
+        .execute(&format!("DROP DATABASE IF EXISTS {}", dbname), &[])
+        .await
+        .unwrap();
 
     Ok(())
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardMessage {

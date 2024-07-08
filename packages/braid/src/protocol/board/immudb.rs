@@ -9,7 +9,7 @@ use rusqlite::params;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
-use tracing::{warn,info};
+use tracing::{info, warn};
 
 /// A bulletin board implemented on immudb
 pub struct ImmudbBoard {
@@ -89,7 +89,10 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-    async fn store_and_get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
+    async fn store_and_get_messages(
+        &mut self,
+        last_id: Option<i64>,
+    ) -> Result<Vec<(Message, i64)>> {
         let connection = self.get_store()?;
 
         let external_last_id =
@@ -106,19 +109,25 @@ impl ImmudbBoard {
 
         // All messages in one request implementation
         // When querying for all messages from immudb we use -1 as default lower limit (this requests uses the > comparator in sql)
-        let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
+        let messages = self
+            .get_remote_messages(external_last_id.unwrap_or(-1))
+            .await?;
 
         // One by one implementation
         // When retrieving messages one at a time from immudb we use 0 as default value since
         // immudb ids start at 1 (this requests uses the = comparator in sql)
         /*let messages = self
-            .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
-            .await?;*/
+        .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
+        .await?;*/
 
-        info!("Retrieved {} messages remotely, storing locally", messages.len());
+        info!(
+            "Retrieved {} messages remotely, storing locally",
+            messages.len()
+        );
 
         // FIXME verify message signatures before inserting in local store
-        let mut statement = connection.prepare("INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)")?;
+        let mut statement =
+            connection.prepare("INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)")?;
         connection.execute("BEGIN TRANSACTION", [])?;
         for message in messages {
             statement.execute(params![message.id, message.message])?;
@@ -162,8 +171,8 @@ impl super::Board for ImmudbBoard {
             // When not using a store, we get all messages, one at a time
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
             /* let messages = self
-                .get_remote_messages_consecutively(last_id.unwrap_or(0))
-                .await?;*/
+            .get_remote_messages_consecutively(last_id.unwrap_or(0))
+            .await?;*/
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
             let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
 

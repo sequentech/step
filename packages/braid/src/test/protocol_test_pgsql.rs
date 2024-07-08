@@ -24,10 +24,10 @@ use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol::session::Session;
 use crate::protocol::board::pgsql;
+use crate::protocol::board::pgsql::{BoardClient, BoardMessage, PgsqlBoard, PgsqlBoardParams};
 use crate::protocol::board::pgsql::{PgsqlConnectionParams, PgsqlDbConnectionParams};
-use crate::protocol::board::pgsql::{BoardClient, BoardMessage, PgsqlBoardParams, PgsqlBoard};
+use crate::protocol::session::Session;
 use crate::protocol::trustee::Trustee;
 
 const PG_HOST: &'static str = "postgres";
@@ -56,7 +56,7 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let test = create_protocol_test_pgsql(n_trustees, &threshold, ctx)
         .await
         .unwrap();
-    
+
     run_protocol_test_pgsql(test, ciphertexts, batches, &threshold)
         .await
         .unwrap();
@@ -96,16 +96,14 @@ async fn run_protocol_test_pgsql<C: Ctx + 'static>(
 
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     let c = c.with_database(PG_DATABASE);
-    
+
     for t in test.trustees.into_iter() {
         let board = PgsqlBoardParams::new(&c, TEST_BOARD.to_string(), None);
         let session: Session<C, PgsqlBoard> = Session::new(TEST_BOARD, t, board);
         sessions.push(session);
     }
 
-    let mut b = BoardClient::new(&c)
-        .await
-        .unwrap();
+    let mut b = BoardClient::new(&c).await.unwrap();
 
     let mut dkg_pk_message: Vec<BoardMessage> = vec![];
     let count = ciphertexts;
@@ -121,7 +119,7 @@ async fn run_protocol_test_pgsql<C: Ctx + 'static>(
             .into_iter()
             .map(|s| tokio::spawn(async { s.step().await }))
             .collect();
-        
+
         sessions = vec![];
         for h in handles {
             let (session, result) = h.await.unwrap();
@@ -265,11 +263,13 @@ pub async fn create_protocol_test_pgsql<C: Ctx>(
         threshold.len(),
         PhantomData,
     );
-    
+
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     pgsql::drop_database(&c, PG_DATABASE).await.unwrap();
-    
-    let mut b = pgsql::create_database_and_index(&c, PG_DATABASE).await.unwrap();
+
+    let mut b = pgsql::create_database_and_index(&c, PG_DATABASE)
+        .await
+        .unwrap();
     b.create_board_ine(TEST_BOARD).await.unwrap();
 
     let message = Message::bootstrap_msg(&cfg, &pm)?;

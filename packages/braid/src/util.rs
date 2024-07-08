@@ -5,14 +5,14 @@
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 
+use std::fmt::Debug;
 use std::fs;
 use std::path::PathBuf;
-use std::fmt::Debug;
 use thiserror::Error;
 
+use board_messages::braid::statement::StatementType;
 use strand::hash::Hash;
 use strand::util::StrandError;
-use board_messages::braid::statement::StatementType;
 
 #[derive(Error, Debug)]
 pub enum ProtocolError {

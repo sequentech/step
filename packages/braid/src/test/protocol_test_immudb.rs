@@ -25,8 +25,8 @@ use board_messages::braid::newtypes::NULL_TRUSTEE;
 use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
+use crate::protocol::board::immudb::{ImmudbBoard, ImmudbBoardParams};
 use crate::protocol::session::Session;
-use crate::protocol::board::immudb::{ImmudbBoardParams, ImmudbBoard};
 use crate::protocol::trustee::Trustee;
 
 const IMMUDB_USER: &str = "immudb";
@@ -115,7 +115,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
             .into_iter()
             .map(|s| tokio::spawn(async { s.step().await }))
             .collect();
-        
+
         sessions = vec![];
         for h in handles {
             let (session, result) = h.await.unwrap();

@@ -12,9 +12,9 @@ use tracing::instrument;
 use tracing::{error, info};
 
 use braid::protocol::board::immudb::ImmudbBoardIndex;
-use braid::protocol::session::Session;
+use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardParams};
 use braid::protocol::board::BoardFactory;
-use braid::protocol::board::immudb::{ImmudbBoardParams, ImmudbBoard};
+use braid::protocol::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use braid::util::assert_folder;
@@ -80,7 +80,11 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
 
-    let name = args.trustee_config.to_str().expect("impossible").to_string();
+    let name = args
+        .trustee_config
+        .to_str()
+        .expect("impossible")
+        .to_string();
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
 
@@ -136,8 +140,7 @@ async fn main() -> Result<()> {
             }
 
             info!("Creating new session for board '{}'..", board_name.clone());
-            let trustee: Trustee<RistrettoCtx> =
-                Trustee::new(name.clone(), sk.clone(), ek.clone());
+            let trustee: Trustee<RistrettoCtx> = Trustee::new(name.clone(), sk.clone(), ek.clone());
             let board = ImmudbBoardParams::new(
                 &args.server_url,
                 &args.user,
@@ -163,7 +166,7 @@ async fn main() -> Result<()> {
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
         }
-        
+
         let mut session_map_next = HashMap::new();
         for s in session_map.into_values() {
             let board_name = s.name.clone();
@@ -189,7 +192,6 @@ async fn main() -> Result<()> {
             session_map_next.insert(session.name.clone(), session);
         }
         session_map = session_map_next;
-        
 
         if args.strict && step_error {
             break;

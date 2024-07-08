@@ -192,8 +192,7 @@ impl<C: Ctx> Status<C> {
         boards.push("Last step messages".to_string());
         if data.len() > 0 {
             boards.push(ascii_table.format(data));
-        }
-        else {
+        } else {
             boards.push("* None *".to_string());
             boards.push("".to_string());
         }

@@ -114,7 +114,10 @@ impl<C: Ctx> Trustee<C> {
 
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
-    fn update_local_board(&mut self, messages: Vec<(Message, i64)>) -> Result<(i32, i64), ProtocolError> {
+    fn update_local_board(
+        &mut self,
+        messages: Vec<(Message, i64)>,
+    ) -> Result<(i32, i64), ProtocolError> {
         trace!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
@@ -151,7 +154,11 @@ impl<C: Ctx> Trustee<C> {
         let cfg_hash = cfg_hash.expect("impossible");
         // Show the latest message received
         let (last_message, id) = messages.get(messages.len() - 1).expect("impossible");
-        info!("Update: last message is {:?} ({})", last_message.statement.get_kind(), id);
+        info!(
+            "Update: last message is {:?} ({})",
+            last_message.statement.get_kind(),
+            id
+        );
 
         for (message, id) in messages {
             let verified = message.verify(&configuration).map_err(|e| {
@@ -187,7 +194,10 @@ impl<C: Ctx> Trustee<C> {
     //
     // Takes a vector of (message, message_id) pairs as input, returns a pair of (updated messages count, last message id added)
     ///////////////////////////////////////////////////////////////////////////
-    fn update_bootstrap(&mut self, mut messages: Vec<(Message, i64)>) -> Result<(i32, i64), ProtocolError> {
+    fn update_bootstrap(
+        &mut self,
+        mut messages: Vec<(Message, i64)>,
+    ) -> Result<(i32, i64), ProtocolError> {
         let mut added = 0;
         let mut last_added_id: i64 = -1;
 

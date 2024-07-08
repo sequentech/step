@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod immudb;
-pub mod pgsql;
 pub mod local;
+pub mod pgsql;
 
-use board_messages::braid::message::Message;
 use anyhow::Result;
+use board_messages::braid::message::Message;
 
 pub trait Board: Sized {
     type Factory: BoardFactory<Self>;

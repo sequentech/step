@@ -25,7 +25,6 @@ use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
 use crate::verify::datalog::Verified;
 
-
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
 

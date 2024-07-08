@@ -50,7 +50,7 @@ async fn test_protocol_immudb() {
 async fn test_protocol_pgsql() {
     init_log(true);
     let ctx = RistrettoCtx;
-    
+
     braid::test::protocol_test_pgsql::run(1000, 1, ctx).await;
     cfg_if::cfg_if! {
         if #[cfg(feature = "rug")] {
