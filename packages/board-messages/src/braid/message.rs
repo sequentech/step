@@ -11,9 +11,9 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
 use strand::util::StrandError;
 
+use crate::braid::artifact::*;
 use crate::braid::statement::Statement;
 use crate::braid::statement::StatementType;
-use crate::braid::artifact::*;
 
 use crate::braid::newtypes::*;
 
