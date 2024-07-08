@@ -3,18 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Dialog, isString} from "@sequentech/ui-essentials"
-import React, {useState} from "react"
+import React, {useMemo, useState} from "react"
 import {
     Datagrid,
     Identifier,
     List,
     SaveButton,
-    SelectInput,
     SimpleForm,
     TextField,
     TextInput,
     WrapperField,
-    required,
     useNotify,
     useRecordContext,
     useUpdate,
@@ -23,7 +21,15 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataForm"
 import {Action, ActionsColumn} from "@/components/ActionButons"
-import {Drawer, Typography} from "@mui/material"
+import {
+    Drawer,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+    SelectChangeEvent,
+    Typography,
+} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ListActions} from "@/components/ListActions"
@@ -44,14 +50,12 @@ const EditElectionEventTextDataTable = () => {
     const [deleteId, setDeleteId] = useState<Identifier | null>(null)
     const [recordId, setRecordId] = useState<Identifier | null>(null)
 
-    const languageOptions = record?.presentation?.language_conf?.enabled_language_codes?.map(
-        (lang: string) => ({
-            id: lang,
-            name: lang,
-        })
-    )
-    const handleLanguageChange = (event: any) => {
-        const value = event.target ? event.target.value : event
+    const languageOptions = useMemo(() => {
+        return (record?.presentation?.language_conf?.enabled_language_codes ?? []) as string[]
+    }, [record?.presentation?.language_conf?.enabled_language_codes])
+
+    const handleLanguageChange = (event: SelectChangeEvent<string>) => {
+        const value = event?.target?.value ?? ""
         if (!isString(value) || !value) return
         setSelectedLanguage(value)
     }
@@ -198,17 +202,27 @@ const EditElectionEventTextDataTable = () => {
     return (
         <>
             <SimpleForm toolbar={false}>
-                <SelectInput
-                    source="selectedLanguage"
-                    choices={languageOptions}
-                    translateChoice={false}
-                    defaultValue={selectedLanguage}
-                    onChange={handleLanguageChange}
-                    optionText="name"
-                    optionValue="id"
-                    validate={required()}
-                    label={t("electionEventScreen.texts.selectLanguage")}
-                />
+                <FormControl fullWidth>
+                    <InputLabel id="select-language">
+                        {t("electionEventScreen.texts.selectLanguage")}
+                    </InputLabel>
+                    <Select
+                        labelId="select-language"
+                        fullWidth
+                        label={t("electionEventScreen.texts.selectLanguage")}
+                        onChange={handleLanguageChange}
+                        value={selectedLanguage}
+                    >
+                        {languageOptions &&
+                            languageOptions.map((lang) => {
+                                return (
+                                    <MenuItem key={lang} value={lang}>
+                                        {lang}
+                                    </MenuItem>
+                                )
+                            })}
+                    </Select>
+                </FormControl>
                 <List
                     actions={
                         <ListActions
