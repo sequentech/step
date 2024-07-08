@@ -37,6 +37,7 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import useDemo from "../hooks/useDemo"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -124,6 +125,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const canVote = useAppSelector(canVoteSomeElection())
     const navigate = useNavigate()
     const location = useLocation()
+    const isDemo = useDemo()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -138,6 +140,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
+    const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
@@ -156,6 +159,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }, [ballotStyle, dispatch])
 
     async function printVoteReceipt() {
+        if (isDemo) {
+            setOpenPrintDemoModal(true)
+            return
+        }
+
         if (documentUrl) {
             return window.open(documentUrl, "_blank")
         }
@@ -284,6 +292,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             </ActionsContainer>
 
             <Dialog
+                handleClose={() => setOpenPrintDemoModal(false)}
+                open={openPrintDemoModal}
+                title={t("confirmationScreen.demoPrintDialog.title")}
+                ok={t("confirmationScreen.demoPrintDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("confirmationScreen.demoPrintDialog.content"))}
+            </Dialog>
+            <Dialog
                 handleClose={() => setErrorDialog(false)}
                 open={errorDialog}
                 title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
@@ -310,6 +327,8 @@ const ConfirmationScreen: React.FC = () => {
 
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    const isDemo = useDemo()
+    const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         console.log(
@@ -317,6 +336,7 @@ const ConfirmationScreen: React.FC = () => {
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
+
     console.log({backLink})
     useEffect(() => {
         if (!ballotId) {
@@ -390,7 +410,9 @@ const ConfirmationScreen: React.FC = () => {
                             marginLeft: "16px",
                         }}
                         fontSize="18px"
-                        onClick={() => setOpenBallotIdHelp(true)}
+                        onClick={() =>
+                            isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
+                        }
                     />
                     <Dialog
                         handleClose={() => setOpenBallotIdHelp(false)}
@@ -400,6 +422,15 @@ const ConfirmationScreen: React.FC = () => {
                         variant="info"
                     >
                         {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+                    </Dialog>
+                    <Dialog
+                        handleClose={() => setDemoBallotIdHelp(false)}
+                        open={demoBallotIdHelp}
+                        title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
+                        ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("confirmationScreen.ballotIdDemoHelpDialog.content"))}
                     </Dialog>
                 </BallotIdBorder>
             </BallotIdContainer>
