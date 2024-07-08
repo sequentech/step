@@ -239,22 +239,22 @@ const spanishTranslation: TranslationType = {
                 ballotDesign: "Diseño de la Papeleta",
                 advancedConfigurations: "Voting Portal Countdown Policy",
             },
-            texts: {
-                emptyHeader: "No se establecieron idiomas para el evento",
-                selectLanguage: "Seleccionar idioma",
-                notify: {
-                    success: "Las actualizaciones de textos fueron exitosas",
-                    error: "Las actualizaciones de textos fallaron",
+            "localization": {
+                "emptyHeader": "No se han establecido idiomas para el evento",
+                "selectLanguage": "Seleccionar idioma",
+                "notify": {
+                  "success": "Localización actualizada con éxito",
+                  "error": "La actualización de la localización ha fallado"
                 },
-                common: {
-                    title: "Textos",
-                    subTitle: "Configuración del texto",
+                "common": {
+                  "title": "Localización",
+                  "subTitle": "Configuración de la localización"
                 },
-                labels: {
-                    key: "Clave",
-                    value: "Valor",
-                },
-            },
+                "labels": {
+                  "key": "Clave",
+                  "value": "Valor"
+                }
+              },
             field: {
                 name: "Nombre",
                 alias: "Alias",
@@ -330,7 +330,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 dashboard: "Panel de Control",
                 data: "Datos",
-                text: "Texto",
+                "localization": "Localización",
                 voters: "Votantes",
                 areas: "Áreas",
                 keys: "Claves",

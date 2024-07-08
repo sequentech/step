@@ -105,11 +105,11 @@ const EditElectionEventTextDataTable = () => {
             },
             {
                 onError() {
-                    notify(t("electionEventScreen.texts.notify.error"), {type: "error"})
+                    notify(t("electionEventScreen.localization.notify.error"), {type: "error"})
                     setOpenCreate(false)
                 },
                 onSuccess() {
-                    notify(t("electionEventScreen.texts.notify.success"), {type: "success"})
+                    notify(t("electionEventScreen.localization.notify.success"), {type: "success"})
                     setOpenCreate(false)
                 },
             }
@@ -140,11 +140,11 @@ const EditElectionEventTextDataTable = () => {
             },
             {
                 onError() {
-                    notify(t("electionEventScreen.texts.notify.error"), {type: "error"})
+                    notify(t("electionEventScreen.localization.notify.error"), {type: "error"})
                     handleCloseEditDrawer()
                 },
                 onSuccess() {
-                    notify(t("electionEventScreen.texts.notify.success"), {type: "success"})
+                    notify(t("electionEventScreen.localization.notify.success"), {type: "success"})
                     handleCloseEditDrawer()
                 },
             }
@@ -173,11 +173,11 @@ const EditElectionEventTextDataTable = () => {
             },
             {
                 onError() {
-                    notify(t("electionEventScreen.texts.notify.error"), {type: "error"})
+                    notify(t("electionEventScreen.localization.notify.error"), {type: "error"})
                     handleCloseEditDrawer()
                 },
                 onSuccess() {
-                    notify(t("electionEventScreen.texts.notify.success"), {type: "success"})
+                    notify(t("electionEventScreen.localization.notify.success"), {type: "success"})
                     handleCloseEditDrawer()
                 },
             }
@@ -193,7 +193,7 @@ const EditElectionEventTextDataTable = () => {
         return (
             <>
                 <Typography variant="h4" paragraph>
-                    {t("electionEventScreen.texts.emptyHeader")}
+                    {t("electionEventScreen.localization.emptyHeader")}
                 </Typography>
             </>
         )
@@ -204,12 +204,12 @@ const EditElectionEventTextDataTable = () => {
             <SimpleForm toolbar={false}>
                 <FormControl fullWidth>
                     <InputLabel id="select-language">
-                        {t("electionEventScreen.texts.selectLanguage")}
+                        {t("electionEventScreen.localization.selectLanguage")}
                     </InputLabel>
                     <Select
                         labelId="select-language"
                         fullWidth
-                        label={t("electionEventScreen.texts.selectLanguage")}
+                        label={t("electionEventScreen.localization.selectLanguage")}
                         onChange={handleLanguageChange}
                         value={selectedLanguage}
                     >
@@ -239,19 +239,19 @@ const EditElectionEventTextDataTable = () => {
                                 >
                                     <>
                                         <PageHeaderStyles.Title>
-                                            {t("electionEventScreen.texts.common.title")}
+                                            {t("electionEventScreen.localization.common.title")}
                                         </PageHeaderStyles.Title>
                                         <PageHeaderStyles.SubTitle>
-                                            {t("electionEventScreen.texts.common.subTitle")}
+                                            {t("electionEventScreen.localization.common.subTitle")}
                                         </PageHeaderStyles.SubTitle>
 
                                         <TextInput
                                             source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                            label={t("electionEventScreen.texts.labels.key")}
+                                            label={t("electionEventScreen.localization.labels.key")}
                                         />
                                         <TextInput
                                             source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                            label={t("electionEventScreen.texts.labels.value")}
+                                            label={t("electionEventScreen.localization.labels.value")}
                                         />
                                     </>
                                 </SimpleForm>
@@ -265,10 +265,10 @@ const EditElectionEventTextDataTable = () => {
                         total={translationData.length}
                         bulkActionButtons={false}
                     >
-                        <TextField source="id" label={t("electionEventScreen.texts.labels.key")} />
+                        <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
                         <TextField
                             source="value"
-                            label={t("electionEventScreen.texts.labels.value")}
+                            label={t("electionEventScreen.localization.labels.value")}
                         />
                         <WrapperField label="Actions">
                             <ActionsColumn actions={actions} />
@@ -292,21 +292,21 @@ const EditElectionEventTextDataTable = () => {
                 >
                     <>
                         <PageHeaderStyles.Title>
-                            {t("electionEventScreen.texts.common.title")}
+                            {t("electionEventScreen.localization.common.title")}
                         </PageHeaderStyles.Title>
                         <PageHeaderStyles.SubTitle>
-                            {t("electionEventScreen.texts.common.subTitle")}
+                            {t("electionEventScreen.localization.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
                         <TextInput
                             source="editableKey"
-                            label={t("electionEventScreen.texts.labels.key")}
+                            label={t("electionEventScreen.localization.labels.key")}
                             defaultValue={recordId ?? undefined}
                             disabled
                         />
                         <TextInput
                             source="editableVal"
-                            label={t("electionEventScreen.texts.labels.value")}
+                            label={t("electionEventScreen.localization.labels.value")}
                             defaultValue={
                                 recordId
                                     ? record.presentation.i18n[selectedLanguage][recordId]

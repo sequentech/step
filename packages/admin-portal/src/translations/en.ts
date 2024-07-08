@@ -237,16 +237,16 @@ const englishTranslation = {
                 ballotDesign: "Ballot Design",
                 advancedConfigurations: "Advanced Configurations",
             },
-            texts: {
+            localization: {
                 emptyHeader: "No languages were set for the event",
                 selectLanguage: "Select Language",
                 notify: {
-                    success: "Texts updates were successfull",
-                    error: "Texts updates failed",
+                    success: "Localization updated Successfully",
+                    error: "Localization update failed",
                 },
                 common: {
-                    title: "Texts",
-                    subTitle: "Text configuration",
+                    title: "Localization",
+                    subTitle: "Localization configuration",
                 },
                 labels: {
                     key: "Key",
@@ -326,7 +326,7 @@ const englishTranslation = {
             tabs: {
                 dashboard: "Dashboard",
                 data: "Data",
-                text: "Text",
+                localization: "Localization",
                 voters: "Voters",
                 areas: "Areas",
                 keys: "Keys",

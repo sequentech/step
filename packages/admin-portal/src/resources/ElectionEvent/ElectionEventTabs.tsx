@@ -107,7 +107,7 @@ export const ElectionEventTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showTextData ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.text")}>
+                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.localization")}>
                         <EditElectionEventTextData />
                     </TabbedShowLayout.Tab>
                 ) : null}
