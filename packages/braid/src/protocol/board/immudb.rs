@@ -42,7 +42,7 @@ impl ImmudbBoard {
     // https://docs.immudb.io/1.1.0/reference/sql.html?
     // The type of an AUTO_INCREMENT column must be INTEGER. Internally immudb will assign
     // sequentially increasing values for new rows ensuring this value is unique within a single table
-    async fn get_remote_messages_consecutively(
+    /* async fn get_remote_messages_consecutively(
         &mut self,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
@@ -62,7 +62,7 @@ impl ImmudbBoard {
         }
 
         Ok(ret)
-    }
+    }*/
 
     // Returns all messages whose id > last_id.
     async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<BoardMessage>> {
@@ -106,14 +106,14 @@ impl ImmudbBoard {
 
         // All messages in one request implementation
         // When querying for all messages from immudb we use -1 as default lower limit (this requests uses the > comparator in sql)
-        // let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
+        let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
 
         // One by one implementation
         // When retrieving messages one at a time from immudb we use 0 as default value since
         // immudb ids start at 1 (this requests uses the = comparator in sql)
-        let messages = self
+        /*let messages = self
             .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
-            .await?;
+            .await?;*/
 
         info!("Retrieved {} messages remotely, storing locally", messages.len());
 
@@ -150,7 +150,7 @@ impl ImmudbBoard {
 }
 
 impl super::Board for ImmudbBoard {
-    type Params = BoardParams;
+    type Factory = ImmudbBoardParams;
 
     // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
     // If a store is used only the messages not previously received will be requested.
@@ -161,11 +161,11 @@ impl super::Board for ImmudbBoard {
         } else {
             // When not using a store, we get all messages, one at a time
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            let messages = self
+            /* let messages = self
                 .get_remote_messages_consecutively(last_id.unwrap_or(0))
-                .await?;
+                .await?;*/
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
+            let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
 
             messages
                 .iter()
@@ -198,22 +198,22 @@ struct MessageRow {
     message: Vec<u8>,
 }
 
-pub struct BoardParams {
+pub struct ImmudbBoardParams {
     server_url: String,
     user: String,
     password: String,
     board_name: String,
     store_root: Option<PathBuf>,
 }
-impl BoardParams {
+impl ImmudbBoardParams {
     pub fn new(
         server_url: &str,
         user: &str,
         password: &str,
         board_dbname: &str,
         store_root: Option<PathBuf>,
-    ) -> BoardParams {
-        BoardParams {
+    ) -> ImmudbBoardParams {
+        ImmudbBoardParams {
             server_url: server_url.to_string(),
             user: user.to_string(),
             password: password.to_string(),
@@ -221,8 +221,10 @@ impl BoardParams {
             store_root: store_root,
         }
     }
+}
 
-    pub async fn get_board(&self) -> Result<ImmudbBoard> {
+impl super::BoardFactory<ImmudbBoard> for ImmudbBoardParams {
+    async fn get_board(&self) -> Result<ImmudbBoard> {
         ImmudbBoard::new(
             &self.server_url,
             &self.user,

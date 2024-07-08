@@ -13,9 +13,8 @@ use strand::util::StrandError;
 
 use crate::braid::statement::Statement;
 use crate::braid::statement::StatementType;
-use crate::braid::{artifact::*, newtypes::PROTOCOL_MANAGER_INDEX};
+use crate::braid::artifact::*;
 
-use crate::braid::artifact::Configuration;
 use crate::braid::newtypes::*;
 
 ///////////////////////////////////////////////////////////////////////////

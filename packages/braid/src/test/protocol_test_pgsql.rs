@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use immu_board::{BoardClient, BoardMessage};
 use log::{info, warn};
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -26,14 +25,17 @@ use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
 use crate::protocol::session::Session;
-use crate::protocol::board::immudb::{ImmudbBoardParams, ImmudbBoard};
+use crate::protocol::board::pgsql;
+use crate::protocol::board::pgsql::{PgsqlConnectionParams, PgsqlDbConnectionParams};
+use crate::protocol::board::pgsql::{BoardClient, BoardMessage, PgsqlBoardParams, PgsqlBoard};
 use crate::protocol::trustee::Trustee;
 
-const IMMUDB_USER: &str = "immudb";
-const IMMUDB_PW: &str = "immudb";
-const SERVER_URL: &str = "http://immudb:3322";
-const BOARD_DB: &str = "protocoltestdb";
-const INDEX_DB: &str = "protocoltestindexdb";
+const PG_HOST: &'static str = "postgres";
+const PG_DATABASE: &'static str = "protocoldb";
+const PG_USER: &'static str = "postgres";
+const PG_PASSW: &'static str = "postgrespassword";
+const PG_PORT: u32 = 5432;
+const TEST_BOARD: &'static str = "testboard";
 
 pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
@@ -51,10 +53,11 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
 
     let now = Instant::now();
 
-    let test = create_protocol_test_immudb(n_trustees, &threshold, ctx)
+    let test = create_protocol_test_pgsql(n_trustees, &threshold, ctx)
         .await
         .unwrap();
-    run_protocol_test_immudb(test, ciphertexts, batches, &threshold)
+    
+    run_protocol_test_pgsql(test, ciphertexts, batches, &threshold)
         .await
         .unwrap();
 
@@ -67,15 +70,15 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
-pub struct ProtocolTestImmudb<C: Ctx> {
+pub struct ProtocolTestPgsql<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
     pub trustees: Vec<Trustee<C>>,
 }
 
-async fn run_protocol_test_immudb<C: Ctx + 'static>(
-    test: ProtocolTestImmudb<C>,
+async fn run_protocol_test_pgsql<C: Ctx + 'static>(
+    test: ProtocolTestPgsql<C>,
     ciphertexts: u32,
     batches: usize,
     threshold: &[usize],
@@ -91,13 +94,16 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         .map(|t| t.get_pk().unwrap().to_der_b64_string().unwrap())
         .collect();
 
+    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+    let c = c.with_database(PG_DATABASE);
+    
     for t in test.trustees.into_iter() {
-        let board = ImmudbBoardParams::new(SERVER_URL, IMMUDB_USER, IMMUDB_PW, BOARD_DB, None);
-        let session: Session<C, ImmudbBoard> = Session::new(BOARD_DB, t, board);
+        let board = PgsqlBoardParams::new(&c, TEST_BOARD.to_string(), None);
+        let session: Session<C, PgsqlBoard> = Session::new(TEST_BOARD, t, board);
         sessions.push(session);
     }
 
-    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
+    let mut b = BoardClient::new(&c)
         .await
         .unwrap();
 
@@ -126,12 +132,10 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         }
 
         dkg_pk_message = b
-            .get_messages_filtered(
-                BOARD_DB,
+            .get_with_kind(
+                TEST_BOARD,
                 &StatementType::PublicKey.to_string(),
                 &pk_strings[0],
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -176,11 +180,11 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         )?;
         plaintexts_in.push(next_p);
         let messages = vec![message.try_into().unwrap()];
-        b.insert_messages(BOARD_DB, &messages).await.unwrap();
+        b.insert_messages(TEST_BOARD, &messages).await.unwrap();
     }
 
     let mut plaintexts_out: Vec<BoardMessage> = vec![];
-    for i in 0..100 {
+    for i in 0..150 {
         info!("Cycle {}", i);
 
         let handles: Vec<_> = sessions
@@ -198,12 +202,10 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         }
 
         plaintexts_out = b
-            .get_messages_filtered(
-                BOARD_DB,
+            .get_with_kind(
+                TEST_BOARD,
                 &StatementType::Plaintexts.to_string(),
                 &pk_strings[selected_trustees[0] - 1],
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -236,11 +238,11 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
     Ok(())
 }
 
-pub async fn create_protocol_test_immudb<C: Ctx>(
+pub async fn create_protocol_test_pgsql<C: Ctx>(
     n_trustees: usize,
     threshold: &[usize],
     ctx: C,
-) -> Result<ProtocolTestImmudb<C>> {
+) -> Result<ProtocolTestPgsql<C>> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
@@ -263,23 +265,19 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
         threshold.len(),
         PhantomData,
     );
-
-    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
-        .await
-        .unwrap();
-
-    b.delete_database(INDEX_DB).await.unwrap();
-    b.delete_database(BOARD_DB).await.unwrap();
-
-    b.upsert_index_db(INDEX_DB).await.unwrap();
-    b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
+    
+    let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+    pgsql::drop_database(&c, PG_DATABASE).await.unwrap();
+    
+    let mut b = pgsql::create_database_and_index(&c, PG_DATABASE).await.unwrap();
+    b.create_board_ine(TEST_BOARD).await.unwrap();
 
     let message = Message::bootstrap_msg(&cfg, &pm)?;
     let bm: Result<BoardMessage> = message.try_into();
     let messages = vec![bm.unwrap()];
-    b.insert_messages(BOARD_DB, &messages).await.unwrap();
+    b.insert_messages(TEST_BOARD, &messages).await.unwrap();
 
-    Ok(ProtocolTestImmudb {
+    Ok(ProtocolTestPgsql {
         ctx,
         cfg,
         protocol_manager: pm,

@@ -13,7 +13,8 @@ use tracing::{error, info};
 
 use braid::protocol::board::immudb::ImmudbBoardIndex;
 use braid::protocol::session::Session;
-use braid::protocol::board::immudb::BoardParams;
+use braid::protocol::board::BoardFactory;
+use braid::protocol::board::immudb::{ImmudbBoardParams, ImmudbBoard};
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use braid::util::assert_folder;
@@ -97,7 +98,7 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, ImmudbBoard>> = HashMap::new();
     let mut loop_count = 0;
     loop {
         info!("{}>", loop_count);
@@ -137,7 +138,7 @@ async fn main() -> Result<()> {
             info!("Creating new session for board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> =
                 Trustee::new(name.clone(), sk.clone(), ek.clone());
-            let board = BoardParams::new(
+            let board = ImmudbBoardParams::new(
                 &args.server_url,
                 &args.user,
                 &args.password,

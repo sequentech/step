@@ -45,6 +45,21 @@ async fn test_protocol_immudb() {
     }
 }
 
+#[tokio::test]
+#[ignore]
+async fn test_protocol_pgsql() {
+    init_log(true);
+    let ctx = RistrettoCtx;
+    
+    braid::test::protocol_test_pgsql::run(1000, 1, ctx).await;
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "rug")] {
+            let ctx = RugCtx::<RUGP2048>::default();
+            braid::test::protocol_test_pgsql::run(100, 1, ctx).await;
+        }
+    }
+}
+
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)

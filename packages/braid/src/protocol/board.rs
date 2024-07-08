@@ -9,13 +9,13 @@ pub mod local;
 use board_messages::braid::message::Message;
 use anyhow::Result;
 
-pub(crate) trait Board {
-    type Params;
+pub trait Board: Sized {
+    type Factory: BoardFactory<Self>;
 
     async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>>;
     async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()>;
 }
 
-pub(crate) trait BoardIndex {
-    async fn get_board_names(&mut self) -> Result<Vec<String>>;
+pub trait BoardFactory<B: Board>: Sized {
+    async fn get_board(&self) -> Result<B>;
 }

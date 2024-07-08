@@ -7,19 +7,18 @@ use tracing::info;
 
 use strand::context::Ctx;
 
-use crate::protocol::board::immudb::BoardParams;
 use crate::protocol::trustee::Trustee;
 use crate::util::ProtocolError;
-use crate::protocol::board::Board;
+use crate::protocol::board::{Board, BoardFactory};
 
-pub struct Session<C: Ctx + 'static> {
+pub struct Session<C: Ctx + 'static, B: Board + 'static> {
     pub name: String,
     trustee: Trustee<C>,
-    board: BoardParams,
+    board: B::Factory,
     last_message_id: Option<i64>,
 }
-impl<C: Ctx> Session<C> {
-    pub fn new(name: &str, trustee: Trustee<C>, board: BoardParams) -> Session<C> {
+impl<C: Ctx, B: Board> Session<C, B> {
+    pub fn new(name: &str, trustee: Trustee<C>, board: B::Factory) -> Session<C, B> {
         Session {
             name: name.to_string(),
             trustee,

@@ -24,14 +24,11 @@ pub struct PgsqlBoard {
 
 impl PgsqlBoard {
     pub async fn new(
-        host: &str,
-        username: &str,
-        password: &str,
-        dbname: &str,
+        connection: &PgsqlDbConnectionParams,
         board_name: String,
         store_root: Option<PathBuf>,
     ) -> Result<PgsqlBoard> {
-        let board_client = BoardClient::new(host, 5432, username, password, dbname).await?;
+        let board_client = BoardClient::new(&connection).await?;
         Ok(PgsqlBoard {
             board_client: board_client,
             board_name: board_name.to_string(),
@@ -39,8 +36,6 @@ impl PgsqlBoard {
         })
     }
     
-    
-
     // Returns all messages from immudb starting from last_id + 1,  using consecutive requests.
     // If the value at last_id + 1 does not exist, an empty vector will be returned.
     // If there are gaps in the sequence, the returned vector will contain messages until
@@ -49,7 +44,7 @@ impl PgsqlBoard {
     // https://docs.immudb.io/1.1.0/reference/sql.html?
     // The type of an AUTO_INCREMENT column must be INTEGER. Internally immudb will assign
     // sequentially increasing values for new rows ensuring this value is unique within a single table
-    async fn get_remote_messages_consecutively(
+    /*async fn get_remote_messages_consecutively(
         &mut self,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
@@ -69,7 +64,7 @@ impl PgsqlBoard {
         }
 
         Ok(ret)
-    }
+    }*/
 
     // Returns all messages whose id > last_id.
     async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<BoardMessage>> {
@@ -111,16 +106,15 @@ impl PgsqlBoard {
             );
         }
 
-        // All messages in one request implementation
-        // When querying for all messages from immudb we use -1 as default lower limit (this requests uses the > comparator in sql)
-        // let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
+        // When querying for all messages we use -1 as default lower limit (this requests uses the > comparator in sql)
+        let messages = self.get_remote_messages(external_last_id.unwrap_or(-1)).await?;
 
         // One by one implementation
         // When retrieving messages one at a time from immudb we use 0 as default value since
         // immudb ids start at 1 (this requests uses the = comparator in sql)
-        let messages = self
+        /* let messages = self
             .get_remote_messages_consecutively(external_last_id.unwrap_or(0))
-            .await?;
+            .await?;*/
 
         info!("Retrieved {} messages remotely, storing locally", messages.len());
 
@@ -158,7 +152,7 @@ impl PgsqlBoard {
 }
 
 impl super::Board for PgsqlBoard {
-    type Params = BoardParams;
+    type Factory = PgsqlBoardParams;
     
     // Returns all messages whose id > last_id. If last_id is None, all messages will be returned.
     // If a store is used only the messages not previously received will be requested.
@@ -169,11 +163,11 @@ impl super::Board for PgsqlBoard {
         } else {
             // When not using a store, we get all messages, one at a time
             // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            let messages = self
+            /* let messages = self
                 .get_remote_messages_consecutively(last_id.unwrap_or(0))
-                .await?;
-            // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            // let messages = self.get_remote_messages(last_id.unwrap_or(0)).await?;
+                .await?;*/
+            // If last_id is None, use -1 as last_id
+            let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
 
             messages
                 .iter()
@@ -201,39 +195,76 @@ impl super::Board for PgsqlBoard {
     }
 }
 
-pub struct BoardParams {
+#[derive(Clone)]
+pub struct PgsqlConnectionParams {
     host: String,
+    port: u32,
     username: String,
     password: String,
-    dbname: String,
+}
+impl PgsqlConnectionParams{ 
+    pub fn new(
+        host: &str,
+        port: u32,
+        username: &str,
+        password: &str,
+    ) -> PgsqlConnectionParams {
+        PgsqlConnectionParams {
+            host: host.to_string(),
+            port: port,
+            username: username.to_string(),
+            password: password.to_string(),
+        }
+    }
+    pub fn connection_string(&self) -> String {
+        format!("host={} port={} user={} password={}", self.host, self.port, self.username, self.password)
+    }
+    pub fn with_database(&self, db_name: &str) -> PgsqlDbConnectionParams {
+        PgsqlDbConnectionParams::new(self, db_name)
+    }
+}
+
+#[derive(Clone)]
+pub struct PgsqlDbConnectionParams {
+    connection: PgsqlConnectionParams,
+    db_name: String
+}
+impl PgsqlDbConnectionParams {
+    pub fn new(connection: &PgsqlConnectionParams, db_name: &str) -> PgsqlDbConnectionParams {
+        PgsqlDbConnectionParams {
+            connection: connection.clone(),
+            db_name: db_name.to_string()
+        }
+    }
+    pub fn connection_string(&self) -> String {
+        format!("{} dbname={}", self.connection.connection_string(), self.db_name)
+    }
+}
+
+
+pub struct PgsqlBoardParams {
+    connection: PgsqlDbConnectionParams,
     board_name: String,
     store_root: Option<PathBuf>,
 }
-impl BoardParams {
+impl PgsqlBoardParams {
     pub fn new(
-        host: &str,
-        username: &str,
-        password: &str,
-        dbname: &str,
+        connection: &PgsqlDbConnectionParams,
         board_name: String,
         store_root: Option<PathBuf>,
-    ) -> BoardParams {
-        BoardParams {
-            host: host.to_string(),
-            username: username.to_string(),
-            password: password.to_string(),
-            dbname: dbname.to_string(),
+    ) -> PgsqlBoardParams {
+        PgsqlBoardParams {
+            connection: connection.clone(),
             board_name,
             store_root,
         }
     }
+}
 
-    pub async fn get_board(&self) -> Result<PgsqlBoard> {
+impl super::BoardFactory<PgsqlBoard> for PgsqlBoardParams {
+    async fn get_board(&self) -> Result<PgsqlBoard> {
         PgsqlBoard::new(
-            &self.host,
-            &self.username,
-            &self.password,
-            &self.dbname,
+            &self.connection,
             self.board_name.clone(),
             self.store_root.clone()
             
@@ -363,22 +394,10 @@ pub(crate) mod tests {
     
     // We cannot use create_database_and_index because we additionally drop the database here
     async fn set_up() -> BoardClient {
-        let connection_string = format!("host={} port={} user={} password={}", PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let (client, connection) =
-        tokio_postgres::connect(&connection_string, NoTls).await.unwrap();
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        drop_database(&c, PG_DATABASE).await.unwrap();
 
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                eprintln!("connection error: {}", e);
-            }
-        });
-        
-        client.execute(&format!("DROP DATABASE IF EXISTS {}", PG_DATABASE), &[]).await.unwrap();
-        client.execute(&format!("CREATE DATABASE {}", PG_DATABASE), &[]).await.unwrap();
-
-        drop(client);
-
-        let mut client = BoardClient::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW, PG_DATABASE).await.unwrap();
+        let mut client = BoardClient::new(&c.with_database(PG_DATABASE)).await.unwrap();
         client.create_index_ine().await.unwrap();
 
         client
@@ -451,10 +470,9 @@ pub struct BoardClient {
 
 impl BoardClient {
     /// Creates a new BoardClient. The underlying connection will be closed when the client is dropped.
-    pub async fn new(host: &str, port: u32, username: &str, password: &str, dbname: &str) -> Result<BoardClient> {
-        let connection_string = format!("host={} port={} user={} password={} dbname={}", host, port, username, password, dbname);
+    pub async fn new(connection: &PgsqlDbConnectionParams) -> Result<BoardClient> {
         let (client, connection) =
-        tokio_postgres::connect(&connection_string, NoTls).await?;
+        tokio_postgres::connect(&connection.connection_string(), NoTls).await?;
 
         // The connection object performs the actual communication with the database,
         // so spawn it off to run on its own.
@@ -652,6 +670,39 @@ impl BoardClient {
         Ok(boards)
     }
 
+    pub async fn get_with_kind(
+        &mut self,
+        board: &str,
+        kind: &str,
+        sender_pk: &str,
+    ) -> Result<Vec<BoardMessage>> {
+        
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            version
+        FROM {}
+        WHERE sender_pk = $1 AND statement_kind = $2
+        ORDER BY id;
+        "#,
+            board
+        );
+
+        let sql_query_response = self.client.query(&sql, &[&sender_pk, &kind]).await?;
+        let messages = sql_query_response
+            .iter()
+            .map(BoardMessage::try_from)
+            .collect::<Result<Vec<BoardMessage>>>()?;
+
+        Ok(messages)
+    }
+
     /// Inserts messages into the requested board table.
     pub async fn insert_messages(
         &mut self,
@@ -784,27 +835,46 @@ impl BoardClient {
         transaction.commit().await?;
         Ok(())
     }
-    
-    pub async fn create_database_and_index(&mut self, host: &str, port: u32, username: &str, password: &str, dbname: &str) -> Result<BoardClient> {
-        let connection_string = format!("host={} port={} user={} password={}", host, port, username, password);
-        let (client, connection) =
-        tokio_postgres::connect(&connection_string, NoTls).await?;
 
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                eprintln!("connection error: {}", e);
-            }
-        });
-        
-        client.execute(&format!("CREATE DATABASE {}", dbname), &[]).await?;
-        drop(client);
-
-        let mut client = BoardClient::new(host, port, username, password, dbname).await?;
-        client.create_index_ine().await?;
-
-        Ok(client)
-    }
 }
+
+
+/// Utility function to create a database and the index table.
+pub(crate) async fn create_database_and_index(c: &PgsqlConnectionParams, dbname: &str) -> Result<BoardClient> {
+    let (client, connection) =
+    tokio_postgres::connect(&c.connection_string(), NoTls).await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+    
+    client.execute(&format!("CREATE DATABASE {}", dbname), &[]).await?;
+    drop(client);
+
+    let mut client = BoardClient::new(&c.with_database(dbname)).await?;
+    client.create_index_ine().await?;
+
+    Ok(client)
+}
+
+/// Utility function to drop a database (will not pass a database parameter in the connection string).
+pub(crate) async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+    let (client, connection) =
+    tokio_postgres::connect(&c.connection_string(), NoTls).await.unwrap();
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    client.execute(&format!("DROP DATABASE IF EXISTS {}", dbname), &[]).await.unwrap();
+
+    Ok(())
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardMessage {
