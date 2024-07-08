@@ -251,7 +251,9 @@ const EditElectionEventTextDataTable = () => {
                                         />
                                         <TextInput
                                             source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                            label={t("electionEventScreen.localization.labels.value")}
+                                            label={t(
+                                                "electionEventScreen.localization.labels.value"
+                                            )}
                                         />
                                     </>
                                 </SimpleForm>
@@ -265,7 +267,10 @@ const EditElectionEventTextDataTable = () => {
                         total={translationData.length}
                         bulkActionButtons={false}
                     >
-                        <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
+                        <TextField
+                            source="id"
+                            label={t("electionEventScreen.localization.labels.key")}
+                        />
                         <TextField
                             source="value"
                             label={t("electionEventScreen.localization.labels.value")}

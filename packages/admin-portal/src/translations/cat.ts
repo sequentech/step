@@ -239,22 +239,22 @@ const catalanTranslation: TranslationType = {
                 ballotDesign: "Disseny de la Papereta",
                 advancedConfigurations: "Voting Portal Countdown Policy",
             },
-            "localization": {
-                "emptyHeader": "No s'han establert idiomes per a l'esdeveniment",
-                "selectLanguage": "Selecciona idioma",
-                "notify": {
-                  "success": "La localització s'ha actualitzat correctament",
-                  "error": "La actualització de la localització ha fallat"
+            localization: {
+                emptyHeader: "No s'han establert idiomes per a l'esdeveniment",
+                selectLanguage: "Selecciona idioma",
+                notify: {
+                    success: "La localització s'ha actualitzat correctament",
+                    error: "La actualització de la localització ha fallat",
                 },
-                "common": {
-                  "title": "Localització",
-                  "subTitle": "Configuració de la localització"
+                common: {
+                    title: "Localització",
+                    subTitle: "Configuració de la localització",
                 },
-                "labels": {
-                  "key": "Clau",
-                  "value": "Valor"
-                }
-              },
+                labels: {
+                    key: "Clau",
+                    value: "Valor",
+                },
+            },
             field: {
                 name: "Nom",
                 alias: "Àlies",
@@ -330,7 +330,7 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tauler de Control",
                 data: "Dades",
-                "localization": "Localització",
+                localization: "Localització",
                 voters: "Votants",
                 areas: "Àrees",
                 keys: "Claus",
