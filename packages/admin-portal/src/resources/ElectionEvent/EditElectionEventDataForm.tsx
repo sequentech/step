@@ -61,8 +61,8 @@ import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
-import { useWatch } from "react-hook-form";
-import { convertToNumber } from "@/lib/helpers"
+import {useWatch} from "react-hook-form"
+import {convertToNumber} from "@/lib/helpers"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -84,23 +84,31 @@ interface ManagedNumberInputProps {
     sourceToWatch: string
 }
 
-const ManagedNumberInput = ({source, label, defaultValue, sourceToWatch}: ManagedNumberInputProps) => {
+const ManagedNumberInput = ({
+    source,
+    label,
+    defaultValue,
+    sourceToWatch,
+}: ManagedNumberInputProps) => {
     const secondsToShowCountdownSource = `presentation.voting_portal_countdown_policy.countdown_anticipation_secs`
     const secondsToShowAlretSource = `presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`
     const selectedPolicy = useWatch({name: sourceToWatch})
-    const isDisabled = (source === secondsToShowCountdownSource && selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN) || 
-                           (source === secondsToShowAlretSource && selectedPolicy !== EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT);
-    
-        return (
-            <NumberInput 
-                source={source} 
-                disabled={isDisabled}
-                label={label}
-                defaultValue={defaultValue}
-                style={{flex: 1}}
-            />
-        );
-    };
+    const isDisabled =
+        (source === secondsToShowCountdownSource &&
+            selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN) ||
+        (source === secondsToShowAlretSource &&
+            selectedPolicy !== EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT)
+
+    return (
+        <NumberInput
+            source={source}
+            disabled={isDisabled}
+            label={label}
+            defaultValue={defaultValue}
+            style={{flex: 1}}
+        />
+    )
+}
 
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
     electionEventId,
@@ -752,23 +760,26 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         }}
                                     >
                                         <ManagedNumberInput
-                                        source={"presentation.voting_portal_countdown_policy.countdown_anticipation_secs"}
-                                        label={t(
-                                            "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
-                                        )}
-                                        defaultValue={defaultSecondsForCountdown}
-                                        sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                            source={
+                                                "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
+                                            }
+                                            label={t(
+                                                "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
+                                            )}
+                                            defaultValue={defaultSecondsForCountdown}
+                                            sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                         />
 
-<ManagedNumberInput
-                                        source={"presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"}
-                                        label={t(
-                                            "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
-                                        )}
-                                        defaultValue={defaultSecondsForAlret}
-                                        sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                        <ManagedNumberInput
+                                            source={
+                                                "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
+                                            }
+                                            label={t(
+                                                "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
+                                            )}
+                                            defaultValue={defaultSecondsForAlret}
+                                            sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                         />
-
                                     </Box>
                                 </AccordionDetails>
                             </Accordion>
