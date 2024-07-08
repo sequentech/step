@@ -94,10 +94,21 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla mostra que el seu vot s'ha emès correctament. La informació proporcionada en aquesta pàgina li permet verificar que la papereta ha estat emmagatzemada en l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
                 ok: "D'acord",
             },
+            demoPrintDialog: {
+                title: "Impressió de la papereta de vot",
+                content: "Impressió desactivada en mode de demostració",
+                ok: "D'acord",
+            },
             ballotIdHelpDialog: {
                 title: "Informació: Localitzador del Vot",
                 content:
                     "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta en l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
+                ok: "D'acord",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Informació: Identificador de papereta de vot",
+                content:
+                    "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
                 ok: "D'acord",
             },
             errorDialogPrintVoteReceipt: {

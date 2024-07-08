@@ -94,11 +94,22 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra que su voto se ha emitido correctamente. La información proporcionada en esta página le permite verificar que la papeleta ha sido almacenada en la urna , este proceso puede ser ejecutado en cualquier momento durante el periodo de votación y después de que la elección haya sido cerrada.",
                 ok: "OK",
             },
+            demoPrintDialog: {
+                title: "Impresión de la papeleta de votación",
+                content: "La impresión está desactivada en modo de demostración",
+                ok: "Aceptar",
+            },
             ballotIdHelpDialog: {
                 title: "Información: Localizador del Voto",
                 content:
                     "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
                 ok: "OK",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Información: Identificación de la papeleta",
+                content:
+                    "<p>La identificación de la papeleta es un código que te permite encontrar tu papeleta en la urna. Este identificador es único y no contiene información sobre tus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Tu voto NO ha sido emitido.</p>",
+                ok: "Aceptar",
             },
             errorDialogPrintVoteReceipt: {
                 title: "Error",
