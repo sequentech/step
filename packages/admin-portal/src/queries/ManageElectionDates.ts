@@ -9,12 +9,14 @@ export const MANAGE_ELECTION_DATES = gql`
         $electionId: String!
         $isStart: Boolean!
         $isUnset: Boolean!
+        $date: String
     ) {
         manage_election_dates(
             election_event_id: $electionEventId
             election_id: $electionId
             is_start: $isStart
             is_unset: $isUnset
+            date: $date
         ) {
             something
         }

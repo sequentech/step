@@ -7,6 +7,7 @@ use crate::tasks::manage_election_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionDates, ElectionPresentation};
 use tracing::{event, info, instrument, Level};
@@ -35,6 +36,7 @@ pub async fn manage_dates(
     election_id: &str,
     is_start: bool,
     is_unset: bool,
+    date: Option<&str>,
 ) -> Result<()> {
     let found_election = get_election_by_id(
         hasura_transaction,
@@ -46,7 +48,7 @@ pub async fn manage_dates(
     let Some(election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
-
+    info!("election={election:?}");
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
@@ -66,80 +68,156 @@ pub async fn manage_dates(
         election_id,
         is_start,
     );
+    info!("date={date:?}");
+    info!("new_dates={new_dates:?}");
     let scheduled_manage_date_opt =
         find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
             .await?;
-
     info!("current_dates={current_dates:?}");
-    if is_unset {
-        info!("is_unset is true");
-        if is_start {
-            new_dates.scheduled_opening = Some(false);
-        } else {
-            new_dates.scheduled_closing = Some(false);
-        }
-        if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
-            stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
-        }
-    } else {
-        info!("is_unset is false");
-        if is_start {
-            new_dates.scheduled_opening = Some(true);
-        } else {
-            new_dates.scheduled_closing = Some(true);
-        }
-        let Some(manage_date_str) = (if is_start {
-            current_dates.start_date
-        } else {
-            current_dates.end_date
-        }) else {
-            info!("Empty date");
-            return Err(anyhow!("Empty date"));
-        };
-        info!("manage_date_str = {manage_date_str}");
-        let manage_date_date = ISO8601::to_date(&manage_date_str)?;
-        /*let now = ISO8601::now();
-        let now_str = now.to_string();
-        if manage_date_date < now {
-            info!("date {manage_date_str} can't be before now {now_str}");
-            return Err(anyhow!("date can't be before now"));
-        }*/
-
-        let cron_config = CronConfig {
-            cron: None,
-            scheduled_date: Some(manage_date_str),
-        };
-        if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
-            info!("update_scheduled_event");
-            update_scheduled_event(
-                hasura_transaction,
-                tenant_id,
-                &scheduled_manage_date.id,
-                cron_config,
-            )
-            .await?;
-        } else {
-            info!("insert_scheduled_event");
-            let event_processor = if is_start {
-                EventProcessors::START_ELECTION
+    match date {
+        Some(date) => {
+            info!("is_unset is false");
+            if is_start {
+                new_dates.scheduled_opening = Some(true);
             } else {
-                EventProcessors::END_ELECTION
+                new_dates.scheduled_closing = Some(true);
+            }
+            let Some(manage_date_str) = (if is_start {
+                current_dates.start_date
+            } else {
+                current_dates.end_date
+            }) else {
+                info!("Empty date");
+                return Err(anyhow!("Empty date"));
             };
-            let payload = ManageElectionDatePayload {
-                election_id: election_id.to_string(),
+            info!("manage_date_str = {manage_date_str}");
+            let manage_date_date = ISO8601::to_date(&manage_date_str)?;
+            let now = ISO8601::now();
+            let now_str = now.to_string();
+            if manage_date_date < now {
+                info!("date {manage_date_str} can't be before now {now_str}");
+                return Err(anyhow!("date can't be before now"));
+            }
+    
+            let cron_config = CronConfig {
+                cron: None,
+                scheduled_date: Some(manage_date_str),
             };
-            insert_scheduled_event(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                event_processor,
-                &task_id,
-                cron_config,
-                serde_json::to_value(payload)?,
-            )
-            .await?;
+            if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+                info!("update_scheduled_event");
+                update_scheduled_event(
+                    hasura_transaction,
+                    tenant_id,
+                    &scheduled_manage_date.id,
+                    cron_config,
+                )
+                .await?;
+            } else {
+                info!("insert_scheduled_event");
+                let event_processor = if is_start {
+                    EventProcessors::START_ELECTION
+                } else {
+                    EventProcessors::END_ELECTION
+                };
+                let payload = ManageElectionDatePayload {
+                    election_id: election_id.to_string(),
+                };
+                info!("payload={payload:?}");
+                insert_scheduled_event(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    event_processor,
+                    &task_id,
+                    cron_config,
+                    serde_json::to_value(payload)?,
+                )
+                .await?;
+            }
+        }
+        None => {
+            if(is_start) {
+                new_dates.scheduled_opening = Some(false);
+            } else {
+                new_dates.scheduled_closing = Some(false);
+            }
+            if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+                stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
+            }
         }
     }
+
+    
+    // if is_unset {
+    //     info!("is_unset is true");
+    //     if is_start {
+    //         new_dates.scheduled_opening = Some(false);
+    //     } else {
+    //         new_dates.scheduled_closing = Some(false);
+    //     }
+    //     if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+    //         stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
+    //     }
+    // } else {
+    //     info!("is_unset is false");
+    //     if is_start {
+    //         new_dates.scheduled_opening = Some(true);
+    //     } else {
+    //         new_dates.scheduled_closing = Some(true);
+    //     }
+    //     let Some(manage_date_str) = (if is_start {
+    //         current_dates.start_date
+    //     } else {
+    //         current_dates.end_date
+    //     }) else {
+    //         info!("Empty date");
+    //         return Err(anyhow!("Empty date"));
+    //     };
+    //     info!("manage_date_str = {manage_date_str}");
+    //     let manage_date_date = ISO8601::to_date(&manage_date_str)?;
+    //     let now = ISO8601::now();
+    //     let now_str = now.to_string();
+    //     if manage_date_date < now {
+    //         info!("date {manage_date_str} can't be before now {now_str}");
+    //         return Err(anyhow!("date can't be before now"));
+    //     }
+
+    //     let cron_config = CronConfig {
+    //         cron: None,
+    //         scheduled_date: Some(manage_date_str),
+    //     };
+    //     if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+    //         info!("update_scheduled_event");
+    //         update_scheduled_event(
+    //             hasura_transaction,
+    //             tenant_id,
+    //             &scheduled_manage_date.id,
+    //             cron_config,
+    //         )
+    //         .await?;
+    //     } else {
+    //         info!("insert_scheduled_event");
+    //         let event_processor = if is_start {
+    //             EventProcessors::START_ELECTION
+    //         } else {
+    //             EventProcessors::END_ELECTION
+    //         };
+    //         let payload = ManageElectionDatePayload {
+    //             election_id: election_id.to_string(),
+    //         };
+    //         info!("payload={payload:?}");
+    //         insert_scheduled_event(
+    //             hasura_transaction,
+    //             tenant_id,
+    //             election_event_id,
+    //             event_processor,
+    //             &task_id,
+    //             cron_config,
+    //             serde_json::to_value(payload)?,
+    //         )
+    //         .await?;
+    //     }
+    // }
 
     let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
     info!("update_election_presentation with new_dates={new_dates:?}");

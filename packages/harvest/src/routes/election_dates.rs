@@ -20,6 +20,7 @@ pub struct ManageElectionDatesBody {
     election_id: String,
     is_start: bool,
     is_unset: bool,
+    date: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -57,6 +58,7 @@ pub async fn manage_election_dates(
         &input.election_id,
         input.is_start,
         input.is_unset,
+        input.date.as_deref()
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
