@@ -6,12 +6,13 @@ use crate::utils::read_config::get_config_dir;
 use crate::utils::read_input::prompt;
 
 #[derive(Args)]
+#[command(about = "Create a config file", long_about = None)]
 pub struct Config;
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
-    auth_token: String,
-    endpoint_url: String,
+    pub auth_token: String,
+    pub endpoint_url: String,
 }
 
 impl Config {
