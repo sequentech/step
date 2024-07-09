@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
 import Loader from "../components/Loader"
-import useDemo from "../hooks/useDemo"
 
 export interface GlobalSettings {
     DISABLE_AUTH: boolean
@@ -53,7 +52,6 @@ interface SettingsContextProviderProps {
 }
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {
-    const isDemo = useDemo()
     const [loaded, setLoaded] = useState<boolean>(false)
     const [globalSettings, setSettings] = useState<GlobalSettings>(
         defaultSettingsValues.globalSettings
@@ -63,7 +61,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         try {
             let value = await fetch("/global-settings.json")
             let json = await value.json()
-            setSettings({...json, DISABLE_AUTH: isDemo})
+            setSettings(json)
             setLoaded(true)
         } catch (e) {
             console.log(`Error loading settings: ${e}`)
@@ -74,7 +72,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         if (!loaded) {
             loadSettings()
         }
-    }, [loaded, isDemo])
+    }, [loaded])
 
     // Setup the context provider
     return (

@@ -27,7 +27,7 @@ import {selectElectionEventById} from "../store/electionEvents/electionEventsSli
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {selectBallotStyleByElectionId, selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
@@ -37,7 +37,6 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import useDemo from "../hooks/useDemo"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -125,7 +124,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const canVote = useAppSelector(canVoteSomeElection())
     const navigate = useNavigate()
     const location = useLocation()
-    const isDemo = useDemo()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -141,6 +139,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
@@ -327,8 +327,9 @@ const ConfirmationScreen: React.FC = () => {
 
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-    const isDemo = useDemo()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         console.log(
