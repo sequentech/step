@@ -52,7 +52,6 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -256,11 +255,10 @@ export const ReviewScreen: React.FC = () => {
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const {logout} = useContext(AuthContext)

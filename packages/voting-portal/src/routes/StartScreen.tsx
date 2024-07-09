@@ -66,9 +66,8 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const location = useLocation()
 
     return (
