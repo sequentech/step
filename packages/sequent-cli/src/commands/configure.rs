@@ -1,4 +1,43 @@
+use clap::Args;
+use std::fs;
+use serde::{Serialize, Deserialize};
+use std::path::Path;
+use crate::utils::read_config::get_config_dir;
+use crate::utils::read_input::prompt;
 
-pub fn run(field1: String, field2: String) {
-    println!("Configuring with field1: {}, field2: {}", field1, field2);
+#[derive(Args)]
+pub struct Config;
+
+#[derive(Serialize, Deserialize)]
+pub struct ConfigData {
+    auth_token: String,
+    endpoint_url: String,
 }
+
+impl Config {
+    pub fn run(&self) {
+        let auth_token = prompt("Enter the authToken: ",true);
+        let endpoint_url = prompt("Enter the endpoint URL: ",true);
+
+        let config_data = ConfigData {
+            auth_token,
+            endpoint_url,
+        };
+
+        let config_dir = get_config_dir();
+        let config_file = config_dir.join("configuration.json");
+
+        if !Path::new(&config_dir).exists() {
+            fs::create_dir_all(&config_dir).expect("Failed to create config directory");
+        }
+
+        let json_data = serde_json::to_string_pretty(&config_data).expect("Failed to serialize config data");
+
+        fs::write(&config_file, json_data).expect("Failed to write config file");
+
+        println!("Configuration saved successfully at {:?}", config_file);
+    }
+}
+
+
+
