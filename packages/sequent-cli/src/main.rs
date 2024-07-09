@@ -4,9 +4,12 @@ mod utils;
 
 use clap::{Parser, Subcommand};
 
-
 #[derive(Parser)]
-#[command(name = "sequent-cli", version = "1.0", about = "CLI tool for managing Sequent tasks")]
+#[command(
+    name = "sequent-cli",
+    version = "1.0",
+    about = "CLI tool for managing Sequent tasks"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -15,7 +18,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Config(commands::configure::Config),
-    CreateElectionEvent(commands::create_election_event::CreateElectionEvent)
+    CreateElectionEvent(commands::create_election_event::CreateElectionEvent),
+    CreateElection(commands::create_election::CreateElection),
 }
 
 fn main() {
@@ -24,5 +28,6 @@ fn main() {
     match &cli.command {
         Commands::Config(cmd) => cmd.run(),
         Commands::CreateElectionEvent(create_event) => create_event.run(),
+        Commands::CreateElection(create_election) => create_election.run(),
     }
 }
