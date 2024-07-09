@@ -14,7 +14,6 @@ import {
     stringToHtml,
     theme,
     translateElection,
-    translateText,
     EVotingStatus,
     IElectionEventStatus,
     IBallotStyle as IElectionDTO,
@@ -57,7 +56,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
-import {getLanguageFromURL} from "../utils/queryParams"
+import useUpdateTranslation from "../hooks/useUpdateTranslation"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -198,14 +197,14 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 }
 
 const ElectionSelectionScreen: React.FC = () => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
-
+    useUpdateTranslation({electionEvent}) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
@@ -259,14 +258,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-            throw new Error(
-                translateText(
-                    electionEvent,
-                    "electionSelectionScreen.noVotingAreaError",
-                    i18n.language,
-                    t("electionSelectionScreen.noVotingAreaError")
-                )
-            )
+            throw new Error(t("electionSelectionScreen.noVotingAreaError"))
         } else if (errorElections || errorElectionEvent || errorBallotStyles) {
             throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
         }
@@ -368,14 +360,7 @@ const ElectionSelectionScreen: React.FC = () => {
             >
                 <Box>
                     <StyledTitle variant="h1">
-                        <Box>
-                            {translateText(
-                                electionEvent,
-                                "electionSelectionScreen.title",
-                                i18n.language,
-                                t("electionSelectionScreen.title")
-                            )}
-                        </Box>
+                        <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
                             icon={faCircleQuestion}
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -385,76 +370,28 @@ const ElectionSelectionScreen: React.FC = () => {
                         <Dialog
                             handleClose={() => setOpenChooserHelp(false)}
                             open={openChooserHelp}
-                            title={translateText(
-                                electionEvent,
-                                "electionSelectionScreen.chooserHelpDialog.title",
-                                i18n.language,
-                                t("electionSelectionScreen.chooserHelpDialog.title")
-                            )}
-                            ok={translateText(
-                                electionEvent,
-                                "electionSelectionScreen.chooserHelpDialog.ok",
-                                i18n.language,
-                                t("electionSelectionScreen.chooserHelpDialog.ok")
-                            )}
+                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
+                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
                             variant="info"
                         >
-                            {stringToHtml(
-                                translateText(
-                                    electionEvent,
-                                    "electionSelectionScreen.chooserHelpDialog.content",
-                                    i18n.language,
-                                    t("electionSelectionScreen.chooserHelpDialog.content")
-                                )
-                            )}
+                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
                         </Dialog>
                         <Dialog
                             handleClose={() => setOpenDemoModal(false)}
                             open={openDemoModal ? openDemoModal : false}
-                            title={translateText(
-                                electionEvent,
-                                "electionSelectionScreen.demoDialog.title",
-                                i18n.language,
-                                t("electionSelectionScreen.demoDialog.title")
-                            )}
-                            ok={translateText(
-                                electionEvent,
-                                "electionSelectionScreen.demoDialog.ok",
-                                i18n.language,
-                                t("electionSelectionScreen.demoDialog.ok")
-                            )}
+                            title={t("electionSelectionScreen.demoDialog.title")}
+                            ok={t("electionSelectionScreen.demoDialog.ok")}
                             variant="warning"
                         >
-                            {stringToHtml(
-                                translateText(
-                                    electionEvent,
-                                    "electionSelectionScreen.demoDialog.content",
-                                    i18n.language,
-                                    t("electionSelectionScreen.demoDialog.content")
-                                )
-                            )}
+                            {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {stringToHtml(
-                            translateText(
-                                electionEvent,
-                                "electionSelectionScreen.description",
-                                i18n.language,
-                                t("electionSelectionScreen.description")
-                            )
-                        )}
+                        {stringToHtml(t("electionSelectionScreen.description"))}
                     </Typography>
                 </Box>
                 {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>
-                        {translateText(
-                            electionEvent,
-                            "materials.common.label",
-                            i18n.language,
-                            t("materials.common.label")
-                        )}
-                    </Button>
+                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
             <ElectionContainer className="elections-list">
@@ -469,14 +406,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>
-                        <Typography>
-                            {translateText(
-                                electionEvent,
-                                "electionSelectionScreen.noResults",
-                                i18n.language,
-                                t("electionSelectionScreen.noResults")
-                            )}
-                        </Typography>
+                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
                     </Box>
                 )}
 

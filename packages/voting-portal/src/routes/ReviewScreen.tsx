@@ -26,7 +26,6 @@ import {
     IElectionEventStatus,
     IAuditableBallot,
     sortContestList,
-    translateText,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -103,13 +102,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 }) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
@@ -206,46 +204,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 onClick={() => setAuditBallotHelp(true)}
             >
                 <Icon icon={faFire} size="sm" />
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "reviewScreen.auditButton",
-                        i18n.language,
-                        t("reviewScreen.auditButton")
-                    )}
-                </Box>
+                <Box>{t("reviewScreen.auditButton")}</Box>
             </StyledButton>
             <Dialog
                 handleClose={handleClose}
                 open={auditBallotHelp}
-                title={translateText(
-                    electionEvent,
-                    "reviewScreen.auditBallotHelpDialog.title",
-                    i18n.language,
-                    t("reviewScreen.auditBallotHelpDialog.title")
-                )}
-                ok={translateText(
-                    electionEvent,
-                    "reviewScreen.auditBallotHelpDialog.ok",
-                    i18n.language,
-                    t("reviewScreen.auditBallotHelpDialog.ok")
-                )}
-                cancel={translateText(
-                    electionEvent,
-                    "reviewScreen.auditBallotHelpDialog.cancel",
-                    i18n.language,
-                    t("reviewScreen.auditBallotHelpDialog.cancel")
-                )}
+                title={t("reviewScreen.auditBallotHelpDialog.title")}
+                ok={t("reviewScreen.auditBallotHelpDialog.ok")}
+                cancel={t("reviewScreen.auditBallotHelpDialog.cancel")}
                 variant="warning"
             >
-                {stringToHtml(
-                    translateText(
-                        electionEvent,
-                        "reviewScreen.auditBallotHelpDialog.content",
-                        i18n.language,
-                        t("reviewScreen.auditBallotHelpDialog.content")
-                    )
-                )}
+                {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
             </Dialog>
             <ActionsContainer>
                 <StyledLink
@@ -254,14 +223,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Icon icon={faAngleLeft} size="sm" />
-                        <Box>
-                            {translateText(
-                                electionEvent,
-                                "reviewScreen.backButton",
-                                i18n.language,
-                                t("reviewScreen.backButton")
-                            )}
-                        </Box>
+                        <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
                 {hideAudit ? null : (
@@ -271,14 +233,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                         onClick={() => setAuditBallotHelp(true)}
                     >
                         <Icon icon={faFire} size="sm" />
-                        <Box>
-                            {translateText(
-                                electionEvent,
-                                "reviewScreen.auditButton",
-                                i18n.language,
-                                t("reviewScreen.auditButton")
-                            )}
-                        </Box>
+                        <Box>{t("reviewScreen.auditButton")}</Box>
                     </StyledButton>
                 )}
                 <StyledButton
@@ -287,14 +242,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     disabled={isCastingBallot}
                     onClick={castBallotAction}
                 >
-                    <Box>
-                        {translateText(
-                            electionEvent,
-                            "reviewScreen.castBallotButton",
-                            i18n.language,
-                            t("reviewScreen.castBallotButton")
-                        )}
-                    </Box>
+                    <Box>{t("reviewScreen.castBallotButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
@@ -362,47 +310,18 @@ export const ReviewScreen: React.FC = () => {
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
-                title={translateText(
-                    electionEvent,
-                    "reviewScreen.ballotIdHelpDialog.title",
-                    i18n.language,
-                    t("reviewScreen.ballotIdHelpDialog.title")
-                )}
-                ok={translateText(
-                    electionEvent,
-                    "reviewScreen.ballotIdHelpDialog.ok",
-                    i18n.language,
-                    t("reviewScreen.ballotIdHelpDialog.ok")
-                )}
-                cancel={translateText(
-                    electionEvent,
-                    "reviewScreen.ballotIdHelpDialog.cancel",
-                    i18n.language,
-                    t("reviewScreen.ballotIdHelpDialog.cancel")
-                )}
+                title={t("reviewScreen.ballotIdHelpDialog.title")}
+                ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
                 variant="info"
             >
-                {stringToHtml(
-                    translateText(
-                        electionEvent,
-                        "reviewScreen.ballotIdHelpDialog.content",
-                        i18n.language,
-                        t("reviewScreen.ballotIdHelpDialog.content")
-                    )
-                )}
+                {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </Dialog>
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "reviewScreen.title",
-                        i18n.language,
-                        t("reviewScreen.title")
-                    )}
-                </Box>
+                <Box>{t("reviewScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -412,45 +331,16 @@ export const ReviewScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setReviewScreenHelp(false)}
                     open={openReviewScreenHelp}
-                    title={translateText(
-                        electionEvent,
-                        "reviewScreen.reviewScreenHelpDialog.title",
-                        i18n.language,
-                        t("reviewScreen.reviewScreenHelpDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "reviewScreen.reviewScreenHelpDialog.ok",
-                        i18n.language,
-                        t("reviewScreen.reviewScreenHelpDialog.ok")
-                    )}
+                    title={t("reviewScreen.reviewScreenHelpDialog.title")}
+                    ok={t("reviewScreen.reviewScreenHelpDialog.ok")}
                     variant="info"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "reviewScreen.reviewScreenHelpDialog.content",
-                            i18n.language,
-                            t("reviewScreen.reviewScreenHelpDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    hideAudit
-                        ? translateText(
-                              electionEvent,
-                              "reviewScreen.descriptionNoAudit",
-                              i18n.language,
-                              t("reviewScreen.descriptionNoAudit")
-                          )
-                        : translateText(
-                              electionEvent,
-                              "reviewScreen.description",
-                              i18n.language,
-                              t("reviewScreen.description")
-                          )
+                    hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (

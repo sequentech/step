@@ -12,7 +12,6 @@ import {
     IconButton,
     WarnBox,
     stringToHtml,
-    translateText,
     theme,
     isUndefined,
     downloadBlob,
@@ -36,7 +35,6 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
 import Stepper from "../components/Stepper"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -78,9 +76,7 @@ const Step1Container = styled(Box)`
 `
 
 const ActionButtons: React.FC = () => {
-    const {t, i18n} = useTranslation()
-    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const {t} = useTranslation()
     const triggerPrint = () => window.print()
     const backLink = useRootBackLink()
 
@@ -92,25 +88,11 @@ const ActionButtons: React.FC = () => {
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
             >
                 <Icon icon={faPrint} size="sm" />
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "auditScreen.printButton",
-                        i18n.language,
-                        t("auditScreen.printButton")
-                    )}
-                </Box>
+                <Box>{t("auditScreen.printButton")}</Box>
             </StyledButton>
             <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Box>
-                        {translateText(
-                            electionEvent,
-                            "auditScreen.restartButton",
-                            i18n.language,
-                            t("auditScreen.restartButton")
-                        )}
-                    </Box>
+                    <Box>{t("auditScreen.restartButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>
             </StyledLink>
@@ -126,8 +108,7 @@ const AuditScreen: React.FC = () => {
     }>()
     const {globalSettings} = useContext(SettingsContext)
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const {t, i18n} = useTranslation()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const {hashBallot} = provideBallotService()
@@ -165,46 +146,17 @@ const AuditScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setOpenBallotIdHelp(false)}
                     open={openBallotIdHelp}
-                    title={translateText(
-                        electionEvent,
-                        "reviewScreen.ballotIdHelpDialog.title",
-                        i18n.language,
-                        t("reviewScreen.ballotIdHelpDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "reviewScreen.ballotIdHelpDialog.ok",
-                        i18n.language,
-                        t("reviewScreen.ballotIdHelpDialog.ok")
-                    )}
-                    cancel={translateText(
-                        electionEvent,
-                        "reviewScreen.ballotIdHelpDialog.cancel",
-                        i18n.language,
-                        t("reviewScreen.ballotIdHelpDialog.cancel")
-                    )}
+                    title={t("reviewScreen.ballotIdHelpDialog.title")}
+                    ok={t("reviewScreen.ballotIdHelpDialog.ok")}
+                    cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
                     variant="info"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "reviewScreen.ballotIdHelpDialog.content",
-                            i18n.language,
-                            t("reviewScreen.ballotIdHelpDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
                 </Dialog>
                 <Stepper selected={4} warning={true} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px">
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "auditScreen.title",
-                        i18n.language,
-                        t("auditScreen.title")
-                    )}
-                </Box>
+                <Box>{t("auditScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -214,49 +166,18 @@ const AuditScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setOpenStep1Help(false)}
                     open={openStep1Help}
-                    title={translateText(
-                        electionEvent,
-                        "auditScreen.step1HelpDialog.title",
-                        i18n.language,
-                        t("auditScreen.step1HelpDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "auditScreen.step1HelpDialog.ok",
-                        i18n.language,
-                        t("auditScreen.step1HelpDialog.ok")
-                    )}
+                    title={t("auditScreen.step1HelpDialog.title")}
+                    ok={t("auditScreen.step1HelpDialog.ok")}
                     variant="info"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "auditScreen.step1HelpDialog.content",
-                            i18n.language,
-                            t("auditScreen.step1HelpDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("auditScreen.step1HelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(
-                    translateText(
-                        electionEvent,
-                        "auditScreen.description",
-                        i18n.language,
-                        t("auditScreen.description")
-                    )
-                )}
+                {stringToHtml(t("auditScreen.description"))}
             </Typography>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "auditScreen.step1Title",
-                        i18n.language,
-                        t("auditScreen.step1Title")
-                    )}
-                </Box>
+                <Box>{t("auditScreen.step1Title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -266,40 +187,16 @@ const AuditScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setOpenStep1Help(false)}
                     open={openStep1Help}
-                    title={translateText(
-                        electionEvent,
-                        "auditScreen.step1HelpDialog.title",
-                        i18n.language,
-                        t("auditScreen.step1HelpDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "auditScreen.step1HelpDialog.ok",
-                        i18n.language,
-                        t("auditScreen.step1HelpDialog.ok")
-                    )}
+                    title={t("auditScreen.step1HelpDialog.title")}
+                    ok={t("auditScreen.step1HelpDialog.ok")}
                     variant="info"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "auditScreen.step1HelpDialog.content",
-                            i18n.language,
-                            t("auditScreen.step1HelpDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("auditScreen.step1HelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
             <Step1Container>
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "auditScreen.step1Description",
-                            i18n.language,
-                            t("auditScreen.step1Description")
-                        )
-                    )}
+                    {stringToHtml(t("auditScreen.step1Description"))}
                 </Typography>
                 <StyledButton
                     sx={{minWidth: "unset", padding: "10px 16px"}}
@@ -308,26 +205,14 @@ const AuditScreen: React.FC = () => {
                 >
                     <Icon icon={faDownload} size="sm" />
                     <Box sx={{display: {xs: "none", md: "flex"}}}>
-                        {translateText(
-                            electionEvent,
-                            "auditScreen.downloadButton",
-                            i18n.language,
-                            t("auditScreen.downloadButton")
-                        )}
+                        {t("auditScreen.downloadButton")}
                     </Box>
                 </StyledButton>
             </Step1Container>
 
             <InfoDataBox>{(auditableBallot && JSON.stringify(auditableBallot)) || ""}</InfoDataBox>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "auditScreen.step2Title",
-                        i18n.language,
-                        t("auditScreen.step2Title")
-                    )}
-                </Box>
+                <Box>{t("auditScreen.step2Title")}</Box>
                 {
                     // <IconButton
                     //     icon={faCircleQuestion}
@@ -349,28 +234,14 @@ const AuditScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 <StyledLinkContainer>
                     {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "auditScreen.step2Description",
-                            i18n.language,
-                            t("auditScreen.step2Description", {
-                                linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`,
-                            })
-                        )
+                        t("auditScreen.step2Description", {
+                            linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`,
+                        })
                     )}
                 </StyledLinkContainer>
             </Typography>
             <Box margin="15px 0 25px 0">
-                <WarnBox variant="warning">
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "auditScreen.bottomWarning",
-                            i18n.language,
-                            t("auditScreen.bottomWarning")
-                        )
-                    )}
-                </WarnBox>
+                <WarnBox variant="warning">{stringToHtml(t("auditScreen.bottomWarning"))}</WarnBox>
             </Box>
             <ActionButtons />
         </PageLimit>

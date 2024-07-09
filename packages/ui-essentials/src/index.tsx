@@ -5,7 +5,12 @@
 import React from "react"
 export {default as useTemplate} from "./useTemplate"
 export {default as theme, adminTheme} from "./services/theme"
-export {default as i18n, getLanguages, initializeLanguages} from "./services/i18n"
+export {
+    default as i18n,
+    getLanguages,
+    initializeLanguages,
+    overwriteTranslations,
+} from "./services/i18n"
 export {default as Header, HeaderErrorVariant} from "./components/Header/Header"
 export {default as Dialog} from "./components/Dialog/Dialog"
 export {default as CustomDropFile} from "./components/CustomDropFile/CustomDropFile"
@@ -49,7 +54,7 @@ export {shuffle, splitList, keyBy} from "./utils/array"
 export {default as SelectElection} from "./components/SelectElection/SelectElection"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
 export {default as Tree} from "./components/Tree/Tree"
-export {translate, translateElection, translateText} from "./services/translate"
+export {translate, translateElection} from "./services/translate"
 export {NotFoundScreen} from "./components/NotFoundScreen"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"

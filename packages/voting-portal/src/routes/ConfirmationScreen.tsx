@@ -13,7 +13,6 @@ import {
     QRCode,
     Dialog,
     IElectionEventPresentation,
-    translateText,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -120,7 +119,7 @@ interface ActionButtonsProps {
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId, ballotId}) => {
     const {logout} = useContext(AuthContext)
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
     const navigate = useNavigate()
@@ -261,14 +260,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <Icon icon={faPrint} size="sm" />
-                    <Box>
-                        {translateText(
-                            electionEvent,
-                            "confirmationScreen.printButton",
-                            i18n.language,
-                            t("confirmationScreen.printButton")
-                        )}
-                    </Box>
+                    <Box>{t("confirmationScreen.printButton")}</Box>
                 </StyledButton>
                 {!canVote ? (
                     <ActionLink sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
@@ -277,14 +269,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                             className="finish-button"
                             sx={{width: {xs: "100%", sm: "200px"}}}
                         >
-                            <Box>
-                                {translateText(
-                                    electionEvent,
-                                    "confirmationScreen.finishButton",
-                                    i18n.language,
-                                    t("confirmationScreen.finishButton")
-                                )}
-                            </Box>
+                            <Box>{t("confirmationScreen.finishButton")}</Box>
                         </StyledButton>
                     </ActionLink>
                 ) : (
@@ -293,14 +278,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                         onClick={onClickToScreen}
                         sx={{width: {xs: "100%", sm: "200px"}}}
                     >
-                        <Box>
-                            {translateText(
-                                electionEvent,
-                                "confirmationScreen.finishButton",
-                                i18n.language,
-                                t("confirmationScreen.finishButton")
-                            )}
-                        </Box>
+                        <Box>{t("confirmationScreen.finishButton")}</Box>
                     </StyledButton>
                 )}
             </ActionsContainer>
@@ -308,28 +286,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             <Dialog
                 handleClose={() => setErrorDialog(false)}
                 open={errorDialog}
-                title={translateText(
-                    electionEvent,
-                    "confirmationScreen.errorDialogPrintVoteReceipt.title",
-                    i18n.language,
-                    t("confirmationScreen.errorDialogPrintVoteReceipt.title")
-                )}
-                ok={translateText(
-                    electionEvent,
-                    "confirmationScreen.errorDialogPrintVoteReceipt.ok",
-                    i18n.language,
-                    t("confirmationScreen.errorDialogPrintVoteReceipt.ok")
-                )}
+                title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
+                ok={t("confirmationScreen.errorDialogPrintVoteReceipt.ok")}
                 variant="warning"
             >
-                {stringToHtml(
-                    translateText(
-                        electionEvent,
-                        "confirmationScreen.errorDialogPrintVoteReceipt.content",
-                        i18n.language,
-                        t("confirmationScreen.errorDialogPrintVoteReceipt.content")
-                    )
-                )}
+                {stringToHtml(t("confirmationScreen.errorDialogPrintVoteReceipt.content"))}
             </Dialog>
         </>
     )
@@ -339,8 +300,7 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const {hashBallot} = provideBallotService()
@@ -370,14 +330,7 @@ const ConfirmationScreen: React.FC = () => {
                 <Stepper selected={3} />
             </Box>
             <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "confirmationScreen.title",
-                        i18n.language,
-                        t("confirmationScreen.title")
-                    )}
-                </Box>
+                <Box>{t("confirmationScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -388,39 +341,15 @@ const ConfirmationScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setOpenConfirmationHelp(false)}
                     open={openConfirmationHelp}
-                    title={translateText(
-                        electionEvent,
-                        "confirmationScreen.confirmationHelpDialog.title",
-                        i18n.language,
-                        t("confirmationScreen.confirmationHelpDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "confirmationScreen.confirmationHelpDialog.ok",
-                        i18n.language,
-                        t("confirmationScreen.confirmationHelpDialog.ok")
-                    )}
+                    title={t("confirmationScreen.confirmationHelpDialog.title")}
+                    ok={t("confirmationScreen.confirmationHelpDialog.ok")}
                     variant="info"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "confirmationScreen.confirmationHelpDialog.content",
-                            i18n.language,
-                            t("confirmationScreen.confirmationHelpDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(
-                    translateText(
-                        electionEvent,
-                        "confirmationScreen.description",
-                        i18n.language,
-                        t("confirmationScreen.description")
-                    )
-                )}
+                {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
             <BallotIdContainer>
                 <Typography
@@ -429,12 +358,7 @@ const ConfirmationScreen: React.FC = () => {
                     fontWeight="bold"
                     sx={{display: {xs: "none", sm: "block"}}}
                 >
-                    {translateText(
-                        electionEvent,
-                        "confirmationScreen.ballotId",
-                        i18n.language,
-                        t("confirmationScreen.ballotId")
-                    )}
+                    {t("confirmationScreen.ballotId")}
                 </Typography>
                 <BallotIdBorder>
                     <IconButton
@@ -455,12 +379,7 @@ const ConfirmationScreen: React.FC = () => {
                         target="_blank"
                         sx={{display: {xs: "block", sm: "none"}}}
                     >
-                        {translateText(
-                            electionEvent,
-                            "ballotHash",
-                            i18n.language,
-                            t("ballotHash", {ballotId: ballotId})
-                        )}
+                        {t("ballotHash", {ballotId: ballotId})}
                     </BallotIdLink>
                     <IconButton
                         icon={faCircleQuestion}
@@ -476,48 +395,19 @@ const ConfirmationScreen: React.FC = () => {
                     <Dialog
                         handleClose={() => setOpenBallotIdHelp(false)}
                         open={openBallotIdHelp}
-                        title={translateText(
-                            electionEvent,
-                            "confirmationScreen.ballotIdHelpDialog.title",
-                            i18n.language,
-                            t("confirmationScreen.ballotIdHelpDialog.title")
-                        )}
-                        ok={translateText(
-                            electionEvent,
-                            "confirmationScreen.ballotIdHelpDialog.ok",
-                            i18n.language,
-                            t("confirmationScreen.ballotIdHelpDialog.ok")
-                        )}
+                        title={t("confirmationScreen.ballotIdHelpDialog.title")}
+                        ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
                         variant="info"
                     >
-                        {stringToHtml(
-                            translateText(
-                                electionEvent,
-                                "confirmationScreen.ballotIdHelpDialog.content",
-                                i18n.language,
-                                t("confirmationScreen.ballotIdHelpDialog.content")
-                            )
-                        )}
+                        {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
                     </Dialog>
                 </BallotIdBorder>
             </BallotIdContainer>
             <Typography variant="h5" fontSize="18px" fontWeight="bold">
-                {translateText(
-                    electionEvent,
-                    "confirmationScreen.verifyCastTitle",
-                    i18n.language,
-                    t("confirmationScreen.verifyCastTitle")
-                )}
+                {t("confirmationScreen.verifyCastTitle")}
             </Typography>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(
-                    translateText(
-                        electionEvent,
-                        "confirmationScreen.verifyCastDescription",
-                        i18n.language,
-                        t("confirmationScreen.verifyCastDescription")
-                    )
-                )}
+                {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer>
                 <QRCode value={ballotTrackerUrl} />

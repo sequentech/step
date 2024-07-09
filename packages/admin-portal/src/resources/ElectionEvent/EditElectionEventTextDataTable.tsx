@@ -5,6 +5,7 @@
 import {Dialog, isString} from "@sequentech/ui-essentials"
 import React, {useMemo, useState} from "react"
 import {
+    Button,
     Datagrid,
     Identifier,
     List,
@@ -18,10 +19,12 @@ import {
     useUpdate,
 } from "react-admin"
 import EditIcon from "@mui/icons-material/Edit"
+import Add from "@mui/icons-material/Add"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataForm"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {
+    Box,
     Drawer,
     FormControl,
     InputLabel,
@@ -202,66 +205,78 @@ const EditElectionEventTextDataTable = () => {
     return (
         <>
             <SimpleForm toolbar={false}>
-                <FormControl fullWidth>
-                    <InputLabel id="select-language">
-                        {t("electionEventScreen.localization.selectLanguage")}
-                    </InputLabel>
-                    <Select
-                        labelId="select-language"
-                        fullWidth
-                        label={t("electionEventScreen.localization.selectLanguage")}
-                        onChange={handleLanguageChange}
-                        value={selectedLanguage}
-                    >
-                        {languageOptions &&
-                            languageOptions.map((lang) => {
-                                return (
-                                    <MenuItem key={lang} value={lang}>
-                                        {lang}
-                                    </MenuItem>
-                                )
-                            })}
-                    </Select>
-                </FormControl>
-                <List
-                    actions={
-                        <ListActions
-                            open={openCreate}
-                            setOpen={setOpenCreate}
-                            withFilter={false}
-                            withColumns={false}
-                            withExport={false}
-                            withImport={false}
-                            Component={
-                                <SimpleForm
-                                    onSubmit={handleCreateText}
-                                    toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
-                                >
-                                    <>
-                                        <PageHeaderStyles.Title>
-                                            {t("electionEventScreen.localization.common.title")}
-                                        </PageHeaderStyles.Title>
-                                        <PageHeaderStyles.SubTitle>
-                                            {t("electionEventScreen.localization.common.subTitle")}
-                                        </PageHeaderStyles.SubTitle>
-
-                                        <TextInput
-                                            source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                            label={t("electionEventScreen.localization.labels.key")}
-                                        />
-                                        <TextInput
-                                            source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                            label={t(
-                                                "electionEventScreen.localization.labels.value"
-                                            )}
-                                        />
-                                    </>
-                                </SimpleForm>
-                            }
-                        />
-                    }
-                    sx={{flexGrow: 1, width: "100%"}}
+                <Box
+                    sx={{
+                        flexGrow: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        width: "100%",
+                        justifyContent: "space-between",
+                    }}
                 >
+                    <FormControl key="select-language" sx={{width: "50%"}}>
+                        <InputLabel id="select-language">
+                            {t("electionEventScreen.localization.selectLanguage")}
+                        </InputLabel>
+                        <Select
+                            labelId="select-language"
+                            fullWidth
+                            label={t("electionEventScreen.localization.selectLanguage")}
+                            onChange={handleLanguageChange}
+                            value={selectedLanguage}
+                        >
+                            {languageOptions &&
+                                languageOptions.map((lang) => {
+                                    return (
+                                        <MenuItem key={lang} value={lang}>
+                                            {t(`common.language.${lang}`)}
+                                        </MenuItem>
+                                    )
+                                })}
+                        </Select>
+                    </FormControl>
+                    <div className="list-actions">
+                        <Button onClick={() => setOpenCreate(true)} label={t("common.label.add")}>
+                            <Add />
+                        </Button>
+
+                        <Drawer
+                            anchor="right"
+                            open={openCreate}
+                            onClose={() => {
+                                setOpenCreate(false)
+                            }}
+                            PaperProps={{
+                                sx: {width: "30%"},
+                            }}
+                        >
+                            <SimpleForm
+                                onSubmit={handleCreateText}
+                                toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
+                            >
+                                <>
+                                    <PageHeaderStyles.Title>
+                                        {t("electionEventScreen.localization.common.title")}
+                                    </PageHeaderStyles.Title>
+                                    <PageHeaderStyles.SubTitle>
+                                        {t("electionEventScreen.localization.common.subTitle")}
+                                    </PageHeaderStyles.SubTitle>
+
+                                    <TextInput
+                                        source={`presentation.i18n.${selectedLanguage}.newKey`}
+                                        label={t("electionEventScreen.localization.labels.key")}
+                                    />
+                                    <TextInput
+                                        source={`presentation.i18n.${selectedLanguage}.newVal`}
+                                        label={t("electionEventScreen.localization.labels.value")}
+                                        multiline
+                                    />
+                                </>
+                            </SimpleForm>
+                        </Drawer>
+                    </div>
+                </Box>
+                <List actions={false} sx={{flexGrow: 1, width: "100%"}}>
                     <Datagrid
                         data={translationData}
                         total={translationData.length}
@@ -317,6 +332,7 @@ const EditElectionEventTextDataTable = () => {
                                     ? record.presentation.i18n[selectedLanguage][recordId]
                                     : undefined
                             }
+                            multiline
                         />
                     </>
                 </SimpleForm>

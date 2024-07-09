@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {WarnBox, IContest, translateText} from "@sequentech/ui-essentials"
+import {WarnBox, IContest} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
@@ -11,9 +11,6 @@ import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest} from "sequent-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
-import {useParams} from "react-router-dom"
-import {TenantEventType} from "../.."
-import {selectElectionEventById} from "../../store/electionEvents/electionEventsSlice"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -38,7 +35,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     setDecodedContests,
     isReview,
 }) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
     const [decodedContestSelection, setDecodedContestSelection] = useState<
         IDecodedVoteContest | undefined
@@ -49,8 +46,6 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
-    const {eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = useMemo(
         () => selectionState?.find((contest) => contest.contest_id === question.id),
@@ -115,14 +110,9 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         <ErrorWrapper>
             {numAvailableChars < 0 ? (
                 <WarnBox variant="warning">
-                    {translateText(
-                        electionEvent,
-                        "errors.encoding.writeInCharsExceeded",
-                        i18n.language,
-                        t("errors.encoding.writeInCharsExceeded", {
-                            numCharsExceeded: -numAvailableChars,
-                        })
-                    )}
+                    {t("errors.encoding.writeInCharsExceeded", {
+                        numCharsExceeded: -numAvailableChars,
+                    })}
                 </WarnBox>
             ) : null}
             {filteredSelection?.invalid_errors.map((error, index) => (
@@ -132,12 +122,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
             ))}
             {filteredSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox variant="info" key={index}>
-                    {translateText(
-                        electionEvent,
-                        error.message || "",
-                        i18n.language,
-                        t(error.message || "", error.message_map ?? {})
-                    )}
+                    {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
         </ErrorWrapper>

@@ -6,7 +6,7 @@ import {Box, Button, Typography} from "@mui/material"
 import React from "react"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
-import {Dialog, theme, translateText} from "@sequentech/ui-essentials"
+import {Dialog, theme} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {GET_DOCUMENT} from "../../queries/GetDocument"
 import {useQuery} from "@apollo/client"
@@ -17,10 +17,6 @@ import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {GetDocumentQuery} from "../../gql/graphql"
 import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
-import {useParams} from "react-router-dom"
-import {selectElectionEventById} from "../../store/electionEvents/electionEventsSlice"
-import {useAppSelector} from "../../store/hooks"
-import {TenantEventType} from "../.."
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -93,11 +89,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     tenantId,
     documentId,
 }) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-    const {eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
     const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
@@ -148,18 +142,8 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
             <Dialog
                 variant="info"
                 open={openPreview}
-                ok={translateText(
-                    electionEvent,
-                    "materials.common.close",
-                    i18n.language,
-                    t("materials.common.close")
-                )}
-                title={translateText(
-                    electionEvent,
-                    "materials.common.preview",
-                    i18n.language,
-                    t("materials.common.preview")
-                )}
+                ok={t("materials.common.close")}
+                title={t("materials.common.preview")}
                 handleClose={(result: boolean) => {
                     openPreviewSet(false)
                 }}

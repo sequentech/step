@@ -16,7 +16,6 @@ import {
     Dialog,
     translateElection,
     sortContestList,
-    translateText,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -44,8 +43,6 @@ import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "sequent-core"
-import {TenantEventType} from ".."
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -89,11 +86,9 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
-    const {eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
 
@@ -118,28 +113,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                 variant="secondary"
                 onClick={() => handleClearSelection()}
             >
-                <Box>
-                    {translateText(
-                        electionEvent,
-                        "votingScreen.clearButton",
-                        i18n.language,
-                        t("votingScreen.clearButton")
-                    )}
-                </Box>
+                <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
             <ActionsContainer>
                 <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Icon icon={faAngleLeft} size="sm" />
-                        <Box>
-                            {translateText(
-                                electionEvent,
-                                "votingScreen.backButton",
-                                i18n.language,
-                                t("votingScreen.backButton")
-                            )}
-                        </Box>
+                        <Box>{t("votingScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
 
@@ -151,14 +132,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     variant="secondary"
                     onClick={() => handleClearSelection()}
                 >
-                    <Box>
-                        {translateText(
-                            electionEvent,
-                            "votingScreen.clearButton",
-                            i18n.language,
-                            t("votingScreen.clearButton")
-                        )}
-                    </Box>
+                    <Box>{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
 
                 <StyledButton
@@ -167,14 +141,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     onClick={() => handleNext()}
                     // disabled={disableNext}
                 >
-                    <Box>
-                        {translateText(
-                            electionEvent,
-                            "votingScreen.reviewButton",
-                            i18n.language,
-                            t("votingScreen.reviewButton")
-                        )}
-                    </Box>
+                    <Box>{t("votingScreen.reviewButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
@@ -186,8 +153,6 @@ const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {logout} = useContext(AuthContext)
     const canVote = useAppSelector(canVoteSomeElection())
-    const {eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const {electionId} = useParams<{electionId?: string}>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
@@ -332,28 +297,11 @@ const VotingScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setOpenBallotHelp(false)}
                     open={openBallotHelp}
-                    title={translateText(
-                        electionEvent,
-                        "votingScreen.ballotHelpDialog.title",
-                        i18n.language,
-                        t("votingScreen.ballotHelpDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "votingScreen.ballotHelpDialog.ok",
-                        i18n.language,
-                        t("votingScreen.ballotHelpDialog.ok")
-                    )}
+                    title={t("votingScreen.ballotHelpDialog.title")}
+                    ok={t("votingScreen.ballotHelpDialog.ok")}
                     variant="info"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "votingScreen.ballotHelpDialog.content",
-                            i18n.language,
-                            t("votingScreen.ballotHelpDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
             {election.description ? (
@@ -377,61 +325,22 @@ const VotingScreen: React.FC = () => {
                 <Dialog
                     handleClose={(value) => setOpenNonVoted(false)}
                     open={openNotVoted}
-                    title={translateText(
-                        electionEvent,
-                        "votingScreen.nonVotedDialog.title",
-                        i18n.language,
-                        t("votingScreen.nonVotedDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "votingScreen.nonVotedDialog.ok",
-                        i18n.language,
-                        t("votingScreen.nonVotedDialog.ok")
-                    )}
+                    title={t("votingScreen.nonVotedDialog.title")}
+                    ok={t("votingScreen.nonVotedDialog.ok")}
                     variant="softwarning"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "votingScreen.nonVotedDialog.content",
-                            i18n.language,
-                            t("votingScreen.nonVotedDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
                 </Dialog>
             ) : (
                 <Dialog
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
-                    title={translateText(
-                        electionEvent,
-                        "votingScreen.nonVotedDialog.title",
-                        i18n.language,
-                        t("votingScreen.nonVotedDialog.title")
-                    )}
-                    ok={translateText(
-                        electionEvent,
-                        "votingScreen.nonVotedDialog.continue",
-                        i18n.language,
-                        t("votingScreen.nonVotedDialog.continue")
-                    )}
-                    cancel={translateText(
-                        electionEvent,
-                        "votingScreen.nonVotedDialog.cancel",
-                        i18n.language,
-                        t("votingScreen.nonVotedDialog.cancel")
-                    )}
+                    title={t("votingScreen.nonVotedDialog.title")}
+                    ok={t("votingScreen.nonVotedDialog.continue")}
+                    cancel={t("votingScreen.nonVotedDialog.cancel")}
                     variant="action"
                 >
-                    {stringToHtml(
-                        translateText(
-                            electionEvent,
-                            "votingScreen.nonVotedDialog.content",
-                            i18n.language,
-                            t("votingScreen.nonVotedDialog.content")
-                        )
-                    )}
+                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
                 </Dialog>
             )}
         </PageLimit>
