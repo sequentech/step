@@ -14,7 +14,7 @@ export interface ExtraState {
 
 const initialState: ExtraState = {
     bypassChooser: false,
-    isVoted: {}
+    isVoted: {},
 }
 
 export const extraSlice = createSlice({
@@ -25,11 +25,11 @@ export const extraSlice = createSlice({
             state.bypassChooser = action.payload
             return state
         },
-        setIsVoted: (state: ExtraState, action: PayloadAction<any>): ExtraState => { 
+        setIsVoted: (state: ExtraState, action: PayloadAction<any>): ExtraState => {
             state.isVoted[action.payload] = true
             return state
         },
-        clearIsVoted: (state: ExtraState): ExtraState => { 
+        clearIsVoted: (state: ExtraState): ExtraState => {
             state.isVoted = {}
             return state
         },
@@ -39,7 +39,6 @@ export const extraSlice = createSlice({
 export const {setBypassChooser, setIsVoted, clearIsVoted} = extraSlice.actions
 
 export const selectBypassChooser = () => (state: RootState) => state.extra.bypassChooser
-
 
 export const isVotedByElectionId = (electionId: string | undefined) => (state: RootState) => {
     return electionId ? state.extra.isVoted[electionId] : false

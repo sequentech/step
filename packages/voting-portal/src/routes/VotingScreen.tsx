@@ -123,8 +123,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
             </StyledButton>
 
             <ActionsContainer>
-                <StyledLink 
-                    to={backLink} 
+                <StyledLink
+                    to={backLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
