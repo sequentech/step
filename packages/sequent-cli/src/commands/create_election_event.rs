@@ -30,7 +30,7 @@ fn create_election_event(event: &ElectionEvent) -> Result<(), Box<dyn std::error
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let endpoint_url = format!("{}/election-event", config.endpoint_url);
+    let endpoint_url = format!("{}/insert-election-event", config.endpoint_url);
     let response = client
         .post(&endpoint_url)
         .header("Authorization", format!("Bearer {}", config.auth_token))
