@@ -16,7 +16,6 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;

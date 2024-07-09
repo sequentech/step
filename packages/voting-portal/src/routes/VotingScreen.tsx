@@ -153,6 +153,7 @@ const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {logout} = useContext(AuthContext)
     const canVote = useAppSelector(canVoteSomeElection())
+    
     const {electionId} = useParams<{electionId?: string}>()
 
     let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
