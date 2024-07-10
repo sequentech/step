@@ -451,9 +451,7 @@ const ConfirmationScreen: React.FC = () => {
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer>
-                <QRCode
-                    value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl}
-                />
+                <QRCode value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl} />
             </QRContainer>
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}
