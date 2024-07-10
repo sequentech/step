@@ -103,7 +103,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         } else {
             setCurrentStep(WizardStep.Status)
         }
-    }, [currentCeremony])
+    }, [])
 
     const checkKeysGenerated = () => {
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
