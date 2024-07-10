@@ -21,23 +21,20 @@ use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as 
 use aws_sdk_sesv2::Client as AwsSesClient;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
-use handlebars::RenderError;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::communications::{
-    AudienceSelection, CommunicationMethod, CommunicationType, EmailConfig, SendCommunicationBody,
-    SmsConfig,
+    AudienceSelection, CommunicationMethod, EmailConfig, SendCommunicationBody, SmsConfig,
 };
 use sequent_core::types::keycloak::{User, UserArea};
-use serde::{Deserialize, Serialize};
+use sequent_core::services::generate_urls::get_login_url;
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::default::Default;
-use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
@@ -67,12 +64,12 @@ fn get_variables(
         );
         variables.insert(
             "vote_url".to_string(),
-            json!(format!(
-                "{base_url}/tenant/{tenant_id}/event/{event_id}/login",
-                base_url = std::env::var("VOTING_PORTAL_URL")
-                    .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?,
-                tenant_id = tenant_id,
-                event_id = election_event.id,
+            json!(get_login_url(
+                std::env::var("VOTING_PORTAL_URL")
+                    .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?
+                    .as_str(),
+                &tenant_id,
+                &election_event.id,
             )),
         );
     }

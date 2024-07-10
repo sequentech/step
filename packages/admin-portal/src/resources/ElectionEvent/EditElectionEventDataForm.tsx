@@ -31,7 +31,7 @@ import {
     Typography,
 } from "@mui/material"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useTranslation} from "react-i18next"
@@ -63,6 +63,8 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
+import {getLoginUrl} from "@/services/UrlGeneration"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -199,6 +201,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
+    const {globalSettings} = useContext(SettingsContext)
     const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
@@ -478,6 +481,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const loginUrl = useMemo(() => {
+        return getLoginUrl(globalSettings.VOTING_PORTAL_URL, tenantId ?? "", record?.id ?? "")
+    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
+
     return (
         <>
             <Box
@@ -505,6 +512,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </Button>,
                     ]}
                 />
+            </Box>
+            <Box>
+                <a href={loginUrl ?? ""} target="_blank">
+                    Voter login URL
+                </a>
             </Box>
             <RecordContext.Consumer>
                 {(incoming) => {

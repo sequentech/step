@@ -96,7 +96,9 @@ export const Question: React.FC<IQuestionProps> = ({
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
-    let hasBlankCandidate = invalidOrBlankCandidates.some(candidate => checkIsExplicitBlankVote(candidate))
+    let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
+        checkIsExplicitBlankVote(candidate)
+    )
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )

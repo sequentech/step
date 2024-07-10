@@ -11,6 +11,7 @@ use crate::interpret_plaintext::{
     check_is_blank, get_layout_properties, get_points,
 };
 use crate::plaintext::*;
+use crate::services::generate_urls::get_login_url;
 //use crate::serialization::base64::Base64Deserialize;
 use crate::util::normalize_vote::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
@@ -433,3 +434,36 @@ pub fn check_voting_error_dialog(
 
     Ok(JsValue::from_bool(show_voting_alert))
 }
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn get_login_url_js(
+    base_url_json: JsValue,
+    tenant_id_json: JsValue,
+    event_id_json: JsValue
+) -> Result<JsValue, JsValue> {
+    // parse input
+    let base_url: String =
+        serde_wasm_bindgen::from_value(base_url_json)
+            .map_err(|err| {
+                format!("Error deserializing base_url: {err}",)
+            })
+            .into_json()?;
+    let tenant_id: String =
+        serde_wasm_bindgen::from_value(tenant_id_json)
+            .map_err(|err| {
+                format!("Error deserializing tenant_id: {err}",)
+            })
+            .into_json()?;
+    let event_id: String =
+        serde_wasm_bindgen::from_value(event_id_json)
+            .map_err(|err| {
+                format!("Error deserializing event_id: {err}",)
+            })
+            .into_json()?;
+    // return result
+    let login_url: String = get_login_url(&base_url, &tenant_id, &event_id);
+    serde_wasm_bindgen::to_value(&login_url)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+} 
