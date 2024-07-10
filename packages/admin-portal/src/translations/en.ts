@@ -221,6 +221,7 @@ const englishTranslation = {
         dashboard: {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
+            voterLoginURL: "Voter Login URL",
         },
         electionEventScreen: {
             common: {
@@ -236,6 +237,7 @@ const englishTranslation = {
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
                 advancedConfigurations: "Advanced Configurations",
+                importCandidates: "Import Candidates",
             },
             field: {
                 name: "Name",
@@ -726,6 +728,7 @@ const englishTranslation = {
                 image: "Image",
                 isDisabled: "Disabled",
                 isExplicitInvalid: "Invalid Vote",
+                isExplicitBlank: "Blank Vote",
                 isCategoryList: "Category List",
                 isWriteIn: "Write-in",
             },
