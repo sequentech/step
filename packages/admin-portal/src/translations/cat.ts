@@ -731,6 +731,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 isDisabled: "Deshabilitat",
                 isExplicitInvalid: "Vot Invàlid",
+                isExplicitBlank: "Vot en Blanc",
                 isCategoryList: "Llista",
                 isWriteIn: "Vot per escrit",
             },

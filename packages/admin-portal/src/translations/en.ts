@@ -726,6 +726,7 @@ const englishTranslation = {
                 image: "Image",
                 isDisabled: "Disabled",
                 isExplicitInvalid: "Invalid Vote",
+                isExplicitBlank: "Blank Vote",
                 isCategoryList: "Category List",
                 isWriteIn: "Write-in",
             },

@@ -733,6 +733,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 isDisabled: "Désactivé",
                 isExplicitInvalid: "Vote Inválido",
+                isExplicitBlank: "Vote Blanc",
                 isCategoryList: "Liste",
                 isWriteIn: "Vote par Écrit",
             },

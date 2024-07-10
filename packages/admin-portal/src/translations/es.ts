@@ -730,6 +730,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 isDisabled: "Deshabilitado",
                 isExplicitInvalid: "Voto Inválido",
+                isExplicitBlank: "Voto en Blanco",
                 isCategoryList: "Lista",
                 isWriteIn: "Voto por Escrito",
             },
