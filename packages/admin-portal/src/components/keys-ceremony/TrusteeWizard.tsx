@@ -44,7 +44,7 @@ const hasTrusteeCheckedKeys = (
 interface TrusteeWizardProps {
     electionEvent: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony
-
+    setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     goBack: () => void
 }
 
@@ -60,6 +60,7 @@ enum WizardStep {
 export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     electionEvent,
     currentCeremony,
+    setCurrentCeremony,
     goBack,
 }) => {
     const {t} = useTranslation()
@@ -147,14 +148,15 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             )}
             {currentStep === WizardStep.Success && (
                 <CeremonyStep
-                    currentCeremony={currentCeremony}
+                    currentCeremonyId={currentCeremony?.id}
                     electionEvent={electionEvent}
                     goBack={goBack}
                 />
             )}
             {(currentStep === WizardStep.Status || currentStep === WizardStep.Not_Generated) && (
                 <CeremonyStep
-                    currentCeremony={currentCeremony}
+                    currentCeremonyId={currentCeremony?.id}
+                    setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
                     goNext={

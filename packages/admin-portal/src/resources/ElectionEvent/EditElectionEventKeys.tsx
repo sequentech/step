@@ -258,6 +258,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                 <TrusteeWizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}
+                    setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
                 />
             )}
