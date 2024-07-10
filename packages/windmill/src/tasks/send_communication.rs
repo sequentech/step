@@ -24,13 +24,13 @@ use celery::error::TaskError;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::generate_urls::get_login_url;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::communications::{
     AudienceSelection, CommunicationMethod, EmailConfig, SendCommunicationBody, SmsConfig,
 };
 use sequent_core::types::keycloak::{User, UserArea};
-use sequent_core::services::generate_urls::get_login_url;
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
