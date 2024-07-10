@@ -4,4 +4,5 @@ use serde::{Deserialize, Serialize};
 pub struct ConfigData {
     pub auth_token: String,
     pub endpoint_url: String,
+    pub tenant_id: String,
 }

@@ -12,20 +12,19 @@ impl CreateElectionEvent {
     pub fn run(&self) {
         let name = prompt("Enter the name of the election event: ", true);
         let description = prompt("Enter the description of the election event: ", false);
-        let tenant_id = prompt("Enter the tenant ID: ", true);
 
-        let presentation = serde_json::json!({});
-        let encryption_protocol = String::from("RSA256");
-        let is_archived = false;
+        let presentation = serde_json::json!({}); // Currently hardcoded to empty
+        let encryption_protocol = String::from("RSA256"); // Currently hardcoded to this option only
+        let is_archived = false; // Currently hardcoded
 
         let pb = create_spinner("Creating election event...");
         let event = CreateElectionEventRequest {
             name,
             description,
             presentation,
-            tenant_id,
             encryption_protocol,
             is_archived,
+            tenant_id: None
         };
 
         match create_election_event(&event) {
@@ -47,11 +46,16 @@ fn create_election_event(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
+    let event_with_tenant_id = CreateElectionEventRequest {
+        tenant_id: Some(config.tenant_id.clone()), 
+        ..event.clone() // Clone the existing event and override tenant_id
+    };
+    
     let endpoint_url = format!("{}/insert-election-event", config.endpoint_url);
     let response = client
         .post(endpoint_url)
         .bearer_auth(config.auth_token)
-        .json(&event)
+        .json(&event_with_tenant_id)
         .send()?;
 
     if response.status().is_success() {

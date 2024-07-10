@@ -11,12 +11,14 @@ pub struct Config;
 
 impl Config {
     pub fn run(&self) {
-        let auth_token = prompt("Enter the authToken: ", true);
+        let auth_token = prompt("Enter auth token: ", true);
+        let tenant_id = prompt("Enter tenant id: ", true);
         let endpoint_url = prompt("Enter the endpoint URL: ", true);
 
         let config_data = ConfigData {
             auth_token,
             endpoint_url,
+            tenant_id
         };
 
         let config_dir = get_config_dir();
