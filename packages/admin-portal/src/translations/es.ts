@@ -102,6 +102,7 @@ const spanishTranslation: TranslationType = {
                     "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
                 ok: "OK",
             },
+            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración"
         },
         auditScreen: {
             printButton: "Imprimir",

@@ -27,7 +27,10 @@ import {selectElectionEventById} from "../store/electionEvents/electionEventsSli
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
-import {selectBallotStyleByElectionId, selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectFirstBallotStyle,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
@@ -389,16 +392,22 @@ const ConfirmationScreen: React.FC = () => {
                         color={theme.palette.customGrey.contrastText}
                     />
                     <BallotIdLink
-                        href={ballotTrackerUrl}
-                        target="_blank"
-                        sx={{display: {xs: "none", sm: "block"}}}
+                        href={!isDemo ? ballotTrackerUrl : undefined}
+                        target={!isDemo ? "_blank" : undefined}
+                        sx={{
+                            display: {xs: "none", sm: "block"},
+                            cursor: isDemo ? "not-allowed" : "pointer",
+                        }}
                     >
                         {ballotId}
                     </BallotIdLink>
                     <BallotIdLink
-                        href={ballotTrackerUrl}
-                        target="_blank"
-                        sx={{display: {xs: "block", sm: "none"}}}
+                        href={!isDemo ? ballotTrackerUrl : undefined}
+                        target={!isDemo ? "_blank" : undefined}
+                        sx={{
+                            display: {xs: "block", sm: "none"},
+                            cursor: isDemo ? "not-allowed" : "pointer",
+                        }}
                     >
                         {t("ballotHash", {ballotId: ballotId})}
                     </BallotIdLink>
@@ -442,7 +451,9 @@ const ConfirmationScreen: React.FC = () => {
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer>
-                <QRCode value={ballotTrackerUrl} />
+                <QRCode
+                    value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl}
+                />
             </QRContainer>
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}
