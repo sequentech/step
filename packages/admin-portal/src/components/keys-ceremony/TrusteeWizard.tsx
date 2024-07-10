@@ -49,6 +49,7 @@ interface TrusteeWizardProps {
 }
 
 enum WizardStep {
+    Not_Generated = -1,
     Start = 0,
     Download = 1,
     Check = 2,
@@ -97,7 +98,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
             setCurrentStep(WizardStep.Start)
         } else {
-            setCurrentStep(WizardStep.Status)
+            setCurrentStep(WizardStep.Not_Generated)
         }
     }, [currentCeremony])
 
@@ -145,27 +146,28 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     goBack={goBack}
                 />
             )}
-            {currentStep === WizardStep.Status && (
-                <CeremonyStep
-                    currentCeremony={currentCeremony}
-                    electionEvent={electionEvent}
-                    goBack={goBack}
-                    goNext={
-                        !trusteeCheckedKeys && trusteeParticipating && keysGenerated
-                            ? () => setCurrentStep(WizardStep.Start)
-                            : undefined
-                    }
-                    message={
-                        !trusteeCheckedKeys && trusteeParticipating && !keysGenerated ? (
-                            <>
-                                <Alert severity="warning">
-                                    {t("electionEventScreen.keys.waitingKeys")}
-                                </Alert>
-                            </>
-                        ) : undefined
-                    }
-                />
-            )}
+            {currentStep === WizardStep.Status ||
+                (currentStep === WizardStep.Not_Generated && (
+                    <CeremonyStep
+                        currentCeremony={currentCeremony}
+                        electionEvent={electionEvent}
+                        goBack={goBack}
+                        goNext={
+                            !trusteeCheckedKeys && trusteeParticipating && keysGenerated
+                                ? () => setCurrentStep(WizardStep.Start)
+                                : undefined
+                        }
+                        message={
+                            !trusteeCheckedKeys && trusteeParticipating && !keysGenerated ? (
+                                <>
+                                    <Alert severity="warning">
+                                        {t("electionEventScreen.keys.waitingKeys")}
+                                    </Alert>
+                                </>
+                            ) : undefined
+                        }
+                    />
+                ))}
         </WizardStyles.WizardWrapper>
     )
 }
