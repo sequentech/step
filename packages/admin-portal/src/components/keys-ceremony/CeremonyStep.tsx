@@ -49,6 +49,7 @@ export interface CeremonyStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     electionEvent: Sequent_Backend_Election_Event
     goNext?: () => void
+    isNextDisabled?: boolean
     goBack: () => void
 }
 
@@ -58,6 +59,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     electionEvent,
     goBack,
     goNext,
+    isNextDisabled = false,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -178,7 +180,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
                 {!!goNext && (
-                    <WizardStyles.NextButton color="info" onClick={goNext}>
+                    <WizardStyles.NextButton
+                        color="info"
+                        onClick={goNext}
+                        disabled={isNextDisabled}
+                    >
                         <ArrowForwardIosIcon />
                         {t("common.label.next")}
                     </WizardStyles.NextButton>
