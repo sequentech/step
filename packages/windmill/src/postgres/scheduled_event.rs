@@ -278,6 +278,7 @@ pub async fn insert_scheduled_event(
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
     let event_processor_s = event_processor.to_string();
+    info!("insert_scheduled_event");
     let statement = hasura_transaction
         .prepare(
             r#"

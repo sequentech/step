@@ -403,33 +403,18 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onSave = async () => {
-                    if(startDate) {
-                        let isUnset = incoming.presentation.dates.scheduled_opening
-
-                        const {data} = await manageElectionDates({
-                            variables: {
-                                electionEventId: parsedValue.election_event_id,
-                                electionId: parsedValue.id,
-                                isStart: true,
-                                isUnset: !!isUnset,
-                                date: startDate,
-                            },
-                        })
-                    }
-                    if(stopDate) {
-                        let isUnset = incoming.presentation.dates.scheduled_closing
-
-                        const {data} = await manageElectionDates({
-                            variables: {
-                                electionEventId: parsedValue.election_event_id,
-                                electionId: parsedValue.id,
-                                isStart: false,
-                                isUnset: !!isUnset,
-                                date: stopDate,
-                            },
-                        })
-                    }
+                const onSave = async () => { 
+                            let isUnset = incoming.presentation.dates.scheduled_closing
+                            console.log("onSave");
+                            const {data} = await manageElectionDates({
+                                variables: {
+                                    electionEventId: parsedValue.election_event_id,
+                                    electionId: parsedValue.id,
+                                    start_date: startDate,
+                                    stop_date: stopDate,
+                                },
+                            })
+                  
                 }
 
                 const onScheduledOpening: React.MouseEventHandler<HTMLButtonElement> &
@@ -493,12 +478,6 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
-                                        {/* <BooleanInput
-                                            source={`presentation.dates.scheduled_opening`}
-                                            label={t(`electionScreen.field.scheduledOpening`)}
-                                            helperText={false}
-                                            onClick={onScheduledOpening}
-                                        /> */}
                                         <DateTimeInput
                                             source={`presentation.dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}

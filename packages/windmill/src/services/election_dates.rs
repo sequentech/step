@@ -34,9 +34,8 @@ pub async fn manage_dates(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    is_start: bool,
-    is_unset: bool,
-    date: Option<&str>,
+    start_date: Option<&str>,
+    end_date: Option<&str>,
 ) -> Result<()> {
     let found_election = get_election_by_id(
         hasura_transaction,
@@ -48,6 +47,9 @@ pub async fn manage_dates(
     let Some(election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
+    info!("start_date={:?}", start_date);
+    info!("end_date={:?}", end_date);
+
     info!("election={election:?}");
     let election_presentation: ElectionPresentation = election
         .presentation
@@ -61,163 +63,130 @@ pub async fn manage_dates(
         .clone()
         .unwrap_or(Default::default());
     let mut new_dates = current_dates.clone();
-
-    let task_id = generate_manage_date_election_task_name(
+    let start_task_id = generate_manage_date_election_task_name(
         tenant_id,
         election_event_id,
         election_id,
-        is_start,
+        true,
     );
-    info!("date={date:?}");
-    info!("new_dates={new_dates:?}");
-    let scheduled_manage_date_opt =
-        find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &task_id)
+    let end_task_id = generate_manage_date_election_task_name(
+        tenant_id,
+        election_event_id,
+        election_id,
+        false,
+    );
+
+    let scheduled_manage_start_date_opt =
+    find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &start_task_id)
+        .await?;
+
+    let scheduled_manage_end_date_opt =
+        find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &end_task_id)
             .await?;
-    info!("current_dates={current_dates:?}");
-    match date {
+
+    match start_date {
         Some(date) => {
-            info!("is_unset is false");
-            if is_start {
-                new_dates.scheduled_opening = Some(true);
-            } else {
-                new_dates.scheduled_closing = Some(true);
-            }
-            let Some(manage_date_str) = (if is_start {
-                current_dates.start_date
-            } else {
-                current_dates.end_date
-            }) else {
-                info!("Empty date");
-                return Err(anyhow!("Empty date"));
-            };
-            info!("manage_date_str = {manage_date_str}");
-            let manage_date_date = ISO8601::to_date(&manage_date_str)?;
-            let now = ISO8601::now();
-            let now_str = now.to_string();
-            if manage_date_date < now {
-                info!("date {manage_date_str} can't be before now {now_str}");
-                return Err(anyhow!("date can't be before now"));
-            }
-    
+            new_dates.scheduled_opening = Some(true);
+            new_dates.start_date = Some(date.to_string());
+            //TODO: check if date is smaller than now or bigger than end_date and return error
             let cron_config = CronConfig {
                 cron: None,
-                scheduled_date: Some(manage_date_str),
+                scheduled_date: Some(date.to_string()),
             };
-            if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
+          
+            if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
                 info!("update_scheduled_event");
                 update_scheduled_event(
                     hasura_transaction,
                     tenant_id,
-                    &scheduled_manage_date.id,
+                    &scheduled_manage_start_date.id,
                     cron_config,
                 )
                 .await?;
             } else {
                 info!("insert_scheduled_event");
-                let event_processor = if is_start {
-                    EventProcessors::START_ELECTION
-                } else {
-                    EventProcessors::END_ELECTION
-                };
+                let event_processor = EventProcessors::START_ELECTION;
+
                 let payload = ManageElectionDatePayload {
                     election_id: election_id.to_string(),
                 };
-                info!("payload={payload:?}");
                 insert_scheduled_event(
                     hasura_transaction,
                     tenant_id,
                     election_event_id,
                     event_processor,
-                    &task_id,
+                    &start_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
                 )
                 .await?;
             }
+
         }
         None => {
-            if(is_start) {
-                new_dates.scheduled_opening = Some(false);
+            if (current_dates.start_date.is_none()) {
+                
             } else {
-                new_dates.scheduled_closing = Some(false);
-            }
-            if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
-                stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
+                //STOP PREVIOS START TASK
+                new_dates.scheduled_opening = Some(false);
+                if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
+                    stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_start_date.id).await?;
+                }
             }
         }
     }
 
-    
-    // if is_unset {
-    //     info!("is_unset is true");
-    //     if is_start {
-    //         new_dates.scheduled_opening = Some(false);
-    //     } else {
-    //         new_dates.scheduled_closing = Some(false);
-    //     }
-    //     if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
-    //         stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_date.id).await?;
-    //     }
-    // } else {
-    //     info!("is_unset is false");
-    //     if is_start {
-    //         new_dates.scheduled_opening = Some(true);
-    //     } else {
-    //         new_dates.scheduled_closing = Some(true);
-    //     }
-    //     let Some(manage_date_str) = (if is_start {
-    //         current_dates.start_date
-    //     } else {
-    //         current_dates.end_date
-    //     }) else {
-    //         info!("Empty date");
-    //         return Err(anyhow!("Empty date"));
-    //     };
-    //     info!("manage_date_str = {manage_date_str}");
-    //     let manage_date_date = ISO8601::to_date(&manage_date_str)?;
-    //     let now = ISO8601::now();
-    //     let now_str = now.to_string();
-    //     if manage_date_date < now {
-    //         info!("date {manage_date_str} can't be before now {now_str}");
-    //         return Err(anyhow!("date can't be before now"));
-    //     }
+    match end_date {
+        Some(date) => {
+            new_dates.scheduled_closing = Some(true);
+            new_dates.end_date = Some(date.to_string());
+            //TODO: check if date is smaller than now or bigger than end_date and return error;
+            let cron_config = CronConfig {
+                cron: None,
+                scheduled_date: Some(date.to_string()),
+            };
+          
+            if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
+                info!("update_scheduled_event");
+                update_scheduled_event(
+                    hasura_transaction,
+                    tenant_id,
+                    &scheduled_manage_end_date.id,
+                    cron_config,
+                )
+                .await?;
+            } else {
+                info!("insert_scheduled_event");
+                let event_processor = EventProcessors::END_ELECTION;
 
-    //     let cron_config = CronConfig {
-    //         cron: None,
-    //         scheduled_date: Some(manage_date_str),
-    //     };
-    //     if let Some(scheduled_manage_date) = scheduled_manage_date_opt {
-    //         info!("update_scheduled_event");
-    //         update_scheduled_event(
-    //             hasura_transaction,
-    //             tenant_id,
-    //             &scheduled_manage_date.id,
-    //             cron_config,
-    //         )
-    //         .await?;
-    //     } else {
-    //         info!("insert_scheduled_event");
-    //         let event_processor = if is_start {
-    //             EventProcessors::START_ELECTION
-    //         } else {
-    //             EventProcessors::END_ELECTION
-    //         };
-    //         let payload = ManageElectionDatePayload {
-    //             election_id: election_id.to_string(),
-    //         };
-    //         info!("payload={payload:?}");
-    //         insert_scheduled_event(
-    //             hasura_transaction,
-    //             tenant_id,
-    //             election_event_id,
-    //             event_processor,
-    //             &task_id,
-    //             cron_config,
-    //             serde_json::to_value(payload)?,
-    //         )
-    //         .await?;
-    //     }
-    // }
+                let payload = ManageElectionDatePayload {
+                    election_id: election_id.to_string(),
+                };
+                insert_scheduled_event(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    event_processor,
+                    &start_task_id,
+                    cron_config,
+                    serde_json::to_value(payload)?,
+                )
+                .await?;
+            }
+
+        }
+        None => {
+            if (current_dates.start_date.is_none()) {
+                
+            } else {
+                //STOP PREVIOS END TASK
+                new_dates.scheduled_closing = Some(false);
+                if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
+                    stop_scheduled_event(hasura_transaction, tenant_id, &scheduled_manage_end_date.id).await?;
+                }
+            }
+        }
+    }
 
     let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
     info!("update_election_presentation with new_dates={new_dates:?}");
