@@ -46,7 +46,8 @@ export const statusColor: (status: EStatus) => string = (status) => {
 
 export interface CeremonyStepProps {
     message?: React.ReactNode
-    currentCeremony: Sequent_Backend_Keys_Ceremony | null
+    currentCeremonyId: string
+    setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     electionEvent: Sequent_Backend_Election_Event
     goNext?: () => void
     isNextDisabled?: boolean
@@ -55,7 +56,8 @@ export interface CeremonyStepProps {
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     message,
-    currentCeremony,
+    currentCeremonyId,
+    setCurrentCeremony,
     electionEvent,
     goBack,
     goNext,
@@ -69,10 +71,13 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
-            id: currentCeremony?.id ?? null,
+            id: currentCeremonyId ?? null,
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            onSuccess: (data) => {
+                setCurrentCeremony && setCurrentCeremony(data)
+            },
         }
     )
 
