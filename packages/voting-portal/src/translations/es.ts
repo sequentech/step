@@ -116,6 +116,7 @@ const spanishTranslation: TranslationType = {
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",
             },
+            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
             printButton: "Imprimir",

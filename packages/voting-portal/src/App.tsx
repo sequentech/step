@@ -84,9 +84,7 @@ const App = () => {
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(
-                `/tenant/${tenantId || globalSettings.DEFAULT_TENANT_ID}/event/${
-                    eventId || globalSettings.DEFAULT_EVENT_ID
-                }/election-chooser${location.search}`
+                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
             )
         } else {
             if (location.pathname === "/") {

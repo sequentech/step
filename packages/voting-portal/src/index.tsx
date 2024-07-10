@@ -167,15 +167,15 @@ const router = createBrowserRouter(
 
 root.render(
     <React.StrictMode>
-        <Provider store={store}>
-            <SettingsWrapper>
+        <SettingsWrapper>
+            <Provider store={store}>
                 <KeycloakProviderContainer>
                     <ThemeProvider theme={theme}>
                         <RouterProvider router={router} />
                     </ThemeProvider>
                 </KeycloakProviderContainer>
-            </SettingsWrapper>
-        </Provider>
+            </Provider>
+        </SettingsWrapper>
     </React.StrictMode>
 )
 

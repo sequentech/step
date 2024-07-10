@@ -114,6 +114,7 @@ const englishTranslation = {
                 content: "An error has occured, please try again",
                 ok: "OK",
             },
+            demoQRText: "Ballot tracker is disabled in demo mode",
         },
         auditScreen: {
             printButton: "Print",

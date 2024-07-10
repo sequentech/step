@@ -102,7 +102,6 @@ const catalanTranslation: TranslationType = {
                     "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta a l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
                 ok: "D'acord",
             },
-            demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració"
         },
         auditScreen: {
             printButton: "Imprimir",

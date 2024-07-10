@@ -116,6 +116,7 @@ const catalanTranslation: TranslationType = {
                 content: "Ha ocorregut un error, si us plau intenti de nou",
                 ok: "Acceptar",
             },
+            demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",
         },
         auditScreen: {
             printButton: "Imprimir",

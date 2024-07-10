@@ -115,6 +115,7 @@ const frenchTranslation: TranslationType = {
                 content: "Une erreur s'est produite, veuillez réessayer",
                 ok: "Accepter",
             },
+            demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
             printButton: "Imprimer",

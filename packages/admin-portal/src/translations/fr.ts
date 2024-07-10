@@ -102,7 +102,6 @@ const frenchTranslation: TranslationType = {
                     "Le Localisateur de Vote de bulletin est un code qui vous permet de trouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient pas d'informations sur vos sélections.",
                 ok: "OK",
             },
-            demoQRText: "Le suivi des bulletins est désactivé en mode démo"
         },
         auditScreen: {
             printButton: "Imprimer",

@@ -100,7 +100,6 @@ const englishTranslation = {
                     "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
                 ok: "OK",
             },
-            demoQRText: "Ballot tracker is disabled in demo mode"
         },
         auditScreen: {
             printButton: "Print",
