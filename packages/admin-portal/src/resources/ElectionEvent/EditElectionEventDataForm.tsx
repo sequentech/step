@@ -63,7 +63,6 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
-import {getLoginUrl} from "@/services/UrlGeneration"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -481,10 +480,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
-    const loginUrl = useMemo(() => {
-        return getLoginUrl(globalSettings.VOTING_PORTAL_URL, tenantId ?? "", record?.id ?? "")
-    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
-
     return (
         <>
             <Box
@@ -503,20 +498,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withFilter={false}
                     extraActions={[
                         <Button
-                            className="felix-test"
+                            className="import-candidates"
                             onClick={() => setOpenImportCandidates(true)}
-                            label="Import Candidates"
+                            label={t("electionEventScreen.edit.importCandidates")}
                             key="1"
                         >
                             <DownloadIcon />
                         </Button>,
                     ]}
                 />
-            </Box>
-            <Box>
-                <a href={loginUrl ?? ""} target="_blank">
-                    Voter login URL
-                </a>
             </Box>
             <RecordContext.Consumer>
                 {(incoming) => {

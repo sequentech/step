@@ -223,6 +223,7 @@ const catalanTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Vots per dia",
             votersByChannels: "Votants per canals",
+            voterLoginURL: "URL d'inici de sessió dels votants",
         },
         electionEventScreen: {
             common: {
@@ -238,6 +239,7 @@ const catalanTranslation: TranslationType = {
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
                 advancedConfigurations: "Voting Portal Countdown Policy",
+                importCandidates: "Importar Candidats",
             },
             field: {
                 name: "Nom",

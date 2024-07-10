@@ -223,6 +223,7 @@ const spanishTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
+            voterLoginURL: "URL de inicio de sesión de votantes",
         },
         electionEventScreen: {
             common: {
@@ -238,6 +239,7 @@ const spanishTranslation: TranslationType = {
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
                 advancedConfigurations: "Voting Portal Countdown Policy",
+                importCandidates: "Importar Candidatos",
             },
             field: {
                 name: "Nombre",

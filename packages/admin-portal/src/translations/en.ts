@@ -221,6 +221,7 @@ const englishTranslation = {
         dashboard: {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
+            voterLoginURL: "Voter Login URL",
         },
         electionEventScreen: {
             common: {
@@ -236,6 +237,7 @@ const englishTranslation = {
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
                 advancedConfigurations: "Advanced Configurations",
+                importCandidates: "Import Candidates",
             },
             field: {
                 name: "Name",
