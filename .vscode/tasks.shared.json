@@ -54,14 +54,18 @@
         },
         {
             "label": "start.admin-portal",
-            "command": "devenv",
+            "command": "bash",
             "args": [
-                "shell",
-                "bash",
-                "--",
                 "-c",
-                "cd packages && yarn start:admin-portal",
+                "docker compose up -d --no-deps admin-portal",
             ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -102,14 +106,18 @@
         },
         {
             "label": "start.voting-portal",
-            "command": "devenv",
+            "command": "bash",
             "args": [
-                "shell",
-                "bash",
-                "--",
                 "-c",
-                "cd packages && yarn start:voting-portal",
+                "docker compose up -d --no-deps voting-portal",
             ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
             "presentation": {
                 "echo": true,
                 "reveal": "always",
