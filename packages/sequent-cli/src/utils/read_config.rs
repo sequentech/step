@@ -1,8 +1,9 @@
-use crate::commands::configure::ConfigData;
 use serde_json;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+
+use crate::types::config::ConfigData;
 
 pub fn get_config_dir() -> PathBuf {
     let exe_path = env::current_exe().expect("Failed to get current executable path");

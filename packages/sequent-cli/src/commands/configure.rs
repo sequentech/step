@@ -1,19 +1,13 @@
+use crate::types::config::ConfigData;
 use crate::utils::read_config::get_config_dir;
 use crate::utils::read_input::prompt;
 use clap::Args;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
 #[derive(Args)]
 #[command(about = "Create a config file", long_about = None)]
 pub struct Config;
-
-#[derive(Serialize, Deserialize)]
-pub struct ConfigData {
-    pub auth_token: String,
-    pub endpoint_url: String,
-}
 
 impl Config {
     pub fn run(&self) {
