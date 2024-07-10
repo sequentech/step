@@ -83,7 +83,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     return (
         <>
             <WizardStyles.ContentBox>
-                {message}
+                {!status?.public_key && message}
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={progressExpanded}
@@ -183,7 +183,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     <WizardStyles.NextButton
                         color="info"
                         onClick={goNext}
-                        disabled={isNextDisabled}
+                        disabled={isNextDisabled && !status.public_key}
                     >
                         <ArrowForwardIosIcon />
                         {t("common.label.next")}
