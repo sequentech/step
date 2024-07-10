@@ -125,7 +125,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
     const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
-    console.log(electionEvent)
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
