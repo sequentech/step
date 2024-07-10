@@ -1,24 +1,31 @@
 use crate::types::config::ConfigData;
 use crate::utils::read_config::get_config_dir;
-use crate::utils::read_input::prompt;
 use clap::Args;
 use std::fs;
 use std::path::Path;
 
-#[derive(Args)]
+#[derive(Args, Debug)]
 #[command(about = "Create a config file", long_about = None)]
-pub struct Config;
+pub struct Config {
+    /// Authorization token
+    #[arg(long)]
+    auth_token: String,
+
+    /// Tenant ID
+    #[arg(long)]
+    tenant_id: String,
+
+    /// Endpoint URL
+    #[arg(long)]
+    endpoint_url: String,
+}
 
 impl Config {
     pub fn run(&self) {
-        let auth_token = prompt("Enter auth token: ", true);
-        let tenant_id = prompt("Enter tenant id: ", true);
-        let endpoint_url = prompt("Enter the endpoint URL: ", true);
-
         let config_data = ConfigData {
-            auth_token,
-            endpoint_url,
-            tenant_id
+            auth_token: self.auth_token.clone(),
+            endpoint_url: self.endpoint_url.clone(),
+            tenant_id: self.tenant_id.clone(),
         };
 
         let config_dir = get_config_dir();

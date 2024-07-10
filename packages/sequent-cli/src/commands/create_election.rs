@@ -8,17 +8,8 @@ pub struct CreateElection;
 
 impl CreateElection {
     pub fn run(&self) {
-        let election_event_id = prompt("Enter the election event id: ", true);
-        let name = prompt("Enter the name of the election: ", true);
-        let description = prompt("Enter the description of the election: ", false);
-
-        let event = CreateElectionRequest {
-            name,
-            description,
-            election_event_id,
-            tenant_id: None
-        };
-
+       
+       
         // match create_election(&event) {
         //     Ok(_) => println!("Election event created successfully!"),
         //     Err(err) => eprintln!("Failed to create election event: {}", err),

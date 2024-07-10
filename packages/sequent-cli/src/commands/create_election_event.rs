@@ -1,39 +1,50 @@
 use crate::{
-    types::election_event::{CreateElectionEventRequest, CreateElectionEventResponse},
-    utils::{loaders::create_spinner, read_config::read_config, read_input::prompt},
+    types::election_event::{CreateElectionEventRequest, CreateElectionEventResponse}, utils::read_config::read_config,
 };
 use clap::Args;
+use serde_json::Value;
 
-#[derive(Args)]
+#[derive(Args, Debug)]
 #[command(about = "Create a new election event", long_about = None)]
-pub struct CreateElectionEvent;
+pub struct CreateElectionEvent{
+    /// Name of the election event
+    #[arg(long)]
+    name: String,
+
+    /// Description of the election event
+    #[arg(long, default_value = "")]
+    description: String,
+
+    /// Presentation details (currently hardcoded to empty)
+    #[arg(long, default_value = "{}")]
+    presentation: Value,
+
+    /// Encryption protocol (currently hardcoded to RSA256)
+    #[arg(long, default_value = "RSA256")]
+    encryption_protocol: String,
+
+    /// Whether the event is archived
+    #[arg(long, default_value = "false")]
+    is_archived: bool,
+}
 
 impl CreateElectionEvent {
     pub fn run(&self) {
-        let name = prompt("Enter the name of the election event: ", true);
-        let description = prompt("Enter the description of the election event: ", false);
 
-        let presentation = serde_json::json!({}); // Currently hardcoded to empty
-        let encryption_protocol = String::from("RSA256"); // Currently hardcoded to this option only
-        let is_archived = false; // Currently hardcoded
-
-        let pb = create_spinner("Creating election event...");
         let event = CreateElectionEventRequest {
-            name,
-            description,
-            presentation,
-            encryption_protocol,
-            is_archived,
-            tenant_id: None
+            name: self.name.clone(),
+            description: self.description.clone(),
+            presentation: self.presentation.clone(),
+            encryption_protocol: self.encryption_protocol.clone(),
+            is_archived: self.is_archived,
+            tenant_id: None // this will be filled in later in the function from the config
         };
 
         match create_election_event(&event) {
             Ok(id) => {
-                pb.finish_with_message("Election event created successfully!");
                 println!("Election event created successfully! ID: {}", id);
             }
             Err(err) => {
-                pb.finish_with_message("Failed to create election event!");
                 eprintln!("Failed to create election event: {}", err)
             }
         }
