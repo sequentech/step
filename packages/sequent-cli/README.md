@@ -1,4 +1,6 @@
-
+<!-- // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Configure
 Run cargo run -- config --auth_token "your_auth_token" --tenant_id "your_tenant_id" --endpoint_url "your_endpoint_url"

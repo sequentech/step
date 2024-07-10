@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 mod commands;
 mod types;
 mod utils;
@@ -18,7 +22,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Config(commands::configure::Config),
-    CreateElectionEvent(commands::create_election_event::CreateElectionEvent),
+    CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
 }
 

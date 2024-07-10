@@ -1,15 +1,17 @@
-use crate::{types::election::CreateElectionRequest, utils::{read_config::read_config, read_input::prompt}};
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+
 use clap::Args;
 
 #[derive(Args)]
 #[command(about = "Create a new election", long_about = None)]
 pub struct CreateElection;
 
-
 impl CreateElection {
     pub fn run(&self) {
-       
-       
+
         // match create_election(&event) {
         //     Ok(_) => println!("Election event created successfully!"),
         //     Err(err) => eprintln!("Failed to create election event: {}", err),

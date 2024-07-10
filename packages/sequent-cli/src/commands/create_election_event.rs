@@ -1,12 +1,16 @@
-use crate::{
-    types::election_event::{CreateElectionEventRequest, CreateElectionEventResponse}, utils::read_config::read_config,
-};
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::types::hasura_types::*;
+use crate::utils::read_config::read_config;
 use clap::Args;
+use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
 
 #[derive(Args, Debug)]
 #[command(about = "Create a new election event", long_about = None)]
-pub struct CreateElectionEvent{
+pub struct CreateElectionEventCLI {
     /// Name of the election event
     #[arg(long)]
     name: String,
@@ -28,19 +32,24 @@ pub struct CreateElectionEvent{
     is_archived: bool,
 }
 
-impl CreateElectionEvent {
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/insert_election_event.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct CreateElectionEvent;
+
+impl CreateElectionEventCLI {
     pub fn run(&self) {
-
-        let event = CreateElectionEventRequest {
-            name: self.name.clone(),
-            description: self.description.clone(),
-            presentation: self.presentation.clone(),
-            encryption_protocol: self.encryption_protocol.clone(),
-            is_archived: self.is_archived,
-            tenant_id: None // this will be filled in later in the function from the config
-        };
-
-        match create_election_event(&event) {
+     
+        match create_election_event(
+            &self.name,
+            &self.description,
+            &self.presentation,
+            &self.encryption_protocol,
+            self.is_archived,
+        ) {
             Ok(id) => {
                 println!("Election event created successfully! ID: {}", id);
             }
@@ -52,26 +61,64 @@ impl CreateElectionEvent {
 }
 
 fn create_election_event(
-    event: &CreateElectionEventRequest,
+    name:&str,
+    description: &str,
+    presentation: &Value,
+    encryption_protocol: &str,
+    is_archived: bool
+
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let event_with_tenant_id = CreateElectionEventRequest {
-        tenant_id: Some(config.tenant_id.clone()), 
-        ..event.clone() // Clone the existing event and override tenant_id
+    let variables = create_election_event::Variables {
+        election_event: create_election_event::CreateElectionEventInput{
+            tenant_id: config.tenant_id.clone(),
+            name: name.to_string(),
+            description: Some(description.to_string()),
+            presentation: Some(presentation.clone()),
+            encryption_protocol: Some(encryption_protocol.to_string()),
+            is_archived: Some(is_archived),
+        
+            id: None,
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations: None,
+            bulletin_board_reference: None,
+            voting_channels: None,
+            dates: None,
+            status: None,
+            user_boards: None,
+            is_audit: None,
+            audit_election_event_id: None,
+            public_key: None,
+        }
     };
     
-    let endpoint_url = format!("{}/insert-election-event", config.endpoint_url);
+    let request_body = CreateElectionEvent::build_query(variables);
+
     let response = client
-        .post(endpoint_url)
+        .post(&config.endpoint_url)
         .bearer_auth(config.auth_token)
-        .json(&event_with_tenant_id)
+        .json(&request_body)
         .send()?;
 
     if response.status().is_success() {
-        let response_data: CreateElectionEventResponse = response.json()?;
-        Ok(response_data.id)
+        let response_body: Response<create_election_event::ResponseData> = response.json()?;
+        if let Some(data) = response_body.data {
+            if let Some(event) = data.insert_election_event{
+                Ok(event.id)
+            }
+            else{
+                Err(Box::from("failed generating id"))
+            }
+        } else if let Some(errors) = response_body.errors {
+            let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
+            Err(Box::from(error_messages.join(", ")))
+        } else {
+            Err(Box::from("Unknown error occurred"))
+        }
     } else {
         let status = response.status();
         let error_message = response.text()?;

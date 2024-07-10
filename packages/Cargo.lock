@@ -5853,6 +5853,8 @@ name = "sequent-cli"
 version = "0.1.0"
 dependencies = [
  "clap 4.5.8",
+ "graphql_client",
+ "keycloak",
  "reqwest 0.12.5",
  "serde",
  "serde_json",
