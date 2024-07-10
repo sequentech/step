@@ -179,6 +179,3 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         </WizardStyles.WizardWrapper>
     )
 }
-
-//TODO: need to pass the updated ceremony event from ceremonyStep to here - using redux?
-// then - to update the use effect to know when in status and when not started
