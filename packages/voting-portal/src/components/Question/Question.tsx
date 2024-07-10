@@ -96,6 +96,7 @@ export const Question: React.FC<IQuestionProps> = ({
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
+    let hasBlankCandidate = invalidOrBlankCandidates.some(candidate => checkIsExplicitBlankVote(candidate))
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
@@ -139,7 +140,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = isReview && contestState && checkIsBlank(contestState) && !hasBlankCandidate
 
     return (
         <Box>
