@@ -58,6 +58,7 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
 
 export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
+
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
@@ -168,13 +169,13 @@ const router = createBrowserRouter(
 root.render(
     <React.StrictMode>
         <SettingsWrapper>
-            <Provider store={store}>
-                <KeycloakProviderContainer>
+            <KeycloakProviderContainer>
+                <Provider store={store}>
                     <ThemeProvider theme={theme}>
                         <RouterProvider router={router} />
                     </ThemeProvider>
-                </KeycloakProviderContainer>
-            </Provider>
+                </Provider>
+            </KeycloakProviderContainer>
         </SettingsWrapper>
     </React.StrictMode>
 )
