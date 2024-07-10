@@ -42,7 +42,6 @@ pub struct CreateElectionEvent;
 
 impl CreateElectionEventCLI {
     pub fn run(&self) {
-     
         match create_election_event(
             &self.name,
             &self.description,
@@ -61,25 +60,24 @@ impl CreateElectionEventCLI {
 }
 
 fn create_election_event(
-    name:&str,
+    name: &str,
     description: &str,
     presentation: &Value,
     encryption_protocol: &str,
-    is_archived: bool
-
+    is_archived: bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
     let variables = create_election_event::Variables {
-        election_event: create_election_event::CreateElectionEventInput{
+        election_event: create_election_event::CreateElectionEventInput {
             tenant_id: config.tenant_id.clone(),
             name: name.to_string(),
             description: Some(description.to_string()),
             presentation: Some(presentation.clone()),
             encryption_protocol: Some(encryption_protocol.to_string()),
             is_archived: Some(is_archived),
-        
+
             id: None,
             created_at: None,
             updated_at: None,
@@ -93,9 +91,9 @@ fn create_election_event(
             is_audit: None,
             audit_election_event_id: None,
             public_key: None,
-        }
+        },
     };
-    
+
     let request_body = CreateElectionEvent::build_query(variables);
 
     let response = client
@@ -107,10 +105,9 @@ fn create_election_event(
     if response.status().is_success() {
         let response_body: Response<create_election_event::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            if let Some(event) = data.insert_election_event{
+            if let Some(event) = data.insert_election_event {
                 Ok(event.id)
-            }
-            else{
+            } else {
                 Err(Box::from("failed generating id"))
             }
         } else if let Some(errors) = response_body.errors {
