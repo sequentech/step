@@ -12,11 +12,11 @@ use graphql_client::{GraphQLQuery, Response};
 #[derive(Args)]
 #[command(about = "Create a new candidate", long_about = None)]
 pub struct CreateCandidate {
-    /// Name of the election event
+    /// Name of the candidate
     #[arg(long)]
     name: String,
 
-    /// Description of the election event
+    /// Description of the candidate
     #[arg(long, default_value = "")]
     description: String,
 
