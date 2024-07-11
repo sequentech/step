@@ -19,10 +19,6 @@ pub struct CreateElectionEventCLI {
     #[arg(long, default_value = "")]
     description: String,
 
-    /// Presentation details (currently hardcoded to empty)
-    #[arg(long, default_value = "{}")]
-    presentation: Value,
-
     /// Encryption protocol (currently hardcoded to RSA256)
     #[arg(long, default_value = "RSA256")]
     encryption_protocol: String,
@@ -45,7 +41,6 @@ impl CreateElectionEventCLI {
         match create_election_event(
             &self.name,
             &self.description,
-            &self.presentation,
             &self.encryption_protocol,
             self.is_archived,
         ) {
@@ -62,7 +57,6 @@ impl CreateElectionEventCLI {
 fn create_election_event(
     name: &str,
     description: &str,
-    presentation: &Value,
     encryption_protocol: &str,
     is_archived: bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -74,11 +68,11 @@ fn create_election_event(
             tenant_id: config.tenant_id.clone(),
             name: name.to_string(),
             description: Some(description.to_string()),
-            presentation: Some(presentation.clone()),
             encryption_protocol: Some(encryption_protocol.to_string()),
             is_archived: Some(is_archived),
 
             id: None,
+            presentation: None,
             created_at: None,
             updated_at: None,
             labels: None,

@@ -2,40 +2,88 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
 #[command(about = "Create a new election", long_about = None)]
-pub struct CreateElection;
+pub struct CreateElection {
+    /// Name of the election event
+    #[arg(long)]
+    name: String,
+
+    /// Description of the election event
+    #[arg(long, default_value = "")]
+    description: String,
+
+    /// Election event id - the election event to be associated with
+    #[arg(long)]
+    election_event_id: String,
+}
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/insert_election.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct InsertElection;
 
 impl CreateElection {
     pub fn run(&self) {
-
-        // match create_election(&event) {
-        //     Ok(_) => println!("Election event created successfully!"),
-        //     Err(err) => eprintln!("Failed to create election event: {}", err),
-        // }
+        match create_election(&self.name, &self.description, &self.election_event_id) {
+            Ok(id) => {
+                println!("Election created successfully! ID: {}", id);
+            }
+            Err(err) => {
+                eprintln!("Failed to create election: {}", err)
+            }
+        }
     }
 }
 
-// fn create_election(event: &Election) -> Result<(), Box<dyn std::error::Error>> {
-//     let config = read_config()?;
-//     let client = reqwest::blocking::Client::new();
+fn create_election(
+    name: &str,
+    description: &str,
+    election_event_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let config = read_config()?;
+    let client = reqwest::blocking::Client::new();
+    let variables = insert_election::Variables {
+        name: name.to_string(),
+        description: Some(description.to_string()),
+        election_event_id: election_event_id.to_string(),
+        tenant_id: config.tenant_id.clone(),
+        presentation: None,
+    };
 
-//     let endpoint_url = format!("{}/election", config.endpoint_url);
-//     let response = client
-//         .post(&endpoint_url)
-//         .bearer_auth(config.auth_token)
-//         .json(&event)
-//         .send()?;
+    let request_body = InsertElection::build_query(variables);
 
-//         if response.status().is_success() {
-//             let response_data: CreateElectionEventResponse = response.json()?;
-//             Ok(response_data.id)
-//         } else {
-//             let status = response.status();
-//             let error_message = response.text()?;
-//             let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
-//             Err(Box::from(error))
-//         }
-// }
+    let response = client
+        .post(&config.endpoint_url)
+        .bearer_auth(config.auth_token)
+        .json(&request_body)
+        .send()?;
+
+    if response.status().is_success() {
+        let response_body: Response<insert_election::ResponseData> = response.json()?;
+        if let Some(data) = response_body.data {
+            if let Some(e) = data.insert_sequent_backend_election {
+                Ok(e.returning[0].id.clone())
+            } else {
+                Err(Box::from("failed generating id"))
+            }
+        } else if let Some(errors) = response_body.errors {
+            let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
+            Err(Box::from(error_messages.join(", ")))
+        } else {
+            Err(Box::from("Unknown error occurred"))
+        }
+    } else {
+        let status = response.status();
+        let error_message = response.text()?;
+        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        Err(Box::from(error))
+    }
+}

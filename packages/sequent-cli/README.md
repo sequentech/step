@@ -6,14 +6,23 @@
 Run cargo run -- config --auth_token "your_auth_token" --tenant_id "your_tenant_id" --endpoint_url "your_endpoint_url"
 
 - auth_token is the keycloak auth token
-- endpoint_url is "http://harvest:8400" when in local dev codespace environment
+- endpoint_url is "http://graphql-engine:8080/v1/graphql" when in local dev codespace environment
 - You can grab tenant_id from the local storage in Admin Portal
 
 # Create Election Event
-Run cargo run -- create-election-event --name "Election_Event_Name" --description "Description" --presentation "{}" --encryption_protocol "RSA256" --is_archived false
+Run cargo run -- create-election-event --name "Election_Event_Name" --description "Description" --encryption_protocol "RSA256" --is_archived false
 
 - name - the election event name - required*
 - description - the election event desciption - optional*
 - presentation - Presentation object - optional*
 - encryption_protocol - optional*
 - is_archived - boolean if should be archived - optional*
+
+
+# Create Election
+Run cargo run -- create-election --name "Election_Name" --description "Description" --election-event-id "election event id"
+
+- name - the election event name - required*
+- description - the election event desciption - optional*
+- presentation - Presentation object - optional*
+- election_event_id - The associated election event id - required*
