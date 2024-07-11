@@ -22,6 +22,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Config(commands::configure::Config),
+    GenerateAuth(commands::generate_auth_token::GenerateToken),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
     CreateContest(commands::create_contest::CreateContest),
@@ -33,6 +34,7 @@ fn main() {
 
     match &cli.command {
         Commands::Config(cmd) => cmd.run(),
+        Commands::GenerateAuth(auth) => auth.run(),
         Commands::CreateElectionEvent(create_event) => create_event.run(),
         Commands::CreateElection(create_election) => create_election.run(),
         Commands::CreateContest(create_contest) => create_contest.run(),

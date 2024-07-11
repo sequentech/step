@@ -4,9 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-pub struct ConfigData {
-    pub endpoint_url: String,
-    pub tenant_id: String,
-    pub auth_token: String,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct KeycloakTokenResponse {
+    pub access_token: String,
 }

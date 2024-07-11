@@ -15,6 +15,10 @@ Run cargo run -- config --auth-token "your_auth_token" --tenant-id "your_tenant_
 - endpoint_url is "http://graphql-engine:8080/v1/graphql" when in local dev codespace environment
 - You can grab tenant_id from the local storage in Admin Portal
 
+# Create Auth Token
+Run cargo run -- generate-auth
+
+
 # Create Election Event
 Run cargo run -- create-election-event --name "Election_Event_Name" --description "Description" --encryption-protocol "RSA256" --is-archived false
 

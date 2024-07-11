@@ -7,10 +7,6 @@ use std::path::Path;
 #[derive(Args, Debug)]
 #[command(about = "Create a config file", long_about = None)]
 pub struct Config {
-    /// Authorization token
-    #[arg(long)]
-    auth_token: String,
-
     /// Tenant ID
     #[arg(long)]
     tenant_id: String,
@@ -18,14 +14,18 @@ pub struct Config {
     /// Endpoint URL
     #[arg(long)]
     endpoint_url: String,
+
+    /// Auth Token
+    #[arg(long)]
+    auth_token: String,
 }
 
 impl Config {
     pub fn run(&self) {
         let config_data = ConfigData {
-            auth_token: self.auth_token.clone(),
             endpoint_url: self.endpoint_url.clone(),
             tenant_id: self.tenant_id.clone(),
+            auth_token: self.auth_token.clone(),
         };
 
         let config_dir = get_config_dir();

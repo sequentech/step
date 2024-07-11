@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
+use crate::{types::hasura_types::*, utils::keycloak::read_token};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
@@ -61,6 +61,7 @@ fn create_election_event(
     is_archived: bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
+    // let auth = read_token()?;
     let client = reqwest::blocking::Client::new();
 
     let variables = create_election_event::Variables {

@@ -5,3 +5,4 @@
 pub mod config;
 pub mod environments;
 pub mod hasura_types;
+pub mod keycloak;
