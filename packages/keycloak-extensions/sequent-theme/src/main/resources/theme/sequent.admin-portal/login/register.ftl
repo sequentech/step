@@ -105,9 +105,13 @@ SPDX-License-Identifier: AGPL-3.0-only
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/css/intlTelInput.css">
         <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/js/intlTelInput.min.js"></script>
         <script>
-            const input = document.querySelector("#sequent\\.read-only\\.mobile-number");
-            window.intlTelInput(input, {
-                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/js/utils.js",
+            // Get all inputs that use type tel
+            const listTelInputs = document.querySelectorAll("input[type='tel']");
+            listTelInputs.forEach(function (input) {
+                // Use intel-tel-input
+                window.intlTelInput(input, {
+                    utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/js/utils.js",
+                });
             });
         </script>
     </#if>
