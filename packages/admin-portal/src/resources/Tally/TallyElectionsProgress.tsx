@@ -29,15 +29,9 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 export const TallyElectionsProgress: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
     const {t} = useTranslation()
-    const [rand, setRand] = useState<number>(0)
     const {globalSettings} = useContext(SettingsContext)
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
-
-    useEffect(() => {
-        let rand: number = Math.floor(Math.random() * (100 + 1) + 0)
-        setRand(rand)
-    }, [tallyId])
 
     const {data: tally} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
