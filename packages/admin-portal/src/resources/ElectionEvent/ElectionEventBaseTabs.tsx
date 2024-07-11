@@ -5,14 +5,11 @@
 import React from "react"
 import {ShowBase} from "react-admin"
 import {ElectionEventTabs} from "./ElectionEventTabs"
-import {ViewModeContextProvider} from "@/providers/ViewModeContextProvider"
 
 export const ElectionEventBaseTabs: React.FC = () => {
     return (
         <ShowBase>
-            <ViewModeContextProvider>
-                <ElectionEventTabs />
-            </ViewModeContextProvider>
+            <ElectionEventTabs />
         </ShowBase>
     )
 }

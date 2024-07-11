@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect} from "react"
+import React, {useContext, useEffect, useId} from "react"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -20,14 +20,14 @@ import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
 import {ElectoralLog} from "./ElectoralLog"
-import {ViewMode, ViewModeContext} from "@/providers/ViewModeContextProvider"
+import {v4 as uuidv4} from "uuid"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
-
+    const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const location = useLocation()
     const navigate = useNavigate()
 
@@ -57,7 +57,6 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.PUBLISH_READ
     )
-    const {setViewMode} = useContext(ViewModeContext)
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
@@ -139,9 +138,13 @@ export const ElectionEventTabs: React.FC = () => {
                 {showPublish ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.publish")}
-                        onClick={() => setViewMode(ViewMode.List)}
+                        onClick={() => setTabKey(uuidv4())}
                     >
-                        <Publish electionEventId={record?.id} type={EPublishType.Event} />
+                        <Publish
+                            key={tabKey}
+                            electionEventId={record?.id}
+                            type={EPublishType.Event}
+                        />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showLogs ? (

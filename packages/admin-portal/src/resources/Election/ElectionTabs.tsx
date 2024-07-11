@@ -6,6 +6,7 @@ import React, {useContext} from "react"
 
 import {useTranslation} from "react-i18next"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
+import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -17,11 +18,11 @@ import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
 import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
-import {ViewMode, ViewModeContext} from "@/providers/ViewModeContextProvider"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const {t} = useTranslation()
+    const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const showDashboard = authContext.isAuthorized(
@@ -39,7 +40,6 @@ export const ElectionTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.PUBLISH_READ
     )
-    const {setViewMode} = useContext(ViewModeContext)
 
     return (
         <>
@@ -66,9 +66,10 @@ export const ElectionTabs: React.FC = () => {
                 {showPublish && (
                     <TabbedShowLayout.Tab
                         label={t("electionScreen.tabs.publish")}
-                        onClick={() => setViewMode(ViewMode.List)}
+                        onClick={() => setTabKey(uuidv4())}
                     >
                         <Publish
+                            key={tabKey}
                             electionEventId={record?.election_event_id}
                             electionId={record?.id}
                             type={EPublishType.Election}
