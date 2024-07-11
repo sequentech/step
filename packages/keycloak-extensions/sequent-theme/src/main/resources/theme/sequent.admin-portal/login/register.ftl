@@ -102,15 +102,15 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#--  Adding intel-tel-input  -->
         <#--  https://github.com/jackocnr/intl-tel-input/tree/master  -->
 
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/css/intlTelInput.css">
-        <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/js/intlTelInput.min.js"></script>
+        <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/intlTelInput.css">
+        <script src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
         <script>
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
             listTelInputs.forEach(function (input) {
                 // Use intel-tel-input
                 window.intlTelInput(input, {
-                    utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.3.2/build/js/utils.js",
+                    utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
                 });
             });
         </script>
