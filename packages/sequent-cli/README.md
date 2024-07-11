@@ -57,3 +57,10 @@ Run cargo run -- create-area --name "Area_Name" --description "Description" --el
 - name - the area name - required*
 - description - the area desciption - optional*
 - election_event_id - The associated election event id - required*
+
+# Create Area
+Run cargo run -- create-area-contest --election-event-id "election event id" --contest-id "contest id" --area-id "area id" 
+
+- election_event_id - The associated election event id - required*
+- contest_id - The associated contest id - required*
+- area_id - The associated area id - required*

@@ -1,5 +1,6 @@
 pub mod configure;
 pub mod create_area;
+pub mod create_area_contest;
 pub mod create_candidate;
 pub mod create_contest;
 pub mod create_election;

@@ -28,6 +28,7 @@ enum Commands {
     CreateContest(commands::create_contest::CreateContest),
     CreateCandidate(commands::create_candidate::CreateCandidate),
     CreateArea(commands::create_area::CreateArea),
+    CreateAreaContest(commands::create_area_contest::CreateAreaContest),
 }
 
 fn main() {
@@ -41,5 +42,6 @@ fn main() {
         Commands::CreateContest(create_contest) => create_contest.run(),
         Commands::CreateCandidate(create_candidate) => create_candidate.run(),
         Commands::CreateArea(create_area) => create_area.run(),
+        Commands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
     }
 }
