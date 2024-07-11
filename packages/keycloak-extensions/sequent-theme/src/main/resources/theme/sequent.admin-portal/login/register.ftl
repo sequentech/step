@@ -111,6 +111,13 @@ SPDX-License-Identifier: AGPL-3.0-only
                 // Use intel-tel-input
                 window.intlTelInput(input, {
                     utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
+                    initialCountry: "auto",
+                    geoIpLookup: function(success, failure) {
+                        fetch("https://ipapi.co/json")
+                        .then(function(res) { return res.json(); })
+                        .then(function(data) { success(data.country_code); })
+                        .catch(function() { failure(); });
+                    },
                 });
             });
         </script>
