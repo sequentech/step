@@ -17,6 +17,7 @@ import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
 import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
+import {ViewMode, ViewModeContext} from "@/providers/ViewModeContextProvider"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -38,6 +39,7 @@ export const ElectionTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.PUBLISH_READ
     )
+    const {setViewMode} = useContext(ViewModeContext)
 
     return (
         <>
@@ -62,7 +64,10 @@ export const ElectionTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 )}
                 {showPublish && (
-                    <TabbedShowLayout.Tab label={t("electionScreen.tabs.publish")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionScreen.tabs.publish")}
+                        onClick={() => setViewMode(ViewMode.List)}
+                    >
                         <Publish
                             electionEventId={record?.election_event_id}
                             electionId={record?.id}

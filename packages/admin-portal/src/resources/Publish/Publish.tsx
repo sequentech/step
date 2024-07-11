@@ -41,17 +41,12 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-essentials"
 import {convertToNumber} from "@/lib/helpers"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ViewMode, ViewModeContext} from "@/providers/ViewModeContextProvider"
 
 export type TPublish = {
     electionId?: string
     electionEventId: string
     type: EPublishType.Election | EPublishType.Event
-}
-
-enum ViewMode {
-    Edit,
-    View,
-    List,
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(
@@ -60,7 +55,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const notify = useNotify()
         const {t} = useTranslation()
         const [tenantId] = useTenantStore()
-        const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
+        const {viewMode, setViewMode} = useContext(ViewModeContext)
         const [changingStatus, setChangingStatus] = useState<boolean>(false)
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(

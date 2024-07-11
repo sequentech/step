@@ -20,6 +20,7 @@ import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
 import {ElectoralLog} from "./ElectoralLog"
+import {ViewMode, ViewModeContext} from "@/providers/ViewModeContextProvider"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -56,6 +57,7 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.PUBLISH_READ
     )
+    const {setViewMode} = useContext(ViewModeContext)
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
     const {t} = useTranslation()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
@@ -135,7 +137,10 @@ export const ElectionEventTabs: React.FC = () => {
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showPublish ? (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
+                    <TabbedShowLayout.Tab
+                        label={t("electionEventScreen.tabs.publish")}
+                        onClick={() => setViewMode(ViewMode.List)}
+                    >
                         <Publish electionEventId={record?.id} type={EPublishType.Event} />
                     </TabbedShowLayout.Tab>
                 ) : null}
