@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
-import {theme} from "/workspaces/step/packages/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
 
 export const JSON_MOCK = [
     {

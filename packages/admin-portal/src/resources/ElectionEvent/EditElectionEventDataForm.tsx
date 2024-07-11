@@ -637,8 +637,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         {({formData, ...rest}) => {
                                             return (
                                                 formData?.presentation as
-                                                    | any
-                                                    // | IElectionPresentation
+                                                    | IElectionEventPresentation
                                                     | undefined
                                             )?.elections_order === ElectionsOrder.CUSTOM ? (
                                                 <ElectionRows>

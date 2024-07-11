@@ -8,11 +8,11 @@ import React, {useEffect, useState} from "react"
 import {useInput} from "react-admin"
 import DraggableElement from "../DraggableElement"
 
-type props = {
+type CustomOrderInputProps = {
     source: string
 }
 
-const CustomOrderInput = ({source}: props) => {
+const CustomOrderInput = ({source}: CustomOrderInputProps) => {
     const {
         field: {onChange, value},
     } = useInput({source})

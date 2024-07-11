@@ -275,7 +275,6 @@ export const ElectionDataForm: React.FC = () => {
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
-            console.log({temp})
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -490,8 +489,6 @@ export const ElectionDataForm: React.FC = () => {
                     })
                 }
 
-                console.log({parsedValue})
-
                 return (
                     <SimpleForm
                         defaultValues={{contestsOrder: sortedContests}}
@@ -522,7 +519,6 @@ export const ElectionDataForm: React.FC = () => {
                                     {renderTabs(parsedValue)}
                                 </Tabs>
                                 {renderTabContent(parsedValue)}
-                                {/* <OrderContests source="contestsOrder" /> */}
                             </AccordionDetails>
                         </Accordion>
 
@@ -641,11 +637,9 @@ export const ElectionDataForm: React.FC = () => {
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
-                                        console.log({formData})
                                         return (
                                             formData?.presentation as
-                                                | any
-                                                // | IElectionPresentation
+                                                | IElectionPresentation
                                                 | undefined
                                         )?.contests_order === ContestsOrder.CUSTOM ? (
                                             <ContestRows>
