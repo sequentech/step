@@ -1051,6 +1051,7 @@ const englishTranslation = {
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
             },
             email: {
                 subject: "Subject",
@@ -1158,6 +1159,7 @@ const englishTranslation = {
                 participation_report: "Participation Report",
                 electoral_results: "Electoral Results",
                 otp: "OTP",
+                tally_report: "Tally Report",
             },
             method: {
                 email: "Email",

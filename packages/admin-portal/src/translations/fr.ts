@@ -1060,6 +1060,7 @@ const frenchTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Rapport de Participation",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 OTP: "OTP",
+                TALLY_REPORT: "Rapport de comptage",
             },
             email: {
                 subject: "Sujet",
@@ -1168,6 +1169,7 @@ const frenchTranslation: TranslationType = {
                 participation_report: "Rapport de Participation",
                 electoral_results: "Résultats Électoraux",
                 otp: "OTP",
+                tally_report: "Rapport de comptage",
             },
             method: {
                 email: "Email",

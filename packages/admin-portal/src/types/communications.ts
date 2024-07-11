@@ -8,6 +8,7 @@ export enum ICommunicationType {
     PARTICIPATION_REPORT = "PARTICIPATION_REPORT",
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     OTP = "OTP",
+    TALLY_REPORT = "TALLY_REPORT",
 }
 
 export enum ICommunicationMethod {

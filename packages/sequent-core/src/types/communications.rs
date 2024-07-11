@@ -35,6 +35,8 @@ pub enum CommunicationType {
     ELECTORAL_RESULTS,
     #[strum(serialize = "OTP")]
     OTP,
+    #[strum(serialize = "TALLY_REPORT")]
+    TALLY_REPORT,
 }
 
 #[allow(non_camel_case_types)]
@@ -46,6 +48,8 @@ pub enum CommunicationMethod {
     EMAIL,
     #[strum(serialize = "SMS")]
     SMS,
+    #[strum(serialize = "DOCUMENT")]
+    DOCUMENT,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]

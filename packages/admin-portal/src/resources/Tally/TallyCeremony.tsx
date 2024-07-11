@@ -13,7 +13,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionSummary, Button} from "@mui/material"
+import {Accordion, AccordionSummary, SelectChangeEvent, MenuItem, Select} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -24,13 +24,14 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
-import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
+import {useGetList, useGetOne, useNotify, useRecordContext, SelectInput} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
+    Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Results_Election,
@@ -46,6 +47,7 @@ import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
+import {ICommunicationType} from "@/types/communications"
 
 const WizardSteps = {
     Start: 0,
@@ -71,6 +73,7 @@ export const TallyCeremony: React.FC = () => {
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+    const [templateId, setTemplateId] = useState<string | undefined>(undefined)
     const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
@@ -157,6 +160,16 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+        }
+    )
+
+    const {data: tallyTemplates} = useGetList<Sequent_Backend_Communication_Template>(
+        "sequent_backend_communication_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                communication_type: ICommunicationType.TALLY_REPORT,
+            },
         }
     )
 
@@ -270,6 +283,7 @@ export const TallyCeremony: React.FC = () => {
             null,
         [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
     )
+    const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
     return (
         <>
@@ -306,6 +320,20 @@ export const TallyCeremony: React.FC = () => {
                             disabled={isTallyElectionListDisabled}
                             electionEventId={record?.id}
                         />
+
+                        <Select
+                            labelId="tally-results-template"
+                            id="tally-results-template"
+                            value={templateId}
+                            label="Tally Results Template"
+                            onChange={handleSetTemplate}
+                        >
+                            {(tallyTemplates ?? []).map((tallyTemplate) => (
+                                <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
+                                    {tallyTemplate.template?.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
                     </>
                 )}
 
