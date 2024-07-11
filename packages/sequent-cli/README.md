@@ -20,7 +20,6 @@ Run cargo run -- create-election-event --name "Election_Event_Name" --descriptio
 
 - name - the election event name - required*
 - description - the election event desciption - optional*
-- presentation - Presentation object - optional*
 - encryption_protocol - optional*
 - is_archived - boolean if should be archived - optional*
 
@@ -30,5 +29,20 @@ Run cargo run -- create-election --name "Election_Name" --description "Descripti
 
 - name - the election event name - required*
 - description - the election event desciption - optional*
-- presentation - Presentation object - optional*
 - election_event_id - The associated election event id - required*
+
+# Create Contest
+Run cargo run -- create-contest --name "Election_Name" --description "Description" --election-event-id "election event id"
+
+- name - the election event name - required*
+- description - the election event desciption - optional*
+- election_event_id - The associated election event id - required*
+- election_id - The associated election id - required*
+
+# Create Candidate
+Run cargo run -- create-candidate --name "Election_Name" --description "Description" --election-event-id "election event id"
+
+- name - the election event name - required*
+- description - the election event desciption - optional*
+- election_event_id - The associated election event id - required*
+- contest_id - The associated contest id - required*
