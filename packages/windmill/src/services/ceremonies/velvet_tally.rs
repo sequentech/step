@@ -117,6 +117,7 @@ pub fn prepare_tally_for_area_contest(
 
     let area_config = AreaConfig {
         id: Uuid::parse_str(&area_id)?,
+        name: area_contest.area.name.clone().unwrap_or("".into()),
         tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
         election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,

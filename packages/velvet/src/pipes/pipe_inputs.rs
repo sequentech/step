@@ -257,6 +257,7 @@ pub struct ElectionConfig {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaConfig {
     pub id: Uuid,
+    pub name: String,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
