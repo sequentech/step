@@ -64,3 +64,16 @@ Run cargo run -- create-area-contest --election-event-id "election event id" --c
 - election_event_id - The associated election event id - required*
 - contest_id - The associated contest id - required*
 - area_id - The associated area id - required*
+
+# Update Election Event Voting Status
+Run cargo run -- update-election-event-status --election-event-id "election event id" --status "STATUS"
+
+- election_event_id - The associated election event id - required*
+- status - A valid voting status (OPEN, CLOSED,...)- required*
+
+# Update Event Voting Status
+Run cargo run -- update-election-status --election-event-id "election event id" --election-id "election id" --status "STATUS"
+
+- election_event_id - The associated election event id - required*
+- election_id - The associated election id - required*
+- status - A valid voting status (OPEN, CLOSED,...)- required*

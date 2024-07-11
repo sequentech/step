@@ -5855,6 +5855,7 @@ dependencies = [
  "clap 4.5.8",
  "graphql_client",
  "reqwest 0.12.5",
+ "sequent-core",
  "serde",
  "serde_json",
 ]
