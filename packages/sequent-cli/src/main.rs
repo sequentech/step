@@ -24,6 +24,7 @@ enum Commands {
     Config(commands::configure::Config),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
+    CreateContest(commands::create_contest::CreateContest),
 }
 
 fn main() {
@@ -33,5 +34,6 @@ fn main() {
         Commands::Config(cmd) => cmd.run(),
         Commands::CreateElectionEvent(create_event) => create_event.run(),
         Commands::CreateElection(create_election) => create_election.run(),
+        Commands::CreateContest(create_contest) => create_contest.run(),
     }
 }
