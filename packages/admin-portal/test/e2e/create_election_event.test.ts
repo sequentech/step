@@ -41,7 +41,7 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
 
     after(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser
-            .click("button.profile-menu-button")
+            .click("header [data-testid='AccountCircleIcon']")
             .click("li.logout-button")
             .click("button.ok-button")
             .end()

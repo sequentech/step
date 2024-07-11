@@ -24,23 +24,17 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
 
     after(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser
-            .click("button.profile-menu-button")
-            .click("li.logout-button")
-            .click("button.ok-button")
+			//ts ignores to be removed
+            //@ts-ignore
+            .logout()
             .end()
     })
 
     it("should be able to login", async (browser: NightwatchAPI) => {
         browser
-            .waitForElementVisible(this.username!)
-            .waitForElementVisible(this.password!)
-            .assert.visible("input[name=username]")
-            .sendKeys(this.username!, "admin")
-            .assert.visible("input[name=password]")
-            .sendKeys(this.password!, "admin")
-            .assert.visible(this.submitButton!)
-            .click(this.submitButton!)
-            .pause(2000)
+            .navigateTo(this.testUrl!)
+            //@ts-ignore
+            .login("admin", "admin")
         browser.assert.urlContains("sequent_backend_election_event")
     })
 })
