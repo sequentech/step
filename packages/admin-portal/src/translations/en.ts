@@ -877,6 +877,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            templateTitle: "Results Template",
+            templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",

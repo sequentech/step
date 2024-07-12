@@ -883,6 +883,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultats",
+            templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",

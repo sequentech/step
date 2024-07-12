@@ -13,7 +13,14 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionSummary, SelectChangeEvent, MenuItem, Select} from "@mui/material"
+import {
+    Accordion,
+    AccordionSummary,
+    SelectChangeEvent,
+    MenuItem,
+    Select,
+    FormControl,
+} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -24,7 +31,7 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
-import {useGetList, useGetOne, useNotify, useRecordContext, SelectInput} from "react-admin"
+import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
@@ -39,10 +46,9 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
-import {CancelButton, NextButton} from "./styles"
+import {CancelButton, NextButton, StyledTitle} from "./styles"
 import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
@@ -320,20 +326,26 @@ export const TallyCeremony: React.FC = () => {
                             disabled={isTallyElectionListDisabled}
                             electionEventId={record?.id}
                         />
+                        <FormControl fullWidth>
+                            <ElectionHeader
+                                title={"tally.templateTitle"}
+                                subtitle={"tally.templateSubTitle"}
+                            />
 
-                        <Select
-                            labelId="tally-results-template"
-                            id="tally-results-template"
-                            value={templateId}
-                            label="Tally Results Template"
-                            onChange={handleSetTemplate}
-                        >
-                            {(tallyTemplates ?? []).map((tallyTemplate) => (
-                                <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
-                                    {tallyTemplate.template?.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
+                            <Select
+                                id="tally-results-template"
+                                value={templateId}
+                                label={t("tally.templateTitle")}
+                                placeholder={t("tally.templateTitle")}
+                                onChange={handleSetTemplate}
+                            >
+                                {(tallyTemplates ?? []).map((tallyTemplate) => (
+                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
+                                        {tallyTemplate.template?.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </>
                 )}
 

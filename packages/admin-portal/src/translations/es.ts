@@ -882,6 +882,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultados",
+            templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             ceremonyTitle: "Elecciones para el Recuento",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",

@@ -886,6 +886,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Modèle de Résultats",
+            templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
