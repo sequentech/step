@@ -7,12 +7,10 @@ export const GET_BALLOT_PUBLICATION_CHANGE = gql`
     mutation GetBallotPublicationChange(
         $ballotPublicationId: uuid!
         $electionEventId: uuid!
-        $limit: Int
     ) {
         get_ballot_publication_changes(
             ballot_publication_id: $ballotPublicationId
             election_event_id: $electionEventId
-            limit: $limit
         ) {
             current {
                 ballot_publication_id
