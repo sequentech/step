@@ -30,6 +30,16 @@ export interface IEmail {
     html_body: string
 }
 
+export interface IEmail {
+    subject: string
+    plaintext_body: string
+    html_body: string
+}
+
+export interface ISmsConfig {
+    message: string
+}
+
 export interface ISendCommunicationBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
@@ -38,9 +48,10 @@ export interface ISendCommunicationBody {
     schedule_now?: boolean
     schedule_date?: string
     email?: IEmail
-    sms?: string
+    sms?: ISmsConfig
     name?: string
     alias?: string
+    document?: string
 }
 
 export interface IRECEIPTS {

@@ -27,7 +27,11 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {ICommunicationType, ICommunicationMethod} from "@/types/communications"
+import {
+    ICommunicationType,
+    ICommunicationMethod,
+    ISendCommunicationBody,
+} from "@/types/communications"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTemplate"
@@ -190,19 +194,22 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         if (!incoming?.template) {
             temp.communication_type = ICommunicationType.CREDENTIALS
             temp.communication_method = ICommunicationMethod.EMAIL
-            temp.template = {
-                audience_selection: null,
+            let template: ISendCommunicationBody = {
+                audience_selection: undefined,
                 audience_voter_ids: [],
-                schedule_date: null,
-                schedule_now: null,
+                schedule_date: undefined,
+                schedule_now: undefined,
                 email: {
                     subject: globalSettings.DEFAULT_EMAIL_SUBJECT["en"] ?? "",
                     plaintext_body: globalSettings.DEFAULT_EMAIL_PLAINTEXT_BODY["en"] ?? "",
                     html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY["en"] ?? "",
                 },
-                sms: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
+                sms: {
+                    message: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
+                },
                 document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
             }
+            temp.template = template
         }
 
         return temp
