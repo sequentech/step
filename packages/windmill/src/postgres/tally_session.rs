@@ -7,6 +7,7 @@ use sequent_core::types::{
     ceremonies::TallyExecutionStatus,
     hasura::core::{TallySession, TallySessionConfiguration},
 };
+use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -48,7 +49,7 @@ impl TryFrom<Row> for TallySessionWrapper {
             execution_status: item.try_get("execution_status")?,
             threshold: item.try_get::<_, i32>("threshold")? as i64,
             configuration: item
-                .try_get::<_, Option<serde_json::value::Value>>("configuration")?
+                .try_get::<_, Option<Value>>("configuration")?
                 .map(|val| serde_json::from_value(val))
                 .transpose()?,
         }))
@@ -68,7 +69,9 @@ pub async fn insert_tally_session(
     threshold: i32,
     configuration: Option<TallySessionConfiguration>,
 ) -> Result<TallySession> {
-    let configuration_json = serde_json::to_value(&configuration)?;
+    let configuration_json: Option<Value> = configuration
+        .map(|value| serde_json::to_value(&value))
+        .transpose()?;
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
         .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
