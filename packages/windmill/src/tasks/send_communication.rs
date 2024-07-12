@@ -271,12 +271,12 @@ impl EmailSender {
 #[instrument(skip(sender), err)]
 async fn send_communication_sms(
     receiver: &Option<String>,
-    template: &Option<String>,
+    template: &Option<SmsConfig>,
     variables: &Map<String, Value>,
     sender: &SmsSender,
 ) -> Result<()> {
-    if let (Some(receiver), Some(message)) = (receiver, template) {
-        let message = reports::render_template_text(message.as_str(), variables.clone())
+    if let (Some(receiver), Some(config)) = (receiver, template) {
+        let message = reports::render_template_text(config.message.as_str(), variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message).await?;

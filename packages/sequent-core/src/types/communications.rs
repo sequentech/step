@@ -73,7 +73,7 @@ pub struct SendCommunicationBody {
     pub schedule_now: Option<bool>,
     pub schedule_date: Option<String>,
     pub email: Option<EmailConfig>,
-    pub sms: Option<String>,
+    pub sms: Option<SmsConfig>,
     pub document: Option<String>,
     pub name: Option<String>,
     pub alias: Option<String>,
