@@ -4,8 +4,16 @@
 import {gql} from "@apollo/client"
 
 export const CREATE_TALLY_CEREMONY = gql`
-    mutation CreateTallyCeremony($election_event_id: uuid!, $election_ids: [uuid!]!, $configuration: jsonb) {
-        create_tally_ceremony(election_event_id: $election_event_id, election_ids: $election_ids, configuration: $configuration) {
+    mutation CreateTallyCeremony(
+        $election_event_id: uuid!
+        $election_ids: [uuid!]!
+        $configuration: jsonb
+    ) {
+        create_tally_ceremony(
+            election_event_id: $election_event_id
+            election_ids: $election_ids
+            configuration: $configuration
+        ) {
             tally_session_id
         }
     }

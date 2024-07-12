@@ -330,6 +330,7 @@ fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &Co
         &CommunicationMethod::SMS => {
             metrics_unit.num_sms_sent += 1;
         }
+        &CommunicationMethod::DOCUMENT => {}
     };
 }
 
@@ -578,6 +579,10 @@ pub async fn send_communication(
                     } else {
                         Ok(())
                     }
+                }
+                CommunicationMethod::DOCUMENT => {
+                    //nothing to do
+                    Ok(())
                 }
             };
             update_metrics(

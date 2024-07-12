@@ -4,10 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const GET_BALLOT_PUBLICATION_CHANGE = gql`
-    mutation GetBallotPublicationChange(
-        $ballotPublicationId: uuid!
-        $electionEventId: uuid!
-    ) {
+    mutation GetBallotPublicationChange($ballotPublicationId: uuid!, $electionEventId: uuid!) {
         get_ballot_publication_changes(
             ballot_publication_id: $ballotPublicationId
             election_event_id: $electionEventId

@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::{ceremonies::TallyExecutionStatus, hasura::core::TallySession};
+use sequent_core::types::{
+    ceremonies::TallyExecutionStatus,
+    hasura::core::{TallySession, TallySessionConfiguration},
+};
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -44,6 +47,10 @@ impl TryFrom<Row> for TallySessionWrapper {
             keys_ceremony_id: item.try_get::<_, Uuid>("keys_ceremony_id")?.to_string(),
             execution_status: item.try_get("execution_status")?,
             threshold: item.try_get::<_, i32>("threshold")? as i64,
+            configuration: item
+                .try_get::<_, Option<serde_json::value::Value>>("configuration")?
+                .map(|val| serde_json::from_value(val))
+                .transpose()?,
         }))
     }
 }
@@ -59,7 +66,9 @@ pub async fn insert_tally_session(
     keys_ceremony_id: &str,
     execution_status: TallyExecutionStatus,
     threshold: i32,
+    configuration: Option<TallySessionConfiguration>,
 ) -> Result<TallySession> {
+    let configuration_json = serde_json::to_value(&configuration)?;
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
         .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
@@ -73,7 +82,7 @@ pub async fn insert_tally_session(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session
-                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold)
+                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration)
                 VALUES(
                     $1,
                     $2,
@@ -82,7 +91,8 @@ pub async fn insert_tally_session(
                     $5,
                     $6,
                     $7,
-                    $8
+                    $8,
+                    $9
                 )
                 RETURNING
                     *;
@@ -101,6 +111,7 @@ pub async fn insert_tally_session(
                 &Uuid::parse_str(keys_ceremony_id)?,
                 &Some(execution_status.to_string()),
                 &threshold,
+                &configuration_json,
             ],
         )
         .await
