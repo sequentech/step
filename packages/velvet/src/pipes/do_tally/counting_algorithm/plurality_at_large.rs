@@ -107,6 +107,7 @@ impl CountingAlgorithm for PluralityAtLarge {
         let total_votes_base = cmp::max(1, total_votes) as f64;
 
         let census_base = cmp::max(1, self.tally.census) as f64;
+        let percentage_auditable_votes = (self.tally.auditable_votes as f64) * 100.0 / total_votes_base;
         let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
@@ -120,6 +121,8 @@ impl CountingAlgorithm for PluralityAtLarge {
             contest: self.tally.contest.clone(),
             census: self.tally.census,
             percentage_census: 100.0,
+            auditable_votes: self.tally.auditable_votes,
+            percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
             total_votes: total_votes,
             percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,

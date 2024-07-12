@@ -170,6 +170,7 @@ async fn process_plaintexts(
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
                 eligible_voters: 0,
+                auditable_votes: 0,
                 area: area.clone(),
             })
         })
@@ -230,6 +231,8 @@ async fn process_plaintexts(
         )
         .await?;
         area_contest.eligible_voters = eligible_voters;
+        // TODO: Count auditable votes
+        area_contest.auditable_votes = 0;
         data.push(area_contest);
     }
     Ok(data)

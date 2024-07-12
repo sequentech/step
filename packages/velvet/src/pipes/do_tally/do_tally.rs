@@ -80,6 +80,7 @@ impl Pipe for DoTally {
             for contest_input in &election_input.contest_list {
                 let mut contest_ballot_files = vec![];
                 let mut sum_census: u64 = 0;
+                let mut sum_auditable_votes: u64 = 0;
 
                 let areas: Vec<TreeNodeArea> = contest_input
                     .area_list
@@ -94,6 +95,11 @@ impl Pipe for DoTally {
                     .area_list
                     .iter()
                     .map(|area_input| (area_input.area.id.to_string(), area_input.census))
+                    .collect();
+                let auditable_votes_map: HashMap<String, u64> = contest_input
+                    .area_list
+                    .iter()
+                    .map(|area_input| (area_input.area.id.to_string(), area_input.auditable_votes))
                     .collect();
 
                 let mut tally_sheet_results: Vec<ContestResult> = vec![];
@@ -142,6 +148,12 @@ impl Pipe for DoTally {
                             .filter_map(|census| census.clone())
                             .sum();
 
+                        let auditable_votes_size: u64 = children_areas
+                        .iter()
+                        .map(|child_area| auditable_votes_map.get(&child_area.id))
+                        .filter_map(|auditable_votes: Option<&u64>| auditable_votes.clone())
+                        .sum();
+
                         let children_area_paths: Vec<PathBuf> = children_areas
                             .iter()
                             .map(|child_area| -> Result<PathBuf> {
@@ -161,6 +173,7 @@ impl Pipe for DoTally {
                             &contest_input.contest,
                             children_area_paths,
                             census_size,
+                            auditable_votes_size,
                             vec![],
                         )
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -179,6 +192,7 @@ impl Pipe for DoTally {
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
                         area_input.census,
+                        area_input.auditable_votes,
                         vec![],
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -196,6 +210,7 @@ impl Pipe for DoTally {
                     contest_ballot_files.push(decoded_ballots_file);
 
                     sum_census += area_input.census;
+                    sum_auditable_votes += area_input.auditable_votes;
 
                     // tally sheets tally
                     let input_tally_sheets_dir = PipeInputs::build_path(
@@ -242,6 +257,7 @@ impl Pipe for DoTally {
                     &contest_input.contest,
                     contest_ballot_files,
                     sum_census,
+                    sum_auditable_votes,
                     tally_sheet_results.clone(),
                 )
                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -289,6 +305,8 @@ pub struct ContestResult {
     pub contest: Contest,
     pub census: u64,
     pub percentage_census: f64,
+    pub auditable_votes: u64,
+    pub percentage_auditable_votes: f64,
     pub total_votes: u64,
     pub percentage_total_votes: f64,
     pub total_valid_votes: u64,
@@ -326,6 +344,7 @@ impl ContestResult {
         let count_valid = self.total_valid_votes;
 
         let census_base = cmp::max(1, self.census) as f64;
+        let percentage_auditable_votes = (self.auditable_votes as f64) * 100.0 / total_votes_base;
         let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes =
@@ -339,6 +358,7 @@ impl ContestResult {
 
         let mut contest_result = self.clone();
         contest_result.percentage_census = 100.0;
+        contest_result.percentage_auditable_votes = percentage_auditable_votes.clamp(0.0, 100.0);
         contest_result.percentage_total_votes = percentage_total_votes.clamp(0.0, 100.0);
         contest_result.percentage_total_valid_votes =
             percentage_total_valid_votes.clamp(0.0, 100.0);

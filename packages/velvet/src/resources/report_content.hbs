@@ -70,7 +70,13 @@ SPDX-License-Identifier: AGPL-3.0-only
           <tr>
             <td style="width: 55%;">Implicit invalid votes</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> </tr>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
+          </tr>
+          <tr>
+            <td style="width: 55%;">Auditable votes</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td> 
+          </tr>
         </table>
 
         <table>
