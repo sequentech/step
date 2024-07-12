@@ -459,7 +459,10 @@ pub async fn send_communication(
         .map_err(|err| anyhow!("{}", err))?;
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
-    let user_ids = match body.audience_selection {
+    let Some(audience_selection) = body.audience_selection.clone() else {
+        return Err("Missing audience selection").into();
+    };
+    let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
         // TODO: managed "not voted" and "voted"
         _ => None,

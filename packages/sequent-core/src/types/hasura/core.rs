@@ -264,7 +264,7 @@ pub struct KeysCeremony {
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySessionConfiguration {
-    report_content_template_id: Option<String>,
+    pub report_content_template_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

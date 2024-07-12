@@ -11,7 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::types::hasura::core::{Area, Election, TallySessionConfiguration, TallySheet};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -360,7 +360,7 @@ struct VelvetTemplateData {
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+pub async fn create_config_file(base_tally_path: PathBuf, report_content_template: Option<String>,) -> Result<()> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
     let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")
@@ -462,6 +462,7 @@ pub async fn run_velvet_tally(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     tally_sheets: &Vec<TallySheet>,
+    report_content_template: Option<String>,
 ) -> Result<State> {
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
@@ -469,6 +470,6 @@ pub async fn run_velvet_tally(
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
-    create_config_file(base_tally_path.clone()).await?;
+    create_config_file(base_tally_path.clone(), report_content_template).await?;
     call_velvet(base_tally_path.clone())
 }

@@ -133,3 +133,51 @@ pub async fn insert_tally_session(
     };
     Ok(value.clone())
 }
+
+
+#[instrument(err, skip_all)]
+pub async fn get_tally_session_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<TallySession> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.tally_session
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tally_session_id)?,
+            ],
+        )
+        .await?;
+
+    let elements: Vec<TallySession> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySession> {
+            row.try_into()
+                .map(|res: TallySessionWrapper| -> TallySession { res.0 })
+        })
+        .collect::<Result<Vec<TallySession>>>()?;
+
+    elements
+        .get(0)
+        .map(|tally_session: &TallySession| tally_session.clone())
+        .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
+}
