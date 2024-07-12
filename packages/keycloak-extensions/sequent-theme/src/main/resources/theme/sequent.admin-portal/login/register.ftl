@@ -103,20 +103,30 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#--  https://github.com/jackocnr/intl-tel-input/tree/master  -->
 
         <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/intlTelInput.css">
-        <script src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
+        <script type="text/javascript" src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
+
+        <#--  Timezone country code data  -->
+
+        <script type="text/javascript" src="${url.resourcesPath}/js/timezone-countrycode-data.js"></script>
+
         <script>
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
             listTelInputs.forEach(function (input) {
                 // Use intel-tel-input
                 window.intlTelInput(input, {
-                    utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
+                    utilsScript: "/resources/h2yh4/login/sequent.voting-portal/intl-tel-input-23.3.2/js/utils.js",
                     initialCountry: "auto",
                     geoIpLookup: function(success, failure) {
-                        fetch("https://ipapi.co/json")
-                        .then(function(res) { return res.json(); })
-                        .then(function(data) { success(data.country_code); })
-                        .catch(function() { failure(); });
+                        const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                        let timezoneCountrycodeData = JSON.parse(data);
+                        let countryCode = timezoneCountrycodeData[userTimeZone].toString();
+
+                        if (countryCode) {
+                            return success(countryCode);
+                        }
+                        return failure();
                     },
                 });
             });
