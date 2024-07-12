@@ -20,15 +20,18 @@ use serde_json::Map;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::pipes::{
-    do_tally::{
-        list_tally_sheet_subfolders, ContestResult,
-        OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+use crate::{
+    config::generate_reports::PipeConfigGenerateReports,
+    pipes::{
+        do_tally::{
+            list_tally_sheet_subfolders, ContestResult,
+            OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+        },
+        mark_winners::{WinnerResult, OUTPUT_WINNERS},
+        pipe_inputs::{AreaConfig, PipeInputs},
+        pipe_name::PipeNameOutputDir,
+        Pipe,
     },
-    mark_winners::{WinnerResult, OUTPUT_WINNERS},
-    pipe_inputs::{AreaConfig, PipeInputs},
-    pipe_name::PipeNameOutputDir,
-    Pipe,
 };
 use crate::{
     pipes::error::{Error, Result},
@@ -39,11 +42,6 @@ pub const OUTPUT_PDF: &str = "report.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
-
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct PipeConfigGenerateReports {
-    pub enable_pdfs: bool,
-}
 
 #[derive(Debug)]
 pub struct GenerateReports {
@@ -150,6 +148,7 @@ impl GenerateReports {
     ) -> Result<GeneratedReportsBytes> {
         let reports = self.compute_reports(reports)?;
         let json_reports = serde_json::to_value(reports)?;
+        let config = self.get_config()?;
 
         let mut variables_map = Map::new();
 
@@ -160,8 +159,10 @@ impl GenerateReports {
         template_map.insert("report_base_html".to_string(), report_base_html.to_string());
         let report_base_pdf = include_str!("../../resources/report_base_pdf.hbs");
         template_map.insert("report_base_pdf".to_string(), report_base_pdf.to_string());
-        let report_content = include_str!("../../resources/report_content.hbs");
-        template_map.insert("report_content".to_string(), report_content.to_string());
+        let report_content = config
+            .report_content_template
+            .unwrap_or(include_str!("../../resources/report_content.hbs").to_string());
+        template_map.insert("report_content".to_string(), report_content);
 
         let render_html = reports::render_template(
             "report_base_html",

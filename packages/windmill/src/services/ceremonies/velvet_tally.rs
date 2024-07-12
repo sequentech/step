@@ -22,6 +22,7 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
+use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
@@ -400,6 +401,11 @@ pub async fn create_config_file(
         enable_pdfs: false,
     };
 
+    let gen_report_pipe_config = PipeConfigGenerateReports {
+        enable_pdfs: false,
+        report_content_template,
+    };
+
     let stages_def = {
         let mut map = HashMap::new();
         map.insert(
@@ -429,7 +435,7 @@ pub async fn create_config_file(
                     velvet::config::PipeConfig {
                         id: "gen-report".to_string(),
                         pipe: PipeName::GenerateReports,
-                        config: Some(serde_json::Value::Null),
+                        config: Some(serde_json::to_value(gen_report_pipe_config)?),
                     },
                 ],
             },
