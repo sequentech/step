@@ -9,6 +9,9 @@ SPDX-License-Identifier: AGPL-3.0-only
       <div id="dateDiv"></div>
       
       {{ #each reports as |report| }}
+        {{#if report.header}}
+          {{ sanitize_html report.header }}
+        {{/if}}
         <h2>Contest: {{ sanitize_html report.contest.name }}</h2>
         {{#if report.area}}
           <h2>Area: {{ report.area.name}}</h2>

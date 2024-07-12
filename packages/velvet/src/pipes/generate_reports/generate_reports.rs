@@ -328,6 +328,7 @@ impl GenerateReports {
                     contest_result,
                     area: None,
                     winners,
+                    header: None,
                 });
 
                 for area in &contest_input.area_list {
@@ -356,6 +357,7 @@ impl GenerateReports {
                             name: area.area.name.clone(),
                         }),
                         winners,
+                        header: None,
                     });
                 }
             }
@@ -412,6 +414,7 @@ impl GenerateReports {
             contest_result,
             area: area.clone(),
             winners,
+            header: None,
         };
 
         self.write_report(
@@ -632,6 +635,7 @@ pub struct ReportData {
     pub area: Option<BasicArea>,
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
+    pub header: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
