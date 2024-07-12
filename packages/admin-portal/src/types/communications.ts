@@ -2,6 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+export enum IAudienceSelection {
+    ALL_USERS = "ALL_USERS",
+    NOT_VOTED = "NOT_VOTED",
+    VOTED = "VOTED",
+    SELECTED = "SELECTED",
+}
+
 export enum ICommunicationType {
     CREDENTIALS = "CREDENTIALS",
     BALLOT_RECEIPT = "BALLOT_RECEIPT",
@@ -24,16 +31,16 @@ export interface IEmail {
 }
 
 export interface ISendCommunicationBody {
-    audience_selection: any
+    audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
-    communication_type: ICommunicationType
-    communication_method: ICommunicationMethod
-    schedule_now: boolean
+    communication_type?: ICommunicationType
+    communication_method?: ICommunicationMethod
+    schedule_now?: boolean
     schedule_date?: string
     email?: IEmail
     sms?: string
-    name: string
-    alias: string
+    name?: string
+    alias?: string
 }
 
 export interface IRECEIPTS {

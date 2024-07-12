@@ -14,6 +14,7 @@ use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 use anyhow::{anyhow, Context};
@@ -270,12 +271,12 @@ impl EmailSender {
 #[instrument(skip(sender), err)]
 async fn send_communication_sms(
     receiver: &Option<String>,
-    template: &Option<SmsConfig>,
+    template: &Option<String>,
     variables: &Map<String, Value>,
     sender: &SmsSender,
 ) -> Result<()> {
-    if let (Some(receiver), Some(config)) = (receiver, template) {
-        let message = reports::render_template_text(config.message.as_str(), variables.clone())
+    if let (Some(receiver), Some(message)) = (receiver, template) {
+        let message = reports::render_template_text(message.as_str(), variables.clone())
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message).await?;
@@ -460,7 +461,7 @@ pub async fn send_communication(
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
     let Some(audience_selection) = body.audience_selection.clone() else {
-        return Err("Missing audience selection").into();
+        return Err(Error::String(format!("Missing audience selection")));
     };
     let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
@@ -543,6 +544,10 @@ pub async fn send_communication(
             metrics_by_election_id: Default::default(),
         };
 
+        let Some(communication_method) = body.communication_method.clone() else {
+            return Err(Error::String("Missing communication method".into()));
+        };
+
         for user in users.iter() {
             event!(
                 Level::INFO,
@@ -552,7 +557,7 @@ pub async fn send_communication(
             );
             let variables: Map<String, Value> =
                 get_variables(user, election_event.clone(), tenant_id.clone())?;
-            let success = match body.communication_method {
+            let success = match communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(
                         /* receiver */ &user.email,
@@ -592,7 +597,7 @@ pub async fn send_communication(
                 &mut metrics,
                 &elections_by_area,
                 &user,
-                /* communication_method */ &body.communication_method,
+                /* communication_method */ &communication_method,
                 /* success */ success.is_ok(),
             );
         }

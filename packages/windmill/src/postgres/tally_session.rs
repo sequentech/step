@@ -134,7 +134,6 @@ pub async fn insert_tally_session(
     Ok(value.clone())
 }
 
-
 #[instrument(err, skip_all)]
 pub async fn get_tally_session_by_id(
     hasura_transaction: &Transaction<'_>,

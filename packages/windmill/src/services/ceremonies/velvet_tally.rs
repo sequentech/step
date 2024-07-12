@@ -360,7 +360,10 @@ struct VelvetTemplateData {
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_config_file(base_tally_path: PathBuf, report_content_template: Option<String>,) -> Result<()> {
+pub async fn create_config_file(
+    base_tally_path: PathBuf,
+    report_content_template: Option<String>,
+) -> Result<()> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
     let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")

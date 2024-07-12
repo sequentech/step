@@ -817,21 +817,24 @@ pub async fn execute_tally_session_wrapped(
     let report_content_template_id: Option<String> = configuration
         .map(|value| value.report_content_template_id)
         .flatten();
-    let report_content_template: Option<String> = if let Some(template_id) = report_content_template_id {
-        let template = get_communication_template_by_id(
-            hasura_transaction,
-            &tenant_id,
-            &template_id,
-        ).await?;
-        let document: Option<String> = template.map(|value| {
-            let body: std::result::Result<SendCommunicationBody, _> = serde_json::from_value(value.template);
-            body.map(|res| res.document)
-        }
-        )
-        .transpose()?.flatten();
+    let report_content_template: Option<String> = if let Some(template_id) =
+        report_content_template_id
+    {
+        let template =
+            get_communication_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
+        let document: Option<String> = template
+            .map(|value| {
+                let body: std::result::Result<SendCommunicationBody, _> =
+                    serde_json::from_value(value.template);
+                body.map(|res| res.document)
+            })
+            .transpose()?
+            .flatten();
         document
-    } else { None };
-    
+    } else {
+        None
+    };
+
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
     // map plaintexts to contests
@@ -872,7 +875,7 @@ pub async fn execute_tally_session_wrapped(
                 &plaintexts_data,
                 &cast_votes_count,
                 &tally_sheets,
-                report_content_template
+                report_content_template,
             )
             .await?,
         )
