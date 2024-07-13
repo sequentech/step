@@ -159,6 +159,9 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
         }
+        if (ICommunicationType.TALLY_REPORT === selectedCommunicationType?.value) {
+            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
+        }
 
         return res
     }
