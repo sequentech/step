@@ -128,8 +128,6 @@ pub async fn insert_ballots_messages(
                     .content
                     .clone()
                     .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
-
                         let hashable_ballot: HashableBallot = serde_json::from_str(&ballot_str)?;
                         let contests = hashable_ballot
                             .deserialize_contests()
@@ -146,6 +144,8 @@ pub async fn insert_ballots_messages(
             .iter()
             .filter_map(|ballot_opt| ballot_opt.clone())
             .collect();
+
+        event!(Level::INFO, "ballots_list len={:?}", ballots_list.len());
 
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
         add_ballots_to_board(
@@ -170,6 +170,7 @@ pub async fn get_elections_end_dates(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
+    // TODO: use ballot publications instead?
     let elections_dates: HashMap<String, Option<DateTime<_>>> = get_all_elections_for_event(
         auth_headers.clone(),
         tenant_id.to_string(),

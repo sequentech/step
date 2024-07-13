@@ -30,11 +30,11 @@ SPDX-License-Identifier: AGPL-3.0-only
             </td>
           </tr>
           <tr>
-            <td style="width: 55%;">Minimum number of option a voter can select</td>
+            <td style="width: 55%;">Minimum number of candidates a voter can select</td>
             <td style="width: 45%;">{{ format_u64 report.contest.min_votes }}</td>
           </tr>
           <tr>
-            <td style="width: 55%;">Maximum number of option a voter can select</td>
+            <td style="width: 55%;">Maximum number of candidates a voter can select</td>
             <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
           </tr>
         </table>
@@ -54,7 +54,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_census }}%</td>
           </tr>
           <tr>
-            <td style="width: 55%;">Total number of votes cast</td>
+            <td style="width: 55%;">Auditable votes</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td> 
+          </tr>
+          <tr>
+            <td style="width: 55%;">Total number of votes counted</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_votes }}</td>
             <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}%</td>
           </tr>
@@ -77,11 +82,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             <td style="width: 55%;">Implicit invalid votes</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
             <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
-          </tr>
-          <tr>
-            <td style="width: 55%;">Auditable votes</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td> 
           </tr>
         </table>
 

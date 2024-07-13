@@ -152,7 +152,7 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
-    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Event>(
+    const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
             pagination: {page: 1, perPage: 1},
@@ -253,6 +253,7 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         } finally {
+            refetch()
             setIsButtonDisabled(false)
         }
     }
