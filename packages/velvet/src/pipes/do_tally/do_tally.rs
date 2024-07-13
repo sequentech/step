@@ -305,7 +305,7 @@ impl Pipe for DoTally {
                     contest_ballot_files,
                     sum_census,
                     sum_auditable_votes,
-                    only_sheet_results
+                    only_sheet_results,
                 )
                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                 let res = counting_algorithm
