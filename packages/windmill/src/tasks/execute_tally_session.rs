@@ -15,7 +15,9 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::communication_template::get_communication_template_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
-use crate::services::ceremonies::insert_ballots::insert_ballots_messages;
+use crate::services::ceremonies::insert_ballots::{
+    count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
+};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::print_messages;
@@ -42,7 +44,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
-use chrono::Duration;
+use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use rand::rngs::StdRng;
@@ -108,6 +110,8 @@ async fn process_plaintexts(
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
     areas: &Vec<Area>,
+    tenant_id: &str,
+    election_event_id: &str,
 ) -> Result<Vec<AreaContestDataType>> {
     let areas_map: HashMap<String, Area> = areas
         .clone()
@@ -218,6 +222,10 @@ async fn process_plaintexts(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
+    let elections_end_dates = get_elections_end_dates(&auth_headers, tenant_id, election_event_id)
+        .await
+        .with_context(|| "error getting elections end_date")?;
+
     let mut data: Vec<AreaContestDataType> = vec![];
 
     // fill in the eligible voters data
@@ -233,9 +241,23 @@ async fn process_plaintexts(
             &area_contest.last_tally_session_execution.area_id,
         )
         .await?;
+        let auditable_ballots_count = count_auditable_ballots(
+            &elections_end_dates,
+            &auth_headers,
+            &hasura_transaction,
+            &keycloak_transaction,
+            &area_contest.contest.tenant_id,
+            &area_contest.contest.election_event_id,
+            &area_contest.contest.election_id,
+            &area_contest.contest.id,
+            &area_contest.last_tally_session_execution.area_id,
+        )
+        .await
+        .with_context(|| "Error counting auditable ballots")?;
         area_contest.eligible_voters = eligible_voters;
-        // TODO: Count auditable votes
-        area_contest.auditable_votes = 0;
+        area_contest.auditable_votes = auditable_ballots_count
+            .try_into()
+            .with_context(|| "Too many auditable ballots")?;
         data.push(area_contest);
     }
     Ok(data)
@@ -753,6 +775,8 @@ async fn map_plaintext_data(
         ballot_styles,
         tally_session_data,
         &areas,
+        &tenant_id,
+        &election_event_id,
     )
     .await?;
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
