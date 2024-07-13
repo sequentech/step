@@ -12,6 +12,7 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::area::get_event_areas;
+use crate::postgres::communication_template::get_communication_template_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::insert_ballots_messages;
@@ -59,7 +60,9 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
+use sequent_core::types::communications::SendCommunicationBody;
 use sequent_core::types::hasura::core::Area;
+use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -796,7 +799,7 @@ pub async fn execute_tally_session_wrapped(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
-    let Some((tally_session_execution, _)) = find_last_tally_session_execution(
+    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -806,6 +809,30 @@ pub async fn execute_tally_session_wrapped(
     else {
         event!(Level::INFO, "Can't find last execution status, skipping");
         return Ok(());
+    };
+    let configuration: Option<TallySessionConfiguration> = tally_session
+        .configuration
+        .map(|value| serde_json::from_value(value))
+        .transpose()?;
+    let report_content_template_id: Option<String> = configuration
+        .map(|value| value.report_content_template_id)
+        .flatten();
+    let report_content_template: Option<String> = if let Some(template_id) =
+        report_content_template_id
+    {
+        let template =
+            get_communication_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
+        let document: Option<String> = template
+            .map(|value| {
+                let body: std::result::Result<SendCommunicationBody, _> =
+                    serde_json::from_value(value.template);
+                body.map(|res| res.document)
+            })
+            .transpose()?
+            .flatten();
+        document
+    } else {
+        None
     };
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
@@ -848,6 +875,7 @@ pub async fn execute_tally_session_wrapped(
                 &plaintexts_data,
                 &cast_votes_count,
                 &tally_sheets,
+                report_content_template,
             )
             .await?,
         )

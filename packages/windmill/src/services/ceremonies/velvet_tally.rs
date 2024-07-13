@@ -11,7 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::types::hasura::core::{Area, Election, TallySessionConfiguration, TallySheet};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -22,6 +22,7 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
+use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
@@ -117,6 +118,7 @@ pub fn prepare_tally_for_area_contest(
 
     let area_config = AreaConfig {
         id: Uuid::parse_str(&area_id)?,
+        name: area_contest.area.name.clone().unwrap_or("".into()),
         tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
         election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
@@ -359,7 +361,10 @@ struct VelvetTemplateData {
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+pub async fn create_config_file(
+    base_tally_path: PathBuf,
+    report_content_template: Option<String>,
+) -> Result<()> {
     let public_asset_path = std::env::var("PUBLIC_ASSETS_PATH")
         .map_err(|err| anyhow!("error loading PUBLIC_ASSETS_PATH var: {}", err))?;
     let file_logo = std::env::var("PUBLIC_ASSETS_LOGO_IMG")
@@ -396,6 +401,11 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
         enable_pdfs: false,
     };
 
+    let gen_report_pipe_config = PipeConfigGenerateReports {
+        enable_pdfs: false,
+        report_content_template,
+    };
+
     let stages_def = {
         let mut map = HashMap::new();
         map.insert(
@@ -425,7 +435,7 @@ pub async fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
                     velvet::config::PipeConfig {
                         id: "gen-report".to_string(),
                         pipe: PipeName::GenerateReports,
-                        config: Some(serde_json::Value::Null),
+                        config: Some(serde_json::to_value(gen_report_pipe_config)?),
                     },
                 ],
             },
@@ -461,6 +471,7 @@ pub async fn run_velvet_tally(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     tally_sheets: &Vec<TallySheet>,
+    report_content_template: Option<String>,
 ) -> Result<State> {
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
@@ -468,6 +479,6 @@ pub async fn run_velvet_tally(
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
     }
     create_election_configs(base_tally_path.clone(), area_contests, cast_votes_count).await?;
-    create_config_file(base_tally_path.clone()).await?;
+    create_config_file(base_tally_path.clone(), report_content_template).await?;
     call_velvet(base_tally_path.clone())
 }

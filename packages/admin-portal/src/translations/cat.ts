@@ -883,6 +883,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultats",
+            templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",
@@ -1057,6 +1059,7 @@ const catalanTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
+                TALLY_REPORT: "Informe de recompte",
             },
             email: {
                 subject: "Assumpte",
@@ -1165,6 +1168,7 @@ const catalanTranslation: TranslationType = {
                 participation_report: "Informe de Participació",
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
+                tally_report: "Informe de recompte",
             },
             method: {
                 email: "Email",

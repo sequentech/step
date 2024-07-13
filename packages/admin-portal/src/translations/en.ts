@@ -877,6 +877,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            templateTitle: "Results Template",
+            templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
@@ -1051,6 +1053,7 @@ const englishTranslation = {
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
             },
             email: {
                 subject: "Subject",
@@ -1158,6 +1161,7 @@ const englishTranslation = {
                 participation_report: "Participation Report",
                 electoral_results: "Electoral Results",
                 otp: "OTP",
+                tally_report: "Tally Report",
             },
             method: {
                 email: "Email",
