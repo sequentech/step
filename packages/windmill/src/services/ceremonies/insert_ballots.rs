@@ -250,8 +250,8 @@ pub async fn count_auditable_ballots(
             };
 
             let valid = match elections_end_dates.get(&election_id) {
-                Some(Some(election_end_date)) => ballot_created_at > *election_end_date,
-                _ => false,
+                Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
+                _ => true,
             };
 
             !users_map.contains(&voter_id) || !valid
