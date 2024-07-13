@@ -166,7 +166,13 @@ pub fn create_tally(
         .map(|p| PathBuf::from(p.as_path()))
         .collect();
 
-    let tally = Tally::new(contest, ballots_files, census, auditable_votes, tally_sheet_results)?;
+    let tally = Tally::new(
+        contest,
+        ballots_files,
+        census,
+        auditable_votes,
+        tally_sheet_results,
+    )?;
 
     let counting_algorithm = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),

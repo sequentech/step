@@ -149,10 +149,10 @@ impl Pipe for DoTally {
                             .sum();
 
                         let auditable_votes_size: u64 = children_areas
-                        .iter()
-                        .map(|child_area| auditable_votes_map.get(&child_area.id))
-                        .filter_map(|auditable_votes: Option<&u64>| auditable_votes.clone())
-                        .sum();
+                            .iter()
+                            .map(|child_area| auditable_votes_map.get(&child_area.id))
+                            .filter_map(|auditable_votes: Option<&u64>| auditable_votes.clone())
+                            .sum();
 
                         let children_area_paths: Vec<PathBuf> = children_areas
                             .iter()
@@ -344,6 +344,7 @@ impl ContestResult {
         let count_valid = self.total_valid_votes;
 
         let census_base = cmp::max(1, self.census) as f64;
+
         // `percentage_auditable_votes` is calculated over `census_base`.
         // Otherwise we could end up with strange percentages. Imagine a test
         // election with 2 auditable votes and 1 valid vote. That's maybe 66%
