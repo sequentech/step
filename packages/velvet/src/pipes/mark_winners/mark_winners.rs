@@ -118,8 +118,6 @@ impl Pipe for MarkWinners {
                         Some(&contest_input.id),
                         Some(&area_input.id),
                     );
-                    // do breakdown winners
-                    self.create_breakdown_winners(&base_input_path, &base_output_path)?;
                     // do aggregate winners
                     let base_input_aggregate_path =
                         base_input_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -189,13 +187,13 @@ impl Pipe for MarkWinners {
                     serde_json::to_writer(winners_file, &winners)?;
                 }
 
-                let contest_result_file = PipeInputs::build_path(
+                let contest_result_path = PipeInputs::build_path(
                     &input_dir,
                     &contest_input.election_id,
                     Some(&contest_input.id),
                     None,
-                )
-                .join(OUTPUT_CONTEST_RESULT_FILE);
+                );
+                let contest_result_file = contest_result_path.join(OUTPUT_CONTEST_RESULT_FILE);
 
                 let f = fs::File::open(&contest_result_file)
                     .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
@@ -203,18 +201,21 @@ impl Pipe for MarkWinners {
 
                 let winner = self.get_winners(&contest_result);
 
-                let mut file = PipeInputs::build_path(
+                let winner_folder = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
                     Some(&contest_input.id),
                     None,
                 );
 
-                fs::create_dir_all(&file)?;
-                file.push(OUTPUT_WINNERS);
-                let file = fs::File::create(file)?;
+                fs::create_dir_all(&winner_folder)?;
+                let winner_file_path = winner_folder.join(OUTPUT_WINNERS);
+                let winner_file = fs::File::create(winner_file_path)?;
 
-                serde_json::to_writer(file, &winner)?;
+                serde_json::to_writer(winner_file, &winner)?;
+
+                // do breakdown winners
+                self.create_breakdown_winners(&contest_result_path, &winner_folder)?;
             }
         }
 
