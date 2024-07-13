@@ -134,6 +134,7 @@ impl GenerateReports {
                     candidate_result,
                     is_aggregate: false,
                     tally_sheet_id: None,
+                    channel_type: report.channel_type.clone(),
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
@@ -147,8 +148,8 @@ impl GenerateReports {
         reports: Vec<ReportData>,
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
-        let reports = self.compute_reports(reports)?;
-        let json_reports = serde_json::to_value(reports)?;
+        let computed_reports = self.compute_reports(reports)?;
+        let json_reports = serde_json::to_value(computed_reports)?;
         let config = self.get_config()?;
 
         let mut variables_map = Map::new();
@@ -760,6 +761,7 @@ pub struct ReportDataComputed {
     pub tally_sheet_id: Option<String>,
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
+    pub channel_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

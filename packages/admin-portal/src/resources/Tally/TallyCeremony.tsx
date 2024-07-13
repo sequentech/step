@@ -38,6 +38,7 @@ import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
+    CreateTallyCeremonyMutation,
     Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
@@ -45,6 +46,7 @@ import {
     Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    UpdateTallyCeremonyMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton, StyledTitle} from "./styles"
 import {statusColor} from "./constants"
@@ -87,8 +89,10 @@ export const TallyCeremony: React.FC = () => {
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
 
-    const [CreateTallyCeremonyMutation] = useMutation(CREATE_TALLY_CEREMONY)
-    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
+    const [CreateTallyCeremonyMutation] =
+        useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+    const [UpdateTallyCeremonyMutation] =
+        useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -238,11 +242,15 @@ export const TallyCeremony: React.FC = () => {
                     election_event_id: record?.id,
                     keys_ceremony_id: keyCeremony?.[0]?.id,
                     election_ids: selectedElections,
+                    configuration: {
+                        report_content_template_id: templateId,
+                    },
                 },
             })
 
-            if (errors) {
+            if (errors || !data?.create_tally_ceremony) {
                 notify(t("tally.createTallyError"), {type: "error"})
+                return
             }
 
             if (data) {
@@ -269,6 +277,7 @@ export const TallyCeremony: React.FC = () => {
 
             if (errors) {
                 notify(t("tally.startTallyError"), {type: "error"})
+                return
             }
 
             if (nextStatus) {
