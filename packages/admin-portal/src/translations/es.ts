@@ -882,6 +882,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultados",
+            templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             ceremonyTitle: "Elecciones para el Recuento",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
@@ -1056,6 +1058,7 @@ const spanishTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Informe de Participación",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 OTP: "OTP",
+                TALLY_REPORT: "Informe de Recuento",
             },
             email: {
                 subject: "Subject",
@@ -1164,6 +1167,7 @@ const spanishTranslation: TranslationType = {
                 participation_report: "Informe de Participación",
                 electoral_results: "Resultados Electorales",
                 otp: "OTP",
+                tally_report: "Informe de Recuento",
             },
             method: {
                 email: "Email",

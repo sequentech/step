@@ -14,7 +14,7 @@ use crate::utils::HasId;
 use sequent_core::{
     ballot::Candidate,
     services::area_tree::TreeNodeArea,
-    types::hasura::core::TallySheet,
+    types::{hasura::core::TallySheet, tally_sheets::VotingChannel},
     util::path::{get_folder_name, list_subfolders},
 };
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
@@ -31,6 +31,7 @@ use uuid::Uuid;
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
 pub const INPUT_TALLY_SHEET_FILE: &str = "tally-sheet.json";
+pub const OUTPUT_BREAKDOWNS_FOLDER: &str = "breakdowns";
 
 pub struct DoTally {
     pub pipe_inputs: PipeInputs,
@@ -56,6 +57,39 @@ pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
         })
         .collect();
     tally_sheet_folders
+}
+
+impl DoTally {
+    #[instrument(skip_all)]
+    fn save_tally_sheets_breakdown(
+        &self,
+        tally_sheet_results: &Vec<(ContestResult, TallySheet)>,
+        base_file_path: &PathBuf,
+    ) -> Result<()> {
+        let base_breakdown_path = base_file_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let mut breakdown_map: HashMap<VotingChannel, ContestResult> = HashMap::new();
+
+        for (contest_result, tally_sheet) in tally_sheet_results {
+            let channel: VotingChannel = tally_sheet.channel.clone().into();
+
+            breakdown_map
+                .entry(channel)
+                .and_modify(|current_result| {
+                    current_result.aggregate(&contest_result, true);
+                })
+                .or_insert_with(|| contest_result.clone());
+        }
+
+        for (channel, contest_result) in breakdown_map {
+            let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
+            fs::create_dir_all(&breakdown_folder_path)?;
+            let breakdown_file_path = breakdown_folder_path.join((OUTPUT_CONTEST_RESULT_FILE));
+            let contest_result_file = fs::File::create(&breakdown_file_path)?;
+            serde_json::to_writer(contest_result_file, &contest_result)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Pipe for DoTally {
@@ -102,7 +136,7 @@ impl Pipe for DoTally {
                     .map(|area_input| (area_input.area.id.to_string(), area_input.auditable_votes))
                     .collect();
 
-                let mut tally_sheet_results: Vec<ContestResult> = vec![];
+                let mut tally_sheet_results: Vec<(ContestResult, TallySheet)> = vec![];
 
                 for area_input in &contest_input.area_list {
                     let base_input_path = PipeInputs::build_path(
@@ -247,10 +281,23 @@ impl Pipe for DoTally {
                                 fs::File::create(&output_tally_sheets_file_path)?;
                             serde_json::to_writer(contest_result_file, &contest_result)?;
 
-                            tally_sheet_results.push(contest_result);
+                            tally_sheet_results.push((contest_result, tally_sheet));
                         }
                     }
                 }
+                let mut file_path = PipeInputs::build_path(
+                    &output_dir,
+                    &contest_input.election_id,
+                    Some(&contest_input.id),
+                    None,
+                );
+
+                self.save_tally_sheets_breakdown(&tally_sheet_results, &file_path)?;
+
+                let only_sheet_results = tally_sheet_results
+                    .iter()
+                    .map(|val| val.0.clone())
+                    .collect();
 
                 // create contest tally
                 let counting_algorithm = tally::create_tally(
@@ -258,22 +305,16 @@ impl Pipe for DoTally {
                     contest_ballot_files,
                     sum_census,
                     sum_auditable_votes,
-                    tally_sheet_results.clone(),
+                    only_sheet_results
                 )
                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                 let res = counting_algorithm
                     .tally()
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                let mut file = PipeInputs::build_path(
-                    &output_dir,
-                    &contest_input.election_id,
-                    Some(&contest_input.id),
-                    None,
-                );
-                file.push(OUTPUT_CONTEST_RESULT_FILE);
+                file_path.push(OUTPUT_CONTEST_RESULT_FILE);
 
-                let file = fs::File::create(file)?;
+                let file = fs::File::create(file_path)?;
 
                 serde_json::to_writer(file, &res)?;
             }

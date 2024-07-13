@@ -5,7 +5,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution;
 use anyhow::{anyhow, Context, Result};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use sequent_core::types::ceremonies::{TallyElection, TallyElectionStatus};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 
 #[instrument(skip_all)]
@@ -32,6 +32,16 @@ pub async fn generate_tally_progress(
     messages: &Vec<Message>,
 ) -> Result<Vec<TallyElection>> {
     let mut complete_map: HashMap<String, Vec<i64>> = HashMap::new();
+    let tally_session = tally_session_data
+        .sequent_backend_tally_session
+        .first()
+        .ok_or(anyhow!("Missing tally session"))?;
+    let all_election_ids: HashSet<String> = tally_session
+        .election_ids
+        .clone()
+        .unwrap_or(vec![])
+        .into_iter()
+        .collect();
     for contest in &tally_session_data.sequent_backend_tally_session_contest {
         let mut batch_ids = complete_map
             .get(&contest.election_id)
@@ -102,6 +112,19 @@ pub async fn generate_tally_progress(
             }
         })
         .collect();
+    // take into consideration that some elections might not have an assigned area
+    let existing_election_ids: HashSet<String> = complete_map.into_keys().collect();
+    let missing_elements: Vec<String> = all_election_ids
+        .difference(&existing_election_ids)
+        .cloned()
+        .collect();
+    for missing_election_id in missing_elements {
+        tally_elections_status.push(TallyElection {
+            election_id: missing_election_id.clone(),
+            status: TallyElectionStatus::SUCCESS,
+            progress: 100.0,
+        });
+    }
     tally_elections_status.sort_by_key(|status| status.election_id.clone());
     Ok(tally_elections_status)
 }

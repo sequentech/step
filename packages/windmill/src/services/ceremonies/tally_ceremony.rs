@@ -44,9 +44,9 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
-use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::KeysCeremony;
+use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use serde_json::{from_value, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -240,6 +240,7 @@ pub async fn create_tally_ceremony(
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
+    configuration: Option<TallySessionConfiguration>,
 ) -> Result<String> {
     let (contests, areas, area_contests) = try_join!(
         export_contests(&transaction, &tenant_id, &election_event_id),
@@ -280,6 +281,7 @@ pub async fn create_tally_ceremony(
         &keys_ceremony_id,
         TallyExecutionStatus::STARTED,
         keys_ceremony.threshold as i32,
+        configuration,
     )
     .await?;
 

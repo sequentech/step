@@ -17,6 +17,7 @@ pub fn get_area_config(
 ) -> AreaConfig {
     AreaConfig {
         id: Uuid::new_v4(),
+        name: "".into(),
         tenant_id: *tenant_id,
         election_event_id: *election_event_id,
         election_id: *election_id,

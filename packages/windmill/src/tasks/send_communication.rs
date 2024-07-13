@@ -14,6 +14,7 @@ use crate::types::error::Result;
 use crate::util::aws::get_from_env_aws_config;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 use anyhow::{anyhow, Context};
@@ -330,6 +331,7 @@ fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &Co
         &CommunicationMethod::SMS => {
             metrics_unit.num_sms_sent += 1;
         }
+        &CommunicationMethod::DOCUMENT => {}
     };
 }
 
@@ -458,7 +460,10 @@ pub async fn send_communication(
         .map_err(|err| anyhow!("{}", err))?;
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
-    let user_ids = match body.audience_selection {
+    let Some(audience_selection) = body.audience_selection.clone() else {
+        return Err(Error::String(format!("Missing audience selection")));
+    };
+    let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
         // TODO: managed "not voted" and "voted"
         _ => None,
@@ -539,6 +544,10 @@ pub async fn send_communication(
             metrics_by_election_id: Default::default(),
         };
 
+        let Some(communication_method) = body.communication_method.clone() else {
+            return Err(Error::String("Missing communication method".into()));
+        };
+
         for user in users.iter() {
             event!(
                 Level::INFO,
@@ -548,7 +557,7 @@ pub async fn send_communication(
             );
             let variables: Map<String, Value> =
                 get_variables(user, election_event.clone(), tenant_id.clone())?;
-            let success = match body.communication_method {
+            let success = match communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(
                         /* receiver */ &user.email,
@@ -579,12 +588,16 @@ pub async fn send_communication(
                         Ok(())
                     }
                 }
+                CommunicationMethod::DOCUMENT => {
+                    //nothing to do
+                    Ok(())
+                }
             };
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
                 &user,
-                /* communication_method */ &body.communication_method,
+                /* communication_method */ &communication_method,
                 /* success */ success.is_ok(),
             );
         }
