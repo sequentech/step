@@ -241,7 +241,7 @@ async fn process_plaintexts(
             &area_contest.last_tally_session_execution.area_id,
         )
         .await?;
-        let auditable_ballots_count = count_auditable_ballots(
+        let auditable_votes = count_auditable_ballots(
             &elections_end_dates,
             &auth_headers,
             &hasura_transaction,
@@ -254,8 +254,20 @@ async fn process_plaintexts(
         )
         .await
         .with_context(|| "Error counting auditable ballots")?;
+
+        let contest_name = &area_contest.contest.name;
+        let area_id = &area_contest.last_tally_session_execution.area_id;
+        info!(
+            r#"
+            Setting:
+                eligible_voters={eligible_voters},
+                auditable_votes={auditable_votes},
+            for area_contest with:
+                contest_name={contest_name:?} & and area_id={area_id}
+        "#
+        );
         area_contest.eligible_voters = eligible_voters;
-        area_contest.auditable_votes = auditable_ballots_count
+        area_contest.auditable_votes = auditable_votes
             .try_into()
             .with_context(|| "Too many auditable ballots")?;
         data.push(area_contest);

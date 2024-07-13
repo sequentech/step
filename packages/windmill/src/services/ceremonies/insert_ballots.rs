@@ -145,7 +145,11 @@ pub async fn insert_ballots_messages(
             .filter_map(|ballot_opt| ballot_opt.clone())
             .collect();
 
-        event!(Level::INFO, "ballots_list len={:?}", ballots_list.len());
+        event!(
+            Level::INFO,
+            "insertable_ballots len: {:?}",
+            ballots_list.len()
+        );
 
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
         add_ballots_to_board(
