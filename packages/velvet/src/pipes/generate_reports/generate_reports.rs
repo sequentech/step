@@ -329,7 +329,7 @@ impl GenerateReports {
                     contest_result,
                     area: None,
                     winners,
-                    header: None,
+                    channel_type: None,
                 });
 
                 for area in &contest_input.area_list {
@@ -358,7 +358,7 @@ impl GenerateReports {
                             name: area.area.name.clone(),
                         }),
                         winners,
-                        header: None,
+                        channel_type: None,
                     });
                 }
             }
@@ -457,7 +457,7 @@ impl GenerateReports {
                 contest_result,
                 area: area.clone(),
                 winners,
-                header: None,
+                channel_type: Some(subfolder_name.to_string_lossy().into_owned()),
             };
             reports.push(report);
         }
@@ -514,7 +514,7 @@ impl GenerateReports {
             contest_result,
             area: area.clone(),
             winners,
-            header: None,
+            channel_type: None,
         };
 
         let mut combined: Vec<ReportData> = Vec::new();
@@ -739,7 +739,7 @@ pub struct ReportData {
     pub area: Option<BasicArea>,
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
-    pub header: Option<String>,
+    pub channel_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
