@@ -14,6 +14,7 @@ use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
     types::tally_sheets,
+    util::path::list_subfolders,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -24,7 +25,7 @@ use crate::{
     config::generate_reports::PipeConfigGenerateReports,
     pipes::{
         do_tally::{
-            list_tally_sheet_subfolders, ContestResult,
+            list_tally_sheet_subfolders, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
             OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
         },
         mark_winners::{WinnerResult, OUTPUT_WINNERS},
@@ -375,6 +376,94 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
+    #[instrument(skip_all)]
+    fn read_breakdowns(
+        &self,
+        election_id: &Uuid,
+        election_name: &str,
+        contest_id: Option<&Uuid>,
+        contest: &Contest,
+        area_id: Option<&Uuid>,
+        area: &Option<BasicArea>,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+    ) -> Result<Vec<ReportData>> {
+        // read contest results
+        let mut contest_base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::DoTally.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        let mut winners_base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::MarkWinners.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            contest_base_path =
+                PipeInputs::build_tally_sheet_path(&contest_base_path, &tally_sheet);
+            winners_base_path =
+                PipeInputs::build_tally_sheet_path(&winners_base_path, &tally_sheet);
+        }
+
+        if is_aggregate {
+            contest_base_path =
+                contest_base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+            winners_base_path =
+                winners_base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        }
+        let contest_base_breakdown_path = contest_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let winners_base_breakdown_path = winners_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+
+        if (!contest_base_breakdown_path.exists()
+            || !contest_base_breakdown_path.is_dir()
+            || !winners_base_breakdown_path.exists()
+            || !winners_base_breakdown_path.is_dir())
+        {
+            return Ok(vec![]);
+        }
+        let contest_subfolders = list_subfolders(&contest_base_breakdown_path);
+
+        let mut reports: Vec<ReportData> = vec![];
+
+        for subfolder in contest_subfolders {
+            let contest_results_file_path = subfolder.join(OUTPUT_CONTEST_RESULT_FILE);
+            let contest_results_file = fs::File::open(&contest_results_file_path)
+                .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
+            let contest_result: ContestResult = parse_file(contest_results_file)?;
+
+            let subfolder_name = subfolder.file_name().unwrap();
+            let winners_subfolder = winners_base_breakdown_path.join(subfolder_name);
+            let winners_file_path = winners_subfolder.join(OUTPUT_WINNERS);
+            let winners_file = fs::File::open(&winners_file_path)
+                .map_err(|e| Error::FileAccess(winners_file_path.clone(), e))?;
+            let winners: Vec<WinnerResult> = parse_file(winners_file)?;
+
+            let report = ReportData {
+                election_name: election_name.to_string(),
+                contest: contest.clone(),
+                contest_result,
+                area: area.clone(),
+                winners,
+                header: None,
+            };
+            reports.push(report);
+        }
+        Ok(reports)
+    }
+
     #[instrument(skip(self, contest), err)]
     fn make_report(
         &self,
@@ -408,6 +497,17 @@ impl GenerateReports {
             tally_sheet_id.clone(),
         )?;
 
+        let breakdowns = self.read_breakdowns(
+            election_id,
+            election_name,
+            contest_id,
+            &contest,
+            area_id.as_ref(),
+            &area,
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
+
         let report = ReportData {
             election_name: election_name.to_string(),
             contest,
@@ -417,11 +517,15 @@ impl GenerateReports {
             header: None,
         };
 
+        let mut combined: Vec<ReportData> = Vec::new();
+        combined.push(report.clone());
+        combined.extend(breakdowns);
+
         self.write_report(
             election_id,
             contest_id,
             area_id.as_ref(),
-            vec![report.clone()],
+            combined,
             is_aggregate,
             tally_sheet_id.clone(),
             enable_pdfs,
