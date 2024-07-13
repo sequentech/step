@@ -103,7 +103,7 @@ export const ContentInput: React.FC = () => {
                 <FormStyles.TextInput
                     minRows={4}
                     multiline={true}
-                    source="template.sms"
+                    source="template.sms.message"
                     label={t("communicationTemplate.form.smsMessage")}
                 />
             )

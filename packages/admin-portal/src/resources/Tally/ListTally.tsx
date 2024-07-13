@@ -74,8 +74,6 @@ export interface ListAreaProps {
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
-    const {recordTally} = props
-
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
@@ -88,8 +86,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [UpdateTallyCeremonyMutation] =
