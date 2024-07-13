@@ -344,7 +344,11 @@ impl ContestResult {
         let count_valid = self.total_valid_votes;
 
         let census_base = cmp::max(1, self.census) as f64;
-        let percentage_auditable_votes = (self.auditable_votes as f64) * 100.0 / total_votes_base;
+        // `percentage_auditable_votes` is calculated over `census_base`.
+        // Otherwise we could end up with strange percentages. Imagine a test
+        // election with 2 auditable votes and 1 valid vote. That's maybe 66%
+        // auditable votes over the census, but 200% over total votes.
+        let percentage_auditable_votes = (self.auditable_votes as f64) * 100.0 / census_base;
         let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes =
