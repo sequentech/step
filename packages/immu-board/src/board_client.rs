@@ -6,14 +6,15 @@ use anyhow::{anyhow, Result};
 use log::info;
 use tracing::{event, instrument, Level};
 
-use crate::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
+use tokio::time::{sleep, Duration};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 2500;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 
+#[derive(Debug, Clone)]
 enum Table {
     BraidMessages,
     ElectoralLogMessages,
@@ -422,10 +423,28 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
+        let max_attempts = 5;
+        let initial_delay = Duration::from_millis(10);
+
         for chunk in messages.chunks(IMMUDB_DEFAULT_ENTRIES_TX_LIMIT) {
             let chunk_vec: Vec<BoardMessage> = chunk.to_vec();
-            self.insert(board_db, Table::BraidMessages, &chunk_vec)
-                .await?;
+            let mut attempts = 0;
+            let mut delay = initial_delay;
+
+            loop {
+                attempts += 1;
+                match self
+                    .insert(board_db, Table::BraidMessages, &chunk_vec)
+                    .await
+                {
+                    Ok(_) => break,
+                    Err(e) if attempts < max_attempts => {
+                        sleep(delay).await;
+                        delay *= 2; // Exponential backoff
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
         }
         Ok(())
     }
