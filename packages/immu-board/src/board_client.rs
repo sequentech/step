@@ -418,6 +418,7 @@ impl BoardClient {
         Ok(messages)
     }
 
+    #[instrument(skip_all)]
     pub async fn insert_messages(
         &mut self,
         board_db: &str,
@@ -439,6 +440,7 @@ impl BoardClient {
                 {
                     Ok(_) => break,
                     Err(e) if attempts < max_attempts => {
+                        info!("Retrying for attempt {} after error {}", attempts, e);
                         sleep(delay).await;
                         delay *= 2; // Exponential backoff
                     }
