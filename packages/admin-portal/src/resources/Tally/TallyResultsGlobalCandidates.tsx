@@ -152,8 +152,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         <TableHead>
                             <TableRow>
                                 <TableCell></TableCell>
-                                <TableCell sx={{width: '25%'}} align="right">{t("tally.table.total")}</TableCell>
-                                <TableCell sx={{width: '25%'}} align="right">{t("tally.table.turnout")}</TableCell>
+                                <TableCell sx={{width: "25%"}} align="right">
+                                    {t("tally.table.total")}
+                                </TableCell>
+                                <TableCell sx={{width: "25%"}} align="right">
+                                    {t("tally.table.turnout")}
+                                </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>

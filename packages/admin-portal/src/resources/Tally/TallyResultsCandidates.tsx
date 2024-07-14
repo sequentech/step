@@ -149,8 +149,10 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         <TableHead>
                             <TableRow>
                                 <TableCell></TableCell>
-                                <TableCell sx={{width: '25%'}} align="right">{t("tally.table.total")}</TableCell>
-                                <TableCell sx={{width: '25%'}} align="right" width="300px">
+                                <TableCell sx={{width: "25%"}} align="right">
+                                    {t("tally.table.total")}
+                                </TableCell>
+                                <TableCell sx={{width: "25%"}} align="right" width="300px">
                                     {t("tally.table.turnout")}
                                 </TableCell>
                             </TableRow>
