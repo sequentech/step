@@ -497,6 +497,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/fix-vscode-settings-nix.sh",
             ],
@@ -520,6 +521,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/update-graphql.sh",
             ],

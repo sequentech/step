@@ -7,8 +7,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Sequent Voting Platform
 
-WARNING: This is a work-in-progress - not usable yet.
-
 This is a mono-repo project encompasing the whole second generation of Sequent
 Voting Platform.
 
@@ -295,6 +293,26 @@ Note that you can insert rows as a migration by clicking on the
 `This is a migration` option at the bottom of the `Insert Row` form.
 
 ## admin-portal
+
+## ui-essentials
+
+Contains all the components used across the various portals i.e admin, voting, ballot etc.
+Has storybook configured for component documentation and easy update of existing components or building new ones
+
+To start storybook,
+```bash
+cd /workspaces/step/packages/
+yarn storybook:ui-essentials
+```
+
+After updating any component in ui-essentials, run the following commands to build the current state.
+
+```bash
+cd /workspaces/step/packages/
+yarn prettify:fix:ui-essentials && yarn build:ui-essentials
+```
+
+This is done to allow portals to fetch and use the latest versions of components
 
 ## Update graphql JSON schema
 

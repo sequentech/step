@@ -416,6 +416,10 @@ export const CandidateDataForm: React.FC<{
                                     label={t("candidateScreen.edit.isExplicitInvalid")}
                                 />
                                 <BooleanInput
+                                    source={`presentation.is_explicit_blank`}
+                                    label={t("candidateScreen.edit.isExplicitBlank")}
+                                />
+                                <BooleanInput
                                     source={`presentation.is_category_list`}
                                     label={t("candidateScreen.edit.isCategoryList")}
                                 />

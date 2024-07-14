@@ -99,6 +99,7 @@ pub async fn publish_ballot(
 pub struct GetBallotPublicationChangesInput {
     election_event_id: String,
     ballot_publication_id: String,
+    limit: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -132,6 +133,7 @@ pub async fn get_ballot_publication_changes(
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.ballot_publication_id.clone(),
+        input.limit,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

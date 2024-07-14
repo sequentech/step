@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {ICandidate, IContest, ITypePresentation, shuffle, splitList} from "@sequentech/ui-core"
-import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
+import {checkIsCategoryList, checkIsExplicitBlankVote, checkIsInvalidVote} from "./ElectionConfigService"
 import {sortBy} from "lodash"
 
 export interface ICategory {
@@ -14,7 +14,7 @@ export interface ICategory {
 export type CategoriesMap = {[category: string]: ICategory}
 
 export interface ICategorizedCandidates {
-    invalidCandidates: Array<ICandidate>
+    invalidOrBlankCandidates: Array<ICandidate>
     noCategoryCandidates: Array<ICandidate>
     categoriesMap: CategoriesMap
 }
@@ -23,7 +23,13 @@ export const categorizeCandidates = (question: IContest): ICategorizedCandidates
     const enabledCandidates = question.candidates.filter(
         (cand: ICandidate) => !(cand.presentation?.is_disabled ?? false)
     )
-    const [validCandidates, invalidCandidates] = splitList(enabledCandidates, checkIsInvalidVote)
+
+    const isInvalidOrBlank = (candidate: ICandidate): boolean =>
+        checkIsInvalidVote(candidate) || checkIsExplicitBlankVote(candidate)
+    const [validCandidates, invalidOrBlankCandidates] = splitList(
+        enabledCandidates,
+        isInvalidOrBlank
+    )
     const nonCategoryCandidates: Array<ICandidate> = []
 
     const categoriesMap: CategoriesMap = {}
@@ -49,7 +55,7 @@ export const categorizeCandidates = (question: IContest): ICategorizedCandidates
     }
 
     return {
-        invalidCandidates: invalidCandidates,
+        invalidOrBlankCandidates: invalidOrBlankCandidates,
         noCategoryCandidates: nonCategoryCandidates,
         categoriesMap: categoriesMap,
     }

@@ -36,8 +36,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
     const tallyData = useAtomValue(tallyQueryData)
 
-    // console.log("TallyResultsContest :: contestsData", contestsData)
-
     const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_results_contest?.filter(
@@ -147,7 +145,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                 <Typography variant="body2" component="div" sx={{width: "80px"}}>
                     {t("electionEventScreen.stats.contests")}.{" "}
                 </Typography>
-                <Tabs value={value} sx={{flex: 1}}>
+                <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
                     {contestsData?.map((contest, index) => (
                         <Tab
                             key={index}

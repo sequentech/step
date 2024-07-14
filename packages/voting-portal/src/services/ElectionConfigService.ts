@@ -26,6 +26,9 @@ export const checkIsWriteIn = (answer: ICandidate): boolean =>
 export const checkIsInvalidVote = (answer: ICandidate): boolean =>
     answer.presentation?.is_explicit_invalid || false
 
+export const checkIsExplicitBlankVote = (answer: ICandidate): boolean =>
+    answer.presentation?.is_explicit_blank || false
+
 export const checkPositionIsTop = (answer: ICandidate): boolean =>
     "top" === answer.presentation?.invalid_vote_position
 

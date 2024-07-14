@@ -50,13 +50,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     )
 
     useEffect(() => {
-        console.log("results :>> ", results)
-        console.log("elections :>> ", elections)
         if (elections && results) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
                     const result = results?.find((r) => r.election_id === item.id)
-                    console.log("result :>> ", result)
 
                     return {
                         ...item,
