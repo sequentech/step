@@ -5,11 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 --}}
 
 <div class="content">
-      <h1 class="title">Results of the election "{{ reports.0.election_name }}"</h1>
+      <h1 class="title">Resultados de la elección "{{ reports.0.election_name }}"</h1>
       <div id="dateDiv"></div>
       
       {{ #each reports as |report| }}
-        <h2>Contest: {{ sanitize_html report.contest.name }}</h2>
+        {{#if report.channel_type}}
+          <h2>Canal: {{ sanitize_html report.channel_type }}</h2>
+        {{/if}}
+        <h2>Pregunta: {{ sanitize_html report.contest.name }}</h2>
+        {{#if report.area}}
+          <h2>Area: {{ report.area.name}}</h2>
+        {{/if}}
         <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
 
         <table>
@@ -24,11 +30,11 @@ SPDX-License-Identifier: AGPL-3.0-only
             </td>
           </tr>
           <tr>
-            <td style="width: 55%;">Minimum number of option a voter can select</td>
+            <td style="width: 55%;">Minimum number of candidates a voter can select</td>
             <td style="width: 45%;">{{ format_u64 report.contest.min_votes }}</td>
           </tr>
           <tr>
-            <td style="width: 55%;">Maximum number of option a voter can select</td>
+            <td style="width: 55%;">Maximum number of candidates a voter can select</td>
             <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
           </tr>
         </table>
@@ -48,7 +54,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_census }}%</td>
           </tr>
           <tr>
-            <td style="width: 55%;">Total number of votes cast</td>
+            <td style="width: 55%;">Auditable votes</td>
+            <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td> 
+          </tr>
+          <tr>
+            <td style="width: 55%;">Total number of votes counted</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_votes }}</td>
             <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}%</td>
           </tr>
@@ -70,7 +81,8 @@ SPDX-License-Identifier: AGPL-3.0-only
           <tr>
             <td style="width: 55%;">Implicit invalid votes</td>
             <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> </tr>
+            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
+          </tr>
         </table>
 
         <table>

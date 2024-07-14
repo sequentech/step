@@ -185,6 +185,7 @@ impl PipeInputs {
                     election_id,
                     contest_id,
                     census: area_config.census,
+                    auditable_votes: area_config.auditable_votes,
                     path: path_area,
                     area: area_config.clone(),
                 });
@@ -239,6 +240,7 @@ pub struct InputAreaConfig {
     pub election_id: Uuid,
     pub contest_id: Uuid,
     pub census: u64,
+    pub auditable_votes: u64,
     pub path: PathBuf,
     pub area: AreaConfig,
 }
@@ -257,11 +259,13 @@ pub struct ElectionConfig {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaConfig {
     pub id: Uuid,
+    pub name: String,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub census: u64,
     pub parent_id: Option<Uuid>,
+    pub auditable_votes: u64,
 }
 
 impl Into<TreeNodeArea> for &AreaConfig {

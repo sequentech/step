@@ -886,6 +886,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Modèle de Résultats",
+            templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
@@ -961,6 +963,8 @@ const frenchTranslation: TranslationType = {
                 cast_votes_percent: "Pourcentages de Votes",
                 total_votes: "Total de votants",
                 total_votes_percent: "Participation",
+                total_votes_counted: "Total des Votes Comptés",
+                total_auditable_votes: "Total des Votes Contrôlables",
                 total_valid_votes: "Total de votes valides",
                 total_valid_votes_percent: "Pourcentage de votes valides",
                 total_invalid_votes: "Total de votes invalides",
@@ -1060,6 +1064,7 @@ const frenchTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Rapport de Participation",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 OTP: "OTP",
+                TALLY_REPORT: "Rapport de comptage",
             },
             email: {
                 subject: "Sujet",
@@ -1168,6 +1173,7 @@ const frenchTranslation: TranslationType = {
                 participation_report: "Rapport de Participation",
                 electoral_results: "Résultats Électoraux",
                 otp: "OTP",
+                tally_report: "Rapport de comptage",
             },
             method: {
                 email: "Email",

@@ -883,6 +883,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultats",
+            templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",
@@ -958,6 +960,8 @@ const catalanTranslation: TranslationType = {
                 cast_votes_percent: "Percentatges de Vots",
                 total_votes: "Total de votants",
                 total_votes_percent: "Participació",
+                total_votes_counted: "Total de Vots Comptats",
+                total_auditable_votes: "Total de Vots Auditables",
                 total_valid_votes: "Total de vots vàlids",
                 total_valid_votes_percent: "Percentatge de vots vàlids",
                 total_invalid_votes: "Total de vots invàlids",
@@ -1057,6 +1061,7 @@ const catalanTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
+                TALLY_REPORT: "Informe de recompte",
             },
             email: {
                 subject: "Assumpte",
@@ -1165,6 +1170,7 @@ const catalanTranslation: TranslationType = {
                 participation_report: "Informe de Participació",
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
+                tally_report: "Informe de recompte",
             },
             method: {
                 email: "Email",

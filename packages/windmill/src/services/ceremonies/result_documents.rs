@@ -364,7 +364,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         )
         .await?;
 
-        if let Some(area_id) = self.area_id.clone() {
+        if let Some(area) = self.area.clone() {
             update_results_area_contest_documents(
                 hasura_transaction,
                 &self.contest.tenant_id,
@@ -372,7 +372,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 &self.contest.election_event_id,
                 &self.contest.election_id,
                 &self.contest.id,
-                &area_id,
+                &area.id,
                 &documents,
             )
             .await?;
@@ -415,8 +415,10 @@ pub async fn save_result_documents(
         .await?;
 
     for election_report in results {
-        let document_paths =
-            election_report.get_document_paths(election_report.area_id.clone(), base_tally_path);
+        let document_paths = election_report.get_document_paths(
+            election_report.area.clone().map(|value| value.id),
+            base_tally_path,
+        );
         idx += 1;
         if idx % 200 == 0 {
             auth_headers = keycloak::get_client_credentials().await?;
@@ -430,8 +432,10 @@ pub async fn save_result_documents(
             )
             .await?;
         for contest_report in election_report.reports {
-            let contest_document_paths =
-                contest_report.get_document_paths(contest_report.area_id.clone(), base_tally_path);
+            let contest_document_paths = contest_report.get_document_paths(
+                contest_report.area.clone().map(|value| value.id),
+                base_tally_path,
+            );
             idx += 1;
             if idx % 200 == 0 {
                 auth_headers = keycloak::get_client_credentials().await?;
