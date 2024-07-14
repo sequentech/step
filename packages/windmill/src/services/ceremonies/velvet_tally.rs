@@ -85,7 +85,7 @@ pub fn prepare_tally_for_area_contest(
         .get(&(area_id.clone(), contest_id.clone()))
         .map(|val| val.clone())
         .unwrap_or(vec![]);
-    let election_id = area_contest.contest.election_id.clone().unwrap_or_default();
+    let election_id = area_contest.contest.election_id.clone();
 
     let biguit_ballots =
         decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
@@ -117,14 +117,8 @@ pub fn prepare_tally_for_area_contest(
 
     let area_config = AreaConfig {
         id: Uuid::parse_str(&area_id)?,
-        tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id.clone().unwrap_or_default())?,
-        election_event_id: Uuid::parse_str(
-            &area_contest
-                .contest
-                .election_event_id
-                .clone()
-                .unwrap_or_default(),
-        )?,
+        tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
+        election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
         census: area_contest.eligible_voters as u64,
         parent_id: area_contest
@@ -178,7 +172,7 @@ pub fn create_election_configs_blocking(
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
     for area_contest in area_contests {
-        let election_id = area_contest.contest.election_id.clone().unwrap_or_default();
+        let election_id = area_contest.contest.election_id.clone();
 
         let election_name_opt = elections_single_map
             .get(&election_id)
@@ -193,16 +187,8 @@ pub fn create_election_configs_blocking(
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
-                tenant_id: Uuid::parse_str(
-                    &area_contest.contest.tenant_id.clone().unwrap_or_default(),
-                )?,
-                election_event_id: Uuid::parse_str(
-                    &area_contest
-                        .contest
-                        .election_event_id
-                        .clone()
-                        .unwrap_or_default(),
-                )?,
+                tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
+                election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
                 census: election_cast_votes_count
                     .map(|data| data.census as u64)
                     .unwrap_or(0),
@@ -270,16 +256,8 @@ pub async fn create_election_configs(
     let Some(first_area_contest) = area_contests.first() else {
         return Ok(());
     };
-    let tenant_id = &first_area_contest
-        .contest
-        .tenant_id
-        .clone()
-        .unwrap_or_default();
-    let election_event_id = &first_area_contest
-        .contest
-        .election_event_id
-        .clone()
-        .unwrap_or_default();
+    let tenant_id = &first_area_contest.contest.tenant_id;
+    let election_event_id = &first_area_contest.contest.election_event_id;
 
     // Note: for some reason this is needed, if we reuse the existing transaction, we get:
     // AMQP error "IO error: Connection reset by peer (os error 104)"

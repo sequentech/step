@@ -279,10 +279,10 @@ impl CandidatePresentation {
 )]
 pub struct Candidate {
     pub id: String,
-    pub tenant_id: Option<String>,
-    pub election_event_id: Option<String>,
-    pub election_id: Option<String>,
-    pub contest_id: Option<String>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
@@ -447,7 +447,8 @@ impl Default for ElectionsOrder {
 )]
 pub struct Election {
     pub id: String,
-    pub election_event_id: Option<String>,
+    pub election_event_id: String,
+    pub tenant_id: String,
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
@@ -455,7 +456,7 @@ pub struct Election {
     pub alias: Option<String>,
     pub alias_i18n: Option<I18nContent>,
     pub image_document_id: Option<String>,
-    pub contests: Option<Vec<Contest>>,
+    pub contests: Vec<Contest>,
     pub presentation: Option<ElectionPresentation>,
 }
 
@@ -720,21 +721,21 @@ impl Default for ContestPresentation {
 )]
 pub struct Contest {
     pub id: String,
-    pub tenant_id: Option<String>,
-    pub election_event_id: Option<String>,
-    pub election_id: Option<String>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent>,
     pub description: Option<String>,
     pub description_i18n: Option<I18nContent>,
     pub alias: Option<String>,
     pub alias_i18n: Option<I18nContent>,
-    pub max_votes: Option<i64>,
-    pub min_votes: Option<i64>,
-    pub winning_candidates_num: Option<i64>,
+    pub max_votes: i64,
+    pub min_votes: i64,
+    pub winning_candidates_num: i64,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
-    pub is_encrypted: Option<bool>,
+    pub is_encrypted: bool,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
     pub created_at: Option<String>,

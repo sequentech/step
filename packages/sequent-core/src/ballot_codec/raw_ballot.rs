@@ -311,20 +311,14 @@ impl RawBallotCodec for Contest {
             .iter()
             .filter(|choice| choice.selected > -1)
             .count();
-        let max_votes = match self.max_votes {
-            Some(max) => match usize::try_from(max) {
-                Ok(val) => Some(val),
-                Err(_) => None,
-            },
-            None => None,
+        let max_votes = match usize::try_from(self.max_votes) {
+            Ok(val) => Some(val),
+            Err(_) => None,
         };
 
-        let min_votes = match self.min_votes {
-            Some(min) => match usize::try_from(min) {
-                Ok(val) => Some(val),
-                Err(_) => None,
-            },
-            None => None,
+        let min_votes = match usize::try_from(self.min_votes) {
+            Ok(val) => Some(val),
+            Err(_) => None,
         };
 
         if let (Some(max_votes), Some(min_votes)) = (max_votes, min_votes) {
@@ -338,13 +332,7 @@ impl RawBallotCodec for Contest {
                             "numSelected".to_string(),
                             num_selected_candidates.to_string(),
                         ),
-                        (
-                            "max".to_string(),
-                            match self.max_votes {
-                                Some(s) => s.to_string(),
-                                None => "".to_string(),
-                            },
-                        ),
+                        ("max".to_string(), self.max_votes.to_string()),
                     ]),
                 });
             } else if num_selected_candidates < min_votes {
@@ -357,13 +345,7 @@ impl RawBallotCodec for Contest {
                             "numSelected".to_string(),
                             num_selected_candidates.to_string(),
                         ),
-                        (
-                            "min".to_string(),
-                            match self.min_votes {
-                                Some(s) => s.to_string(),
-                                None => "".to_string(),
-                            },
-                        ),
+                        ("min".to_string(), self.min_votes.to_string()),
                     ]),
                 });
             }
@@ -395,17 +377,11 @@ impl RawBallotCodec for Contest {
                                     ),
                                     (
                                         "min".to_string(),
-                                        match self.min_votes {
-                                            Some(s) => s.to_string(),
-                                            None => "".to_string(),
-                                        },
+                                        self.min_votes.to_string(),
                                     ),
                                     (
                                         "max".to_string(),
-                                        match self.max_votes {
-                                            Some(s) => s.to_string(),
-                                            None => "".to_string(),
-                                        },
+                                        self.max_votes.to_string(),
                                     ),
                                 ]
                                 .iter()
@@ -534,20 +510,19 @@ mod tests {
                         );
                     }
                 }
-                let max_votes: i64 =
-                    fixture.contest.max_votes.unwrap_or_default();
-                let min_votes: i64 =
-                    fixture.contest.min_votes.unwrap_or_default();
+
                 let num_selected_candidates = decoded_ballot
                     .choices
                     .iter()
                     .filter(|choice| choice.selected > -1)
                     .count();
-                let max_votes = match usize::try_from(max_votes) {
+                let max_votes = match usize::try_from(fixture.contest.max_votes)
+                {
                     Ok(val) => Some(val),
                     Err(_) => None,
                 };
-                let min_votes = match usize::try_from(min_votes) {
+                let min_votes = match usize::try_from(fixture.contest.min_votes)
+                {
                     Ok(val) => Some(val),
                     Err(_) => None,
                 };

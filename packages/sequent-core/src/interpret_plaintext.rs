@@ -122,10 +122,9 @@ pub fn get_points(
     if candidate.selected < 0 {
         return Some(0);
     }
-    let max_votes: i64 = contest.max_votes.unwrap_or_default();
     match contest.get_counting_algorithm().as_str() {
         "plurality-at-large" => Some(1),
-        "borda" => Some(max_votes - candidate.selected),
+        "borda" => Some((contest.max_votes as i64) - candidate.selected),
         // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
         "borda-nauru" => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
