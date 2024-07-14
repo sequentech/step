@@ -145,7 +145,12 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                 <Typography variant="body2" component="div" sx={{width: "80px"}}>
                     {t("electionEventScreen.stats.contests")}.{" "}
                 </Typography>
-                <Tabs value={value} sx={{flex: 1}}>
+                <Tabs
+                    value={value}
+                    sx={{flex: 1}}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                >
                     {contestsData?.map((contest, index) => (
                         <Tab
                             key={index}
