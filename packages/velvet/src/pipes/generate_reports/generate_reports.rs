@@ -8,6 +8,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use sequent_core::{
@@ -155,6 +156,14 @@ impl GenerateReports {
         let mut variables_map = Map::new();
 
         variables_map.insert("reports".to_owned(), json_reports.clone());
+
+        // Adding current timestamp to variables_map
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        let timestamp = format!("{:?}", since_the_epoch);
+        variables_map.insert("timestamp".to_owned(), serde_json::json!(timestamp));
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
