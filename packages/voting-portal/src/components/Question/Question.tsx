@@ -19,6 +19,8 @@ import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
+    checkIsExplicitBlankVote,
+    checkIsInvalidVote,
     checkIsRadioSelection,
     checkPositionIsTop,
     checkShuffleCategories,
@@ -92,13 +94,17 @@ export const Question: React.FC<IQuestionProps> = ({
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
-    let {invalidCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
+    let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
+        categorizeCandidates(question)
+    let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
+        checkIsExplicitBlankVote(candidate)
+    )
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
-        invalidCandidates,
+        invalidOrBlankCandidates,
         checkPositionIsTop
     )
 
@@ -136,7 +142,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = isReview && contestState && checkIsBlank(contestState) && !hasBlankCandidate
 
     return (
         <Box>
@@ -167,7 +173,8 @@ export const Question: React.FC<IQuestionProps> = ({
                         index={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
-                        isInvalidVote={true}
+                        isInvalidVote={checkIsInvalidVote(answer)}
+                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                         isRadioSelection={isRadioSelection}
                         contest={question}
                     />
@@ -220,7 +227,8 @@ export const Question: React.FC<IQuestionProps> = ({
                         key={answerIndex}
                         isActive={!isReview}
                         isReview={isReview}
-                        isInvalidVote={true}
+                        isInvalidVote={checkIsInvalidVote(answer)}
+                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                         isInvalidWriteIns={false}
                         isRadioSelection={isRadioSelection}
                         contest={question}

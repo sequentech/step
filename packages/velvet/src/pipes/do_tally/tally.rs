@@ -23,6 +23,7 @@ pub struct Tally {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
     pub census: u64,
+    pub auditable_votes: u64,
     pub tally_sheet_results: Vec<ContestResult>,
 }
 
@@ -32,6 +33,7 @@ impl Tally {
         contest: &Contest,
         ballots_files: Vec<PathBuf>,
         census: u64,
+        auditable_votes: u64,
         tally_sheet_results: Vec<ContestResult>,
     ) -> Result<Self> {
         let contest = contest.clone();
@@ -43,6 +45,7 @@ impl Tally {
             contest,
             ballots,
             census,
+            auditable_votes,
             tally_sheet_results,
         })
     }
@@ -121,6 +124,8 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         contest: contest.clone(),
         census: content.census.unwrap_or(0),
         percentage_census: 100.0,
+        auditable_votes: 0,
+        percentage_auditable_votes: 0.0,
         total_votes: total_votes,
         percentage_total_votes: 0.0,
         total_valid_votes: count_valid,
@@ -142,6 +147,7 @@ pub fn create_tally(
     contest: &Contest,
     ballots_files: Vec<PathBuf>,
     census: u64,
+    auditable_votes: u64,
     tally_sheet_results: Vec<ContestResult>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
     let ballots_files = ballots_files
@@ -160,7 +166,13 @@ pub fn create_tally(
         .map(|p| PathBuf::from(p.as_path()))
         .collect();
 
-    let tally = Tally::new(contest, ballots_files, census, tally_sheet_results)?;
+    let tally = Tally::new(
+        contest,
+        ballots_files,
+        census,
+        auditable_votes,
+        tally_sheet_results,
+    )?;
 
     let counting_algorithm = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),

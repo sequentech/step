@@ -19,4 +19,5 @@ gq http://graphql-engine:8080/v1/graphql \
     > graphql.schema.json
 cd ..
 cp admin-portal/graphql.schema.json windmill/src/graphql/schema.json
+cp admin-portal/graphql.schema.json ..
 yarn generate:admin-portal
