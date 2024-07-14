@@ -12,7 +12,6 @@ import {
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
-    IBallotStyle as IElectionDTO,
     isUndefined,
 } from "@sequentech/ui-core"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -178,7 +177,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 labels: null,
                 last_updated_at: "",
             }
-            dispatch(setElection(election))
+            dispatch(setElection({...election, image_document_id: ""}))
             dispatch(setBallotStyle(formattedBallotStyle))
             dispatch(
                 resetBallotSelection({
@@ -272,7 +271,14 @@ const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (dataElections && dataElections.sequent_backend_election.length > 0) {
             for (let election of dataElections.sequent_backend_election) {
-                dispatch(setElection(election))
+                dispatch(
+                    setElection({
+                        ...election,
+                        image_document_id: "",
+                        contests: [],
+                        description: election.description ?? undefined,
+                    })
+                )
             }
 
             setHasLoadElections(true)

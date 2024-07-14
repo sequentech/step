@@ -62,6 +62,7 @@ export interface IContest {
 export interface IElection {
     id: string
     election_event_id: string
+    tenant_id: string
     name?: string
     name_i18n?: TranslationDict
     description?: string
