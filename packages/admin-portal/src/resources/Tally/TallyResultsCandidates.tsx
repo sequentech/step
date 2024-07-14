@@ -169,19 +169,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
-                                    {t("tally.table.total_votes_counted")}
-                                </TableCell>
-                                <TableCell align="right">
-                                    {general?.[0].total_votes ?? "-"}
-                                </TableCell>
-                                <TableCell align="right">
-                                    {isNumber(general?.[0].total_votes_percent)
-                                        ? formatPercentOne(general[0].total_votes_percent)
-                                        : "-"}
-                                </TableCell>
-                            </TableRow>
-                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
-                                <TableCell component="th" scope="row">
                                     {t("tally.table.total_auditable_votes")}
                                 </TableCell>
                                 <TableCell align="right">
@@ -190,6 +177,19 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 <TableCell align="right">
                                     {isNumber(general?.[0].total_auditable_votes_percent)
                                         ? formatPercentOne(general[0].total_auditable_votes_percent)
+                                        : "-"}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.total_votes_counted")}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].total_votes ?? "-"}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {isNumber(general?.[0].total_votes_percent)
+                                        ? formatPercentOne(general[0].total_votes_percent)
                                         : "-"}
                                 </TableCell>
                             </TableRow>
