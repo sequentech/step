@@ -103,7 +103,7 @@ export const ContentInput: React.FC = () => {
                 <FormStyles.TextInput
                     minRows={4}
                     multiline={true}
-                    source="template.sms"
+                    source="template.sms.message"
                     label={t("communicationTemplate.form.smsMessage")}
                 />
             )
@@ -158,6 +158,9 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
             )
         ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
+        }
+        if (ICommunicationType.TALLY_REPORT === selectedCommunicationType?.value) {
+            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
         }
 
         return res
