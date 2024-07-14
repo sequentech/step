@@ -268,7 +268,6 @@ function TreeMenuItem({
                     </MenuStyles.StyledSideBarNavLink>
                 )}
                 <MenuStyles.MenuActionContainer className={`menu-actions-${treeResourceNames[0]}`}>
-                    {" "}
                     {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
