@@ -10,7 +10,7 @@ import {
     Sequent_Backend_Results_Area_Contest_Candidate,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
 import {NoItem} from "@/components/NoItem"
 import {
     TableContainer,
@@ -37,6 +37,16 @@ interface TallyResultsCandidatesProps {
     resultsEventId: string | null
 }
 
+// Define the comparator function
+const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
+    const maxInt = Number.MAX_SAFE_INTEGER
+
+    // Convert stringified numbers to integers, non-numeric strings to maxInt
+    const pos1 = isNaN(parseInt(v1)) ? maxInt : parseInt(v1)
+    const pos2 = isNaN(parseInt(v2)) ? maxInt : parseInt(v2)
+
+    return pos1 - pos2
+}
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
@@ -132,6 +142,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+            sortComparator: winningPositionComparator,
             align: "right",
             headerAlign: "right",
         },
@@ -280,8 +291,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 10,
+                                pageSize: 20,
                             },
+                        },
+                        sorting: {
+                            sortModel: [{field: "winning_position", sort: "asc"}],
                         },
                     }}
                     pageSizeOptions={[10, 20, 50, 100]}

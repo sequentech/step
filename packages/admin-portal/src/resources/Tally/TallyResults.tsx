@@ -131,12 +131,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                     <Typography variant="body2" component="div" sx={{width: "80px"}}>
                         {t("electionEventScreen.stats.elections")}.{" "}
                     </Typography>
-                    <Tabs
-                        value={value}
-                        sx={{flex: 1}}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                    >
+                    <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
                         {electionsData?.map((election, index) => (
                             <Tab
                                 key={index}

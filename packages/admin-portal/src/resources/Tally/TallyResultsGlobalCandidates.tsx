@@ -10,7 +10,7 @@ import {
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {
@@ -35,6 +35,17 @@ interface TallyResultsGlobalCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
+}
+
+// Define the comparator function
+const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
+    const maxInt = Number.MAX_SAFE_INTEGER
+
+    // Convert stringified numbers to integers, non-numeric strings to maxInt
+    const pos1 = isNaN(parseInt(v1)) ? maxInt : parseInt(v1)
+    const pos2 = isNaN(parseInt(v2)) ? maxInt : parseInt(v2)
+
+    return pos1 - pos2
 }
 
 export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
@@ -135,6 +146,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+            sortComparator: winningPositionComparator,
             align: "right",
             headerAlign: "right",
         },
@@ -283,8 +295,11 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     initialState={{
                         pagination: {
                             paginationModel: {
-                                pageSize: 10,
+                                pageSize: 20,
                             },
+                        },
+                        sorting: {
+                            sortModel: [{field: "winning_position", sort: "asc"}],
                         },
                     }}
                     pageSizeOptions={[10, 20, 50, 100]}
