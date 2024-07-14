@@ -47,7 +47,7 @@ import {
     IElectionEventPresentation,
     IElectionPresentation,
     ITenantSettings,
-    EVotingPortalCountdownPolicy
+    EVotingPortalCountdownPolicy,
 } from "@sequentech/ui-core"
 import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"

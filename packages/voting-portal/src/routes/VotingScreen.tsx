@@ -26,9 +26,7 @@ import {
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
-import {
-    provideBallotService,
-} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"

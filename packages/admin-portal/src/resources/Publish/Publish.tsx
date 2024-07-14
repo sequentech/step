@@ -40,7 +40,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import { convertToNumber } from "@/lib/helpers"
+import {convertToNumber} from "@/lib/helpers"
 
 export type TPublish = {
     electionId?: string
