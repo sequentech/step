@@ -97,6 +97,11 @@ const englishTranslation = {
                 content: "Printing disabled in demo mode",
                 ok: "OK",
             },
+            demoBallotUrlDialog: {
+                title: "Ballot Id",
+                content: "Cannot use code, disabled in demo mode.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Information: Ballot ID",
                 content:

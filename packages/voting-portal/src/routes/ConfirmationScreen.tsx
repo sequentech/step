@@ -323,6 +323,7 @@ const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
+    const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
 
@@ -341,12 +342,18 @@ const ConfirmationScreen: React.FC = () => {
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
 
-    console.log({backLink})
     useEffect(() => {
         if (!ballotId) {
             navigate(backLink)
         }
     })
+
+    const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+        if (isDemo) {
+            event.preventDefault()
+            setDemoBallotUrlHelp(true)
+        }
+    }
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
@@ -394,20 +401,16 @@ const ConfirmationScreen: React.FC = () => {
                     <BallotIdLink
                         href={!isDemo ? ballotTrackerUrl : undefined}
                         target={!isDemo ? "_blank" : undefined}
-                        sx={{
-                            display: {xs: "none", sm: "block"},
-                            cursor: isDemo ? "not-allowed" : "pointer",
-                        }}
+                        sx={{display: {xs: "none", sm: "block"}}}
+                        onClick={handleBallotIdLinkClick}
                     >
                         {ballotId}
                     </BallotIdLink>
                     <BallotIdLink
                         href={!isDemo ? ballotTrackerUrl : undefined}
                         target={!isDemo ? "_blank" : undefined}
-                        sx={{
-                            display: {xs: "block", sm: "none"},
-                            cursor: isDemo ? "not-allowed" : "pointer",
-                        }}
+                        sx={{display: {xs: "block", sm: "none"}}}
+                        onClick={handleBallotIdLinkClick}
                     >
                         {t("ballotHash", {ballotId: ballotId})}
                     </BallotIdLink>
@@ -416,7 +419,6 @@ const ConfirmationScreen: React.FC = () => {
                         sx={{
                             fontSize: "unset",
                             lineHeight: "unset",
-                            paddingBottom: "2px",
                             marginLeft: "16px",
                         }}
                         fontSize="18px"
@@ -432,6 +434,15 @@ const ConfirmationScreen: React.FC = () => {
                         variant="info"
                     >
                         {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+                    </Dialog>
+                    <Dialog
+                        handleClose={() => setDemoBallotUrlHelp(false)}
+                        open={openDemoBallotUrlHelp}
+                        title={t("confirmationScreen.demoBallotUrlDialog.title")}
+                        ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
                     </Dialog>
                     <Dialog
                         handleClose={() => setDemoBallotIdHelp(false)}

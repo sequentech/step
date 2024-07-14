@@ -99,6 +99,11 @@ const spanishTranslation: TranslationType = {
                 content: "La impresión está desactivada en modo de demostración",
                 ok: "Aceptar",
             },
+            demoBallotUrlDialog: {
+                title: "Rastreador de Boletas",
+                content: "No se puede usar el código, deshabilitado en modo de demostración.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Información: Localizador del Voto",
                 content:

@@ -98,6 +98,11 @@ const frenchTranslation: TranslationType = {
                 content: "L'impression est désactivée en mode démo",
                 ok: "OK",
             },
+            demoBallotUrlDialog: {
+                title: "Suivi du Bulletin",
+                content: "Impossible d'utiliser le code, désactivé en mode démo.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Information : Localisateur de votre Bulletin",
                 content:

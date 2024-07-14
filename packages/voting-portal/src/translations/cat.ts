@@ -99,6 +99,11 @@ const catalanTranslation: TranslationType = {
                 content: "Impressió desactivada en mode de demostració",
                 ok: "D'acord",
             },
+            demoBallotUrlDialog: {
+                title: "Seguiment de la Butlleta",
+                content: "No es pot utilitzar el codi, desactivat en mode de demostració.",
+                ok: "D'acord",
+            },
             ballotIdHelpDialog: {
                 title: "Informació: Localitzador del Vot",
                 content:
