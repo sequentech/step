@@ -51,6 +51,8 @@ pub async fn save_results(
 
         for contest in &election.reports {
             let total_votes_percent: f64 = contest.contest_result.percentage_total_votes / 100.0;
+            let auditable_votes_percent: f64 =
+                contest.contest_result.percentage_auditable_votes / 100.0;
             let total_valid_votes_percent: f64 =
                 contest.contest_result.percentage_total_valid_votes / 100.0;
             let total_invalid_votes_percent: f64 =
@@ -77,6 +79,8 @@ pub async fn save_results(
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.auditable_votes as i64),
+                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_valid_votes as i64),
                     Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
@@ -134,6 +138,8 @@ pub async fn save_results(
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.auditable_votes as i64),
+                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_valid_votes as i64),
                     Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),

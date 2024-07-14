@@ -35,6 +35,7 @@ pub struct AreaContestDataType {
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
     pub area: Area,
+    pub auditable_votes: u64,
 }
 
 #[instrument(skip_all)]
@@ -123,6 +124,7 @@ pub fn prepare_tally_for_area_contest(
         election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
         election_id: Uuid::parse_str(&election_id)?,
         census: area_contest.eligible_voters as u64,
+        auditable_votes: area_contest.auditable_votes as u64,
         parent_id: area_contest
             .area
             .parent_id

@@ -12,6 +12,7 @@ pub fn get_area_config(
     election_event_id: &Uuid,
     election_id: &Uuid,
     census: u64,
+    auditable_votes: u64,
     parent_id: Option<Uuid>,
 ) -> AreaConfig {
     AreaConfig {
@@ -21,6 +22,7 @@ pub fn get_area_config(
         election_event_id: *election_event_id,
         election_id: *election_id,
         census,
+        auditable_votes,
         parent_id,
     }
 }

@@ -959,6 +959,8 @@ const spanishTranslation: TranslationType = {
                 cast_votes_percent: "Porcentajes de Votos",
                 total_votes: "Total de votantes",
                 total_votes_percent: "Participación",
+                total_votes_counted: "Total de Votos Contados",
+                total_auditable_votes: "Total de Votos Auditables",
                 total_valid_votes: "Total de votos válidos",
                 total_valid_votes_percent: "Porcentaje de votos válidos",
                 total_invalid_votes: "Total de votos inválidos",

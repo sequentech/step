@@ -960,6 +960,8 @@ const catalanTranslation: TranslationType = {
                 cast_votes_percent: "Percentatges de Vots",
                 total_votes: "Total de votants",
                 total_votes_percent: "Participació",
+                total_votes_counted: "Total de Vots Comptats",
+                total_auditable_votes: "Total de Vots Auditables",
                 total_valid_votes: "Total de vots vàlids",
                 total_valid_votes_percent: "Percentatge de vots vàlids",
                 total_invalid_votes: "Total de vots invàlids",
