@@ -989,8 +989,13 @@ pub async fn transactions_wrapper(
         }
         Err(err) => {
             tracing::error!("Error in transactions_wrapper: {:?}", err);
-            handle_tally_session_error(&err, &tenant_id, &election_event_id, &tally_session_id)
-                .await?;
+            handle_tally_session_error(
+                &err.to_string(),
+                &tenant_id,
+                &election_event_id,
+                &tally_session_id,
+            )
+            .await?;
             Err(err)
         }
     }
