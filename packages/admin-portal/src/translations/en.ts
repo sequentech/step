@@ -954,6 +954,8 @@ const englishTranslation = {
                 cast_votes_percent: "Percent of Votes",
                 total_votes: "Total Voters",
                 total_votes_percent: "Participation",
+                total_votes_counted: "Total Votes Counted",
+                total_auditable_votes: "Total Auditable Votes",
                 total_valid_votes: "Total Valid Votes",
                 total_valid_votes_percent: "Valid Votes Percent",
                 total_invalid_votes: "Total Invalid Votes",
