@@ -118,7 +118,7 @@ pub async fn get_tally_session_executions(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
-                    tally_session_idid = $3
+                    tally_session_id = $3
                 ORDER BY created_at ASC;
             "#,
         )
