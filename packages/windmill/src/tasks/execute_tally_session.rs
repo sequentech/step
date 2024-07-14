@@ -23,6 +23,7 @@ use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
+use crate::services::ceremonies::tally_session_error::handle_tally_session_error;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -882,9 +883,6 @@ pub async fn execute_tally_session_wrapped(
     } else {
         None
     };
-    // map_plaintext_data also calls this but at this point the credentials
-    // could be expired
-    let auth_headers = keycloak::get_client_credentials().await?;
 
     let results_event_id = populate_results_tables(
         hasura_transaction,
@@ -991,6 +989,13 @@ pub async fn transactions_wrapper(
         }
         Err(err) => {
             tracing::error!("Error in transactions_wrapper: {:?}", err);
+            handle_tally_session_error(
+                &err.to_string(),
+                &tenant_id,
+                &election_event_id,
+                &tally_session_id,
+            )
+            .await?;
             Err(err)
         }
     }
