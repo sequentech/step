@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
+import { electionEventLink } from ".."
+const createElectionEvent = require("../commands/createElectionEvent");
+
 
 interface LoginThis {
     testUrl: string
@@ -17,41 +20,22 @@ interface LoginThis {
 
 // eslint-disable-next-line jest/valid-describe-callback
 describe("login", function (this: ExtendDescribeThis<LoginThis>) {
-    this.testUrl = "http://127.0.0.1:3002"
-    this.username = "input[name=username]"
-    this.password = "input[name=password]"
-    this.submitButton = "*[type=submit]"
 
-    this.electionEventLink = "sequent_backend_election_event"
-    this.electionLink = "sequent_backend_election"
-    this.contestLink = "sequent_backend_contest"
-    this.candidateLink = "sequent_backend_candidate"
+	before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+		browser.login()
+	})
 
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
-        browser.navigateTo(this.testUrl!)
-        // perform login
-        browser
-            .waitForElementVisible(this.username!)
-            .waitForElementVisible(this.password!)
-            .sendKeys(this.username!, "admin")
-            .sendKeys(this.password!, "admin")
-            .click(this.submitButton!)
-            .pause(1000)
-    })
-
-    after(function (this: ExtendDescribeThis<LoginThis>, browser) {
-        browser
-            .click("header [data-testid='AccountCircleIcon']")
-            .click("li.logout-button")
-            .click("button.ok-button")
-            .end()
-    })
+	after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+		// Logout
+		browser
+			.logout()
+	})
 
     it("create an election event", async (browser: NightwatchAPI) => {
-        browser.assert.urlContains("sequent_backend_election_event")
+		browser.assert.urlContains(electionEventLink)
         browser.assert
-            .visible(`a.${this.electionEventLink!}`)
-            .click(`a.${this.electionEventLink!}`)
+            .visible(`a.${electionEventLink!}`)
+            .click(`a.${electionEventLink!}`)
             .assert.visible("input[name=name]")
             .sendKeys("input[name=name]", "this is a test election event name")
             .assert.visible("input[name=description]")
@@ -63,18 +47,14 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("delete an election event", async (browser: NightwatchAPI) => {
-        browser.assert.urlContains("sequent_backend_election_event")
-        // browser.debug()
-        const menu = await browser
-            .element(
-                `a[title='this is a test election event name'] + div.menu-actions-${this
-                    .electionEventLink!}`
-            )
-            .moveTo()
-        browser.click(menu)
+		browser.assert.urlContains(electionEventLink)
+		browser.hoverAndClick({
+			hoverElement: `a[title='${createElectionEvent.config.electionEventName}']`,
+			clickElement: `a[title='${createElectionEvent.config.electionEventName}'] + div.menu-actions-${electionEventLink!}`
+		})
         browser.assert
-            .visible(`li.menu-action-delete-${this.electionEventLink!}`)
-            .click(`li.menu-action-delete-${this.electionEventLink!}`)
+            .visible(`li.menu-action-delete-${electionEventLink!}`)
+            .click(`li.menu-action-delete-${electionEventLink!}`)
             .assert.enabled(`button.ok-button`)
             .click("button.ok-button")
             .pause(1000)

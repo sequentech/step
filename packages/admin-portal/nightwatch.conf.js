@@ -75,7 +75,11 @@ module.exports = {
                         //'--ignore-certificate-errors',
                         //'--allow-insecure-localhost',
                         //'--headless'
+                        "--start-maximized",
                     ],
+                },
+                "chromeOptions": {
+                    args: ["start-maximized"],
                 },
             },
 

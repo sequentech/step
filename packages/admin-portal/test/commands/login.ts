@@ -1,11 +1,13 @@
-exports.command = function (username = "admin", password = "admin") {
-    this.testUrl = "http://127.0.0.1:3002"
+import { admin_portal_password, admin_portal_username, testUrl } from ".."
+
+exports.command = function (username = admin_portal_username, password = admin_portal_password) {
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
 
-    this.windowRect({width: 1260, height: 890})
-        .navigateTo(this.testUrl)
+    this
+		.window.maximize()
+        .navigateTo(testUrl)
         .waitForElementVisible(this.username)
         .waitForElementVisible(this.password)
         .assert.visible("input[name=username]")

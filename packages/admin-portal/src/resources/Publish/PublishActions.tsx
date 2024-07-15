@@ -75,15 +75,18 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick,
         Icon,
         disabledStatus,
+        className,
     }: {
         st: PublishStatus
         label: string
         onClick: () => void
         Icon: SvgIconComponent
         disabledStatus: Array<PublishStatus>
+        className?: string
     }) => (
         <Button
             onClick={onClick}
+            className={className}
             label={t(label)}
             style={
                 changingStatus || disabledStatus?.includes(status)
