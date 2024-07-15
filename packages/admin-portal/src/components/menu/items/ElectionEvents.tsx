@@ -143,16 +143,18 @@ export default function ElectionEvents() {
     )
     const {t, i18n} = useTranslation()
 
-    const id = useLocation().pathname.split("/")[2]
-    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
-        "sequent_backend_election_event",
-        {id: id}
-    )
+    const event_id = useLocation().pathname.split("/")[2]
+    const {data: electionEvent, isLoading: isEventLoading} =
+        useGetOne<Sequent_Backend_Election_Event>(
+            "sequent_backend_election_event",
+            {id: event_id},
+            {enabled: !!event_id}
+        )
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     useEffect(() => {
-        const isArchived = electionEvent ? electionEvent?.is_archived : false
-        setArchivedElectionEvents(isArchived)
+        if (!electionEvent) return
+        setArchivedElectionEvents(electionEvent?.is_archived ?? false)
     }, [electionEvent, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
