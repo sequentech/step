@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import styled from "@emotion/styled"
+import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {
     IconButton,
     adminTheme,
@@ -20,7 +21,7 @@ import {
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
-import {Menu, useSidebarState} from "react-admin"
+import {Menu, useGetOne, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
@@ -142,7 +143,17 @@ export default function ElectionEvents() {
     )
     const {t, i18n} = useTranslation()
 
+    const id = useLocation().pathname.split("/")[2]
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: id}
+    )
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+
+    useEffect(() => {
+        const isArchived = electionEvent ? electionEvent?.is_archived : false
+        setArchivedElectionEvents(isArchived)
+    }, [electionEvent, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
