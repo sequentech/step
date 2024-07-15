@@ -48,7 +48,7 @@ enum ViewMode {
     List,
 }
 
-export type TPublish = {
+type TPublish = {
     electionId?: string
     electionEventId: string
     type: EPublishType.Election | EPublishType.Event
@@ -60,7 +60,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const notify = useNotify()
         const {t} = useTranslation()
         const [tenantId] = useTenantStore()
-        const [viewMode, setViewMode] = useState(ViewMode.List)
+        const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
         const [changingStatus, setChangingStatus] = useState<boolean>(false)
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(

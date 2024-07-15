@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useId} from "react"
+import React, {useContext, useEffect} from "react"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
