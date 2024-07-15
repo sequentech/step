@@ -13,17 +13,14 @@ interface LoginThis {
 
 // eslint-disable-next-line jest/valid-describe-callback
 describe("login", function (this: ExtendDescribeThis<LoginThis>) {
+    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser.login()
+    })
 
-	before(function (this: ExtendDescribeThis<LoginThis>, browser) {
-		browser.login()
-	})
-
-	after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
-
-		// Logout
-		browser
-			.logout()
-	})
+    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+        // Logout
+        browser.logout()
+    })
 
     after(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser

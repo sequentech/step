@@ -84,7 +84,7 @@ export const PublishList: React.FC<TPublishList> = ({
 
     const actions: Action[] = [
         {
-            icon: <Visibility className="publish-visibility-icon"/>,
+            icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
         },
     ]

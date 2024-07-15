@@ -1,12 +1,12 @@
-import { admin_portal_password, admin_portal_username, testUrl } from ".."
+import {admin_portal_password, admin_portal_username, testUrl} from ".."
 
 exports.command = function (username = admin_portal_username, password = admin_portal_password) {
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"
 
-    this
-		.window.maximize()
+    this.window
+        .maximize()
         .navigateTo(testUrl)
         .waitForElementVisible(this.username)
         .waitForElementVisible(this.password)

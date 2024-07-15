@@ -262,9 +262,7 @@ function TreeMenuItem({
                     <MenuStyles.StyledSideBarNavLink
                         title={name}
                         className={({isActive}) =>
-                            isActive
-                                ? `active menu-item-${treeResourceNames[0]}`
-                                : ``
+                            isActive ? `active menu-item-${treeResourceNames[0]}` : ``
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
                         style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}

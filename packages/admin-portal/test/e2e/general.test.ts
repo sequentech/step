@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
-import { electionEventLink } from ".."
-const createElectionEvent = require("../commands/createElectionEvent");
-
+import {electionEventLink} from ".."
+const createElectionEvent = require("../commands/createElectionEvent")
 
 interface LoginThis {
     testUrl: string
@@ -20,19 +19,17 @@ interface LoginThis {
 
 // eslint-disable-next-line jest/valid-describe-callback
 describe("login", function (this: ExtendDescribeThis<LoginThis>) {
+    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+        browser.login()
+    })
 
-	before(function (this: ExtendDescribeThis<LoginThis>, browser) {
-		browser.login()
-	})
-
-	after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
-		// Logout
-		browser
-			.logout()
-	})
+    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+        // Logout
+        browser.logout()
+    })
 
     it("create an election event", async (browser: NightwatchAPI) => {
-		browser.assert.urlContains(electionEventLink)
+        browser.assert.urlContains(electionEventLink)
         browser.assert
             .visible(`a.${electionEventLink!}`)
             .click(`a.${electionEventLink!}`)
@@ -47,11 +44,13 @@ describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("delete an election event", async (browser: NightwatchAPI) => {
-		browser.assert.urlContains(electionEventLink)
-		browser.hoverAndClick({
-			hoverElement: `a[title='${createElectionEvent.config.electionEventName}']`,
-			clickElement: `a[title='${createElectionEvent.config.electionEventName}'] + div.menu-actions-${electionEventLink!}`
-		})
+        browser.assert.urlContains(electionEventLink)
+        browser.hoverAndClick({
+            hoverElement: `a[title='${createElectionEvent.config.electionEventName}']`,
+            clickElement: `a[title='${
+                createElectionEvent.config.electionEventName
+            }'] + div.menu-actions-${electionEventLink!}`,
+        })
         browser.assert
             .visible(`li.menu-action-delete-${electionEventLink!}`)
             .click(`li.menu-action-delete-${electionEventLink!}`)
