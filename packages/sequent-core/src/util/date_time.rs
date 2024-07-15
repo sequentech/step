@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use chrono::{Utc, FixedOffset, TimeZone as ChronoTimeZone};
+use chrono::{FixedOffset, TimeZone as ChronoTimeZone, Utc};
 
 use crate::types::date_time::{DateFormat, TimeZone};
 
@@ -14,13 +14,16 @@ pub fn generate_timestamp(
     let date_format = date_format.unwrap_or_default().to_format_string();
 
     let now = Utc::now();
-    
+
     match time_zone {
         TimeZone::UTC => now.format(&date_format).to_string(),
         TimeZone::Offset(offset) => {
             let fixed_offset = FixedOffset::east_opt(offset * 3600);
-            match fixed_offset{
-                Some(fixed) => fixed.from_utc_datetime(&now.naive_utc()).format(&date_format).to_string(),
+            match fixed_offset {
+                Some(fixed) => fixed
+                    .from_utc_datetime(&now.naive_utc())
+                    .format(&date_format)
+                    .to_string(),
                 None => now.format(&date_format).to_string(),
             }
         }
@@ -30,7 +33,7 @@ pub fn generate_timestamp(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_generate_timestamp_default() {
         let timestamp = generate_timestamp(None, None);
@@ -39,7 +42,10 @@ mod tests {
 
     #[test]
     fn test_generate_timestamp_custom_offset() {
-        let timestamp = generate_timestamp(Some(TimeZone::Offset(2)), Some(DateFormat::MmDdYyyyHhMm));
+        let timestamp = generate_timestamp(
+            Some(TimeZone::Offset(2)),
+            Some(DateFormat::MmDdYyyyHhMm),
+        );
         println!("Custom timestamp: {}", timestamp);
     }
 }

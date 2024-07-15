@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize ,Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TimeZone {
     UTC,
     Offset(i32), // Offset in hours, e.g., +1 or -4

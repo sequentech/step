@@ -14,7 +14,10 @@ use std::{
 use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
-    types::{date_time::{DateFormat, TimeZone}, tally_sheets},
+    types::{
+        date_time::{DateFormat, TimeZone},
+        tally_sheets,
+    },
     util::{date_time::generate_timestamp, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
@@ -148,8 +151,8 @@ impl GenerateReports {
         &self,
         reports: Vec<ReportData>,
         enable_pdfs: bool,
-        time_zone:Option<TimeZone>,
-        date_format:Option<DateFormat>
+        time_zone: Option<TimeZone>,
+        date_format: Option<DateFormat>,
     ) -> Result<GeneratedReportsBytes> {
         let computed_reports = self.compute_reports(reports)?;
         let json_reports = serde_json::to_value(computed_reports)?;
@@ -483,8 +486,8 @@ impl GenerateReports {
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
-        time_zone:Option<TimeZone>,
-        date_format:Option<DateFormat>
+        time_zone: Option<TimeZone>,
+        date_format: Option<DateFormat>,
     ) -> Result<ReportData> {
         let area_id = area
             .clone()
@@ -540,7 +543,7 @@ impl GenerateReports {
             tally_sheet_id.clone(),
             enable_pdfs,
             time_zone,
-            date_format
+            date_format,
         )?;
 
         Ok(report)
@@ -556,10 +559,10 @@ impl GenerateReports {
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
-        time_zone:Option<TimeZone>,
-        date_format:Option<DateFormat>
+        time_zone: Option<TimeZone>,
+        date_format: Option<DateFormat>,
     ) -> Result<()> {
-        let reports = self.generate_report(reports, enable_pdfs,time_zone, date_format)?;
+        let reports = self.generate_report(reports, enable_pdfs, time_zone, date_format)?;
 
         let mut base_path =
             PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
@@ -733,7 +736,7 @@ impl Pipe for GenerateReports {
                     None,
                     config.enable_pdfs,
                     None,
-                    None
+                    None,
                 )?;
 
                 Ok(())

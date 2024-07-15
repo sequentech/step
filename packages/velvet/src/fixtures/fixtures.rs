@@ -157,8 +157,7 @@ impl TestFixture {
     }
 }
 
-// TODO: Uncomment this
-impl Drop for TestFixture { 
+impl Drop for TestFixture {
     fn drop(&mut self) {
         fs::remove_file(&self.config_path).unwrap();
         fs::remove_dir_all(&self.root_dir).unwrap();
