@@ -6,7 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <div class="content">
       <h1 class="title">Resultados de la elección "{{ reports.0.election_name }}"</h1>
-      <div id="dateDiv"></div>
+      <div id="dateDiv">
+        {{ timestamp }}
+      </div>
       
       {{ #each reports as |report| }}
         {{#if report.channel_type}}
@@ -107,21 +109,3 @@ SPDX-License-Identifier: AGPL-3.0-only
       {{/each}}
 
     </div>
-<script>
-        // Get the current date
-        var currentDate = new Date();
-
-        // Format the date as a string (e.g., "April 11, 2024")
-        var dateString = currentDate.toLocaleDateString('en-US', {
-            year: 'numeric', // Four digit year
-            month: 'long', // Full name of the month
-            day: 'numeric', // Day of the month
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short',
-            timeZone: 'Asia/Manila'
-        });
-
-        // Set the text of the div to the formatted date string
-        document.getElementById('dateDiv').textContent = dateString;
-    </script>

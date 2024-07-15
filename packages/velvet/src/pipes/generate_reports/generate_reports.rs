@@ -14,8 +14,8 @@ use std::{
 use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
-    types::tally_sheets,
-    util::path::list_subfolders,
+    types::{date_time::{DateFormat, TimeZone}, tally_sheets},
+    util::{date_time::generate_timestamp, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -148,6 +148,8 @@ impl GenerateReports {
         &self,
         reports: Vec<ReportData>,
         enable_pdfs: bool,
+        time_zone:Option<TimeZone>,
+        date_format:Option<DateFormat>
     ) -> Result<GeneratedReportsBytes> {
         let computed_reports = self.compute_reports(reports)?;
         let json_reports = serde_json::to_value(computed_reports)?;
@@ -158,11 +160,7 @@ impl GenerateReports {
         variables_map.insert("reports".to_owned(), json_reports.clone());
 
         // Adding current timestamp to variables_map
-        let start = SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards");
-        let timestamp = format!("{:?}", since_the_epoch);
+        let timestamp = generate_timestamp(time_zone, date_format);
         variables_map.insert("timestamp".to_owned(), serde_json::json!(timestamp));
 
         let mut template_map = HashMap::new();
@@ -485,6 +483,8 @@ impl GenerateReports {
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
+        time_zone:Option<TimeZone>,
+        date_format:Option<DateFormat>
     ) -> Result<ReportData> {
         let area_id = area
             .clone()
@@ -539,6 +539,8 @@ impl GenerateReports {
             is_aggregate,
             tally_sheet_id.clone(),
             enable_pdfs,
+            time_zone,
+            date_format
         )?;
 
         Ok(report)
@@ -554,8 +556,10 @@ impl GenerateReports {
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
+        time_zone:Option<TimeZone>,
+        date_format:Option<DateFormat>
     ) -> Result<()> {
-        let reports = self.generate_report(reports, enable_pdfs)?;
+        let reports = self.generate_report(reports, enable_pdfs,time_zone, date_format)?;
 
         let mut base_path =
             PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
@@ -660,6 +664,8 @@ impl Pipe for GenerateReports {
                                                 false,
                                                 Some(tally_sheet_id),
                                                 config.enable_pdfs,
+                                                config.time_zone.clone(),
+                                                config.date_format.clone(),
                                             )?;
                                         }
                                     }
@@ -680,6 +686,8 @@ impl Pipe for GenerateReports {
                                             true,
                                             None,
                                             config.enable_pdfs,
+                                            config.time_zone.clone(),
+                                            config.date_format.clone(),
                                         )?;
                                     }
                                     self.make_report(
@@ -691,6 +699,8 @@ impl Pipe for GenerateReports {
                                         false,
                                         None,
                                         config.enable_pdfs,
+                                        config.time_zone.clone(),
+                                        config.date_format.clone(),
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -705,6 +715,8 @@ impl Pipe for GenerateReports {
                             false,
                             None,
                             config.enable_pdfs,
+                            config.time_zone.clone(),
+                            config.date_format.clone(),
                         )?;
 
                         Ok(contest_report)
@@ -720,6 +732,8 @@ impl Pipe for GenerateReports {
                     false,
                     None,
                     config.enable_pdfs,
+                    None,
+                    None
                 )?;
 
                 Ok(())

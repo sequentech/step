@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use sequent_core::types::date_time::{DateFormat, TimeZone};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -9,4 +10,6 @@ use serde_json::{json, Value};
 pub struct PipeConfigGenerateReports {
     pub enable_pdfs: bool,
     pub report_content_template: Option<String>,
+    pub time_zone:Option<TimeZone>,
+    pub date_format:Option<DateFormat>
 }
