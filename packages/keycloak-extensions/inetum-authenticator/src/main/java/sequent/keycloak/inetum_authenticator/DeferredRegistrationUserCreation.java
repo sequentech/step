@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
-
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
@@ -14,23 +13,18 @@ import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.forms.RegistrationPage;
-import org.keycloak.authentication.forms.RegistrationTermsAndConditions;
-import org.keycloak.authentication.requiredactions.TermsAndConditions;
-import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
-import org.keycloak.events.EventType;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
-import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
@@ -47,7 +41,9 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.jbosslog.JBossLog;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @JBossLog
@@ -55,6 +51,8 @@ import java.util.stream.Collectors;
 public class DeferredRegistrationUserCreation implements FormAction, FormActionFactory {
 
     public static final String PROVIDER_ID = "deferred-registration-user-creation";
+    public static final String SEARCH_ATTRIBUTES = "search-attributes";
+    public static final String UNSET_ATTRIBUTES = "unset-attributes";
 
     @Override
     public String getHelpText() {
@@ -63,16 +61,60 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return null;
+        // Define configuration properties
+        return List.of(
+                new ProviderConfigProperty(
+                        SEARCH_ATTRIBUTES,
+                        "Search Attributes",
+                        "Comma-separated list of attributes to use for searching the user in auth notes.",
+                        ProviderConfigProperty.STRING_TYPE,
+                        ""),
+                new ProviderConfigProperty(
+                        UNSET_ATTRIBUTES,
+                        "Unset Attributes",
+                        "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
+                        ProviderConfigProperty.STRING_TYPE,
+                        ""));
     }
 
     @Override
     public void validate(ValidationContext context) {
         log.info("validate: start");
+
+        // Retrieve the configuration
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+        Map<String, String> configMap = config.getConfig();
+
+        // Extract the attributes to search and update from the configuration
+        String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+        String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+
+        // Parse attributes lists
+        List<String> searchAttributesList = parseAttributesList(searchAttributes);
+        List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
+
+        // Get the form data
         MultivaluedMap<String, String> formData = context
-            .getHttpRequest()
-            .getDecodedFormParameters();
+                .getHttpRequest()
+                .getDecodedFormParameters();
         context.getEvent().detail(Details.REGISTER_METHOD, "form");
+
+        // Lookup user by attributes using form data
+        UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+
+        // check that the user doesn't have set any of the unset attributes
+        boolean unsetAttributesChecked = checkUnsetAttributes(user, context, unsetAttributesList);
+
+        if (!unsetAttributesChecked) {
+            log.error("authenticate(): some user unset attributes are set");
+            // TODO: Change error code
+            context.error(Errors.INVALID_REQUEST);
+            List<FormMessage> errors = new ArrayList<>();
+            // TODO Set a better form message
+            errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+            context.validationError(formData, errors);
+            return;
+        }
 
         UserProfile profile = getOrCreateUserProfile(context, formData);
         Attributes attributes = profile.getAttributes();
@@ -96,6 +138,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             // provided, validation should have thrown an Messages.EMAIL_EXISTS
             // exception, so show invalid email error here
             if (email != null && !email.isBlank()) {
+                log.info("validate: validation exception was not raised and an email was provided");
                 context.error(Errors.INVALID_EMAIL);
                 List<FormMessage> errors = new ArrayList<>();
                 errors.add(new FormMessage(
@@ -109,7 +152,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
             // Filter email exists and username exists - this is to be expected
             List<ValidationException.Error> filteredErrors = pve.getErrors()
-                .stream()
+                    .stream()
                 .filter(error ->  (
                     (
                         !context
@@ -119,14 +162,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                     ) &&
                     !Messages.EMAIL_EXISTS.equals(error.getMessage())
                 ))
-                .collect(Collectors.toList());
+                    .collect(Collectors.toList());
             List<FormMessage> errors = Validation
-                .getFormErrorsFromValidation(filteredErrors);
+                    .getFormErrorsFromValidation(filteredErrors);
 
             if (pve.hasError(Messages.INVALID_EMAIL)) {
                 context
-                    .getEvent()
-                    .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
+                        .getEvent()
+                        .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
             }
 
             // if error is empty but we are here, then the exception was related
@@ -134,7 +177,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             // and continue
             if (errors.isEmpty()) {
 
-            // if errors is not empty, show them
+                // if errors is not empty, show them
             } else {
                 if (!pve.hasError(Messages.EMAIL_EXISTS)) {
                     context.error(Errors.INVALID_EMAIL);
@@ -156,28 +199,28 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                 RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD
             ));
         } else if (!formData
-            .getFirst(RegistrationPage.FIELD_PASSWORD)
+                .getFirst(RegistrationPage.FIELD_PASSWORD)
             .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))
         ) {
             errors.add(new FormMessage(
-                RegistrationPage.FIELD_PASSWORD_CONFIRM,
+                    RegistrationPage.FIELD_PASSWORD_CONFIRM,
                 Messages.INVALID_PASSWORD_CONFIRM
             ));
         }
         if (formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
             PolicyError err = context
-                .getSession()
-                .getProvider(PasswordPolicyManagerProvider.class)
-                .validate(
-                    context.getRealm().isRegistrationEmailAsUsername()
-                        ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
-                        : formData.getFirst(RegistrationPage.FIELD_USERNAME),
+                    .getSession()
+                            .getProvider(PasswordPolicyManagerProvider.class)
+                    .validate(
+                            context.getRealm().isRegistrationEmailAsUsername()
+                                    ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
+                                    : formData.getFirst(RegistrationPage.FIELD_USERNAME),
                     formData.getFirst(RegistrationPage.FIELD_PASSWORD)
                 );
             if (err != null)
                 errors.add(new FormMessage(
-                    RegistrationPage.FIELD_PASSWORD,
-                    err.getMessage(),
+                        RegistrationPage.FIELD_PASSWORD,
+                                err.getMessage(),
                     err.getParameters()
                 ));
         }
@@ -201,13 +244,24 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     @Override
     public void success(FormContext context) {
-		log.info("DeferredRegistrationUserCreation: start");
+        log.info("DeferredRegistrationUserCreation: start");
         checkNotOtherUserAuthenticating(context);
+
+        // Retrieve the configuration
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+        Map<String, String> configMap = config.getConfig();
+
+        // Extract the attributes to search and update from the configuration
+        String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+
+        // Parse attributes lists
+        List<String> searchAttributesList = parseAttributesList(searchAttributes);
+
         // Following successful filling of the form, we store the required user
         // information in the authentication session notes. This stored
         // information is then retrieved at a later time to create the user
         // account.
-        Utils.storeUserDataInAuthSessionNotes(context);
+        Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList);
     }
 
     private void checkNotOtherUserAuthenticating(FormContext context) {
@@ -215,11 +269,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             // the user probably did some back navigation in the browser,
             // hitting this page in a strange state
             context
-                .getEvent()
-                .detail(Details.EXISTING_USER, context.getUser().getUsername());
+                    .getEvent()
+                    .detail(Details.EXISTING_USER, context.getUser().getUsername());
             throw new AuthenticationFlowException(
-                AuthenticationFlowError.GENERIC_AUTHENTICATION_ERROR,
-                Errors.DIFFERENT_USER_AUTHENTICATING,
+                    AuthenticationFlowError.GENERIC_AUTHENTICATION_ERROR,
+                            Errors.DIFFERENT_USER_AUTHENTICATING,
                 Messages.EXPIRED_ACTION
             );
         }
@@ -327,11 +381,48 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         if (profile == null) {
             formData = normalizeFormParameters(formData);
             UserProfileProvider profileProvider = session
-                .getProvider(UserProfileProvider.class);
+                    .getProvider(UserProfileProvider.class);
             profile = profileProvider
-                .create(UserProfileContext.REGISTRATION, formData);
+                    .create(UserProfileContext.REGISTRATION, formData);
             session.setAttribute("UP_REGISTER", profile);
         }
         return profile;
     }
+
+    private List<String> parseAttributesList(String attributes) {
+        if (attributes == null || attributes.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return List.of(attributes.split(","));
+    }
+
+    private boolean checkUnsetAttributes(
+            UserModel user,
+            ValidationContext context,
+            List<String> attributes) {
+        Map<String, List<String>> userAttributes = user.getAttributes();
+        for (String attributeName : attributes) {
+            if (attributeName.equals("email")) {
+                // Only assume email is valid if it's verified
+                if (user.isEmailVerified() &&
+                        user.getEmail() != null &&
+                        !user.getEmail().isBlank()) {
+                    log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
+                    return false;
+                }
+            } else {
+                if (userAttributes.containsKey(attributeName) &&
+                        userAttributes.get(attributeName) != null &&
+                        userAttributes.get(attributeName).size() > 0 &&
+                        userAttributes.get(attributeName).get(0) != null &&
+                        !userAttributes.get(attributeName).get(0).isBlank()) {
+                    log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value="
+                            + userAttributes.get(attributeName));
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 }

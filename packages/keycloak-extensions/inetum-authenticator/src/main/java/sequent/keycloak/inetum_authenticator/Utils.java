@@ -11,7 +11,6 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
-import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -32,6 +31,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.io.Writer;
 
 @UtilityClass
@@ -71,18 +73,22 @@ public class Utils {
     private static final String KEYS_USERDATA = "keyUserdata";
     private static final String KEYS_USERDATA_SEPARATOR = ";";
     private static final List<String> DEFAULT_KEYS_USERDATA = List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
+    private static final String USER_ID = "userId";
 
     /**
      * We store the user data entered in the registration form in the session notes.
      * This information will later be retrieved to create a user account.
      */
-    static void storeUserDataInAuthSessionNotes(FormContext context)
+    static void storeUserDataInAuthSessionNotes(FormContext context, List<String> searchAttributesList)
 	{
 		log.info("storeUserDataInAuthSessionNotes: start");
         MultivaluedMap<String, String> formData = context
 			.getHttpRequest()
 			.getDecodedFormParameters();
         AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+
+        // Lookup user by attributes using form data
+        UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
         // We store each key
         String keys = Utils.serializeUserdataKeys(formData.keySet());
@@ -94,6 +100,8 @@ public class Utils {
 			log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + formData.getFirst(key) + ")");
             sessionModel.setAuthNote(key, formData.getFirst(key));
         });
+
+        sessionModel.setAuthNote(USER_ID, user.getId());
     }
 
     /**
@@ -178,6 +186,44 @@ public class Utils {
         if (authType != null) {
             context.getEvent().detail(Details.AUTH_TYPE, authType);
         }
+    }
+
+    static UserModel lookupUserByFormData(
+            FormContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
+        log.info("lookupUserByFormData(): start");
+        KeycloakSession session = context.getSession();
+        RealmModel realm = context.getRealm();
+        Stream<UserModel> userStream = null;
+
+        for (String attribute : attributes) {
+            // TODO fomdata is multivalue check if returning first could cause problems
+            String value = formData.getFirst(attribute);
+            if (value != null) {
+                Stream<UserModel> currentStream = session
+                        .users()
+                        .searchForUserByUserAttributeStream(realm, attribute, value);
+
+                if (userStream == null) {
+                    userStream = currentStream;
+                } else {
+                    // Intersect the current stream with the accumulated stream
+                    // to match users on all attributes
+                    Set<String> userIds = userStream
+                            .map(UserModel::getId)
+                            .collect(Collectors.toSet());
+                    userStream = currentStream
+                            .filter(user -> userIds.contains(user.getId()));
+                }
+            }
+        }
+
+        if (userStream != null) {
+            // Return the first user that matches all attributes, if any
+            Optional<UserModel> userOptional = userStream.findFirst();
+            return userOptional.orElse(null);
+        }
+
+        return null;
     }
 
     /**
