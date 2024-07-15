@@ -4,6 +4,7 @@ use crate::hasura::election_event::{get_election_event, get_election_event_helpe
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::update_election_event_status;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::election_event::update_elections_status_by_election_event;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -11,19 +12,19 @@ use crate::services::election_event_status;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::*;
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::EventProcessors;
+use crate::types::scheduled_event::{CronConfig, EventProcessors};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{ElectionEventStatus, VotingStatus};
 use sequent_core::services::keycloak::get_client_credentials;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{info, instrument};
 use tracing::{event, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManageElectionDatePayload {
-    pub election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[instrument(err)]
@@ -34,6 +35,7 @@ pub async fn manage_election_date(
     election_event_id: Option<String>,
     scheduled_event_id: String,
 ) -> Result<()> {
+    info!("Running manage_election_date");
     let auth_headers = get_client_credentials().await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -72,17 +74,17 @@ pub async fn manage_election_date(
     };
     let payload: ManageElectionDatePayload = serde_json::from_value(event_payload)?;
 
-    let Some(_election) = get_election_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &payload.election_id,
-    )
-    .await?
-    else {
-        event!(Level::WARN, "Election not found");
-        return Ok(());
-    };
+    // let Some(_election) = get_election_by_id(
+    //     &hasura_transaction,
+    //     &tenant_id,
+    //     &election_event_id,
+    //     &payload.election_id,
+    // )
+    // .await?
+    // else {
+    //     event!(Level::WARN, "Election not found");
+    //     return Ok(());
+    // };
 
     let election_event = get_election_event_helper(
         auth_headers.clone(),
@@ -90,8 +92,7 @@ pub async fn manage_election_date(
         election_event_id.clone(),
     )
     .await?;
-    let mut status: ElectionEventStatus =
-        get_election_event_status(election_event.status).unwrap_or(Default::default());
+    let mut status: ElectionEventStatus = Default::default();
 
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         event!(Level::WARN, "Missing event processor");
@@ -103,13 +104,13 @@ pub async fn manage_election_date(
     } else {
         VotingStatus::CLOSED
     };
-
+    info!("Updating election event status: {:?}", status);
     // update the database
-    update_election_event_status(
-        auth_headers,
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        serde_json::to_value(status.clone())?,
+    update_elections_status_by_election_event(
+        &hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+        &status.voting_status,
     )
     .await?;
 
@@ -135,6 +136,7 @@ pub async fn manage_election_date(
         voting_status @ _ => {
             return Err(Error::Anyhow(anyhow!(
                 "Invalid scheduled event type: {voting_status:?}"
+                
             )));
         }
     };
@@ -143,7 +145,7 @@ pub async fn manage_election_date(
     let _commit = hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+        .map_err(|e| anyhow!("Commit failed manae_election_dates: {}", e));
 
     Ok(())
 }

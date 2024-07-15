@@ -53,6 +53,7 @@ import {TVotingSetting} from "@/types/settings"
 import {
     ExportElectionEventMutation,
     ImportCandidatesMutation,
+    ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
@@ -63,6 +64,7 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
+import { MANAGE_ELECTION_DATES } from "@/queries/ManageElectionDates"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -203,6 +205,9 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
+    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
+    const [startDate, setStartDate] = useState<string | undefined>(undefined)
+    const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -512,12 +517,21 @@ export const EditElectionEventDataForm: React.FC = () => {
                         incoming as Sequent_Backend_Election_Event_Extended,
                         languageSettings
                     )
+                    const onSave = async () => {
+                        await manageElectionDates({
+                            variables: {
+                                electionEventId: record.id,
+                                start_date: startDate,
+                                end_date: endDate,
+                            },
+                        })
+                    }
                     return (
                         <SimpleForm
                             validate={formValidator}
                             record={parsedValue}
                             toolbar={
-                                <Toolbar>{canEdit ? <SaveButton type="button" /> : null}</Toolbar>
+                                <Toolbar>{canEdit ? <SaveButton onClick={() => {onSave()}} type="button" /> : null}</Toolbar>
                             }
                         >
                             <Accordion
@@ -563,7 +577,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 disabled={!canEdit}
                                                 source="dates.start_date"
                                                 label={t("electionScreen.field.startDateTime")}
-                                                parse={(value) => new Date(value).toISOString()}
+                                                parse={(value) => value && new Date(value).toISOString()}
+                                                onChange={(value) => {
+                                                    setStartDate(value && value.target.value !== "" ? new Date(value.target.value).toISOString() : undefined)
+                                                }}
                                             />
                                         </Grid>
                                         <Grid item xs={12} md={6}>
@@ -571,7 +588,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 disabled={!canEdit}
                                                 source="dates.end_date"
                                                 label={t("electionScreen.field.endDateTime")}
-                                                parse={(value) => new Date(value).toISOString()}
+                                                parse={(value) => value && new Date(value).toISOString()}
+                                                onChange={(value) => {
+                                                    setEndDate(value.target.value !== "" ? new Date(value.target.value).toISOString() : undefined)
+                                                }}
                                             />
                                         </Grid>
                                     </Grid>

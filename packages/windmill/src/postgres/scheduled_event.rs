@@ -26,6 +26,7 @@ pub struct PostgresScheduledEvent {
     pub cron_config: Option<CronConfig>,
     pub event_payload: Option<Value>,
     pub task_id: Option<String>,
+    pub election_id: Option<String>,
 }
 
 impl TryFrom<Row> for PostgresScheduledEvent {
@@ -33,9 +34,9 @@ impl TryFrom<Row> for PostgresScheduledEvent {
 
     #[instrument(skip_all, err)]
     fn try_from(item: Row) -> Result<Self> {
-        let event_processors_js: Option<Value> = item.try_get("event_processor")?;
+        let event_processors_js: Option<String> = item.try_get("event_processor")?;
         let event_processors: Option<EventProcessors> =
-            event_processors_js.map(|val| serde_json::from_value(val).unwrap());
+            event_processors_js.map(|val: String| EventProcessors::from_str(&val).unwrap());
 
         let cron_config_js: Option<Value> = item
             .try_get("cron_config")
@@ -56,6 +57,10 @@ impl TryFrom<Row> for PostgresScheduledEvent {
                 .try_get::<_, Option<Uuid>>("election_event_id")
                 .map_err(|err| anyhow!("Error deserializing election_event_id: {err}"))?
                 .map(|val| val.to_string()),
+            election_id: item
+                .try_get::<_, Option<Uuid>>("election_id")
+                .map_err(|err| anyhow!("Error deserializing election_event_id: {err}"))?
+                .map(|val| val.to_string()),
             created_at: item.get("created_at"),
             stopped_at: item.get("created_at"),
             labels: item.get("labels"),
@@ -64,6 +69,7 @@ impl TryFrom<Row> for PostgresScheduledEvent {
             cron_config: cron_config,
             event_payload: item.get("event_payload"),
             task_id: item.get("task_id"),
+
         })
     }
 }
@@ -94,7 +100,7 @@ pub async fn find_all_active_events(
         .map(|row| -> Result<PostgresScheduledEvent> { row.try_into() })
         .collect::<Result<Vec<PostgresScheduledEvent>>>()
         .with_context(|| "Error converting rows into PostgresScheduledEvent")?;
-
+    info!("scheduled_events={scheduled_events:?}");
     Ok(scheduled_events)
 }
 
@@ -160,7 +166,7 @@ pub async fn find_scheduled_event_by_task_id(
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
-
+    info!("find_scheduled_event_by_task_id=${task_id:?}");
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -271,11 +277,17 @@ pub async fn insert_scheduled_event(
     task_id: &str,
     cron_config: CronConfig,
     event_payload: Value,
+    election_id: Option<&str>
 ) -> Result<PostgresScheduledEvent> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
+    let parsed_election_id: Option<Uuid> = match election_id {
+        Some(e_id) => Some(Uuid::parse_str(e_id).with_context(|| "Error parsing election_id as UUID")?),
+        None => None,
+    };
+    info!("parsed_election_id={parsed_election_id:?}");
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
     let event_processor_s = event_processor.to_string();
     info!("insert_scheduled_event");
@@ -291,7 +303,8 @@ pub async fn insert_scheduled_event(
                     event_processor,
                     cron_config,
                     task_id,
-                    event_payload
+                    event_payload,
+                    election_id
                 )
                 VALUES (
                     $1,
@@ -300,7 +313,8 @@ pub async fn insert_scheduled_event(
                     $3,
                     $4,
                     $5,
-                    $6
+                    $6,
+                    $7
                 )
                 RETURNING
                     id,
@@ -313,6 +327,7 @@ pub async fn insert_scheduled_event(
                     event_processor,
                     cron_config,
                     event_payload,
+                    election_id,
                     task_id;
             "#,
         )
@@ -328,6 +343,7 @@ pub async fn insert_scheduled_event(
                 &cron_config_js,
                 &task_id,
                 &event_payload,
+                &parsed_election_id
             ],
         )
         .await

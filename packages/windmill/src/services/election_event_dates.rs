@@ -1,80 +1,70 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_dates};
 use crate::postgres::scheduled_event::*;
 use crate::tasks::manage_election_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
-use crate::{postgres::election::*, types::scheduled_event::CronConfig};
+use crate::{types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation};
+use sequent_core::ballot::{ElectionEventDates};
 use tracing::{info, instrument};
 
 #[instrument]
-pub fn generate_manage_date_election_task_name(
+pub fn generate_manage_date_election_event_task_name(
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
     is_start: bool,
 ) -> String {
     format!(
-        "tenant_{}_event_{}_election_{}_{}",
+        "tenant_{}_event_{}_{}",
         tenant_id,
         election_event_id,
-        election_id,
         if is_start { "start" } else { "end" },
     )
 }
+
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn manage_dates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
     start_date: Option<&str>,
     end_date: Option<&str>,
 ) -> Result<()> {
-    let found_election = get_election_by_id(
+    let election_event = get_election_event_by_id(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        election_id,
     )
     .await?;
-    let Some(election) = found_election else {
-        return Err(anyhow!("Election not found"));
-    };
+
     info!("start_date={:?}", start_date);
     info!("end_date={:?}", end_date);
 
-    info!("election={election:?}");
-    let election_presentation: ElectionPresentation = election
-        .presentation
+    let current_dates: ElectionEventDates = election_event
+        .dates
         .clone()
         .map(|presentation| serde_json::from_value(presentation))
         .transpose()
-        .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
+        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
         .unwrap_or(Default::default());
-    let current_dates = election_presentation
-        .dates
-        .clone()
-        .unwrap_or(Default::default());
+
     info!("current_dates={current_dates:?}");
     let mut new_dates = current_dates.clone();
-    let start_task_id = generate_manage_date_election_task_name(
+    let start_task_id = generate_manage_date_election_event_task_name(
         tenant_id,
         election_event_id,
-        election_id,
         true,
     );
-    let end_task_id = generate_manage_date_election_task_name(
+    let end_task_id = generate_manage_date_election_event_task_name(
         tenant_id,
         election_event_id,
-        election_id,
         false,
     );
-
     let scheduled_manage_start_date_opt =
     find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &start_task_id)
         .await?;
@@ -108,7 +98,7 @@ pub async fn manage_dates(
                 let event_processor = EventProcessors::START_ELECTION;
 
                 let payload = ManageElectionDatePayload {
-                    election_id: Some(election_id.to_string()),
+                    election_id: None,
                 };
                 insert_scheduled_event(
                     hasura_transaction,
@@ -118,7 +108,7 @@ pub async fn manage_dates(
                     &start_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
-                    Some(election_id),
+                    None,
                 )
                 .await?;
             }
@@ -166,7 +156,7 @@ pub async fn manage_dates(
                 let event_processor = EventProcessors::END_ELECTION;
 
                 let payload = ManageElectionDatePayload {
-                    election_id: Some(election_id.to_string()),
+                    election_id: None,
                 };
                 insert_scheduled_event(
                     hasura_transaction,
@@ -176,7 +166,7 @@ pub async fn manage_dates(
                     &end_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
-                    Some(election_id),
+                    None,
                 )
                 .await?;
             }
@@ -200,15 +190,13 @@ pub async fn manage_dates(
         }
     }
 
-    let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
     info!("update_election_presentation with new_dates={new_dates:?}");
-    new_election_presentation.dates = Some(new_dates);
-    update_election_presentation(
+    let new_election_event_dates = Some(new_dates);
+    update_election_event_dates(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        election_id,
-        serde_json::to_value(new_election_presentation)?,
+        serde_json::to_value(new_election_event_dates)?,
     )
     .await?;
     Ok(())

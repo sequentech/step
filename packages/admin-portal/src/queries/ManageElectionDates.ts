@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 export const MANAGE_ELECTION_DATES = gql`
     mutation ManageElectionDates(
         $electionEventId: String!
-        $electionId: String!
+        $electionId: String
         $start_date: String
         $end_date: String
     ) {

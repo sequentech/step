@@ -78,7 +78,7 @@ export const ElectionDataForm: React.FC = () => {
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
-    const [stopDate, setStopDate] = useState<string | undefined>(undefined)
+    const [endDate, setEndDate] = useState<string | undefined>(undefined)
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
 
@@ -404,27 +404,15 @@ export const ElectionDataForm: React.FC = () => {
                 )
 
                 const onSave = async () => { 
-                            let isUnset = incoming.presentation.dates.scheduled_closing
-                            console.log("onSave");
-                            const {data} = await manageElectionDates({
+                            await manageElectionDates({
                                 variables: {
                                     electionEventId: parsedValue.election_event_id,
                                     electionId: parsedValue.id,
                                     start_date: startDate,
-                                    stop_date: stopDate,
+                                    end_date: endDate,
                                 },
                             })
                   
-                }
-
-                const onScheduledOpening: React.MouseEventHandler<HTMLButtonElement> &
-                    React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                   
-                }
-
-                const onScheduledClosing: React.MouseEventHandler<HTMLButtonElement> &
-                    React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    
                 }
 
                 return (
@@ -481,9 +469,9 @@ export const ElectionDataForm: React.FC = () => {
                                         <DateTimeInput
                                             source={`presentation.dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
+                                            parse={(value) => value && new Date(value).toISOString()}
                                             onChange={(value) => {
-                                                setStartDate(value.target.value)
+                                                setStartDate(value.target.value !== "" ? new Date(value.target.value).toISOString() : undefined)
                                             }}
                                         />
                                     </Grid>
@@ -491,9 +479,9 @@ export const ElectionDataForm: React.FC = () => {
                                         <DateTimeInput
                                             source="presentation.dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
+                                            parse={(value) => value && new Date(value).toISOString()}
                                             onChange={(value) => {
-                                                setStopDate(value.target.value)
+                                                setEndDate(value.target.value !== "" ? new Date(value.target.value).toISOString() : undefined)
                                             }}
                                         />
                                     </Grid>

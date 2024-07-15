@@ -12,12 +12,12 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::election_dates;
+use windmill::services::{election_dates, election_event_dates};
 
 #[derive(Deserialize, Debug)]
 pub struct ManageElectionDatesBody {
     election_event_id: String,
-    election_id: String,
+    election_id: Option<String>,
     start_date: Option<String>,
     end_date: Option<String>
 }
@@ -50,18 +50,33 @@ pub async fn manage_election_dates(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    election_dates::manage_dates(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &input.election_event_id,
-        &input.election_id,
-        // input.is_start,
-        // input.is_unset,
-        input.end_date.as_deref(),
-        input.start_date.as_deref()
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    match input.election_id {
+        Some(id) => {
+            election_dates::manage_dates(
+                &hasura_transaction,
+                &claims.hasura_claims.tenant_id,
+                &input.election_event_id,
+                &id,
+                input.start_date.as_deref(),
+                input.end_date.as_deref()
+            )
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        }
+        None => {
+            election_event_dates::manage_dates(
+                &hasura_transaction,
+                &claims.hasura_claims.tenant_id,
+                &input.election_event_id,
+                input.start_date.as_deref(),
+                input.end_date.as_deref()
+            )
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        }
+
+    }
+    
 
     let commit = hasura_transaction
         .commit()
