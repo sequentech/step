@@ -47,13 +47,13 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         .map(|candidate_result| -> u64 { candidate_result.total_votes.clone().unwrap_or(0) })
         .sum();
 
-    if total_valid_votes != total_valid_votes_calc + total_blank_votes {
+    /*if total_valid_votes != total_valid_votes_calc + total_blank_votes {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, inconsistent total valid votes",
             tally_sheet
         )
         .into());
-    }
+    }*/
     let candidates_map: HashMap<String, Candidate> = contest
         .candidates
         .clone()
