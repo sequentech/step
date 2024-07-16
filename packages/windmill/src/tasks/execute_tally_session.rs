@@ -213,10 +213,11 @@ async fn process_plaintexts(
                 event!(Level::WARN, "NOT FOUND");
                 return false;
             };
-            tree_path.iter().all(|tree_node| {
+            /*tree_path.iter().all(|tree_node| {
                 found_area_contests
                     .contains(&(tree_node.id.clone(), area_contest.contest.id.clone()))
-            })
+            })*/
+            true
         })
         .collect();
     event!(
