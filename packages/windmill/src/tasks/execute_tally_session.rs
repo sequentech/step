@@ -123,6 +123,14 @@ async fn process_plaintexts(
 
     let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
 
+    event!(
+        Level::WARN,
+        "Num sequent_backend_tally_session_contest = {}",
+        tally_session_data
+            .sequent_backend_tally_session_contest
+            .len()
+    );
+
     let almost_vec: Vec<AreaContestDataType> = tally_session_data
         .sequent_backend_tally_session_contest
         .iter()
@@ -183,18 +191,26 @@ async fn process_plaintexts(
             })
         })
         .collect();
+    event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
 
     // set<area_id, contest_id>
     let found_area_contests: HashSet<(String, String)> = almost_vec
         .iter()
         .map(|val| (val.area.id.clone(), val.contest.id.clone()))
         .collect();
+    event!(
+        Level::WARN,
+        "Num found_area_contests = {}",
+        found_area_contests.len()
+    );
 
     let filtered_area_contests: Vec<AreaContestDataType> = almost_vec
         .clone()
         .into_iter()
         .filter(|area_contest| {
+            event!(Level::WARN, "find_path_to_area {}", area_contest.area.id);
             let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
+                event!(Level::WARN, "NOT FOUND");
                 return false;
             };
             tree_path.iter().all(|tree_node| {
@@ -203,6 +219,11 @@ async fn process_plaintexts(
             })
         })
         .collect();
+    event!(
+        Level::WARN,
+        "Num filtered_area_contests = {}",
+        filtered_area_contests.len()
+    );
 
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -792,6 +813,7 @@ async fn map_plaintext_data(
         &election_event_id,
     )
     .await?;
+    event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(

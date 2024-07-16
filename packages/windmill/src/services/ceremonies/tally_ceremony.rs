@@ -242,21 +242,36 @@ pub async fn create_tally_ceremony(
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
 ) -> Result<String> {
-    let (contests, areas, area_contests) = try_join!(
+    let (all_contests, areas, all_area_contests) = try_join!(
         export_contests(&transaction, &tenant_id, &election_event_id),
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
+    let contests: Vec<Contest> = all_contests
+        .into_iter()
+        .filter(|contest| election_ids.contains(&contest.election_id))
+        .collect();
+    let contest_ids: Vec<String> = contests.clone().into_iter().map(|c| c.id.clone()).collect();
+    let area_contests: Vec<AreaContest> = all_area_contests
+        .into_iter()
+        .filter(|area_contest| contest_ids.contains(&area_contest.contest_id))
+        .collect();
 
     let contests_map: HashMap<String, Contest> = contests
         .into_iter()
         .map(|contest| (contest.id.clone(), contest.clone()))
         .collect();
+
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
     let area_contests_tree = areas_tree.get_contests_data_tree(&area_contests);
     let relevant_area_contests =
         get_area_contests_for_election_ids(&contests_map, &area_contests_tree, &election_ids);
+    event!(
+        Level::INFO,
+        "relevant_area_contests {:?}",
+        relevant_area_contests
+    );
     let area_ids: Vec<String> = relevant_area_contests
         .iter()
         .map(|area_contest| area_contest.area_id.clone())
