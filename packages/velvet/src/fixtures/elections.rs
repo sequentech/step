@@ -8,13 +8,17 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use uuid::Uuid;
 
 #[allow(unused)]
-pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
+pub fn get_election_config_1(election_event_id: &Uuid, areas: Vec<Uuid>) -> ElectionConfig {
     let tenant_id = Uuid::new_v4();
     let election_id = Uuid::new_v4();
 
-    let area_id = Uuid::new_v4();
-    let ballot_style =
-        ballot_styles::get_ballot_style_1(&tenant_id, election_event_id, &election_id, &area_id);
+    let first_area_id = areas.first().cloned().unwrap();
+    let ballot_style = ballot_styles::get_ballot_style_1(
+        &tenant_id,
+        election_event_id,
+        &election_id,
+        &first_area_id,
+    );
 
     ElectionConfig {
         id: election_id,
@@ -24,12 +28,15 @@ pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
         census: 0,
         total_votes: 0,
         ballot_styles: vec![ballot_style],
-        areas: vec![TreeNodeArea {
-            id: area_id.to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            parent_id: None,
-        }],
+        areas: areas
+            .iter()
+            .map(|area| TreeNodeArea {
+                id: area.to_string(),
+                tenant_id: tenant_id.to_string(),
+                election_event_id: election_event_id.to_string(),
+                parent_id: None,
+            })
+            .collect(),
     }
 }
 
