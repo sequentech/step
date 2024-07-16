@@ -4,6 +4,7 @@
 
 use super::ballot_styles;
 use crate::pipes::pipe_inputs::ElectionConfig;
+use sequent_core::services::area_tree::TreeNodeArea;
 use uuid::Uuid;
 
 #[allow(unused)]
@@ -23,6 +24,12 @@ pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
         census: 0,
         total_votes: 0,
         ballot_styles: vec![ballot_style],
+        areas: vec![TreeNodeArea {
+            id: area_id.to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            parent_id: None,
+        }],
     }
 }
 
@@ -48,5 +55,11 @@ pub fn get_election_config_2() -> ElectionConfig {
         census: 0,
         total_votes: 0,
         ballot_styles: vec![ballot_style1, ballot_style2],
+        areas: vec![TreeNodeArea {
+            id: area_id.to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            parent_id: None,
+        }],
     }
 }

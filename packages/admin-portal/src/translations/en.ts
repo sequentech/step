@@ -877,6 +877,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            templateTitle: "Results Template",
+            templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
@@ -952,6 +954,8 @@ const englishTranslation = {
                 cast_votes_percent: "Percent of Votes",
                 total_votes: "Total Voters",
                 total_votes_percent: "Participation",
+                total_votes_counted: "Total Votes Counted",
+                total_auditable_votes: "Total Auditable Votes",
                 total_valid_votes: "Total Valid Votes",
                 total_valid_votes_percent: "Valid Votes Percent",
                 total_invalid_votes: "Total Invalid Votes",
@@ -1051,6 +1055,7 @@ const englishTranslation = {
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
             },
             email: {
                 subject: "Subject",
@@ -1158,6 +1163,7 @@ const englishTranslation = {
                 participation_report: "Participation Report",
                 electoral_results: "Electoral Results",
                 otp: "OTP",
+                tally_report: "Tally Report",
             },
             method: {
                 email: "Email",
