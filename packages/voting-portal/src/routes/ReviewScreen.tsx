@@ -250,7 +250,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     disabled={isCastingBallot}
                     onClick={() =>
-                        castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction
+                        castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
                     }
                 >
                     <Box>{t("reviewScreen.castBallotButton")}</Box>
