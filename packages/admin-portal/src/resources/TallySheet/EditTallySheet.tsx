@@ -9,6 +9,7 @@ import {useTranslation} from "react-i18next"
 import {
     Maybe,
     Sequent_Backend_Area,
+    Sequent_Backend_Area_Contest,
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
@@ -37,6 +38,7 @@ import {
     IContestPresentation,
 } from "@sequentech/ui-essentials"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
+import {uniq} from "lodash"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -79,19 +81,39 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
+    const [areaIds, setAreaIds] = useState<Array<string>>([])
+
+    const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
+        "sequent_backend_area_contest",
+        {
+            filter: {
+                tenant_id: contest.tenant_id,
+                election_event_id: contest.election_event_id,
+                contest_id: contest.id,
+            },
+            pagination: {
+                perPage: 1000, // Setting initial larger records size of areas
+                page: 1,
+            },
+        }
+    )
 
     const {data: areas, refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
             name: areaNameFilter ?? "",
-            parent_id: {
+            id: {
+                format: "hasura-raw-query",
+                value: {_in: areaIds},
+            },
+            /*parent_id: {
                 format: "hasura-raw-query",
                 value: {_is_null: true},
-            },
+            },*/
         },
         pagination: {
-            perPage: 100, // Setting initial larger records size of areas
+            perPage: 1000, // Setting initial larger records size of areas
             page: 1,
         },
     })
@@ -108,6 +130,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         let presentation = contest.presentation as IContestPresentation | undefined
         return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
     }, [contest.presentation])
+
+    useEffect(() => {
+        let newAreaIds = uniq(areaContests?.map((ac) => ac.area_id as string))
+        setAreaIds(newAreaIds)
+    }, [areaIds, setAreaIds, areaContests])
 
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
