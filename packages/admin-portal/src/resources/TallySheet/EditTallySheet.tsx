@@ -85,10 +85,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
             name: areaNameFilter ?? "",
-            parent_id: {
+            /*parent_id: {
                 format: "hasura-raw-query",
                 value: {_is_null: true},
-            },
+            },*/
         },
         pagination: {
             perPage: 100, // Setting initial larger records size of areas
