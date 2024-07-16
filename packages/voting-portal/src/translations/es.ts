@@ -77,6 +77,12 @@ const spanishTranslation: TranslationType = {
                 ok: "Si, quiero INVALIDAR mi papeleta para AUDITARLA",
                 cancel: "Cancelar",
             },
+            confirmCastVoteDialog: {
+                title: "¿Está seguro de que quiere emitir su voto?",
+                content: "Su voto no se podrá editar una vez confirmado.",
+                ok: "Sí, quiero EMITIR mi voto",
+                cancel: "Cancelar",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",

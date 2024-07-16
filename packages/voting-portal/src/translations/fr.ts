@@ -76,6 +76,12 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
                 cancel: "Annuler",
             },
+            confirmCastVoteDialog: {
+                title: "Êtes-vous sûr de vouloir voter?",
+                content: "Votre vote ne sera plus modifiable une fois confirmé.",
+                ok: "Oui, je veux VOTER",
+                cancel: "Annuler",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",
