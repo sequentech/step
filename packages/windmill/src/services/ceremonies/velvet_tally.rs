@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::election::export_elections;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
@@ -11,6 +12,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::types::hasura::core::{Area, Election, TallySessionConfiguration, TallySheet};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -173,6 +175,7 @@ pub fn create_election_configs_blocking(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     elections_single_map: HashMap<String, Election>,
+    areas: Vec<TreeNodeArea>,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
     for area_contest in area_contests {
@@ -200,6 +203,7 @@ pub fn create_election_configs_blocking(
                     .map(|data| data.cast_votes as u64)
                     .unwrap_or(0),
                 ballot_styles: vec![],
+                areas: areas.clone(),
             },
         };
 
@@ -283,6 +287,8 @@ pub async fn create_election_configs(
         .collect();
     let area_contests_r = area_contests.clone();
     let cast_votes_count_r = cast_votes_count.clone();
+    let areas = get_event_areas(&hasura_transaction, tenant_id, election_event_id).await?;
+    let basic_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
 
     // Spawn the task
     let handle = tokio::task::spawn_blocking(move || {
@@ -291,6 +297,7 @@ pub async fn create_election_configs(
             &area_contests_r,
             &cast_votes_count_r,
             elections_single_map.clone(),
+            basic_areas.clone(),
         )
     });
 

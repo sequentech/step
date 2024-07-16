@@ -251,11 +251,13 @@ pub async fn create_tally_ceremony(
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
         .collect();
+    event!(Level::INFO, "contests {:?}", contests);
     let contest_ids: Vec<String> = contests.clone().into_iter().map(|c| c.id.clone()).collect();
     let area_contests: Vec<AreaContest> = all_area_contests
         .into_iter()
         .filter(|area_contest| contest_ids.contains(&area_contest.contest_id))
         .collect();
+    event!(Level::INFO, "area_contests {:?}", area_contests);
 
     let contests_map: HashMap<String, Contest> = contests
         .into_iter()
@@ -264,7 +266,11 @@ pub async fn create_tally_ceremony(
 
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
+
+    event!(Level::INFO, "areas_tree {:?}", area_contests);
     let area_contests_tree = areas_tree.get_contests_data_tree(&area_contests);
+
+    event!(Level::INFO, "area_contests_tree {:?}", area_contests_tree);
     let relevant_area_contests =
         get_area_contests_for_election_ids(&contests_map, &area_contests_tree, &election_ids);
     event!(
