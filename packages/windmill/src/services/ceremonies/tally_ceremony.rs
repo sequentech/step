@@ -262,16 +262,16 @@ pub async fn create_tally_ceremony(
         .map(|contest| (contest.id.clone(), contest.clone()))
         .collect();
 
-    event!(Level::INFO, "contests_map {:?}", contests_map);
     let basic_areas = areas.iter().map(|area| area.into()).collect();
-    event!(Level::INFO, "basic_areas {:?}", basic_areas);
     let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
-    event!(Level::INFO, "areas_tree {:?}", areas_tree);
     let area_contests_tree = areas_tree.get_contests_data_tree(&area_contests);
-    event!(Level::INFO, "area_contests_tree {:?}", area_contests_tree);
     let relevant_area_contests =
         get_area_contests_for_election_ids(&contests_map, &area_contests_tree, &election_ids);
-        event!(Level::INFO, "relevant_area_contests {:?}", relevant_area_contests);
+    event!(
+        Level::INFO,
+        "relevant_area_contests {:?}",
+        relevant_area_contests
+    );
     let area_ids: Vec<String> = relevant_area_contests
         .iter()
         .map(|area_contest| area_contest.area_id.clone())
