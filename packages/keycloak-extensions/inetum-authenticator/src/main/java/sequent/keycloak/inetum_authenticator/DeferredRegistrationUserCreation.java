@@ -53,6 +53,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     public static final String PROVIDER_ID = "deferred-registration-user-creation";
     public static final String SEARCH_ATTRIBUTES = "search-attributes";
     public static final String UNSET_ATTRIBUTES = "unset-attributes";
+    public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
 
     @Override
     public String getHelpText() {
@@ -74,6 +75,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                         "Unset Attributes",
                         "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
                         ProviderConfigProperty.STRING_TYPE,
+                        ""),
+                new ProviderConfigProperty(
+                        UNIQUE_ATTRIBUTES,
+                        "Unique Attributes",
+                        "Comma-separated list of attributes that should not be set to other users and otherwise the authenticator should fail.",
+                        ProviderConfigProperty.STRING_TYPE,
                         ""));
     }
 
@@ -88,10 +95,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         // Extract the attributes to search and update from the configuration
         String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
         String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+        String uniqueAttributes = configMap.get(UNSET_ATTRIBUTES);
 
         // Parse attributes lists
         List<String> searchAttributesList = parseAttributesList(searchAttributes);
         List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
+        List<String> uniqueAttributesList = parseAttributesList(uniqueAttributes);
 
         // Get the form data
         MultivaluedMap<String, String> formData = context
@@ -102,11 +111,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         // Lookup user by attributes using form data
         UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
-        // check that the user doesn't have set any of the unset attributes
-        boolean unsetAttributesChecked = checkUnsetAttributes(user, context, unsetAttributesList);
+        // Check that the user doesn't have set any of the unset attributes
+        boolean unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
 
         if (!unsetAttributesChecked) {
             log.error("authenticate(): some user unset attributes are set");
+            // TODO: Change error code
+            context.error(Errors.INVALID_REQUEST);
+            List<FormMessage> errors = new ArrayList<>();
+            // TODO Set a better form message
+            errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+            context.validationError(formData, errors);
+            return;
+        }
+
+        // Verify the unique atrributes
+        boolean uniqueAttributesChecked = checkUniqueAttributes(context, uniqueAttributes);
+
+        if (!uniqueAttributesChecked) {
+            log.error("authenticate(): unique attributes present in other users");
             // TODO: Change error code
             context.error(Errors.INVALID_REQUEST);
             List<FormMessage> errors = new ArrayList<>();
@@ -234,6 +257,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         }
         log.info("validate: success");
         context.success();
+    }
+
+    private boolean checkUniqueAttributes(ValidationContext context, String uniqueAttributes) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'checkUniqueAttributes'");
     }
 
     @Override
@@ -398,7 +426,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     private boolean checkUnsetAttributes(
             UserModel user,
-            ValidationContext context,
             List<String> attributes) {
         Map<String, List<String>> userAttributes = user.getAttributes();
         for (String attributeName : attributes) {
