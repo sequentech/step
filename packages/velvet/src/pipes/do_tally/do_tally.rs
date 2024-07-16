@@ -25,7 +25,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -121,6 +121,7 @@ impl Pipe for DoTally {
                     .iter()
                     .map(|area| (&area.area).into())
                     .collect();
+                info!("areas: {:?}", areas);
 
                 let areas_tree = TreeNode::<()>::from_areas(areas).map_err(|err| {
                     Error::UnexpectedError(format!("Error building area tree {:?}", err))
