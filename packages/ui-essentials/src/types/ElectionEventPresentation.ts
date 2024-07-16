@@ -20,4 +20,5 @@ export interface IElectionEventPresentation {
     skip_election_list?: boolean
     show_user_profile?: boolean
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
+    cast_vote_confirm?: boolean
 }

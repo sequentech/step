@@ -473,6 +473,7 @@ pub struct ElectionEventPresentation {
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
+    pub cast_vote_confirm: Option<bool>,
 }
 
 #[derive(

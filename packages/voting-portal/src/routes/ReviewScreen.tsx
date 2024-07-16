@@ -261,6 +261,7 @@ export const ReviewScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
+    // TODO: fetch here cast_vote_confirm from bsllot style
     const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {

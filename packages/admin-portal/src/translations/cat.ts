@@ -269,6 +269,7 @@ const catalanTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
                 },
+                castVoteConfirm: "Modal de Confirmació de Vot",
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
