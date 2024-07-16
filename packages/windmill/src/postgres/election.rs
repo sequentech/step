@@ -211,6 +211,51 @@ pub async fn update_election_presentation(
     Ok(())
 }
 
+pub async fn update_election_voting_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    status: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid: uuid::Uuid =
+        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election
+            SET
+                status = $4
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND id = $3
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &status,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_presentation query: {err}"))?;
+
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn insert_election(
     hasura_transaction: &Transaction<'_>,

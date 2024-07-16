@@ -4,7 +4,7 @@
 
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_dates};
 use crate::postgres::scheduled_event::*;
-use crate::tasks::manage_election_date::ManageElectionDatePayload;
+use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
 use crate::{types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Result};
@@ -108,7 +108,6 @@ pub async fn manage_dates(
                     &start_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
-                    None,
                 )
                 .await?;
             }
@@ -166,7 +165,6 @@ pub async fn manage_dates(
                     &end_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
-                    None,
                 )
                 .await?;
             }

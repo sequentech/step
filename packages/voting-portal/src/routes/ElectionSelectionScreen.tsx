@@ -103,8 +103,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
-    const eventStatus = electionEvent?.status as IElectionEventStatus | null
-    const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
+    const electionStatus = election?.status as IElectionEventStatus | null
+    const isVotingOpen = electionStatus?.voting_status === EVotingStatus.OPEN
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false

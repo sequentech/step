@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::{services::import_election_event::ImportElectionEventSchema, types::scheduled_event::EventProcessors};
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
+use deadpool_postgres::{Transaction};
+use sequent_core::{types::hasura::core::ElectionEvent as ElectionEventData};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
@@ -179,7 +179,7 @@ pub async fn update_elections_status_by_election_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    voting_status: &VotingStatus,
+    status: Value,
 ) -> Result<()> {
     info!("Updating election status by election event omri");
     info!("tenant_id omri={tenant_id}");
@@ -189,7 +189,7 @@ pub async fn update_elections_status_by_election_event(
             r#"
                 UPDATE sequent_backend.election
                 SET
-                status = jsonb_set(status, '{voting_status}', $1)
+                status = $1
                 WHERE tenant_id = $2 AND election_event_id = $3;
             "#,
         )
@@ -199,7 +199,7 @@ pub async fn update_elections_status_by_election_event(
         .query(
             &statement,
             &[
-                &voting_status.to_string(),
+                &status,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
             ],

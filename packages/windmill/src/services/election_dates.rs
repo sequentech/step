@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::*;
-use crate::tasks::manage_election_date::ManageElectionDatePayload;
+use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Result};
@@ -118,7 +118,6 @@ pub async fn manage_dates(
                     &start_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
-                    Some(election_id),
                 )
                 .await?;
             }
@@ -176,7 +175,6 @@ pub async fn manage_dates(
                     &end_task_id,
                     cron_config,
                     serde_json::to_value(payload)?,
-                    Some(election_id),
                 )
                 .await?;
             }

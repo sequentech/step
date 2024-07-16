@@ -53,8 +53,6 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ManageElectionDatesMutation} from "@/gql/graphql"
-import {useWatch} from "react-hook-form"
-import { set } from "lodash"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -77,8 +75,8 @@ export const ElectionDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
-    const [startDate, setStartDate] = useState<string | undefined>(undefined)
-    const [endDate, setEndDate] = useState<string | undefined>(undefined)
+    const [startDateValue, setStartDateValue] = useState<string | undefined>(undefined)
+    const [endDateValue, setEndDateValue] = useState<string | undefined>(undefined)
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
 
@@ -187,7 +185,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledOpening = temp.presentation?.dates?.scheduled_opening
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
-            console.log("temp", temp);
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
             // set english first lang always
@@ -242,14 +239,6 @@ export const ElectionDataForm: React.FC = () => {
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
-    }
-
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionEventScreen.error.endDate")
-        }
-        return errors
     }
 
     const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
@@ -393,7 +382,30 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
-    
+    const validateStartDate = (startDate: any, allValues: any) => {
+        const endDate = allValues.presentation.dates.end_date
+        if (!startDateValue) {
+            return undefined
+        }
+        if (new Date(startDate) < new Date(Date.now())) {
+            return "Start date must be after current date"
+        }
+        if (endDate && new Date(startDate) >= new Date(endDate)) {
+            return "Start date must be before end date"
+        }
+        return undefined
+    }
+
+    const validateEndDate = (endDate: any, allValues: any) => {
+        const startDate = allValues.presentation.dates.start_date
+        if (new Date(endDate) < new Date(Date.now())) {
+            return "End date must be after current date"
+        }
+        if (startDate && new Date(startDate) >= new Date(endDate)) {
+            return "End date must be after start date"
+        }
+        return undefined
+    }
 
     return data ? (
         <RecordContext.Consumer>
@@ -403,27 +415,34 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onSave = async () => { 
-                            await manageElectionDates({
-                                variables: {
-                                    electionEventId: parsedValue.election_event_id,
-                                    electionId: parsedValue.id,
-                                    start_date: startDate,
-                                    end_date: endDate,
-                                },
-                            })
-                  
+                const onSave = async () => {
+                    if (
+                        startDateValue &&
+                        new Date(startDateValue) <
+                            new Date(endDateValue ? endDateValue : Date.now())
+                    ) {
+                        return
+                    }
+                    await manageElectionDates({
+                        variables: {
+                            electionEventId: parsedValue.election_event_id,
+                            electionId: parsedValue.id,
+                            start_date: startDateValue,
+                            end_date: endDateValue,
+                        },
+                    })
                 }
 
                 return (
                     <SimpleForm
-                        validate={formValidator}
                         record={parsedValue}
                         toolbar={
                             <Toolbar>
-                                <SaveButton onClick={() => {
-                                    onSave()
-                                }}/>
+                                <SaveButton
+                                    onClick={() => {
+                                        onSave()
+                                    }}
+                                />
                             </Toolbar>
                         }
                     >
@@ -469,20 +488,34 @@ export const ElectionDataForm: React.FC = () => {
                                         <DateTimeInput
                                             source={`presentation.dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) => value && new Date(value).toISOString()}
+                                            parse={(value) =>
+                                                value && new Date(value).toISOString()
+                                            }
                                             onChange={(value) => {
-                                                setStartDate(value.target.value !== "" ? new Date(value.target.value).toISOString() : undefined)
+                                                setStartDateValue(
+                                                    value.target.value !== ""
+                                                        ? new Date(value.target.value).toISOString()
+                                                        : undefined
+                                                )
                                             }}
+                                            validate={validateStartDate}
                                         />
                                     </Grid>
                                     <Grid item xs={12} md={6}>
                                         <DateTimeInput
                                             source="presentation.dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) => value && new Date(value).toISOString()}
+                                            parse={(value) =>
+                                                value && new Date(value).toISOString()
+                                            }
                                             onChange={(value) => {
-                                                setEndDate(value.target.value !== "" ? new Date(value.target.value).toISOString() : undefined)
+                                                setEndDateValue(
+                                                    value.target.value !== ""
+                                                        ? new Date(value.target.value).toISOString()
+                                                        : undefined
+                                                )
                                             }}
+                                            validate={validateEndDate}
                                         />
                                     </Grid>
                                 </Grid>
