@@ -13,33 +13,34 @@ SPDX-License-Identifier: AGPL-3.0-only
     --pf-global--BackgroundColor--100: #F7F9FE;
     --pf-global--BoxShadow--lg: none;
     --pf-global--primary-color--100: #0F054C;
-
     --pf-global--link--Color: #191D23;
     --pf-global--link--TextDecoration: underline;
 }
 
 html, body {
+    /* Setting this to red to see the react overtaking the render */
+    background: red; 
     overflow-x: hidden;
     width: 100%;
 }
 
-.login-pf body {
+.app body {
     background: #FFFFFF;
 }
 
-.login-pf-page-header {
+.pf-c-page_header {
     background-color: var(--pf-global--BackgroundColor--100);
     padding: 16px 0;
 }
 
 
 @media (max-width: 1170px) {
-    .login-pf-page-header {
+    .pf-c-page_header {
         padding: 9px;
     }
 }
 
-.login-pf-page {
+.pf-c-page__main {
     padding-top: 0px;
     display: flex;
     flex-direction: column;

@@ -3,7 +3,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-<#-- Template Layout for Keycloak Account Pages -->
 
 <#macro accountLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
 <!DOCTYPE html>
