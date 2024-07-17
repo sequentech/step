@@ -1,8 +1,8 @@
 import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
 import {voterDetails} from ".."
-
-const createElectionEvent = require("../commands/createElectionEvent")
-const deleteElectionEvent = require("../commands/deleteElectionEvent")
+import {assertListItemText} from "../commands/assertListItemText"
+import { createElectionEvent } from "../commands/election-event/create"
+import { deleteElectionEvent } from "../commands/election-event/delete"
 
 interface LoginThis {
     testUrl: string
@@ -52,7 +52,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 suppressNotFoundErrors: true,
                 timeout: 1000,
             },
-            (result) => {
+            async (result) => {
                 if (result.value) {
                     browser.assert
                         .visible("button.voter-add-button")
@@ -60,6 +60,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 } else {
                     browser.assert.visible("button.add-button").click("button.add-button")
                 }
+
                 browser
                     .sendKeys("input[name=first_name]", voterDetails.firstName)
                     .sendKeys("input[name=last_name]", voterDetails.lastName)
@@ -68,10 +69,46 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
                     .pause(1000)
-                    .assert.textContains("span.first_name", voterDetails.firstName)
-                    .assert.textContains("span.last_name", voterDetails.lastName)
-                    .assert.textContains("span.email", voterDetails.email)
-                    .assert.textContains("span.username", voterDetails.username)
+                // .debug()
+
+                // const fnameEl = await browser.element.findAll(
+                // 	"span.first_name"
+                // )
+                // const lnameEl = await browser.element.findAll(
+                // 	"span.last_name"
+                // )
+                // const emailEl = await browser.element.findAll(
+                // 	"span.email"
+                // )
+                // const usernameEl = await browser.element.findAll(
+                // 	"span.username"
+                // )
+                // browser.assert.textContains(fnameEl[fnameEl.length - 1], voterDetails.firstName)
+                // 	.assert.textContains(lnameEl[lnameEl.length - 1], voterDetails.lastName)
+                // 	.assert.textContains(emailEl[emailEl.length - 1], voterDetails.email)
+                // 	.assert.textContains(usernameEl[usernameEl.length - 1], voterDetails.email)
+                Promise.all([
+                    assertListItemText({
+                        el: "span.first_name",
+                        text: voterDetails.firstName,
+                        browser,
+                    }),
+                    assertListItemText({
+                        el: "span.last_name",
+                        text: voterDetails.lastName,
+                        browser,
+                    }),
+                    assertListItemText({
+                        el: "span.email",
+                        text: voterDetails.email,
+                        browser,
+                    }),
+                    assertListItemText({
+                        el: "span.username",
+                        text: voterDetails.email,
+                        browser,
+                    }),
+                ])
             }
         )
     })
@@ -90,7 +127,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 suppressNotFoundErrors: true,
                 timeout: 1000,
             },
-            (result) => {
+            async (result) => {
                 if (result.value) {
                     browser.end()
                 } else {
@@ -101,7 +138,12 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                         .assert.enabled("button[type=submit]")
                         .click("button[type=submit]")
                         .pause(200)
-                        .assert.textContains("span.first_name", voterDetails.firstName)
+
+                    await assertListItemText({
+                        el: "span.first_name",
+                        text: voterDetails.firstName,
+                        browser,
+                    })
                 }
             }
         )
@@ -117,7 +159,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 suppressNotFoundErrors: true,
                 timeout: 1000,
             },
-            (result) => {
+            async (result) => {
                 if (result.value) {
                     browser.assert.visible("button.area-add-button").click("button.area-add-button")
                 } else {
@@ -128,7 +170,12 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
                     .pause(200)
-                    .assert.textContains("span.area-name", "this is an area name")
+
+                await assertListItemText({
+                    el: "span.area-name",
+                    text: "this is an area name",
+                    browser,
+                })
             }
         )
 
@@ -158,7 +205,14 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                         .enabled("button[type=submit]")
                         .click("button[type=submit]")
                         .pause(200)
-                        .assert.textContains("span.first_name", voterDetails.firstName)
+
+                    await assertListItemText({
+                        el: "span.first_name",
+                        text: voterDetails.firstName,
+                        browser,
+                    })
+
+                    // .assert.textContains("span.first_name", voterDetails.firstName)
                 }
             }
         )
@@ -205,12 +259,21 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     browser.end()
                 } else {
-                    browser.assert.visible(".delete-voter-icon").click(".delete-voter-icon")
+                    browser.assert
+                        .visible(
+                            // `//tr[td/span[contains(@class, 'first_name') and text()=]]/td/button[contains(@class, 'delete-voter-icon')]`
+							`//span[normalize-space()=${voterDetails.firstName}]/../../td/button[3]`
+                        )
+                        .click(
+							`//span[normalize-space()=${voterDetails.firstName}]/../../td/button[3]`
+                        )
                     browser.assert
                         .enabled(`button.ok-button`)
                         .click("button.ok-button")
                         .pause(1000)
-                        .assert.not.elementPresent("span.first_name")
+                        .assert.not.elementPresent(
+                            `//span[contains(@class, 'first_name') and text()=${voterDetails.firstName}]`
+                        )
                 }
             }
         )

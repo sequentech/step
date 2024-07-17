@@ -4,7 +4,7 @@
 
 import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
 import {electionEventLink} from ".."
-const createElectionEvent = require("../commands/createElectionEvent")
+import { createElectionEvent } from "../commands/election-event/create"
 
 interface LoginThis {
     testUrl: string
