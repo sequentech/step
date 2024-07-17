@@ -30,8 +30,8 @@ import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.io.Writer;
@@ -193,37 +193,14 @@ public class Utils {
         log.info("lookupUserByFormData(): start");
         KeycloakSession session = context.getSession();
         RealmModel realm = context.getRealm();
-        Stream<UserModel> userStream = null;
 
-        for (String attribute : attributes) {
-            // TODO fomdata is multivalue check if returning first could cause problems
-            String value = formData.getFirst(attribute);
-            if (value != null) {
-                Stream<UserModel> currentStream = session
-                        .users()
-                        .searchForUserByUserAttributeStream(realm, attribute, value);
+        Map<String, String> firstValueFormData = formData.entrySet().stream().filter(e -> attributes.contains(e.getKey())).collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
 
-                if (userStream == null) {
-                    userStream = currentStream;
-                } else {
-                    // Intersect the current stream with the accumulated stream
-                    // to match users on all attributes
-                    Set<String> userIds = userStream
-                            .map(UserModel::getId)
-                            .collect(Collectors.toSet());
-                    userStream = currentStream
-                            .filter(user -> userIds.contains(user.getId()));
-                }
-            }
-        }
+        Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
 
-        if (userStream != null) {
-            // Return the first user that matches all attributes, if any
-            Optional<UserModel> userOptional = userStream.findFirst();
-            return userOptional.orElse(null);
-        }
-
-        return null;
+        // Return the first user that matches all attributes, if any
+        Optional<UserModel> userOptional = userStream.findFirst();
+        return userOptional.orElse(null);
     }
 
     /**

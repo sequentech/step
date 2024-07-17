@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @JBossLog
 @AutoService(FormActionFactory.class)
@@ -95,7 +96,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         // Extract the attributes to search and update from the configuration
         String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
         String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
-        String uniqueAttributes = configMap.get(UNSET_ATTRIBUTES);
+        String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
 
         // Parse attributes lists
         List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -111,11 +112,22 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         // Lookup user by attributes using form data
         UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
+        if (user == null) {
+            log.error("validate(): user could not be found");
+            // TODO: Change error code
+            context.error(Errors.INVALID_REQUEST);
+            List<FormMessage> errors = new ArrayList<>();
+            // TODO Set a better form message
+            errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+            context.validationError(formData, errors);
+            return;
+        }
+
         // Check that the user doesn't have set any of the unset attributes
         boolean unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
 
         if (!unsetAttributesChecked) {
-            log.error("authenticate(): some user unset attributes are set");
+            log.error("validate(): some user unset attributes are set");
             // TODO: Change error code
             context.error(Errors.INVALID_REQUEST);
             List<FormMessage> errors = new ArrayList<>();
@@ -126,10 +138,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         }
 
         // Verify the unique atrributes
-        boolean uniqueAttributesChecked = checkUniqueAttributes(context, uniqueAttributes);
+        boolean uniqueAttributesChecked = checkUniqueAttributes(context, uniqueAttributesList, formData);
 
         if (!uniqueAttributesChecked) {
-            log.error("authenticate(): unique attributes present in other users");
+            log.error("validate(): unique attributes present in other users");
             // TODO: Change error code
             context.error(Errors.INVALID_REQUEST);
             List<FormMessage> errors = new ArrayList<>();
@@ -259,9 +271,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.success();
     }
 
-    private boolean checkUniqueAttributes(ValidationContext context, String uniqueAttributes) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'checkUniqueAttributes'");
+    private boolean checkUniqueAttributes(ValidationContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
+        log.info("lookupUserByFormData(): checkUniqueAttributes start");
+        KeycloakSession session = context.getSession();
+        RealmModel realm = context.getRealm();
+        for (String attribute : attributes) {
+            String value = formData.getFirst(attribute);
+            if (value != null) {
+                Stream<UserModel> currentStream = session
+                        .users()
+                        .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
+
+                if (currentStream.count() > 0) {
+                    log.infov("lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {0} present in other users", attribute, value);
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     @Override
@@ -349,7 +377,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     @Override
     public boolean isConfigurable() {
-        return false;
+        return true;
     }
 
     private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
@@ -429,24 +457,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             List<String> attributes) {
         Map<String, List<String>> userAttributes = user.getAttributes();
         for (String attributeName : attributes) {
-            if (attributeName.equals("email")) {
-                // Only assume email is valid if it's verified
-                if (user.isEmailVerified() &&
-                        user.getEmail() != null &&
-                        !user.getEmail().isBlank()) {
-                    log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
-                    return false;
-                }
-            } else {
-                if (userAttributes.containsKey(attributeName) &&
-                        userAttributes.get(attributeName) != null &&
-                        userAttributes.get(attributeName).size() > 0 &&
-                        userAttributes.get(attributeName).get(0) != null &&
-                        !userAttributes.get(attributeName).get(0).isBlank()) {
-                    log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value="
-                            + userAttributes.get(attributeName));
-                    return false;
-                }
+            if (userAttributes.containsKey(attributeName) &&
+                    userAttributes.get(attributeName) != null &&
+                    userAttributes.get(attributeName).size() > 0 &&
+                    userAttributes.get(attributeName).get(0) != null &&
+                    !userAttributes.get(attributeName).get(0).isBlank()) {
+                log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value="
+                        + userAttributes.get(attributeName));
+                return false;
             }
         }
         return true;
