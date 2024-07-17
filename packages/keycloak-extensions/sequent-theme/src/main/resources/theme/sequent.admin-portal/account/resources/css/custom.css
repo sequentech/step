@@ -11,15 +11,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     --pf-global--palette--black-800: #191D23;
     --pf-global--danger-color--200: #991b1b;
     --pf-global--BackgroundColor--100: #F7F9FE;
+    --pf-c-page__header--BackgroundColor: #F7F9FE;
     --pf-global--BoxShadow--lg: none;
     --pf-global--primary-color--100: #0F054C;
     --pf-global--link--Color: #191D23;
+    --pf-c-nav__link--Color: #191D23;
     --pf-global--link--TextDecoration: underline;
 }
 
 html, body {
-    /* Setting this to red to see the react overtaking the render */
-    background: red; 
     overflow-x: hidden;
     width: 100%;
 }
@@ -40,12 +40,38 @@ html, body {
     }
 }
 
+.pf-c-page__header-brand-toggle{
+    background-color: unset;
+}
+
+#nav-toggle{
+    color: var(----pf-global--palette--black-800);   
+}
+.pf-c-avatar pf-m-md{
+    display: none;
+}
+.pf-c-page__header-tools-item{
+    display: none;
+}
+.page-sidebar{
+    background-color: var(--pf-global--BackgroundColor--100);
+}
+.pf-c-nav__link:hover{
+    background-color: var(--pf-global--primary-color--100);
+}
+.pf-c-button pf-m-link pf-m-inline{
+    color: var(--pf-global--primary-color--100);
+}
+
+
 .pf-c-page__main {
     padding-top: 0px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
 }
+
+
 
 #kc-header-wrapper {
     max-width: 1170px;
