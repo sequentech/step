@@ -7685,6 +7685,7 @@ dependencies = [
  "tracing",
  "uuid",
  "velvet",
+ "walkdir",
  "wrap-map-err",
 ]
 
