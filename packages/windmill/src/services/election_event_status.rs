@@ -6,6 +6,7 @@ use crate::hasura::election::{get_election, update_election_status};
 use crate::hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::hasura::election_event::{get_election_event, update_election_event_status};
 use crate::postgres::election::update_election_voting_status;
+use crate::postgres::election_event::update_elections_status_by_election_event;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client;
 use sequent_core::ballot::VotingStatus;
@@ -39,7 +40,12 @@ pub async fn update_event_voting_status(
     new_status: VotingStatus,
 ) -> Result<GetElectionEventSequentBackendElectionEvent> {
     let auth_headers = get_client_credentials().await?;
-
+     let mut hasura_db_client: Client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
     let data = get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -57,6 +63,7 @@ pub async fn update_event_voting_status(
 
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+    let mut election_status = ElectionStatus::default();
 
     let current_voting_status = status.voting_status.clone();
 
@@ -83,8 +90,18 @@ pub async fn update_event_voting_status(
         ));
     }
 
-    status.voting_status = new_status;
+    status.voting_status = new_status.clone();
 
+    if new_status == VotingStatus::OPEN || new_status == VotingStatus::CLOSED {
+        info!("updating elections status by election event to new status new_status: {:?}", new_status);
+       election_status.voting_status = new_status;
+       update_elections_status_by_election_event(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        serde_json::to_value(&election_status)?,
+    ).await?;
+    }
     let status_js = serde_json::to_value(&status)?;
 
     update_election_event_status(
@@ -94,7 +111,10 @@ pub async fn update_event_voting_status(
         status_js,
     )
     .await?;
-
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| anyhow!("Commit failed update election status: {}", e));
     Ok(election_event.clone())
 }
 

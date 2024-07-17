@@ -181,9 +181,6 @@ pub async fn update_elections_status_by_election_event(
     election_event_id: &str,
     status: Value,
 ) -> Result<()> {
-    info!("Updating election status by election event omri");
-    info!("tenant_id omri={tenant_id}");
-    info!("election_event_id omri={election_event_id}");
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -206,6 +203,37 @@ pub async fn update_elections_status_by_election_event(
         )
         .await
         .map_err(|err| anyhow!("Error running the update_elections_status_by_election_event query: {err}"))?; 
+
+    Ok(())
+}
+
+pub async fn update_election_event_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    status: Value,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.election_event
+                SET status = $1
+                WHERE tenant_id = $2 AND id = $3;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &status,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_event_staut query: {err}"))?;
 
     Ok(())
 }
