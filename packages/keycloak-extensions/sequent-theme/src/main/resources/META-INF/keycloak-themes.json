@@ -9,7 +9,8 @@
         {
             "name": "sequent.voting-portal",
             "types": [
-                "login"
+                "login",
+                "account"
             ]
         }
     ]
