@@ -54,7 +54,7 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {getLanguageFromURL} from "../utils/queryParams"
 
@@ -184,6 +184,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
             }
             dispatch(setElection(election))
             dispatch(setBallotStyle(formattedBallotStyle))
+            dispatch(clearIsVoted())
             dispatch(
                 resetBallotSelection({
                     ballotStyle: formattedBallotStyle,

@@ -241,6 +241,7 @@ pub struct CandidateUrl {
 pub struct CandidatePresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub is_explicit_invalid: Option<bool>,
+    pub is_explicit_blank: Option<bool>,
     pub is_disabled: Option<bool>,
     pub is_category_list: Option<bool>,
     pub invalid_vote_position: Option<String>, // top|bottom
@@ -255,6 +256,7 @@ impl CandidatePresentation {
         CandidatePresentation {
             i18n: None,
             is_explicit_invalid: Some(false),
+            is_explicit_blank: Some(false),
             is_disabled: Some(false),
             is_category_list: Some(false),
             invalid_vote_position: None,
@@ -328,17 +330,7 @@ impl Candidate {
 
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
         let mut presentation =
-            self.presentation.clone().unwrap_or(CandidatePresentation {
-                i18n: None,
-                is_explicit_invalid: Some(false),
-                is_disabled: Some(false),
-                is_category_list: Some(false),
-                is_write_in: Some(false),
-                sort_order: Some(0),
-                urls: None,
-                invalid_vote_position: None,
-                subtype: None,
-            });
+            self.presentation.clone().unwrap_or(Default::default());
         presentation.is_write_in = Some(is_write_in);
         self.presentation = Some(presentation);
     }

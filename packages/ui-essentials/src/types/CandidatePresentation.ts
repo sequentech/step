@@ -12,6 +12,7 @@ export interface ICandidateUrl {
 export interface ICandidatePresentation {
     i18n?: Record<string, Record<string, string>>
     is_explicit_invalid?: boolean
+    is_explicit_blank?: boolean
     is_disabled?: boolean
     is_category_list?: boolean
     invalid_vote_position?: string
