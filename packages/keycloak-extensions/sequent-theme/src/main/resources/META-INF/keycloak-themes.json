@@ -3,7 +3,8 @@
         {
             "name": "sequent.admin-portal",
             "types": [
-                "login"
+                "login",
+                "account"
             ]
         },
         {
