@@ -140,7 +140,7 @@ In order to authenticate using the `api-key-client`, you need the secret for tha
 as well as the username and the password for that user.
 
 You can obtain the `api-key-client` secret by login into Keycloak, selecting the Admin Portal
-realm, then going to Clients > api-key-client > Keys and looking into the `Client Secret`
+realm, then going to Clients > api-key-client > Credentials and looking into the `Client Secret`
 section.
 
 Then, as an example this would be an http request for authenticating with such client using
