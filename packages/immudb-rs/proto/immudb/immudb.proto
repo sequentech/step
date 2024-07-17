@@ -560,6 +560,8 @@ message DatabaseNullableSettings {
 	NullableUint32 writeBufferSize = 24;
 
 	AHTNullableSettings ahtSettings = 25;
+
+	NullableUint32 maxActiveTransactions = 100000;
 }
 
 message ReplicationNullableSettings {
