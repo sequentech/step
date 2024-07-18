@@ -117,6 +117,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 window.intlTelInput(input, {
                     utilsScript: "/resources/h2yh4/login/sequent.voting-portal/intl-tel-input-23.3.2/js/utils.js",
                     initialCountry: "auto",
+                    separateDialCode: true,
                     geoIpLookup: function(success, failure) {
                         const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

@@ -99,9 +99,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<input type="<@inputTagType attribute=attribute/>" id="${attribute.name}" name="${attribute.name}" value="${(value!'')}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${attribute.name}')>true</#if>"
 		<#if attribute.readOnly>disabled</#if>
-		<#-- Use custom attribute annotation to define autocomplete -->
-		<#-- Check possible values at https://www.w3schools.com/tags/att_input_autocomplete.asp  -->
-		<#if attribute.annotations.autocomplete??>autocomplete="${attribute.annotations.autocomplete}"</#if>
+		<#--  Checks for attribute annotations that start with "html-attribute:" and sets them as input attributes  -->
+		<#list attribute.annotations as key, value>
+			<#if key?starts_with("html-attribute:")>${key[15..]}=${value}</#if>
+		</#list>
 		<#if attribute.annotations.inputTypePlaceholder??>placeholder="${attribute.annotations.inputTypePlaceholder}"</#if>
 		<#if attribute.annotations.inputTypePattern??>pattern="${attribute.annotations.inputTypePattern}"</#if>
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
