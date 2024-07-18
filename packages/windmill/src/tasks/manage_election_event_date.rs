@@ -35,7 +35,6 @@ pub async fn manage_election_event_date(
     election_event_id: Option<String>,
     scheduled_event_id: String,
 ) -> Result<()> {
-    info!("Running manage_election_event_date");
     let auth_headers = get_client_credentials().await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -86,7 +85,6 @@ pub async fn manage_election_event_date(
     } else {
         VotingStatus::CLOSED
     };
-    info!("Updating election event status: {:?}", status);
     // update the database
     update_elections_status_by_election_event(
         &hasura_transaction,

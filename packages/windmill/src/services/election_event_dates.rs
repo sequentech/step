@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal[@sequentech.io>](https://github.com/sequentech.io>)
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -88,7 +88,6 @@ pub async fn manage_dates(
                 )
                 .await?;
             } else {
-                info!("insert_scheduled_event");
                 let event_processor = EventProcessors::START_ELECTION;
 
                 let payload = ManageElectionDatePayload { election_id: None };
@@ -125,7 +124,6 @@ pub async fn manage_dates(
 
     match end_date {
         Some(date) => {
-            info!("end_date is not null${date:?}");
             new_dates.scheduled_closing = Some(true);
             new_dates.end_date = Some(date.to_string());
             //TODO: check if date is smaller than now or bigger than end_date and return error;
@@ -133,9 +131,7 @@ pub async fn manage_dates(
                 cron: None,
                 scheduled_date: Some(date.to_string()),
             };
-            info!("cron_config={cron_config:?}");
             if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
-                info!("update_scheduled_event");
                 update_scheduled_event(
                     hasura_transaction,
                     tenant_id,
@@ -144,7 +140,6 @@ pub async fn manage_dates(
                 )
                 .await?;
             } else {
-                info!("insert_scheduled_event");
                 let event_processor = EventProcessors::END_ELECTION;
 
                 let payload = ManageElectionDatePayload { election_id: None };
@@ -161,18 +156,11 @@ pub async fn manage_dates(
             }
         }
         None => {
-            info!("end_date is null");
             new_dates.scheduled_closing = Some(false);
             new_dates.end_date = None;
-            info!(
-                "current_dates.scheduled_closing={0:?}",
-                current_dates.scheduled_closing
-            );
             if (current_dates.scheduled_closing.is_none()) {
-                info!("cuurent date.schedule_closing is none");
             } else {
                 //STOP PREVIOS END TASK
-                info!("stopping previouse task");
                 if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
                     stop_scheduled_event(
                         hasura_transaction,
@@ -184,8 +172,6 @@ pub async fn manage_dates(
             }
         }
     }
-
-    info!("update_election_presentation with new_dates={new_dates:?}");
     let new_election_event_dates = Some(new_dates);
     update_election_event_dates(
         hasura_transaction,

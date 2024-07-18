@@ -93,10 +93,6 @@ pub async fn update_event_voting_status(
     status.voting_status = new_status.clone();
 
     if new_status == VotingStatus::OPEN || new_status == VotingStatus::CLOSED {
-        info!(
-            "updating elections status by election event to new status new_status: {:?}",
-            new_status
-        );
         election_status.voting_status = new_status;
         update_elections_status_by_election_event(
             &hasura_transaction,

@@ -14,8 +14,8 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, VotingStatus};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use tracing::{event, Level};
-use tracing::{info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
