@@ -533,6 +533,26 @@ pub enum ECountdownPolicy {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EBlankVotePolicy {
+    ALLOWED,
+    MESSAGE,
+    MESSAGE_AND_MODAL,
+    NOT_ALLOWED
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -604,6 +624,7 @@ pub struct ContestPresentation {
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub blank_vote_policy: Option<EBlankVotePolicy>, 
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -623,6 +644,7 @@ impl ContestPresentation {
             allow_writeins: Some(true),
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+            blank_vote_policy: Some(EBlankVotePolicy::MESSAGE),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,

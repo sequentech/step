@@ -439,6 +439,10 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.under_vote_alert =
                 newContest.presentation.under_vote_alert ?? false
 
+            newContest.presentation.blank_vote_policy =
+                newContest.presentation.blank_vote_policy ||
+                EBlankVotePolicy.MESSAGE
+
             return newContest
         },
         [languageConf, electionEvent, candidates]

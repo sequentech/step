@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {EBlankVotePolicy} from "./CoreTypes"
+
 export enum CandidatesOrder {
     RANDOM = "random",
     CUSTOM = "custom",
@@ -39,6 +41,7 @@ export interface IContestPresentation {
     allow_writeins?: boolean
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
+    blank_vote_policy?: EBlankVotePolicy
     cumulative_number_of_checkboxes?: number
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>
