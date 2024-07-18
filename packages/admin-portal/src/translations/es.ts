@@ -401,6 +401,11 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
+                ballotsPagination: {
+                    ONE_PAGE: "Una página",
+                    COUNTDOWN: "Páginas separadas",
+                    label: "Paginación de Boletas",
+                },
             },
             field: {
                 name: "Nombre",

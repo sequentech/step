@@ -397,6 +397,11 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                ballotsPagination: {
+                    ONE_PAGE: "One page",
+                    COUNTDOWN: "Seperate pages",
+                    label: "Ballots Pagination",
+                }
             },
             field: {
                 name: "Name",

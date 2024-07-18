@@ -403,6 +403,11 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                ballotsPagination: {
+                    ONE_PAGE: "Une page",
+                    COUNTDOWN: "Pages séparées",
+                    label: "Pagination des Bulletins",
+                },
             },
             field: {
                 name: "Nom",

@@ -139,3 +139,8 @@ export enum EVotingPortalCountdownPolicy {
     COUNTDOWN = "COUNTDOWN",
     COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT",
 }
+
+export enum EBallotPagination {
+    ONE_PAGE = "ONE_PAGE",
+    SEPERATE_PAGES = "SEPERATE_PAGES",
+}

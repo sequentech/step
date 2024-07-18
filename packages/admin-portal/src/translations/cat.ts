@@ -402,6 +402,11 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                ballotsPagination: {
+                    ONE_PAGE: "Una pàgina",
+                    COUNTDOWN: "Pàgines separades",
+                    label: "Paginació de Butlletes",
+                },
             },
             field: {
                 name: "Nom",

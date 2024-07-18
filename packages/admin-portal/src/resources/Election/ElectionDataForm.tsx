@@ -44,6 +44,7 @@ import {
     DropFile,
     IElectionEventPresentation,
     IElectionPresentation,
+    EBallotPagination,
 } from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -228,6 +229,13 @@ export const ElectionDataForm: React.FC = () => {
                 temp.template = template
             }
 
+            // ballots pagination
+            if (!temp.presentation || !temp.presentation.ballots_pagination) {
+                temp.presentation.ballots_pagination = {
+                    // pages: EBallotPagination.ONE_PAGE, //TODO: fix its undifined
+                }
+            }
+
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
@@ -386,6 +394,14 @@ export const ElectionDataForm: React.FC = () => {
         return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
             id: value,
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+        }))
+    }
+    
+    const ballotPaginationsChoices = () => {
+        console.log("sdgsdgdgfsdfgsdfg")
+        return Object.values(EBallotPagination).map((value) => ({
+            id: value,
+            name: t(`electionScreen.edit.ballotsPagination.${value}`),
         }))
     }
 
@@ -654,11 +670,18 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
-
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
+                                />
+                                <SelectInput
+                                    source={`presentation.ballots_pagination`}
+                                    choices={ballotPaginationsChoices()}
+                                    label={t(`electionScreen.edit.ballotsPagination.label`)}
+                                    defaultValue={EBallotPagination.ONE_PAGE}
+                                    emptyText={undefined}
+                                    // validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>
