@@ -85,16 +85,25 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     handleNext: () => void
+    handlePrev: () => void
+    handleClearCustom?: () => void
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({
+    handleNext,
+    handlePrev,
+    handleClearCustom,
+}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const isOnePageEvent =
+        ballotStyle?.ballot_eml?.election_presentation?.ballot_pagination ===
+        EBallotPagination.ONE_PAGE
     const dispatch = useAppDispatch()
 
-    function handleClearSelection() {
+    function handleClear() {
         if (ballotStyle) {
             dispatch(
                 resetBallotSelection({
@@ -106,10 +115,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
         }
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     return (
         <>
             <StyledButton
@@ -118,14 +123,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     width: "100%",
                 }}
                 variant="secondary"
-                onClick={() => handleClearSelection()}
+                onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
             >
                 <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
             <ActionsContainer>
                 <StyledLink
-                    to={backLink}
+                    to={isOnePageEvent ? backLink : ""}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
@@ -141,7 +146,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                         width: {xs: "100%", sm: "200px"},
                     }}
                     variant="secondary"
-                    onClick={() => handleClearSelection()}
+                    onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
                 >
                     <Box>{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
@@ -162,7 +167,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
 
 interface ContestPaginationProps {
     ballotStyle: any
-    contests: any //TODO: find contests type
+    contests: any
     onSetDisableNext: (contest: any) => void
     onSetDecodedContests: (contest: any) => void
     encryptAndReview: () => void
@@ -175,15 +180,36 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     onSetDecodedContests,
     encryptAndReview,
 }) => {
-    const {t} = useTranslation()
+    const dispatch = useAppDispatch()
     const [contestIndex, setContextIndex] = useState(0)
+    const currContest = contests[contestIndex]
 
     const handleNext = () => {
-        if (contestIndex === contests.length-1) {
+        if (contestIndex === contests.length - 1) {
             encryptAndReview()
-            return;
         } else {
             setContextIndex(contestIndex + 1)
+        }
+    }
+
+    const handlePrev = () => {
+        if (contestIndex > 0) {
+            setContextIndex(contestIndex - 1)
+        } else {
+            dispatch(clearIsVoted())
+        }
+    }
+
+    function handleClear() {
+        if (ballotStyle) {
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle,
+                    force: true,
+                    contestId: currContest.id,
+                })
+            )
+            if (contestIndex === 0) dispatch(clearIsVoted())
         }
     }
 
@@ -191,13 +217,17 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         <>
             <Question
                 ballotStyle={ballotStyle}
-                question={contests[contestIndex]}
+                question={currContest}
                 key={contestIndex}
                 isReview={false}
-                setDisableNext={() => onSetDisableNext(contests[contestIndex])}
-                setDecodedContests={() => onSetDecodedContests(contests[contestIndex])}
+                setDisableNext={() => onSetDisableNext(currContest)}
+                setDecodedContests={() => onSetDecodedContests(currContest)}
             />
-            <ActionButtons handleNext={handleNext} />
+            <ActionButtons
+                handleNext={handleNext}
+                handlePrev={handlePrev}
+                handleClearCustom={handleClear}
+            />
         </>
     )
 }
@@ -252,6 +282,10 @@ const VotingScreen: React.FC = () => {
 
     const showNextDialog = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
+    }
+
+    function handlePrev() {
+        dispatch(clearIsVoted())
     }
 
     const encryptAndReview = () => {
@@ -380,7 +414,7 @@ const VotingScreen: React.FC = () => {
                             setDecodedContests={() => onSetDecodedContests(contest.id)}
                         />
                     ))}
-                    <ActionButtons handleNext={encryptAndReview} />
+                    <ActionButtons handleNext={encryptAndReview} handlePrev={handlePrev} />
                 </>
             ) : (
                 <ContestPagination
