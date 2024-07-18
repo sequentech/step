@@ -374,7 +374,7 @@
   "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
   "localizationTexts" : {
     "en" : {
-      "loginAccountTitle" : "Login to vote"
+      "loginAccountTitle" : "Authenticate to vote"
     }
   },
   "webAuthnPolicyRpEntityName" : "keycloak",

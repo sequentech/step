@@ -161,7 +161,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
             },
@@ -188,7 +188,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
@@ -216,7 +216,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
@@ -248,7 +248,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
             },
@@ -275,7 +275,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
@@ -307,7 +307,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
             },
@@ -338,7 +338,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
             },
@@ -365,7 +365,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
@@ -397,7 +397,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
             },
@@ -424,7 +424,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
@@ -452,7 +452,7 @@
             ],
             "options": {
                 "env": {
-                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
@@ -497,6 +497,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/fix-vscode-settings-nix.sh",
             ],
@@ -520,6 +521,7 @@
             "args": [
                 "shell",
                 "bash",
+                "--",
                 "-c",
                 "./.devcontainer/scripts/update-graphql.sh",
             ],

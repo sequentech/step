@@ -22,15 +22,20 @@ use super::result_documents::save_result_documents;
 
 #[instrument(skip_all)]
 pub async fn save_results(
-    auth_headers: connection::AuthHeaders,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
     results_event_id: &str,
 ) -> Result<()> {
+    let mut idx: usize = 0;
+    let mut auth_headers = keycloak::get_client_credentials().await?;
     for election in &results {
         let total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
+        idx += 1;
+        if idx % 200 == 0 {
+            auth_headers = keycloak::get_client_credentials().await?;
+        }
         insert_results_election(
             &auth_headers,
             tenant_id,
@@ -46,6 +51,8 @@ pub async fn save_results(
 
         for contest in &election.reports {
             let total_votes_percent: f64 = contest.contest_result.percentage_total_votes / 100.0;
+            let auditable_votes_percent: f64 =
+                contest.contest_result.percentage_auditable_votes / 100.0;
             let total_valid_votes_percent: f64 =
                 contest.contest_result.percentage_total_valid_votes / 100.0;
             let total_invalid_votes_percent: f64 =
@@ -56,18 +63,24 @@ pub async fn save_results(
                 contest.contest_result.percentage_invalid_votes_implicit / 100.0;
             let total_blank_votes_percent: f64 =
                 contest.contest_result.percentage_total_blank_votes / 100.0;
-            if let Some(area_id) = &contest.area_id {
+            if let Some(area) = &contest.area {
+                idx += 1;
+                if idx % 200 == 0 {
+                    auth_headers = keycloak::get_client_credentials().await?;
+                }
                 insert_results_area_contest(
                     &auth_headers,
                     tenant_id,
                     election_event_id,
                     &election.election_id,
                     &contest.contest.id,
-                    area_id,
+                    &area.id,
                     results_event_id,
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.auditable_votes as i64),
+                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_valid_votes as i64),
                     Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
@@ -90,13 +103,17 @@ pub async fn save_results(
 
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
+                    idx += 1;
+                    if idx % 200 == 0 {
+                        auth_headers = keycloak::get_client_credentials().await?;
+                    }
                     insert_results_area_contest_candidate(
                         &auth_headers,
                         tenant_id,
                         election_event_id,
                         &election.election_id,
                         &contest.contest.id,
-                        area_id,
+                        &area.id,
                         &candidate.candidate.id,
                         results_event_id,
                         Some(candidate.total_count as i64),
@@ -107,6 +124,10 @@ pub async fn save_results(
                     .await?;
                 }
             } else {
+                idx += 1;
+                if idx % 200 == 0 {
+                    auth_headers = keycloak::get_client_credentials().await?;
+                }
                 insert_results_contest(
                     &auth_headers,
                     tenant_id,
@@ -117,6 +138,8 @@ pub async fn save_results(
                     Some(contest.contest_result.census as i64),
                     Some(contest.contest_result.total_votes as i64),
                     Some(total_votes_percent.clamp(0.0, 1.0)),
+                    Some(contest.contest_result.auditable_votes as i64),
+                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_valid_votes as i64),
                     Some(total_valid_votes_percent.clamp(0.0, 1.0)),
                     Some(contest.contest_result.total_invalid_votes as i64),
@@ -142,6 +165,10 @@ pub async fn save_results(
 
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
+                    idx += 1;
+                    if idx % 200 == 0 {
+                        auth_headers = keycloak::get_client_credentials().await?;
+                    }
                     insert_results_contest_candidate(
                         &auth_headers,
                         tenant_id,
@@ -205,7 +232,6 @@ pub async fn generate_results_id_if_necessary(
 
 #[instrument(skip_all)]
 pub async fn populate_results_tables(
-    auth_headers: connection::AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     base_tally_path: &PathBuf,
     state_opt: Option<State>,
@@ -214,6 +240,7 @@ pub async fn populate_results_tables(
     session_ids: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
 ) -> Result<Option<String>> {
+    let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
         &auth_headers,
         tenant_id,
@@ -227,7 +254,6 @@ pub async fn populate_results_tables(
     if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
         if let Ok(results) = state.get_results() {
             save_results(
-                auth_headers.clone(),
                 results.clone(),
                 tenant_id,
                 election_event_id,
@@ -235,7 +261,6 @@ pub async fn populate_results_tables(
             )
             .await?;
             save_result_documents(
-                &auth_headers,
                 hasura_transaction,
                 results.clone(),
                 tenant_id,

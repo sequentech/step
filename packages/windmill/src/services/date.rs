@@ -11,6 +11,12 @@ use time::OffsetDateTime;
 pub struct ISO8601;
 
 impl ISO8601 {
+    pub fn to_date_utc(date_string: &str) -> Result<DateTime<Utc>> {
+        let date_time_utc =
+            DateTime::parse_from_rfc3339(date_string).map_err(|err| anyhow!("{:?}", err))?;
+        Ok(date_time_utc.with_timezone(&Utc))
+    }
+
     // parse something like 2023-08-10T22:05:22.214163+00:00
     pub fn to_date(date_string: &str) -> Result<DateTime<Local>> {
         let date_time_utc =

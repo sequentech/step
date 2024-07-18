@@ -25,7 +25,7 @@ import {
     faCircleQuestion,
     faDownload,
 } from "@fortawesome/free-solid-svg-icons"
-import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
+import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -100,7 +100,7 @@ const ActionButtons: React.FC = () => {
     )
 }
 
-export const AuditScreen: React.FC = () => {
+const AuditScreen: React.FC = () => {
     const {tenantId, eventId, electionId} = useParams<{
         tenantId?: string
         eventId: string
@@ -115,6 +115,7 @@ export const AuditScreen: React.FC = () => {
     const ballotHash = auditableBallot && hashBallot(auditableBallot)
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    const location = useLocation()
 
     if (ballotHash && auditableBallot?.ballot_hash && ballotHash !== auditableBallot.ballot_hash) {
         console.log(
@@ -234,7 +235,7 @@ export const AuditScreen: React.FC = () => {
                 <StyledLinkContainer>
                     {stringToHtml(
                         t("auditScreen.step2Description", {
-                            linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start`,
+                            linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`,
                         })
                     )}
                 </StyledLinkContainer>
@@ -246,3 +247,5 @@ export const AuditScreen: React.FC = () => {
         </PageLimit>
     )
 }
+
+export default AuditScreen

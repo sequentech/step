@@ -3,7 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
-import {Link as RouterLink, useNavigate, useParams, useSubmit, redirect} from "react-router-dom"
+import {
+    Link as RouterLink,
+    useNavigate,
+    useParams,
+    useSubmit,
+    redirect,
+    useLocation,
+} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -18,7 +25,7 @@ import {
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
-    sortContestByCreationDate,
+    sortContestList,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -96,6 +103,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
     const navigate = useNavigate()
+    const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -114,7 +122,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         setAuditBallotHelp(false)
         if (value) {
             navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit${location.search}`
             )
         }
     }
@@ -209,7 +217,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             </Dialog>
             <ActionsContainer>
                 <StyledLink
-                    to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote`}
+                    to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
@@ -290,7 +298,7 @@ export const ReviewScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = sortContestByCreationDate(ballotStyle.ballot_eml.contests)
+    const contests = sortContestList(ballotStyle.ballot_eml.contests)
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">

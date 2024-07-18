@@ -223,10 +223,13 @@ const catalanTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Vots per dia",
             votersByChannels: "Votants per canals",
+            voterLoginURL: "URL d'inici de sessió dels votants",
         },
         electionEventScreen: {
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
+                showMore: "Mostra'n més",
+                showLess: "Mostra'n menys",
             },
             edit: {
                 general: "General",
@@ -235,6 +238,8 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                advancedConfigurations: "Voting Portal Countdown Policy",
+                importCandidates: "Importar Candidats",
             },
             field: {
                 name: "Nom",
@@ -253,6 +258,17 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "Sense compte enrere",
+                    COUNTDOWN: "Compte enrere",
+                    COUNTDOWN_WITH_ALERT: "Compte enrere amb avís",
+                    sectionTitle: "Portal de votació",
+                    policyLabel: "Política de compte enrere del portal de votació",
+                    coundownSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar el compte enrere",
+                    alertSecondsLabel:
+                        "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -336,8 +352,9 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Importar dades d'àrees",
                 areaParagraph:
                     "Importar àrees utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
-                importVotersSuccess: "Àrees Importades amb Èxit",
-                importVotersError: "Error en importar Àrees",
+                importSuccess: "Àrees Importades amb Èxit",
+                importError: "Error en importar Àrees",
+                upsert: "Upsert Areas",
             },
             import: {
                 eetitle: "Importar Esdeveniment Electoral",
@@ -716,6 +733,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 isDisabled: "Deshabilitat",
                 isExplicitInvalid: "Vot Invàlid",
+                isExplicitBlank: "Vot en Blanc",
                 isCategoryList: "Llista",
                 isWriteIn: "Vot per escrit",
             },
@@ -865,6 +883,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultats",
+            templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",
@@ -940,6 +960,8 @@ const catalanTranslation: TranslationType = {
                 cast_votes_percent: "Percentatges de Vots",
                 total_votes: "Total de votants",
                 total_votes_percent: "Participació",
+                total_votes_counted: "Total de Vots Comptats",
+                total_auditable_votes: "Total de Vots Auditables",
                 total_valid_votes: "Total de vots vàlids",
                 total_valid_votes_percent: "Percentatge de vots vàlids",
                 total_invalid_votes: "Total de vots invàlids",
@@ -980,6 +1002,7 @@ const catalanTranslation: TranslationType = {
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
+                diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
             },
             label: {
                 current: "Actual",
@@ -1038,6 +1061,7 @@ const catalanTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
+                TALLY_REPORT: "Informe de recompte",
             },
             email: {
                 subject: "Assumpte",
@@ -1146,6 +1170,7 @@ const catalanTranslation: TranslationType = {
                 participation_report: "Informe de Participació",
                 electoral_results: "Resultats Electorals",
                 otp: "OTP",
+                tally_report: "Informe de recompte",
             },
             method: {
                 email: "Email",

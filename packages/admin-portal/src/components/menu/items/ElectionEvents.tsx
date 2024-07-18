@@ -6,7 +6,7 @@ import React, {useContext, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
-import {styled} from "@mui/material/styles"
+import styled from "@emotion/styled"
 import {
     IconButton,
     adminTheme,
@@ -14,6 +14,8 @@ import {
     IContestPresentation,
     IElectionEventPresentation,
     sortCandidatesInContest,
+    sortContestList,
+    sortElectionList,
     IContest,
 } from "@sequentech/ui-essentials"
 import SearchIcon from "@mui/icons-material/Search"
@@ -22,7 +24,6 @@ import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
-import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -166,10 +167,10 @@ export default function ElectionEvents() {
             (electionEvent: ElectionEventType) => {
                 return {
                     ...electionEvent,
-                    elections: electionEvent.elections.map((election) => {
+                    elections: sortElectionList(electionEvent.elections).map((election: any) => {
                         return {
                             ...election,
-                            contests: election.contests.map((contest) => {
+                            contests: sortContestList(election.contests).map((contest: any) => {
                                 let orderType = contest.presentation?.candidates_order
 
                                 contest.candidates = sortCandidatesInContest(
@@ -199,10 +200,7 @@ export default function ElectionEvents() {
 
     return (
         <>
-            <div
-                className={cn(isElectionEventActive && "bg-green-light")}
-                style={{overflowX: "hidden"}}
-            >
+            <Container isActive={isElectionEventActive}>
                 <HorizontalBox
                     sx={{
                         alignItems: "center",
@@ -233,10 +231,7 @@ export default function ElectionEvents() {
 
                 {isOpenSidebar && (
                     <>
-                        <div
-                            className="flex items-center space-x-4 bg-white px-4"
-                            dir={i18n.dir(i18n.language)}
-                        >
+                        <SideBarContainer dir={i18n.dir(i18n.language)}>
                             <TextField
                                 dir={i18n.dir(i18n.language)}
                                 label={t("sideMenu.search")}
@@ -245,12 +240,12 @@ export default function ElectionEvents() {
                                 onChange={(e) => handleSearchChange(e.target.value)}
                             />
                             <SearchIcon />
-                        </div>
+                        </SideBarContainer>
 
                         {treeMenu}
                     </>
                 )}
-            </div>
+            </Container>
         </>
     )
 }
@@ -270,4 +265,19 @@ const StyledIconButton = styled(IconButton)`
     }
     font-size: 1rem;
     line-height: 1.5rem;
+`
+
+const Container = styled("div")<{isActive?: boolean}>`
+    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
+`
+
+const SideBarContainer = styled("div")`
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    & > *:not(:last-child) {
+        margin-right: 1rem;
+    }
 `

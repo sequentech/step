@@ -4,12 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PipeConfigVoteReceipts {
     pub template: String,
     pub extra_data: Value,
+    pub enable_pdfs: bool,
 }
 
 impl PipeConfigVoteReceipts {
@@ -25,6 +25,7 @@ impl Default for PipeConfigVoteReceipts {
         Self {
             template: html.to_string(),
             extra_data: json!("{}"),
+            enable_pdfs: false,
         }
     }
 }

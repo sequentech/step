@@ -223,10 +223,13 @@ const spanishTranslation: TranslationType = {
         dashboard: {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
+            voterLoginURL: "URL de inicio de sesión de votantes",
         },
         electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento Electoral.",
+                showMore: "Mostrar más",
+                showLess: "Mostrar menos",
             },
             edit: {
                 general: "General",
@@ -235,6 +238,8 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                advancedConfigurations: "Voting Portal Countdown Policy",
+                importCandidates: "Importar Candidatos",
             },
             field: {
                 name: "Nombre",
@@ -253,6 +258,17 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "Sin cuenta regresiva",
+                    COUNTDOWN: "Cuenta regresiva",
+                    COUNTDOWN_WITH_ALERT: "Cuenta regresiva con alerta",
+                    sectionTitle: "Portal de votación",
+                    policyLabel: "Política de cuenta regresiva del portal de votación",
+                    coundownSecondsLabel:
+                        "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
+                    alertSecondsLabel:
+                        "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -336,8 +352,9 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Importar datos de áreas",
                 areaParagraph:
                     "Importar áreas utilizando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
-                importVotersSuccess: "Áreas Importadas Exitosamente",
-                importVotersError: "Error al importar Áreas",
+                importSuccess: "Áreas Importadas Exitosamente",
+                importError: "Error al importar Áreas",
+                upsert: "Upsert Areas",
             },
             import: {
                 eetitle: "Importar Evento Electoral",
@@ -715,6 +732,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 isDisabled: "Deshabilitado",
                 isExplicitInvalid: "Voto Inválido",
+                isExplicitBlank: "Voto en Blanco",
                 isCategoryList: "Lista",
                 isWriteIn: "Voto por Escrito",
             },
@@ -864,6 +882,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            templateTitle: "Plantilla de Resultados",
+            templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             ceremonyTitle: "Elecciones para el Recuento",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
@@ -939,6 +959,8 @@ const spanishTranslation: TranslationType = {
                 cast_votes_percent: "Porcentajes de Votos",
                 total_votes: "Total de votantes",
                 total_votes_percent: "Participación",
+                total_votes_counted: "Total de Votos Contados",
+                total_auditable_votes: "Total de Votos Auditables",
                 total_valid_votes: "Total de votos válidos",
                 total_valid_votes_percent: "Porcentaje de votos válidos",
                 total_invalid_votes: "Total de votos inválidos",
@@ -979,6 +1001,7 @@ const spanishTranslation: TranslationType = {
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
+                diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
             },
             label: {
                 current: "Actual",
@@ -1037,6 +1060,7 @@ const spanishTranslation: TranslationType = {
                 PARTICIPATION_REPORT: "Informe de Participación",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 OTP: "OTP",
+                TALLY_REPORT: "Informe de Recuento",
             },
             email: {
                 subject: "Subject",
@@ -1145,6 +1169,7 @@ const spanishTranslation: TranslationType = {
                 participation_report: "Informe de Participación",
                 electoral_results: "Resultados Electorales",
                 otp: "OTP",
+                tally_report: "Informe de Recuento",
             },
             method: {
                 email: "Email",

@@ -296,11 +296,13 @@ pub async fn get_publication_ballot_styles(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    limit: Option<usize>,
 ) -> Result<Response<get_publication_ballot_styles::ResponseData>> {
     let variables = get_publication_ballot_styles::Variables {
         ballot_publication_id: ballot_publication_id,
         election_event_id: election_event_id,
         tenant_id: tenant_id,
+        limit: limit.map(|l| l as i64),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

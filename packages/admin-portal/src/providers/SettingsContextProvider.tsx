@@ -18,6 +18,7 @@ export interface GlobalSettings {
     DEFAULT_SMS_MESSAGE: {[langCode: string]: string}
     DEFAULT_DOCUMENT: {[langCode: string]: string}
     PUBLIC_BUCKET_URL: string
+    VOTING_PORTAL_URL: string
 }
 
 interface SettingsContextValues {
@@ -77,6 +78,7 @@ const defaultSettingsValues: SettingsContextValues = {
 </div>`,
         },
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
+        VOTING_PORTAL_URL: "http://localhost:3000",
     },
 }
 

@@ -204,7 +204,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
         if total_count.is_none() {
             total_count = Some(count);
         }
-        offset += count;
+        offset += users.len() as i32;
 
         for user in users {
             // Serialize user data to TSV format and write it
@@ -237,6 +237,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
         /* s3_bucket */ s3::get_private_bucket()?,
         /* media_type */ media_type.clone(),
         /* file_path */ temp_path.to_string_lossy().to_string(),
+        /* cache_control_policy */ None,
     )
     .await
     .with_context(|| "Error uploading file to s3")?;

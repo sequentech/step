@@ -38,6 +38,7 @@ type Mutation {
   create_tally_ceremony (
     election_event_id: uuid!
     election_ids: [uuid!]!
+    configuration: jsonb
   ): CreateTallyOutput
 }
 
@@ -107,6 +108,12 @@ type Mutation {
   export_election_event (
     election_event_id: String
   ): ExportUsersOutput
+}
+
+type Mutation {
+  export_election_event_logs (
+    election_event_id: String
+  ): ExportLogsOutput
 }
 
 type Mutation {
@@ -343,6 +350,13 @@ type Mutation {
     tally_session_id: uuid!
     status: String!
   ): StartTallyOutput
+}
+
+type Mutation {
+  upsert_areas (
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
 }
 
 enum OrderDirection {
@@ -829,5 +843,10 @@ type OptionalImportEvent {
 
 type ManageElectionDatesOutput {
   something : String
+}
+
+type ExportLogsOutput {
+  task_id : String!
+  document_id : String!
 }
 

@@ -7,8 +7,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Sequent Voting Platform
 
-WARNING: This is a work-in-progress - not usable yet.
-
 This is a mono-repo project encompasing the whole second generation of Sequent
 Voting Platform.
 
@@ -56,7 +54,7 @@ using them and continue development:
     - Username: `immudb`
     - Password: `immudb`
   - To create the index db, run:
-    `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
+    `/workspaces/step/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
 
 Additionally, this dev container comes with:
 
@@ -69,7 +67,7 @@ Additionally, this dev container comes with:
 To launch the `admin-portal` in development mode, execute (the first time):
 
 ```bash
-cd /workspaces/backend-services/packages/
+cd /workspaces/step/packages/
 yarn && yarn build:ui-essentials # only needed the first time
 yarn start:admin-portal
 ```
@@ -77,7 +75,7 @@ yarn start:admin-portal
 For subsequent runs, you only need:
 
 ```bash
-cd /workspaces/backend-services/packages/
+cd /workspaces/step/packages/
 yarn start:admin-portal
 ```
 
@@ -88,12 +86,12 @@ in [http://127.0.0.1:3002/]
 
 When you open a new terminal, typically the current working directory (CWD) is
 `/workspaces` if you are using Github Codespaces. However, all the commands
-below are assuming you start with the CWD `/workspaces/backend-services`.
+below are assuming you start with the CWD `/workspaces/step`.
 
 This is important especially if you are for example relaunching a docker service
 (for example `docker compose up -d graphql-engine`). If you do it from within
 `/workspace/.devcontainer` it will fail, but if you do it within
-`/workspaces/backend-services/.devcontainer` it should work, even if those two
+`/workspaces/step/.devcontainer` it should work, even if those two
 are typically a symlink to the other directory and are essentially the same.
 
 ## Directory tree file organization
@@ -145,7 +143,7 @@ cd packages/harvest && cargo run
 This should output something like:
 
 ```bash
-@edulix ➜ /workspaces/backend-services/packages/harvest (main ✗) $ cargo run
+@edulix ➜ /workspaces/step/packages/harvest (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
@@ -183,7 +181,7 @@ This should output something like:
 
 We have configured the use of [direnv] and [devenv] in this dev container, and
 doing so in the `devenv.nix` file we configured the
-`COMPOSE_PROJECT_NAME=backend-services_devcontainer` env variable for
+`COMPOSE_PROJECT_NAME=step_devcontainer` env variable for
 convenience and some utility packages automatically installed like `ack` or
 `docker`.
 
@@ -225,7 +223,7 @@ a template for new tenants, you can export it running the following commands:
 
 ```bash
 export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-cd /workspaces/backend-services/.devcontainer
+cd /workspaces/step/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
 ```
@@ -234,7 +232,7 @@ You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event
 
 ```bash
 export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"
-cd /workspaces/backend-services/.devcontainer
+cd /workspaces/step/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
 ```
@@ -252,7 +250,7 @@ To fix that issue by updating the JWK serviced by minio, perform the following
 1. Update the `.devcontainer/minio/certs.json` file:
 
 ```bash
-cd /workspaces/backend-services/.devcontainer
+cd /workspaces/step/.devcontainer
 [ -f /tmp/combined.json ] && rm /tmp/combined.json
 export FILES=$(ls keycloak/import/)
 for FILE in $FILES; do
@@ -268,7 +266,7 @@ cp /tmp/combined.json minio/certs.json
    by `minio`:
 
 ```bash
-cd /workspaces/backend-services/.devcontainer/
+cd /workspaces/step/.devcontainer/
 docker compose build configure-minio && docker compose up -d --no-deps configure-minio && docker compose logs -f configure-minio
 ```
 
@@ -283,7 +281,7 @@ ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in
 Then run the following commands to run the console in port `9695`:
 
 ```bash
-cd /workspaces/backend-services/hasura/
+cd /workspaces/step/hasura/
 hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
@@ -296,6 +294,26 @@ Note that you can insert rows as a migration by clicking on the
 
 ## admin-portal
 
+## ui-essentials
+
+Contains all the components used across the various portals i.e admin, voting, ballot etc.
+Has storybook configured for component documentation and easy update of existing components or building new ones
+
+To start storybook,
+```bash
+cd /workspaces/step/packages/
+yarn storybook:ui-essentials
+```
+
+After updating any component in ui-essentials, run the following commands to build the current state.
+
+```bash
+cd /workspaces/step/packages/
+yarn prettify:fix:ui-essentials && yarn build:ui-essentials
+```
+
+This is done to allow portals to fetch and use the latest versions of components
+
 ## Update graphql JSON schema
 
 The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura
@@ -306,7 +324,7 @@ to export the json schema from Hasura, specifically you'll need to run something
 like:
 
 ```bash
-cd /workspaces/backend-services/packages/admin-portal/
+cd /workspaces/step/packages/admin-portal/
 gq http://graphql-engine:8080/v1/graphql \
     -H "X-Hasura-Admin-Secret: admin" \
     --introspect  \
@@ -318,7 +336,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 `graphql-codegen` with:
 
 ```bash
-cd /workspaces/backend-services/packages/
+cd /workspaces/step/packages/
 yarn generate:admin-portal
 ```
 
@@ -326,7 +344,7 @@ Additionally, the same graphql schema file is needed in `windmill` to generate
 the base types for Rust. To update them, execute the following:
 
 ```bash
-cd /workspaces/backend-services/packages/windmill/
+cd /workspaces/step/packages/windmill/
 gq http://graphql-engine:8080/v1/graphql \
     -H "X-Hasura-Admin-Secret: admin" \
     --introspect  \
@@ -369,14 +387,14 @@ Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhB
 
 ```bash
 # run windmill task generator
-cd /workspaces/backend-services/.devcontainer/
+cd /workspaces/step/.devcontainer/
 docker compose up -d beat && \
 docker compose logs -f --tail 50 beat
 ```
 
 ```bash
 # run trustes
-cd /workspaces/backend-services/.devcontainer/
+cd /workspaces/step/.devcontainer/
 docker compose up -d trustee1 trustee2 && \
 docker compose logs -f --tail 50 trustee1 trustee2
 
@@ -436,7 +454,7 @@ VAULT_MANAGER=AWSSecretManager
 ## Update `sequent-core`
 
 ```bash
-cd /workspaces/backend-services/packages/sequent-core
+cd /workspaces/step/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 ```
@@ -460,7 +478,7 @@ of packages/ directory:
 Then you need to execute some further updates:
 
 ```bash
-cd /workspaces/backend-services/packages/
+cd /workspaces/step/packages/
 rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
@@ -480,7 +498,7 @@ In order to be able to create an election event, you need:
 1. Run harvest:
 
 ```bash
-cd /workspaces/backend-services/.devcontainer
+cd /workspaces/step/.devcontainer
 docker compose down harvest && \              # stops & remove the container
 docker compose up -d --no-deps harvest && \   # brings up the contaner
 docker compose logs -f --tail 100 harvest     # tails the logs of the container
@@ -489,7 +507,7 @@ docker compose logs -f --tail 100 harvest     # tails the logs of the container
 1. Run the vault:
 
 ```bash
-cd /workspaces/backend-services/.devcontainer
+cd /workspaces/step/.devcontainer
 docker compose stop vault; docker compose up -d --no-deps vault
 ```
 
@@ -502,27 +520,27 @@ docker compose stop vault; docker compose up -d --no-deps vault
 4. We'll generate an `.env` file for windmill. Start copying the example:
 
 ```bash
-cd /workspaces/backend-services/packages/windmill
+cd /workspaces/step/packages/windmill
 cp .env.example .env
 ```
 
 5. Copy the `Initial root token` (`"root_token"` in the downloaded keys) to the
    `VAULT_TOKEN` environment variable in the
-   `/workspaces/backend-services/packages/windmill/.env` file.
+   `/workspaces/step/packages/windmill/.env` file.
 
 6. Without windmill the async background tasks - like the creation of an
    election event - won't happen. For this reason, next we're going to run
    windmill:
 
 ```bash
-cd /workspaces/backend-services/packages/windmill
+cd /workspaces/step/packages/windmill
 cargo run --bin main consume -q short_queue tally_queue beat reports_queue beat
 ```
 
 7. Finally, we need to create the indexdb in immudb:
 
 ```bash
-cd /workspaces/backend-services/packages/immu-board
+cd /workspaces/step/packages/immu-board
 cargo build && \
 ../target/debug/bb_helper \
   --server-url http://immudb:3322 \
@@ -537,7 +555,7 @@ Now you should be able to create election events. For debugging, you can watch t
 
 ```bash
 # do this in one terminal
-cd /workspaces/backend-services/.devcontainer
+cd /workspaces/step/.devcontainer
 docker compose logs -f harvest
 ```
 
@@ -590,8 +608,8 @@ Here are some helpful random commands for development of the tamper-evident
 logging implemented using immudb:
 
 ```bash
-cd /workspaces/backend-services/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
-cd /workspaces/backend-services/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
+cd /workspaces/step/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
+cd /workspaces/step/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
 
 docker compose exec postgres bash
 docker compose run  --entrypoint /bin/sh immudb-log-audit
@@ -630,5 +648,5 @@ Examples:
 - vendor to generate QR code
 - HTML / HBS template
  
-These assets are located here: `backend-services/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
+These assets are located here: `step/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
 

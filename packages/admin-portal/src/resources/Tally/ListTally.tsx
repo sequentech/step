@@ -19,11 +19,11 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Alert, Button, Drawer, Typography} from "@mui/material"
-import {CreateTally} from "./CreateTally"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    UpdateTallyCeremonyMutation,
 } from "../../gql/graphql"
 import {ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
@@ -74,8 +74,6 @@ export interface ListAreaProps {
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
-    const {recordTally} = props
-
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
@@ -86,14 +84,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [tenantId] = useTenantStore()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
 
-    const [open, setOpen] = React.useState(false)
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
+    const [UpdateTallyCeremonyMutation] =
+        useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const {data: keysCeremonies} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -154,12 +150,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         </ResourceListStyles.EmptyBox>
     )
 
-    const handleCloseCreateDrawer = () => {
-        setRecordId(undefined)
-        setOpen(false)
-        setOpenDrawer(false)
-    }
-
     const viewAdminTally = (id: Identifier) => {
         setTallyId(id as string, false)
     }
@@ -203,16 +193,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             })
 
             if (errors) {
-                notify(t("tally.cancelTallyError"), {type: "error"})
+                notify(t("tally.cancelTallyCeremonyError"), {type: "error"})
             }
 
             if (nextStatus) {
-                notify(t("tally.cancelTallySuccess"), {type: "success"})
+                notify(t("tally.cancelTallyCeremonySuccess"), {type: "success"})
                 setCreatingFlag(false)
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
-            notify(t("tally.cancelTallyError"), {type: "error"})
+            notify(t("tally.cancelTallyCeremonyError"), {type: "error"})
         }
     }
 
@@ -321,17 +311,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     </FunctionField>
                 </DatagridConfigurable>
             </List>
-
-            <Drawer
-                anchor="right"
-                open={open}
-                onClose={handleCloseCreateDrawer}
-                PaperProps={{
-                    sx: {width: "40%"},
-                }}
-            >
-                <CreateTally record={record} close={handleCloseCreateDrawer} />
-            </Drawer>
 
             <Dialog
                 variant="warning"

@@ -220,22 +220,8 @@ pub async fn get_document(
     file.read_to_string(&mut data_str)?;
 
     let original_data: ImportElectionEventSchema = serde_json::from_str(&data_str)?;
-    let election_event_id = original_data.election_event.id.to_string();
 
-    let found_event =
-        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await;
-
-    let replace_id = if let Some(id_val) = id {
-        if found_event.is_ok() && election_event_id != id_val {
-            Some(id_val)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let data = replace_ids(&data_str, &original_data, replace_id, tenant_id)?;
+    let data = replace_ids(&data_str, &original_data, id, tenant_id)?;
 
     Ok(data)
 }

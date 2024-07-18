@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::hasura::core::{Area, AreaContest, Contest};
 use anyhow::{anyhow, Result};
-use std::collections::{HashMap, HashSet};
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNodeArea {
     pub id: String,
     pub tenant_id: String,
@@ -281,5 +282,32 @@ impl TreeNode<ContestsData> {
             set.extend(child_set);
         }
         set
+    }
+}
+
+pub struct TreeNodeIter<'a, T> {
+    queue: VecDeque<&'a TreeNode<T>>,
+}
+
+impl<'a, T> Iterator for TreeNodeIter<'a, T> {
+    type Item = &'a TreeNode<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(node) = self.queue.pop_front() {
+            for child in &node.children {
+                self.queue.push_back(child);
+            }
+            Some(node)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> TreeNode<T> {
+    pub fn iter(&self) -> TreeNodeIter<T> {
+        let mut queue = VecDeque::new();
+        queue.push_back(self);
+        TreeNodeIter { queue }
     }
 }

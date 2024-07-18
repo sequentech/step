@@ -42,7 +42,6 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -228,6 +227,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     tenant_id: contest.tenant_id || undefined,
                     election_event_id: contest.election_event_id || undefined,
                     contest_id: contest.id || undefined,
+                    election_id: contest.election_id || undefined,
                     deleted_at: {
                         format: "hasura-raw-query",
                         value: {_is_null: true},

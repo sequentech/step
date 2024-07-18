@@ -35,6 +35,8 @@ pub enum CommunicationType {
     ELECTORAL_RESULTS,
     #[strum(serialize = "OTP")]
     OTP,
+    #[strum(serialize = "TALLY_REPORT")]
+    TALLY_REPORT,
 }
 
 #[allow(non_camel_case_types)]
@@ -46,6 +48,8 @@ pub enum CommunicationMethod {
     EMAIL,
     #[strum(serialize = "SMS")]
     SMS,
+    #[strum(serialize = "DOCUMENT")]
+    DOCUMENT,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -62,12 +66,15 @@ pub struct SmsConfig {
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct SendCommunicationBody {
-    pub audience_selection: AudienceSelection,
+    pub audience_selection: Option<AudienceSelection>,
     pub audience_voter_ids: Option<Vec<String>>,
-    pub communication_type: CommunicationType,
-    pub communication_method: CommunicationMethod,
-    pub schedule_now: bool,
+    pub communication_type: Option<CommunicationType>,
+    pub communication_method: Option<CommunicationMethod>,
+    pub schedule_now: Option<bool>,
     pub schedule_date: Option<String>,
     pub email: Option<EmailConfig>,
     pub sms: Option<SmsConfig>,
+    pub document: Option<String>,
+    pub name: Option<String>,
+    pub alias: Option<String>,
 }
