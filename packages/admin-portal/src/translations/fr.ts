@@ -794,6 +794,13 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
             },
+            blankVotePolicy: {
+                label: "Politique de vote blanc",
+                ALLOWED: "Autorisé",
+                MESSAGE: "Afficher un message",
+                MESSAGE_AND_MODAL: "Afficher un message et une fenêtre modale",
+                NOT_ALLOWED: "Non autorisé",
+            },
             error: {},
             createContestSuccess: "Question créée",
             createContestError: "Erreur lors de la création de la question",

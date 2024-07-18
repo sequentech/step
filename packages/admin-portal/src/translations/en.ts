@@ -787,6 +787,13 @@ const englishTranslation = {
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
             },
+            blankVotePolicy: {
+                label: "Blank Vote Policy",
+                ALLOWED: "Allowed",
+                MESSAGE: "Show message",
+                MESSAGE_AND_MODAL: "Show Message and Modal",
+                NOT_ALLOWED: "Not allowed",
+            },
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",

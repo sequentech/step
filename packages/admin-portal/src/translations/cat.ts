@@ -792,6 +792,13 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
             },
+            blankVotePolicy: {
+                label: "Política de vot en blanc",
+                ALLOWED: "Permès",
+                MESSAGE: "Mostrar missatge",
+                MESSAGE_AND_MODAL: "Mostrar missatge i modal",
+                NOT_ALLOWED: "No permès",
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",

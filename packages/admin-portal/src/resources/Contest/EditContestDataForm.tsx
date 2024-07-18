@@ -56,6 +56,7 @@ import {
     isArray,
     ICandidatePresentation,
     IElectionPresentation,
+    EBlankVotePolicy,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -376,6 +377,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const blankVotePolicyChoices = () => {
+        return Object.values(EBlankVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.blankVotePolicy.${value}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -688,6 +696,14 @@ export const ContestDataForm: React.FC = () => {
                                     source="presentation.max_selections_per_type"
                                     min={0}
                                     isRequired={false}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.blank_vote_policy`}
+                                    choices={blankVotePolicyChoices()}
+                                    label={t(`contestScreen.blankVotePolicy.label`)}
+                                    defaultValue={EBlankVotePolicy.MESSAGE}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>

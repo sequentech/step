@@ -791,6 +791,13 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
             },
+            blankVotePolicy: {
+                label: "Política de voto en blanco",
+                ALLOWED: "Permitido",
+                MESSAGE: "Mostrar mensaje",
+                MESSAGE_AND_MODAL: "Mostrar mensaje y modal",
+                NOT_ALLOWED: "No permitido",
+            },
             error: {},
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",
