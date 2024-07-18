@@ -87,20 +87,19 @@ interface ActionButtonProps {
     handleNext: () => void
     handlePrev: () => void
     handleClearCustom?: () => void
+    contestIndex?: number
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
     handleNext,
     handlePrev,
     handleClearCustom,
+    contestIndex,
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-    const isOnePageEvent =
-        ballotStyle?.ballot_eml?.election_presentation?.ballot_pagination ===
-        EBallotPagination.ONE_PAGE
     const dispatch = useAppDispatch()
 
     function handleClear() {
@@ -130,7 +129,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             <ActionsContainer>
                 <StyledLink
-                    to={isOnePageEvent ? backLink : ""}
+                    to={contestIndex && contestIndex > 0 ? "" : backLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
@@ -227,6 +226,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                 handleNext={handleNext}
                 handlePrev={handlePrev}
                 handleClearCustom={handleClear}
+                contestIndex={contestIndex}
             />
         </>
     )
