@@ -146,6 +146,7 @@ impl PipeInputs {
             path: path.to_path_buf(),
             census: election.census,
             total_votes: election.total_votes,
+            areas: election.areas,
         })
     }
 
@@ -223,6 +224,7 @@ pub struct InputElectionConfig {
     pub path: PathBuf,
     pub census: u64,
     pub total_votes: u64,
+    pub areas: Vec<TreeNodeArea>,
 }
 
 #[derive(Debug)]
@@ -254,6 +256,7 @@ pub struct ElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub ballot_styles: Vec<BallotStyle>,
+    pub areas: Vec<TreeNodeArea>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

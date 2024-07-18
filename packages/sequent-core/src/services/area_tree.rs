@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::hasura::core::{Area, AreaContest, Contest};
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNodeArea {
     pub id: String,
     pub tenant_id: String,
