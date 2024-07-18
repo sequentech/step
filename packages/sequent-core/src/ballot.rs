@@ -909,5 +909,3 @@ pub struct BallotStyle {
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
 }
-
-

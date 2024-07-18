@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use chrono::DateTime;
-use chrono::Local;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
+use chrono::DateTime;
+use chrono::Local;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
 use sequent_core::ballot::ElectionDates;
@@ -38,7 +38,6 @@ use super::election_event_dates::generate_manage_date_task_name;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
-use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -47,6 +46,7 @@ use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::insert_election_event;
+use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
@@ -270,7 +270,7 @@ pub async fn process(
     data.election_event.statistics =
         Some(serde_json::to_value(ElectionEventStatistics::default())?);
     data.election_event.status = Some(serde_json::to_value(ElectionEventStatus::default())?);
-    
+
     data.elections = data
         .elections
         .into_iter()
@@ -316,9 +316,10 @@ pub async fn process(
     Ok(())
 }
 
-pub async fn manage_dates(data: &ImportElectionEventSchema, hasura_transaction: &Transaction<'_>
-)
- -> Result<()> {
+pub async fn manage_dates(
+    data: &ImportElectionEventSchema,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<()> {
     //Manage election event
     match &data.election_event.dates {
         Some(dates) => {
@@ -330,8 +331,9 @@ pub async fn manage_dates(data: &ImportElectionEventSchema, hasura_transaction: 
                     &data.election_event.id,
                     EventProcessors::START_ELECTION,
                     start_date,
-                    None).await?;
-
+                    None,
+                )
+                .await?;
             }
             if let Some(end_date) = election_event_dates.end_date {
                 maybe_create_scheduled_event(
@@ -340,47 +342,48 @@ pub async fn manage_dates(data: &ImportElectionEventSchema, hasura_transaction: 
                     &data.election_event.id,
                     EventProcessors::END_ELECTION,
                     end_date,
-                    None).await?;
+                    None,
+                )
+                .await?;
             }
         }
 
-        None => {
-
-        }
-
+        None => {}
     }
     //Manage elections
     let elections = &data.elections;
     for election in elections {
         if let Some(presetnation) = election.presentation.clone() {
-        let election_presetnation: ElectionPresentation = serde_json::from_value(presetnation.clone())?;
-        match election_presetnation.dates {
-            Some(dates) => {
-                if let Some(start_date) = dates.start_date {
-                    maybe_create_scheduled_event(
-                        hasura_transaction,
-                        data.tenant_id.to_string().as_str(),
-                        &data.election_event.id,
-                        EventProcessors::START_ELECTION,
-                        start_date,
-                        Some(&election.id)).await?;
+            let election_presetnation: ElectionPresentation =
+                serde_json::from_value(presetnation.clone())?;
+            match election_presetnation.dates {
+                Some(dates) => {
+                    if let Some(start_date) = dates.start_date {
+                        maybe_create_scheduled_event(
+                            hasura_transaction,
+                            data.tenant_id.to_string().as_str(),
+                            &data.election_event.id,
+                            EventProcessors::START_ELECTION,
+                            start_date,
+                            Some(&election.id),
+                        )
+                        .await?;
+                    }
+                    if let Some(end_date) = dates.end_date {
+                        maybe_create_scheduled_event(
+                            hasura_transaction,
+                            data.tenant_id.to_string().as_str(),
+                            &data.election_event.id,
+                            EventProcessors::END_ELECTION,
+                            end_date,
+                            Some(&election.id),
+                        )
+                        .await?;
+                    }
                 }
-                if let Some(end_date) = dates.end_date {
-                    maybe_create_scheduled_event(
-                        hasura_transaction,
-                        data.tenant_id.to_string().as_str(),
-                        &data.election_event.id,
-                        EventProcessors::END_ELECTION,
-                        end_date,
-                        Some(&election.id)).await?;
-                }
+
+                None => {}
             }
-
-            None => {
-
-            }
-
-        }
         }
     }
     Ok(())
@@ -398,17 +401,13 @@ pub async fn maybe_create_scheduled_event(
     let date = ISO8601::to_date(&start_date).ok();
     let is_start = event_processor == EventProcessors::START_ELECTION;
     if date > Some(now) {
-        let start_task_id = generate_manage_date_task_name(
-            tenant_id,
-            election_event_id,
-            election_id,
-            is_start,
-        );
+        let start_task_id =
+            generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
         let payload = ManageElectionDatePayload {
             election_id: match election_id {
                 Some(id) => Some(id.to_string()),
                 None => None,
-            }
+            },
         };
         let cron_config = CronConfig {
             cron: None,
@@ -422,10 +421,9 @@ pub async fn maybe_create_scheduled_event(
             &start_task_id,
             cron_config,
             serde_json::to_value(payload)?,
-            
-        ).await?;
+        )
+        .await?;
     }
 
     Ok(())
 }
-

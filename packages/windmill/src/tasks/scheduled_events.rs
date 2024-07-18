@@ -65,47 +65,47 @@ pub async fn scheduled_events() -> Result<()> {
             let Some(datetime) = get_datetime(scheduled_event) else {
                 continue;
             };
-        let Some(event_payload) = scheduled_event.event_payload.clone() else {
-            event!(Level::WARN, "Missing election_event_id");
-            return Ok(());
-        };
-        let payload: ManageElectionDatePayload = serde_json::from_value(event_payload)?;
+            let Some(event_payload) = scheduled_event.event_payload.clone() else {
+                event!(Level::WARN, "Missing election_event_id");
+                return Ok(());
+            };
+            let payload: ManageElectionDatePayload = serde_json::from_value(event_payload)?;
             // create the public keys in async task
             match payload.election_id.clone() {
                 Some(election_id) => {
-                   let task = celery_app
-                    .send_task(
-                        manage_election_date::new(
-                            scheduled_event.tenant_id.clone(),
-                            scheduled_event.election_event_id.clone(),
-                            scheduled_event.id.clone(),
-                            election_id,
+                    let task = celery_app
+                        .send_task(
+                            manage_election_date::new(
+                                scheduled_event.tenant_id.clone(),
+                                scheduled_event.election_event_id.clone(),
+                                scheduled_event.id.clone(),
+                                election_id,
+                            )
+                            .with_eta(datetime.with_timezone(&Utc)),
                         )
-                        .with_eta(datetime.with_timezone(&Utc)),
-                    )
-                    .await?;
-                event!(
-                    Level::INFO,
-                    "Sent manage_election_date task {}",
-                    task.task_id
-                );
+                        .await?;
+                    event!(
+                        Level::INFO,
+                        "Sent manage_election_date task {}",
+                        task.task_id
+                    );
                 }
                 None => {
                     let task = celery_app
-                    .send_task(
-                        manage_election_event_date::new(
-                            scheduled_event.tenant_id.clone(),
-                            scheduled_event.election_event_id.clone(),
-                            scheduled_event.id.clone(),
+                        .send_task(
+                            manage_election_event_date::new(
+                                scheduled_event.tenant_id.clone(),
+                                scheduled_event.election_event_id.clone(),
+                                scheduled_event.id.clone(),
+                            )
+                            .with_eta(datetime.with_timezone(&Utc)),
                         )
-                        .with_eta(datetime.with_timezone(&Utc)),
-                    )
-                    .await?;
-                event!(
-                    Level::INFO,
-                    "Sent manage_election_event_date task {}",
-                    task.task_id
-                );
+                        .await?;
+                    event!(
+                        Level::INFO,
+                        "Sent manage_election_event_date task {}",
+                        task.task_id
+                    );
                 }
             }
         }

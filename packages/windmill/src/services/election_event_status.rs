@@ -40,7 +40,7 @@ pub async fn update_event_voting_status(
     new_status: VotingStatus,
 ) -> Result<GetElectionEventSequentBackendElectionEvent> {
     let auth_headers = get_client_credentials().await?;
-     let mut hasura_db_client: Client = get_hasura_pool()
+    let mut hasura_db_client: Client = get_hasura_pool()
         .await
         .get()
         .await
@@ -93,14 +93,18 @@ pub async fn update_event_voting_status(
     status.voting_status = new_status.clone();
 
     if new_status == VotingStatus::OPEN || new_status == VotingStatus::CLOSED {
-        info!("updating elections status by election event to new status new_status: {:?}", new_status);
-       election_status.voting_status = new_status;
-       update_elections_status_by_election_event(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        serde_json::to_value(&election_status)?,
-    ).await?;
+        info!(
+            "updating elections status by election event to new status new_status: {:?}",
+            new_status
+        );
+        election_status.voting_status = new_status;
+        update_elections_status_by_election_event(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            serde_json::to_value(&election_status)?,
+        )
+        .await?;
     }
     let status_js = serde_json::to_value(&status)?;
 
@@ -136,7 +140,7 @@ pub async fn update_election_voting_status_impl(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        election_id.clone()
+        election_id.clone(),
     )
     .await?
     .data

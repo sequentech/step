@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{services::import_election_event::ImportElectionEventSchema, types::scheduled_event::EventProcessors};
+use crate::{
+    services::import_election_event::ImportElectionEventSchema,
+    types::scheduled_event::EventProcessors,
+};
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Transaction};
-use sequent_core::{types::hasura::core::ElectionEvent as ElectionEventData};
+use deadpool_postgres::Transaction;
+use sequent_core::ballot::VotingStatus;
+use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
-use sequent_core::ballot::VotingStatus;
 use uuid::Uuid;
 
 pub struct ElectionEventWrapper(pub ElectionEventData);
@@ -148,9 +151,9 @@ pub async fn update_election_event_dates(
     dates: Value,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-    Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-    .with_context(|| "Error parsing election_event_id as UUID")?;
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -161,18 +164,11 @@ let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         )
         .await?;
     let _row: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &dates,
-                &tenant_uuid,
-                &election_event_uuid,
-            ],
-        )
+        .query(&statement, &[&dates, &tenant_uuid, &election_event_uuid])
         .await
         .map_err(|err| anyhow!("Error running the update_election_dates query: {err}"))?;
 
-        Ok(())
+    Ok(())
 }
 
 pub async fn update_elections_status_by_election_event(
@@ -202,7 +198,9 @@ pub async fn update_elections_status_by_election_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the update_elections_status_by_election_event query: {err}"))?; 
+        .map_err(|err| {
+            anyhow!("Error running the update_elections_status_by_election_event query: {err}")
+        })?;
 
     Ok(())
 }

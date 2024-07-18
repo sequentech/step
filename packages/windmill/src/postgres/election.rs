@@ -243,12 +243,7 @@ pub async fn update_election_voting_status(
     let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[
-                &tenant_uuid,
-                &election_event_uuid,
-                &election_uuid,
-                &status,
-            ],
+            &[&tenant_uuid, &election_event_uuid, &election_uuid, &status],
         )
         .await
         .map_err(|err| anyhow!("Error running the update_election_presentation query: {err}"))?;

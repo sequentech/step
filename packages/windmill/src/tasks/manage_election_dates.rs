@@ -14,9 +14,8 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, VotingStatus};
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
 use tracing::{event, Level};
-
+use tracing::{info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -58,12 +57,8 @@ pub async fn manage_election_date(
         return Ok(());
     };
 
-    let election_event = get_election_event_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id
-    )
-        .await?;
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let Some(_election) = get_election_by_id(
         &hasura_transaction,
@@ -96,17 +91,23 @@ pub async fn manage_election_date(
         &tenant_id,
         &election_event_id,
         &election_id,
-        serde_json::to_value(election_status)?).await?;
-        let mut elsection_event_status: ElectionEventStatus =
+        serde_json::to_value(election_status)?,
+    )
+    .await?;
+    let mut elsection_event_status: ElectionEventStatus =
         get_election_event_status(election_event.status).unwrap_or(Default::default());
-    
-    if(event_processor == EventProcessors::START_ELECTION  && elsection_event_status.voting_status == VotingStatus::NOT_STARTED) {
+
+    if (event_processor == EventProcessors::START_ELECTION
+        && elsection_event_status.voting_status == VotingStatus::NOT_STARTED)
+    {
         elsection_event_status.voting_status = VotingStatus::OPEN;
         update_election_event_status(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
-            serde_json::to_value(elsection_event_status)?).await?;
+            serde_json::to_value(elsection_event_status)?,
+        )
+        .await?;
     }
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;

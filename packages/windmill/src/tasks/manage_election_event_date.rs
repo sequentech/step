@@ -19,8 +19,8 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, VotingStatus};
 use sequent_core::services::keycloak::get_client_credentials;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
 use tracing::{event, Level};
+use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManageElectionDatePayload {
@@ -118,7 +118,6 @@ pub async fn manage_election_event_date(
         voting_status @ _ => {
             return Err(Error::Anyhow(anyhow!(
                 "Invalid scheduled event type: {voting_status:?}"
-                
             )));
         }
     };

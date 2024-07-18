@@ -64,7 +64,6 @@ impl TryFrom<Row> for PostgresScheduledEvent {
             cron_config: cron_config,
             event_payload: item.get("event_payload"),
             task_id: item.get("task_id"),
-
         })
     }
 }
