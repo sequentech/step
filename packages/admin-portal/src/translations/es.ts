@@ -403,7 +403,7 @@ const spanishTranslation: TranslationType = {
                 numAllowedVotes: "Número de votos permitidos",
                 ballotsPagination: {
                     ONE_PAGE: "Una página",
-                    COUNTDOWN: "Páginas separadas",
+                    SEPERATE_PAGES: "Páginas separadas",
                     label: "Paginación de Boletas",
                 },
             },

@@ -399,9 +399,9 @@ const englishTranslation = {
                 numAllowedVotes: "Number of allowed votes",
                 ballotsPagination: {
                     ONE_PAGE: "One page",
-                    COUNTDOWN: "Seperate pages",
+                    SEPERATE_PAGES: "Seperate pages",
                     label: "Ballots Pagination",
-                }
+                },
             },
             field: {
                 name: "Name",

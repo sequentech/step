@@ -405,7 +405,7 @@ const frenchTranslation: TranslationType = {
                 numAllowedVotes: "Nombre de votes permis",
                 ballotsPagination: {
                     ONE_PAGE: "Une page",
-                    COUNTDOWN: "Pages séparées",
+                    SEPERATE_PAGES: "Pages séparées",
                     label: "Pagination des Bulletins",
                 },
             },

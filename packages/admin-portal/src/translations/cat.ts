@@ -404,7 +404,7 @@ const catalanTranslation: TranslationType = {
                 numAllowedVotes: "Número de vots permesos",
                 ballotsPagination: {
                     ONE_PAGE: "Una pàgina",
-                    COUNTDOWN: "Pàgines separades",
+                    SEPERATE_PAGES: "Pàgines separades",
                     label: "Paginació de Butlletes",
                 },
             },

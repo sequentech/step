@@ -22,6 +22,7 @@ import {
     RecordContext,
     NumberInput,
     useGetList,
+    required,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} from "@mui/material"
 import {
@@ -232,7 +233,7 @@ export const ElectionDataForm: React.FC = () => {
             // ballots pagination
             if (!temp.presentation || !temp.presentation.ballots_pagination) {
                 temp.presentation.ballots_pagination = {
-                    // pages: EBallotPagination.ONE_PAGE, //TODO: fix its undifined
+                    pages: EBallotPagination.ONE_PAGE,
                 }
             }
 
@@ -396,9 +397,8 @@ export const ElectionDataForm: React.FC = () => {
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
         }))
     }
-    
+
     const ballotPaginationsChoices = () => {
-        console.log("sdgsdgdgfsdfgsdfg")
         return Object.values(EBallotPagination).map((value) => ({
             id: value,
             name: t(`electionScreen.edit.ballotsPagination.${value}`),
@@ -676,12 +676,11 @@ export const ElectionDataForm: React.FC = () => {
                                     jsonSource="presentation"
                                 />
                                 <SelectInput
-                                    source={`presentation.ballots_pagination`}
+                                    source={`presentation.ballot_pagination`}
                                     choices={ballotPaginationsChoices()}
                                     label={t(`electionScreen.edit.ballotsPagination.label`)}
                                     defaultValue={EBallotPagination.ONE_PAGE}
-                                    emptyText={undefined}
-                                    // validate={required()}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>
