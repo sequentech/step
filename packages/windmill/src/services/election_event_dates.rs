@@ -13,15 +13,26 @@ use sequent_core::ballot::{ElectionEventDates};
 use tracing::{info, instrument};
 
 #[instrument]
-pub fn generate_manage_date_election_event_task_name(
+pub fn generate_manage_date_task_name(
     tenant_id: &str,
     election_event_id: &str,
+    election_id: Option<&str>,
     is_start: bool,
 ) -> String {
-    format!(
-        "tenant_{}_event_{}_{}",
+    let base = format!(
+        "tenant_{}_event_{}_",
         tenant_id,
         election_event_id,
+    );
+
+    let base_with_election = match election_id {
+        Some(id) => format!("{}election_{}_", base, id),
+        None => base,
+    };
+
+    format!(
+        "{}{}",
+        base_with_election,
         if is_start { "start" } else { "end" },
     )
 }
@@ -42,9 +53,6 @@ pub async fn manage_dates(
     )
     .await?;
 
-    info!("start_date={:?}", start_date);
-    info!("end_date={:?}", end_date);
-
     let current_dates: ElectionEventDates = election_event
         .dates
         .clone()
@@ -53,29 +61,27 @@ pub async fn manage_dates(
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
         .unwrap_or(Default::default());
 
-    info!("current_dates={current_dates:?}");
     let mut new_dates = current_dates.clone();
-    let start_task_id = generate_manage_date_election_event_task_name(
+    let start_task_id = generate_manage_date_task_name(
         tenant_id,
         election_event_id,
+        None,
         true,
     );
-    let end_task_id = generate_manage_date_election_event_task_name(
+    let end_task_id = generate_manage_date_task_name(
         tenant_id,
         election_event_id,
+        None,
         false,
     );
     let scheduled_manage_start_date_opt =
     find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &start_task_id)
         .await?;
-    info!("scheduled_manage_start_date_opt={scheduled_manage_start_date_opt:?}");
     let scheduled_manage_end_date_opt =
         find_scheduled_event_by_task_id(hasura_transaction, tenant_id, election_event_id, &end_task_id)
             .await?;
-    info!("scheduled_manage_end_date_opt={scheduled_manage_end_date_opt:?}");
     match start_date {
         Some(date) => {
-        info!("start_date is not null${date:?}");
             new_dates.scheduled_opening = Some(true);
             new_dates.start_date = Some(date.to_string());
             //TODO: check if date is smaller than now or bigger than end_date and return error
@@ -85,7 +91,6 @@ pub async fn manage_dates(
             };
           
             if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
-                info!("update_scheduled_event");
                 update_scheduled_event(
                     hasura_transaction,
                     tenant_id,
@@ -114,10 +119,8 @@ pub async fn manage_dates(
 
         }
         None => {
-            info!("start_date is null");
             new_dates.scheduled_opening = Some(false);
             new_dates.start_date = None;
-            info!("current_dates.scheduled_opening={0:?}", current_dates.scheduled_opening);
             if (current_dates.start_date.is_none()) {
                 
             } else {

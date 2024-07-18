@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::*;
+use crate::services::election_event_dates::generate_manage_date_task_name;
 use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
 use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::*, types::scheduled_event::CronConfig};
@@ -9,22 +10,6 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionPresentation};
 use tracing::{info, instrument};
-
-#[instrument]
-pub fn generate_manage_date_election_task_name(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    is_start: bool,
-) -> String {
-    format!(
-        "tenant_{}_event_{}_election_{}_{}",
-        tenant_id,
-        election_event_id,
-        election_id,
-        if is_start { "start" } else { "end" },
-    )
-}
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn manage_dates(
@@ -62,16 +47,16 @@ pub async fn manage_dates(
         .unwrap_or(Default::default());
     info!("current_dates={current_dates:?}");
     let mut new_dates = current_dates.clone();
-    let start_task_id = generate_manage_date_election_task_name(
+    let start_task_id = generate_manage_date_task_name(
         tenant_id,
         election_event_id,
-        election_id,
+        Some(election_id),
         true,
     );
-    let end_task_id = generate_manage_date_election_task_name(
+    let end_task_id = generate_manage_date_task_name(
         tenant_id,
         election_event_id,
-        election_id,
+        Some(election_id),
         false,
     );
 
