@@ -325,6 +325,8 @@ export const EditElectionEventDataForm: React.FC = () => {
         const errors: any = {dates: {}}
         if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
+        } else if (new Date(values?.dates?.start_date) <= new Date(Date.now())) {
+            errors.dates.start_date = t("electionEventScreen.error.startDate")
         }
         return errors
     }
@@ -485,28 +487,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
-    const validateStartDate = (startDate: any, allValues: any) => {
-        const endDate = allValues.dates.end_date
-        if (new Date(startDate) < new Date(Date.now())) {
-            return "Start date must be after current date"
-        }
-        if (endDate && new Date(startDate) >= new Date(endDate)) {
-            return "Start date must be before end date"
-        }
-        return undefined
-    }
-
-    const validateEndDate = (endDate: any, allValues: any) => {
-        const startDate = allValues.presentation.dates.start_date
-        if (new Date(endDate) < new Date(Date.now())) {
-            return "End date must be after current date"
-        }
-        if (startDate && new Date(startDate) >= new Date(endDate)) {
-            return "End date must be after start date"
-        }
-        return undefined
-    }
-
     return (
         <>
             <Box
@@ -622,7 +602,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                             : undefined
                                                     )
                                                 }}
-                                                validate={validateStartDate}
                                             />
                                         </Grid>
                                         <Grid item xs={12} md={6}>
@@ -642,7 +621,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                             : undefined
                                                     )
                                                 }}
-                                                validate={validateEndDate}
                                             />
                                         </Grid>
                                     </Grid>

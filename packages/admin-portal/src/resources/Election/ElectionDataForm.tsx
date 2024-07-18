@@ -382,29 +382,17 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
-    const validateStartDate = (startDate: any, allValues: any) => {
-        const endDate = allValues.presentation.dates.end_date
-        if (!startDateValue) {
-            return undefined
+    const formValidator = (values: any): any => {
+        const errors: any = {presentation: {dates: {}}}
+        if (
+            values?.presentation.dates?.start_date &&
+            values?.presentation?.dates?.end_date <= values?.presentation?.dates?.start_date
+        ) {
+            errors.presentation.dates.end_date = t("electionEventScreen.error.endDate")
+        } else if (new Date(values?.presentation?.dates?.start_date) < new Date(Date.now())) {
+            errors.presentation.dates.start_date = t("electionEventScreen.error.startDate")
         }
-        if (new Date(startDate) < new Date(Date.now())) {
-            return "Start date must be after current date"
-        }
-        if (endDate && new Date(startDate) >= new Date(endDate)) {
-            return "Start date must be before end date"
-        }
-        return undefined
-    }
-
-    const validateEndDate = (endDate: any, allValues: any) => {
-        const startDate = allValues.presentation.dates.start_date
-        if (new Date(endDate) < new Date(Date.now())) {
-            return "End date must be after current date"
-        }
-        if (startDate && new Date(startDate) >= new Date(endDate)) {
-            return "End date must be after start date"
-        }
-        return undefined
+        return errors
     }
 
     return data ? (
@@ -435,6 +423,7 @@ export const ElectionDataForm: React.FC = () => {
 
                 return (
                     <SimpleForm
+                        validate={formValidator}
                         record={parsedValue}
                         toolbar={
                             <Toolbar>
@@ -498,7 +487,6 @@ export const ElectionDataForm: React.FC = () => {
                                                         : undefined
                                                 )
                                             }}
-                                            validate={validateStartDate}
                                         />
                                     </Grid>
                                     <Grid item xs={12} md={6}>
@@ -515,7 +503,6 @@ export const ElectionDataForm: React.FC = () => {
                                                         : undefined
                                                 )
                                             }}
-                                            validate={validateEndDate}
                                         />
                                     </Grid>
                                 </Grid>
