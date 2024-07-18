@@ -16,6 +16,7 @@ import {
     Dialog,
     translateElection,
     sortContestList,
+    EBallotPagination,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -159,6 +160,48 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
     )
 }
 
+interface ContestPaginationProps {
+    ballotStyle: any
+    contests: any //TODO: find contests type
+    onSetDisableNext: (contest: any) => void
+    onSetDecodedContests: (contest: any) => void
+    encryptAndReview: () => void
+}
+
+const ContestPagination: React.FC<ContestPaginationProps> = ({
+    ballotStyle,
+    contests,
+    onSetDisableNext,
+    onSetDecodedContests,
+    encryptAndReview,
+}) => {
+    const {t} = useTranslation()
+    const [contestIndex, setContextIndex] = useState(0)
+
+    const handleNext = () => {
+        if (contestIndex === contests.length-1) {
+            encryptAndReview()
+            return;
+        } else {
+            setContextIndex(contestIndex + 1)
+        }
+    }
+
+    return (
+        <>
+            <Question
+                ballotStyle={ballotStyle}
+                question={contests[contestIndex]}
+                key={contestIndex}
+                isReview={false}
+                setDisableNext={() => onSetDisableNext(contests[contestIndex])}
+                setDecodedContests={() => onSetDecodedContests(contests[contestIndex])}
+            />
+            <ActionButtons handleNext={handleNext} />
+        </>
+    )
+}
+
 const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {logout} = useContext(AuthContext)
@@ -174,6 +217,10 @@ const VotingScreen: React.FC = () => {
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const ballot_pagination =
+        ballotStyle?.ballot_eml?.election_presentation?.ballot_pagination ??
+        EBallotPagination.ONE_PAGE
+
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
@@ -321,17 +368,29 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {contests.map((contest, index) => (
-                <Question
+            {ballot_pagination === EBallotPagination.ONE_PAGE ? (
+                <>
+                    {contests.map((contest, index) => (
+                        <Question
+                            ballotStyle={ballotStyle}
+                            question={contest}
+                            key={index}
+                            isReview={false}
+                            setDisableNext={() => onSetDisableNext(contest.id)}
+                            setDecodedContests={() => onSetDecodedContests(contest.id)}
+                        />
+                    ))}
+                    <ActionButtons handleNext={encryptAndReview} />
+                </>
+            ) : (
+                <ContestPagination
                     ballotStyle={ballotStyle}
-                    question={contest}
-                    key={index}
-                    isReview={false}
-                    setDisableNext={onSetDisableNext(contest.id)}
-                    setDecodedContests={onSetDecodedContests(contest.id)}
+                    contests={contests}
+                    onSetDisableNext={onSetDisableNext}
+                    onSetDecodedContests={onSetDecodedContests}
+                    encryptAndReview={encryptAndReview}
                 />
-            ))}
-            <ActionButtons handleNext={encryptAndReview} />
+            )}
 
             {disableNextButton() ? (
                 <Dialog
