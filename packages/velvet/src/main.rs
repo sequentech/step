@@ -8,11 +8,12 @@ mod fixtures;
 mod pipes;
 mod utils;
 
-use clap::Parser;
-use cli::{state::State, Cli, Commands};
-use sequent_core::util::init_log::init_log;
-use tracing::{event, Level};
+use cli::console::ciccp_consolidation;
+use pipes::mark_winners::MarkWinners;
 
+use crate::pipes::error::{Error, Result};
+use std::env;
+/* 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
     let cli = Cli::parse();
     init_log(true);
@@ -29,6 +30,25 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
             }
         }
     }
+
+    Ok(())
+}*/
+fn main() -> Result<()> {
+
+    // Ensure correct number of arguments
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 3 {
+        eprintln!("Usage: {} <base_path> <folder_common>", args[0]);
+        std::process::exit(1);
+    }
+
+    let base_path = &args[1];
+    let folder_common = &args[2];
+
+    let contest_result = ciccp_consolidation(base_path.as_str(), folder_common.as_str())?;
+    let winners = MarkWinners::get_winners(&contest_result);
+    let aggregate_str = serde_json::to_string(&contest_result)?;
+    println!("{}", aggregate_str);
 
     Ok(())
 }

@@ -36,7 +36,7 @@ impl MarkWinners {
     }
 
     #[instrument(skip_all)]
-    fn get_winners(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
+    pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut winners = contest_result.candidate_result.clone();
 
         winners.sort_by(|a, b| {
@@ -73,7 +73,7 @@ impl MarkWinners {
                 .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
             let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-            let winners = self.get_winners(&contest_result);
+            let winners = MarkWinners::get_winners(&contest_result);
 
             let subfolder_name = subfolder.file_name().unwrap();
             let output_subfolder = base_output_breakdown_path.join(subfolder_name);
@@ -129,7 +129,7 @@ impl Pipe for MarkWinners {
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                         let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                        let winners = self.get_winners(&contest_result);
+                        let winners = MarkWinners::get_winners(&contest_result);
 
                         let aggregate_output_path = base_output_path
                             .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -151,7 +151,7 @@ impl Pipe for MarkWinners {
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                         let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                        let winners = self.get_winners(&contest_result);
+                        let winners = MarkWinners::get_winners(&contest_result);
 
                         let Some(tally_sheet_id) =
                             PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_folder)
@@ -178,7 +178,7 @@ impl Pipe for MarkWinners {
                         .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                     let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                    let winners = self.get_winners(&contest_result);
+                    let winners = MarkWinners::get_winners(&contest_result);
 
                     fs::create_dir_all(&base_output_path)?;
                     let winners_file_path = base_output_path.join(OUTPUT_WINNERS);
@@ -199,7 +199,7 @@ impl Pipe for MarkWinners {
                     .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                 let contest_result: ContestResult = parse_file(f)?;
 
-                let winner = self.get_winners(&contest_result);
+                let winner = MarkWinners::get_winners(&contest_result);
 
                 let winner_folder = PipeInputs::build_path(
                     &output_dir,

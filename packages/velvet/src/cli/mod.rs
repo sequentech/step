@@ -8,3 +8,5 @@ pub mod test_all;
 
 mod cli;
 pub use cli::*;
+
+pub mod console;
