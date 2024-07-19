@@ -89,8 +89,8 @@ fn main() -> Result<()> {
         ))
     })?;
 
-    let aggregate_str = serde_json::to_string(&contest_result)?;
-    println!("{}", aggregate_str);
+    //let aggregate_str = serde_json::to_string(&contest_result)?;
+    println!("{}", render_html);
 
     Ok(())
 }
