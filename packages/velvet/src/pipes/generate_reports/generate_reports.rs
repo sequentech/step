@@ -91,7 +91,7 @@ impl GenerateReports {
     }
 
     #[instrument(skip_all)]
-    pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
+    pub fn compute_reports(reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
         let reports = reports
             .iter()
             .map(|report| {
@@ -148,7 +148,7 @@ impl GenerateReports {
         reports: Vec<ReportData>,
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
-        let computed_reports = self.compute_reports(reports)?;
+        let computed_reports = GenerateReports::compute_reports(reports)?;
         let json_reports = serde_json::to_value(computed_reports)?;
         let config = self.get_config()?;
 
@@ -364,7 +364,7 @@ impl GenerateReports {
                 }
             }
 
-            let computed_reports = self.compute_reports(reports)?;
+            let computed_reports = GenerateReports::compute_reports(reports)?;
 
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
