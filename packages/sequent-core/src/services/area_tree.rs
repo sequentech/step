@@ -6,14 +6,18 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+// A tree node that corresponds to an area
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNodeArea {
-    pub id: String,
+    pub id: String, // area id
     pub tenant_id: String,
     pub election_event_id: String,
     pub parent_id: Option<String>,
 }
 
+// Extra data for an area. We'll use that to create a tree
+// where all nodes have in "contest_ids" both their directly assigned
+// contests and the contests inherited from their ancestors.
 #[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct ContestsData {
     contest_ids: HashSet<String>,
@@ -41,6 +45,7 @@ impl<T> TreeNode<T>
 where
     T: Clone + Default,
 {
+    // returns all nodes in the tree
     pub fn get_all_children(&self) -> Vec<TreeNodeArea> {
         let mut children: Vec<TreeNodeArea> = vec![];
         if let Some(area) = self.area.clone() {
@@ -56,6 +61,7 @@ where
         children
     }
 
+    // creates a tree from the list of nodes
     pub fn from_areas(areas: Vec<TreeNodeArea>) -> Result<TreeNode<T>> {
         let mut nodes: HashMap<String, TreeNode<T>> = HashMap::new();
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -71,7 +77,7 @@ where
                 TreeNode::<T> {
                     area: Some(area),
                     children: Vec::new(),
-                    data: Default::default(),
+                    data: Default::default(), // this should change?
                 },
             );
 
@@ -115,6 +121,7 @@ where
         Ok(root_node)
     }
 
+    // internal function used by from_areas
     fn build_tree<'a>(
         id: &'a str,
         nodes: &'a HashMap<String, TreeNode<T>>,
@@ -130,7 +137,7 @@ where
         let mut new_node = TreeNode::<T> {
             area: node.area.clone(),
             children: Vec::new(),
-            data: Default::default(),
+            data: Default::default(), // this should change?
         };
 
         if let Some(children_ids) = parent_map.get(id) {
@@ -146,6 +153,7 @@ where
         Ok(new_node)
     }
 
+    // find an area in the tree
     pub fn find_area(&self, area_id: &str) -> Option<TreeNode<T>> {
         if let Some(area) = self.area.clone() {
             if &area.id == area_id {
@@ -233,7 +241,9 @@ where
         // Map<area_id, Set<contest_id>>
         areas_map: &HashMap<String, HashSet<String>>,
     ) -> TreeNode<ContestsData> {
+        // get contest ids inherited from parent
         let mut contest_ids = parent_data.contest_ids.clone();
+        // get contest ids from self area
         if let Some(area) = self.area.clone() {
             if let Some(self_contests) = areas_map.get(&area.id) {
                 contest_ids.extend(self_contests.clone());
@@ -259,6 +269,9 @@ where
 }
 
 impl TreeNode<ContestsData> {
+    // For a given TreeNode of type ContestsData, return all
+    // area-contests. Note that this will include
+    // indirect/inherited ones.
     pub fn get_contest_matches(
         &self,
         contest_ids: &HashSet<String>,
@@ -309,5 +322,71 @@ impl<T> TreeNode<T> {
         let mut queue = VecDeque::new();
         queue.push_back(self);
         TreeNodeIter { queue }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::services::area_tree::*;
+
+    fn get_fixture1() -> Vec<TreeNodeArea> {
+        vec![
+            TreeNodeArea {
+                id: "grandad".into(), // area id
+                tenant_id: "tenant".into(),
+                election_event_id: "election".into(),
+                parent_id: None,
+            },
+            TreeNodeArea {
+                id: "father1".into(), // area id
+                tenant_id: "tenant".into(),
+                election_event_id: "election".into(),
+                parent_id: Some("grandad".into()),
+            },
+            TreeNodeArea {
+                id: "father2".into(), // area id
+                tenant_id: "tenant".into(),
+                election_event_id: "election".into(),
+                parent_id: Some("grandad".into()),
+            },
+            TreeNodeArea {
+                id: "child1".into(), // area id
+                tenant_id: "tenant".into(),
+                election_event_id: "election".into(),
+                parent_id: Some("father1".into()),
+            },
+            TreeNodeArea {
+                id: "child2".into(), // area id
+                tenant_id: "tenant".into(),
+                election_event_id: "election".into(),
+                parent_id: Some("father1".into()),
+            },
+            TreeNodeArea {
+                id: "child3".into(), // area id
+                tenant_id: "tenant".into(),
+                election_event_id: "election".into(),
+                parent_id: Some("father2".into()),
+            },
+        ]
+    }
+
+    #[test]
+    fn test_find_path() {
+        assert_eq!(1, 1);
+        let node_areas = get_fixture1();
+        let tree = TreeNode::<()>::from_areas(node_areas).unwrap();
+        let path = tree.find_path_to_area("child2").unwrap();
+        let str_path: Vec<String> =
+            path.into_iter().map(|val| val.id.clone()).collect();
+        let expected_path: Vec<String> =
+            vec!["grandad".into(), "father1".into(), "child2".into()];
+        assert_eq!(str_path, expected_path);
+
+        let path = tree.find_path_to_area("child3").unwrap();
+        let str_path: Vec<String> =
+            path.into_iter().map(|val| val.id.clone()).collect();
+        let expected_path: Vec<String> =
+            vec!["grandad".into(), "father2".into(), "child3".into()];
+        assert_eq!(str_path, expected_path);
     }
 }
