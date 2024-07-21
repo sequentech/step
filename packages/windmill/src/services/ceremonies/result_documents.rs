@@ -9,20 +9,26 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder, documents::upload_and_return_document, temp_path::get_file_size,
+        compress::compress_folder, documents::upload_and_return_document,
+        folders::copy_to_temp_dir, temp_path::get_file_size,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::services::keycloak;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
-use std::path::{Path, PathBuf};
+use sequent_core::{services::keycloak, types::hasura::core::Area};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
+
+use super::renamer::rename_folders;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -165,7 +171,10 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
-                compress_folder(path)
+                let temp_path = copy_to_temp_dir(&path.to_path_buf())?;
+                let mut replacements: HashMap<String, String> = HashMap::new();
+                rename_folders(&replacements, &temp_path)?;
+                compress_folder(&temp_path)
             });
 
             // Await the result
@@ -393,6 +402,40 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
+#[instrument(skip(results), err)]
+pub fn generate_ids_map(
+    results: &Vec<ElectionReportDataComputed>,
+    areas: &Vec<Area>,
+) -> Result<HashMap<String, String>> {
+    let mut rename_map: HashMap<String, String> = HashMap::new();
+    let election_reports = results
+        .into_iter()
+        .map(|result| result.reports.clone())
+        .flat_map(|inner_vec| inner_vec)
+        .collect::<Vec<ReportDataComputed>>();
+
+    for election_report in election_reports {
+        rename_map.insert(
+            election_report.contest.election_id.clone(),
+            election_report.election_name.clone(),
+        );
+
+        let Some(contest_name) = election_report.contest.name.clone() else {
+            continue;
+        };
+        rename_map.insert(election_report.contest.id.clone(), contest_name);
+    }
+
+    for area in areas {
+        let Some(name) = area.name.clone() else {
+            continue;
+        };
+        rename_map.insert(area.id.clone(), name);
+    }
+
+    Ok(rename_map)
+}
+
 #[instrument(skip(hasura_transaction, results), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
@@ -401,9 +444,11 @@ pub async fn save_result_documents(
     election_event_id: &str,
     results_event_id: &str,
     base_tally_path: &PathBuf,
+    areas: &Vec<Area>,
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
+    let ids_map = generate_ids_map(&results, areas)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(

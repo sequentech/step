@@ -1,16 +1,13 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Result;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 use walkdir::WalkDir;
 
-pub fn rename_folders(
-    replacements: &HashMap<String, String>,
-    folder_path: &str,
-) -> Result<(), Box<dyn Error>> {
+pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &PathBuf) -> Result<()> {
     // Recursively rename folders
     for entry in WalkDir::new(folder_path).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_dir() {
