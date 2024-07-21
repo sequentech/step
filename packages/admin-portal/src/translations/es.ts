@@ -794,8 +794,7 @@ const spanishTranslation: TranslationType = {
             blankVotePolicy: {
                 label: "Política de voto en blanco",
                 ALLOWED: "Permitido",
-                MESSAGE: "Mostrar mensaje",
-                MESSAGE_AND_MODAL: "Mostrar mensaje y modal",
+                MODAL_AND_ALLOWED: "Mostrar el modal y permitir el siguiente",
                 NOT_ALLOWED: "No permitido",
             },
             error: {},

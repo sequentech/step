@@ -361,6 +361,7 @@ pub enum CandidatesOrder {
     Alphabetical,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     Debug,
     BorshSerialize,
@@ -547,17 +548,8 @@ pub enum ECountdownPolicy {
     Display,
 )]
 pub enum EBlankVotePolicy {
-    // #[strum(serialize = "allowed")]
-    // #[serde(rename = "allowed")]
     ALLOWED,
-    // #[strum(serialize = "message")]
-    // #[serde(rename = "message")]
-    MESSAGE,
-    // #[strum(serialize = "messageAndModal")]
-    // #[serde(rename = "messageAndModal")]
-    MESSAGE_AND_MODAL,
-    // #[strum(serialize = "notAllowed")]
-    // #[serde(rename = "notAllowed")]
+    MODAL_AND_ALLOWED,
     NOT_ALLOWED,
 }
 
@@ -659,7 +651,7 @@ impl ContestPresentation {
             allow_writeins: Some(true),
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
-            blank_vote_policy: Some(EBlankVotePolicy::MESSAGE),
+            blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,

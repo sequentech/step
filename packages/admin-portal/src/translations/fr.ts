@@ -797,8 +797,7 @@ const frenchTranslation: TranslationType = {
             blankVotePolicy: {
                 label: "Politique de vote blanc",
                 ALLOWED: "Autorisé",
-                MESSAGE: "Afficher un message",
-                MESSAGE_AND_MODAL: "Afficher un message et une fenêtre modale",
+                MODAL_AND_ALLOWED: "Afficher la fenêtre modale et permettre la suite",
                 NOT_ALLOWED: "Non autorisé",
             },
             error: {},

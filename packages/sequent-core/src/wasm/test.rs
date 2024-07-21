@@ -411,7 +411,6 @@ pub fn check_voting_not_allowed_next(
 
 #[wasm_bindgen]
 pub fn check_voting_error_dialog(
-    //
     contests: JsValue,
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
@@ -428,20 +427,35 @@ pub fn check_voting_error_dialog(
         })?;
 
     let show_voting_alert = all_contests.iter().any(|contest| {
-        let default_policy = InvalidVotePolicy::default();
-        let policy = contest
+        let default_vote_policy = InvalidVotePolicy::default();
+        let vote_policy = contest
             .presentation
             .as_ref()
             .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_policy);
+            .unwrap_or(&default_vote_policy);
+
+        let default_blank_policy = EBlankVotePolicy::default();
+        let blank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.blank_vote_policy.as_ref())
+            .unwrap_or(&default_blank_policy);
+
         if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
+            let choices_selected = decoded_contest
+                .choices
+                .iter()
+                .any(|choice| choice.selected == 0);
             let invalid_errors: Vec<InvalidPlaintextError> =
                 decoded_contest.invalid_errors.clone();
             let explicit_invalid = decoded_contest.is_explicit_invalid;
-            (invalid_errors.len() > 0 && *policy != InvalidVotePolicy::ALLOWED)
-                || (*policy
+            (invalid_errors.len() > 0
+                && *vote_policy != InvalidVotePolicy::ALLOWED)
+                || (*vote_policy
                     == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
                     && explicit_invalid)
+                || (*blank_policy == EBlankVotePolicy::MODAL_AND_ALLOWED
+                    && !choices_selected)
         } else {
             false
         }

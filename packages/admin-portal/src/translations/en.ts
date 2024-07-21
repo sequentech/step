@@ -790,8 +790,7 @@ const englishTranslation = {
             blankVotePolicy: {
                 label: "Blank Vote Policy",
                 ALLOWED: "Allowed",
-                MESSAGE: "Show message",
-                MESSAGE_AND_MODAL: "Show Message and Modal",
+                MODAL_AND_ALLOWED: "Show modal and allow next",
                 NOT_ALLOWED: "Not allowed",
             },
             error: {},

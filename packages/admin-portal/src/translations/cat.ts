@@ -795,8 +795,7 @@ const catalanTranslation: TranslationType = {
             blankVotePolicy: {
                 label: "Política de vot en blanc",
                 ALLOWED: "Permès",
-                MESSAGE: "Mostrar missatge",
-                MESSAGE_AND_MODAL: "Mostrar missatge i modal",
+                MODAL_AND_ALLOWED: "Mostra el modal i permet el següent",
                 NOT_ALLOWED: "No permès",
             },
             error: {},
