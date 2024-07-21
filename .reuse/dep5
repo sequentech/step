@@ -23,6 +23,7 @@ Files:
   packages/ballot-verifier/.ignore
   packages/braid/.ignore
   packages/sequent-core/.ignore
+  packages/sequent-cli/.ignore
   packages/strand/.ignore
   packages/ui-essentials/.ignore
   packages/voting-portal/.ignore
