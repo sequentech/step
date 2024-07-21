@@ -107,14 +107,14 @@ pub async fn get_document_url(key: String, s3_bucket: String) -> Result<String> 
 }
 
 #[instrument(err, ret)]
-pub async fn get_upload_url(key: String, is_public: bool) -> Result<String> {
+pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Result<String> {
     let s3_bucket = match is_public {
         true => get_public_bucket()?,
         false => get_private_bucket()?,
     };
     // We always use the public aws config since we are generating a client-side
     // upload url. is_public is only used to define the upload bucket
-    let config = get_s3_aws_config(/* private = */ false).await?;
+    let config = get_s3_aws_config(/* private = */ is_local).await?;
     let client = get_s3_client(config.clone()).await?;
 
     let presigning_config =

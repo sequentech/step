@@ -15,6 +15,9 @@ pub struct ImportElectionEventFile {
     /// Path of Election Event file - .json file
     #[arg(long)]
     file_path: String,
+
+    #[arg(long, default_value_t = false)]
+    is_local: bool,
 }
 
 #[derive(GraphQLQuery)]
@@ -27,7 +30,7 @@ pub struct ImportElectionEvent;
 
 impl ImportElectionEventFile {
     pub fn run(&self) {
-        match import(&self.file_path) {
+        match import(&self.file_path, self.is_local) {
             Ok(id) => {
                 println!("Election event created successfully! ID: {}", id);
             }
@@ -38,10 +41,10 @@ impl ImportElectionEventFile {
     }
 }
 
-fn import(file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
-    let document_id = GetUploadUrl::upload(String::from(file_path))?;
+    let document_id = GetUploadUrl::upload(String::from(file_path), is_local)?;
 
     let variables = import_election_event::Variables {
         tenant_id: config.tenant_id.clone(),
@@ -60,7 +63,9 @@ fn import(file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
         let response_body: Response<import_election_event::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.import_election_event {
-                if let Some(id) = e.id {
+                if let Some(err) = e.error {
+                    Err(Box::from(err))
+                } else if let Some(id) = e.id {
                     Ok(id)
                 } else {
                     Err(Box::from("failed generating id"))

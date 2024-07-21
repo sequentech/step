@@ -21,7 +21,7 @@ use super::read_config::read_config;
 pub struct GetUploadUrl;
 
 impl GetUploadUrl {
-    pub fn upload(file_path: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn upload(file_path: String, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
@@ -43,7 +43,8 @@ impl GetUploadUrl {
             name: String::from(file_name),
             media_type: String::from(mime_type),
             size: file_size,
-            is_public: false,
+            is_public: false, // If local then the url changes
+            is_local: Some(is_local),
             election_event_id: None,
         };
 
@@ -59,17 +60,25 @@ impl GetUploadUrl {
             let response_body: Response<get_upload_url::ResponseData> = response.json()?;
             if let Some(data) = response_body.data {
                 if let Some(e) = data.get_upload_url {
-                    // Perform the file upload
                     let upload_url = e.url.clone();
                     let mut file = File::open(&file_path)?;
                     let mut file_contents = Vec::new();
                     file.read_to_end(&mut file_contents)?;
-
-                    let upload_response = client
-                        .put(&upload_url)
-                        .header("Content-Type", mime_type)
-                        .body(file_contents)
-                        .send()?;
+                    let upload_response = match mime_type {
+                        "application/json" | "text/csv" => {
+                            let file_contents_str = String::from_utf8(file_contents)?;
+                            client
+                                .put(&upload_url)
+                                .header("Content-Type", mime_type)
+                                .body(file_contents_str)
+                                .send()?
+                        }
+                        _ => client
+                            .put(&upload_url)
+                            .header("Content-Type", mime_type)
+                            .body(file_contents)
+                            .send()?,
+                    };
 
                     if upload_response.status().is_success() {
                         Ok(e.document_id.clone())

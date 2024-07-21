@@ -77,3 +77,9 @@ Run cargo run -- update-election-status --election-event-id "election event id" 
 - election_event_id - The associated election event id - required*
 - election_id - The associated election id - required*
 - status - A valid voting status (OPEN, CLOSED,...)- required*
+
+# Import election event from .json file
+Run cargo run -- import-election --file-path "/workspaces/step/packages/sequent-cli/data/mock.json" --is-local
+
+- file-path - Path to file - required*
+- is-local - If run locally add this flag

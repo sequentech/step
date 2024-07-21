@@ -161,6 +161,7 @@ pub async fn get_upload_url(
     size: usize,
     tenant_id: &str,
     is_public: bool,
+    is_local: Option<bool>,
     election_event_id: Option<String>,
 ) -> Result<(Document, String)> {
     let document = &hasura::document::insert_document(
@@ -184,7 +185,7 @@ pub async fn get_upload_url(
         true => s3::get_public_document_key(&tenant_id, &document.id, &name),
         false => s3::get_document_key(&tenant_id.to_string(), "", &document.id, &name.to_string()),
     };
-    let url = s3::get_upload_url(path.to_string(), is_public).await?;
+    let url = s3::get_upload_url(path.to_string(), is_public, is_local.unwrap_or(false)).await?;
 
     let ret_document = Document {
         id: document.id.clone(),

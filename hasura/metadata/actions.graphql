@@ -187,6 +187,7 @@ type Mutation {
     media_type: String!
     size: Int!
     is_public: Boolean!
+    is_local: Boolean
     election_event_id: String
   ): GetUploadUrlOutput
 }
@@ -849,3 +850,4 @@ type ExportLogsOutput {
   task_id : String!
   document_id : String!
 }
+

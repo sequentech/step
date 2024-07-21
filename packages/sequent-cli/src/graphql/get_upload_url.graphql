@@ -2,7 +2,8 @@ mutation GetUploadUrl(
         $name: String!
         $media_type: String!
         $size: Int!
-        $is_public: Boolean! = true
+        $is_public: Boolean!
+        $is_local: Boolean
         $election_event_id: String
     ) {
         get_upload_url(
@@ -10,6 +11,7 @@ mutation GetUploadUrl(
             media_type: $media_type
             size: $size
             is_public: $is_public
+            is_local: $is_local
             election_event_id: $election_event_id
         ) {
             url
