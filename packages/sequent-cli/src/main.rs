@@ -31,6 +31,7 @@ enum Commands {
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
     UpdateElectionEventStatus(commands::update_election_event_status::UpdateElectionEventStatus),
     UpdateElectionStatus(commands::update_election_status::UpdateElectionStatus),
+    ImportElection(commands::import_election_event::ImportElectionEventFile),
 }
 
 fn main() {
@@ -47,5 +48,6 @@ fn main() {
         Commands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
         Commands::UpdateElectionEventStatus(update_event) => update_event.run(),
         Commands::UpdateElectionStatus(update_election) => update_election.run(),
+        Commands::ImportElection(import) => import.run(),
     }
 }

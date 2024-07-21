@@ -66,7 +66,7 @@ fn create_auth_file(
     if !Path::new(&auth_dir).exists() {
         fs::create_dir_all(&auth_dir).expect("Failed to create config directory");
     }
-    let access_token = generate_keycloak_token(
+    let token_data = generate_keycloak_token(
         keycloak_url,
         username,
         password,
@@ -74,7 +74,10 @@ fn create_auth_file(
         &config.tenant_id,
     )?;
 
-    let auth_data = KeycloakTokenResponse { access_token };
+    let auth_data = KeycloakTokenResponse {
+        access_token: token_data.access_token.clone(),
+        refresh_token: token_data.access_token.clone(),
+    };
 
     let json_data =
         serde_json::to_string_pretty(&auth_data).expect("Failed to serialize config data");

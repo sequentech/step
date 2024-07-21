@@ -6,5 +6,6 @@ pub mod create_contest;
 pub mod create_election;
 pub mod create_election_event;
 pub mod generate_auth_token;
+pub mod import_election_event;
 pub mod update_election_event_status;
 pub mod update_election_status;

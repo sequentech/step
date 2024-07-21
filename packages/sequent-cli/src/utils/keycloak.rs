@@ -16,7 +16,7 @@ pub fn generate_keycloak_token(
     password: &str,
     client_id: &str,
     tenant_id: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
     let params = [
         ("grant_type", "password"),
         ("client_id", client_id),
@@ -35,7 +35,39 @@ pub fn generate_keycloak_token(
 
     if response.status().is_success() {
         let token_response: KeycloakTokenResponse = response.json()?;
-        Ok(token_response.access_token)
+        Ok(token_response)
+    } else {
+        let status = response.status();
+        let error_message = response.text()?;
+        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        Err(Box::from(error))
+    }
+}
+
+pub fn refresh_keycloak_token(
+    keycloak_url: &str,
+    refresh_token: &str,
+    client_id: &str,
+    tenant_id: &str,
+) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
+    let params = [
+        ("grant_type", "refresh_token"),
+        ("client_id", client_id),
+        ("refresh_token", refresh_token),
+    ];
+
+    let realm = format!("tenant-{}", tenant_id);
+    let url = format!(
+        "{}/realms/{}/protocol/openid-connect/token",
+        keycloak_url, realm
+    );
+
+    let client = reqwest::blocking::Client::new();
+    let response = client.post(&url).form(&params).send()?;
+
+    if response.status().is_success() {
+        let token_response: KeycloakTokenResponse = response.json()?;
+        Ok(token_response)
     } else {
         let status = response.status();
         let error_message = response.text()?;

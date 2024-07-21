@@ -4,3 +4,4 @@
 
 pub mod keycloak;
 pub mod read_config;
+pub mod upload_file;
