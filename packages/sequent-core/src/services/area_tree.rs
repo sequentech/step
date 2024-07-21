@@ -18,7 +18,7 @@ pub struct TreeNodeArea {
 // Extra data for an area. We'll use that to create a tree
 // where all nodes have in "contest_ids" both their directly assigned
 // contests and the contests inherited from their ancestors.
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContestsData {
     contest_ids: HashSet<String>,
 }
@@ -34,7 +34,7 @@ impl From<&Area> for TreeNodeArea {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNode<T = ()> {
     pub area: Option<TreeNodeArea>,
     pub children: Vec<TreeNode<T>>,
