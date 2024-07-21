@@ -139,10 +139,3 @@ export enum EVotingPortalCountdownPolicy {
     COUNTDOWN = "COUNTDOWN",
     COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT",
 }
-
-export enum EBlankVotePolicy {
-    ALLOWED = "ALLOWED",
-    MESSAGE = "MESSAGE",
-    MESSAGE_AND_MODAL = "MESSAGE_AND_MODAL",
-    NOT_ALLOWED = "NOT_ALLOWED",
-}

@@ -56,7 +56,7 @@ import {
     isArray,
     ICandidatePresentation,
     IElectionPresentation,
-    EBlankVotePolicy,
+    EBlankVotePolicy
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"

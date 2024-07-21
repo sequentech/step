@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {EBlankVotePolicy} from "./CoreTypes"
-
 export enum CandidatesOrder {
     RANDOM = "random",
     CUSTOM = "custom",
@@ -27,6 +25,13 @@ export enum EEnableCheckableLists {
     CANDIDATES_ONLY = "allow-selecting-candidates",
     LISTS_ONLY = "allow-selecting-lists",
     DISABLED = "disabled",
+}
+
+export enum EBlankVotePolicy {
+    ALLOWED = "ALLOWED",
+    MESSAGE = "MESSAGE",
+    MESSAGE_AND_MODAL = "MESSAGE_AND_MODAL",
+    NOT_ALLOWED = "NOT_ALLOWED",
 }
 
 export interface ITypePresentation {

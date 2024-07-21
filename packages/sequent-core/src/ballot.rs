@@ -532,6 +532,7 @@ pub enum ECountdownPolicy {
     COUNTDOWN_WITH_ALERT,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     Debug,
     BorshSerialize,
@@ -546,10 +547,24 @@ pub enum ECountdownPolicy {
     Display,
 )]
 pub enum EBlankVotePolicy {
+    // #[strum(serialize = "allowed")]
+    // #[serde(rename = "allowed")]
     ALLOWED,
+    // #[strum(serialize = "message")]
+    // #[serde(rename = "message")]
     MESSAGE,
+    // #[strum(serialize = "messageAndModal")]
+    // #[serde(rename = "messageAndModal")]
     MESSAGE_AND_MODAL,
+    // #[strum(serialize = "notAllowed")]
+    // #[serde(rename = "notAllowed")]
     NOT_ALLOWED
+}
+
+impl Default for EBlankVotePolicy {
+    fn default() -> Self {
+        EBlankVotePolicy::MESSAGE
+    }
 }
 
 #[derive(
