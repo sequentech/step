@@ -139,6 +139,7 @@ pub trait GenerateResultDocuments {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments>;
 }
 
@@ -164,6 +165,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
@@ -171,10 +173,11 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
-                let temp_path = copy_to_temp_dir(&path.to_path_buf())?;
-                let mut replacements: HashMap<String, String> = HashMap::new();
-                rename_folders(&replacements, &temp_path)?;
-                compress_folder(&temp_path)
+                let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
+                let temp_dir_path = temp_dir.path().to_path_buf();
+                let renames = rename_map.unwrap_or(HashMap::new());
+                rename_folders(&renames, &temp_dir_path)?;
+                compress_folder(&temp_dir_path)
             });
 
             // Await the result
@@ -270,6 +273,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -364,6 +368,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         hasura_transaction: &Transaction<'_>,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
+        rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             auth_headers,
@@ -448,7 +453,7 @@ pub async fn save_result_documents(
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
-    let ids_map = generate_ids_map(&results, areas)?;
+    let rename_map = generate_ids_map(&results, areas)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
         .save_documents(
@@ -456,6 +461,7 @@ pub async fn save_result_documents(
             hasura_transaction,
             &event_document_paths,
             results_event_id,
+            Some(rename_map),
         )
         .await?;
 
@@ -474,6 +480,7 @@ pub async fn save_result_documents(
                 hasura_transaction,
                 &document_paths,
                 results_event_id,
+                None,
             )
             .await?;
         for contest_report in election_report.reports {
@@ -491,6 +498,7 @@ pub async fn save_result_documents(
                     hasura_transaction,
                     &contest_document_paths,
                     results_event_id,
+                    None,
                 )
                 .await?;
         }
