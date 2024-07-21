@@ -558,12 +558,12 @@ pub enum EBlankVotePolicy {
     MESSAGE_AND_MODAL,
     // #[strum(serialize = "notAllowed")]
     // #[serde(rename = "notAllowed")]
-    NOT_ALLOWED
+    NOT_ALLOWED,
 }
 
 impl Default for EBlankVotePolicy {
     fn default() -> Self {
-        EBlankVotePolicy::MESSAGE
+        EBlankVotePolicy::ALLOWED
     }
 }
 
@@ -639,7 +639,7 @@ pub struct ContestPresentation {
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
-    pub blank_vote_policy: Option<EBlankVotePolicy>, 
+    pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,

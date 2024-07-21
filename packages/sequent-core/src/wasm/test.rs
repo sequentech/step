@@ -353,7 +353,7 @@ pub fn check_is_blank_js(
 }
 
 #[wasm_bindgen]
-pub fn check_voting_not_allowed_next( //
+pub fn check_voting_not_allowed_next(
     contests: JsValue,
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
@@ -370,12 +370,12 @@ pub fn check_voting_not_allowed_next( //
         })?;
 
     let voting_not_allowed = all_contests.iter().any(|contest| {
-        let default_policy = InvalidVotePolicy::default();
-        let policy = contest //TODO: change policy var name
+        let default_vote_policy = InvalidVotePolicy::default();
+        let vote_policy = contest
             .presentation
             .as_ref()
             .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_policy);
+            .unwrap_or(&default_vote_policy);
 
         let default_blank_policy = EBlankVotePolicy::default();
         let blank_policy = contest
@@ -385,7 +385,10 @@ pub fn check_voting_not_allowed_next( //
             .unwrap_or(&default_blank_policy);
 
         if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
-            let all_choices_unselected = decoded_contest.choices.iter().all(|choice| choice.selected == 0);
+            let choices_selected = decoded_contest
+                .choices
+                .iter()
+                .any(|choice| choice.selected == 0);
             let invalid_errors: Vec<InvalidPlaintextError> =
                 decoded_contest.invalid_errors.clone();
             invalid_errors.iter().any(|error| {
@@ -395,7 +398,9 @@ pub fn check_voting_not_allowed_next( //
                         | InvalidPlaintextErrorType::EncodingError
                 )
             }) || (invalid_errors.len() > 0
-                && *policy == InvalidVotePolicy::NOT_ALLOWED) || (all_choices_unselected == 0 &&  *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
+                && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
+                || (!choices_selected
+                    && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
         } else {
             false
         }
@@ -405,7 +410,8 @@ pub fn check_voting_not_allowed_next( //
 }
 
 #[wasm_bindgen]
-pub fn check_voting_error_dialog( //
+pub fn check_voting_error_dialog(
+    //
     contests: JsValue,
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
