@@ -8,6 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#macro userProfileFormFields>
 	<#assign currentGroup="">
+	<#assign readonlyElements = []>
 	
 	<#list profile.attributes as attribute>
 
@@ -65,6 +66,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<#nested "afterField" attribute>
 	</#list>
+
+	<script>
+	<#list readonlyElements as id>
+		document.getElementById("${id}").readOnly = true;
+	</#list>
+	</script>
 
 	<#list profile.html5DataAnnotations?keys as key>
 		<script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
@@ -195,9 +202,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				aria-invalid="<#if messagesPerField.existsError('${attribute.name}')>true</#if>"
 				<#if attribute.readOnly>disabled</#if>
 				<#if attribute.values?seq_contains(option)>checked</#if>
+				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
 			/>
 			<label for="${attribute.name}-${option}" class="${classLabel}<#if attribute.readOnly> ${properties.kcInputClassRadioCheckboxLabelDisabled!}</#if>"><@selectOptionLabelText attribute=attribute option=option/></label>
 		</div>
+		<#if attribute.annotations.disableAttribute??>
+		<#assign readonlyElements += ["${option}"]>
+		</#if>
 	</#list>
 </#macro>
 

@@ -132,5 +132,15 @@ SPDX-License-Identifier: AGPL-3.0-only
                 });
             });
         </script>
+
+        <#--  Disable field function. Turns inputs into read only. Add a disableAttribute annotation to a select or multiselect user profile attribute. -->
+        <script>
+            function readOnlyElementById(e, idToSetReadOnly) {
+                e = e || window.event;
+                var target = e.target || e.srcElement;
+
+                document.getElementById(idToSetReadOnly).readOnly = !target.checked;
+            }
+        </script>
     </#if>
 </@layout.registrationLayout>
