@@ -19,7 +19,7 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
         {...props}
         sx={{
-            "& .MuiPaper-root": {
+            "& .MuiPaper-root.RaSidebar-paper, & .MuiPaper-root.MuiAppBar-root": {
                 top: "0",
                 position: "sticky",
                 zIndex: 100,

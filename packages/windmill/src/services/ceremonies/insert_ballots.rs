@@ -1,14 +1,16 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::hasura::election::get_all_elections_for_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::hasura::trustee::get_trustees_by_name;
-use crate::services::cast_votes::find_area_ballots;
+use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::ceremonies::insert_ballots::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::services::date::ISO8601;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id;
@@ -16,10 +18,12 @@ use anyhow::{anyhow, Context, Result};
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::BatchNumber;
 use board_messages::braid::newtypes::TrusteeSet;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::HashableBallot;
+use sequent_core::ballot::{ElectionPresentation, HashableBallot};
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::keycloak::get_event_realm;
+use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
@@ -44,7 +48,7 @@ pub async fn insert_ballots_messages(
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
-    // 4. create trustees keys from input strings
+    // get trustees keys from input strings
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
@@ -92,21 +96,41 @@ pub async fn insert_ballots_messages(
         )
         .await?;
 
+        /*
+        let elections_end_dates =
+            get_elections_end_dates(auth_headers, tenant_id, election_event_id)
+                .await
+                .with_context(|| "error getting elections' end_date")?;
+        */
+
         let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
             .iter()
             .filter(|ballot| {
                 let Some(voter_id) = ballot.voter_id_string.clone() else {
                     return false;
                 };
-                users_map.contains(&voter_id)
+
+                let Some(election_id) = ballot.election_id.clone() else {
+                    return false;
+                };
+
+                let Some(ballot_created_at) = ballot.created_at else {
+                    return false;
+                };
+
+                /*let valid = match elections_end_dates.get(&election_id) {
+                    Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
+                    _ => true,
+                };*/
+                let valid = true;
+
+                users_map.contains(&voter_id) && valid
             })
             .map(|ballot| -> Result<Option<Ciphertext<RistrettoCtx>>> {
                 Ok(ballot
                     .content
                     .clone()
                     .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
-
                         let hashable_ballot: HashableBallot = serde_json::from_str(&ballot_str)?;
                         let contests = hashable_ballot
                             .deserialize_contests()
@@ -124,6 +148,12 @@ pub async fn insert_ballots_messages(
             .filter_map(|ballot_opt| ballot_opt.clone())
             .collect();
 
+        event!(
+            Level::INFO,
+            "insertable_ballots len: {:?}",
+            ballots_list.len()
+        );
+
         let batch = tally_session_contest.session_id.clone() as BatchNumber;
         add_ballots_to_board(
             &protocol_manager,
@@ -139,4 +169,105 @@ pub async fn insert_ballots_messages(
         .await?;
     }
     Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub async fn get_elections_end_dates(
+    auth_headers: &AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
+    // TODO: use ballot publications instead?
+    let elections_dates: HashMap<String, Option<DateTime<_>>> = get_all_elections_for_event(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+    )
+    .await?
+    .data
+    .expect("expected data")
+    .sequent_backend_election
+    .into_iter()
+    .map(|election| {
+        let election_presentation: ElectionPresentation = election
+            .presentation
+            .clone()
+            .map(|presentation| serde_json::from_value(presentation))
+            .transpose()
+            .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
+            .unwrap_or(Default::default());
+        let current_dates = election_presentation
+            .dates
+            .clone()
+            .unwrap_or(Default::default());
+        let end_date = current_dates
+            .end_date
+            .clone()
+            .map(|val| ISO8601::to_date_utc(&val).ok())
+            .flatten();
+        Ok((election.id, end_date))
+    })
+    .collect::<Result<HashMap<_, _>>>()
+    .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
+    Ok(elections_dates)
+}
+
+#[instrument(skip_all, err, ret)]
+pub async fn count_auditable_ballots(
+    elections_end_dates: &HashMap<String, Option<DateTime<Utc>>>,
+    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    contest_id: &str,
+    area_id: &str,
+) -> Result<usize> {
+    event!(
+        Level::INFO,
+        "Counting Auditable Ballots for election {election_id}, contest {contest_id} area {area_id}"
+    );
+
+    let realm = get_event_realm(tenant_id, election_event_id);
+    let ballots_list =
+        find_area_ballots(hasura_transaction, tenant_id, election_event_id, area_id).await?;
+
+    event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
+
+    let users_map =
+        list_keycloak_enabled_users_by_area_id(keycloak_transaction, &realm, area_id).await?;
+
+    /*
+    let elections_end_dates = get_elections_end_dates(auth_headers, tenant_id, election_event_id)
+        .await
+        .with_context(|| "error getting elections' end_date")?;
+    */
+
+    let auditable_ballots: Vec<&CastVote> = ballots_list
+        .iter()
+        .filter(|ballot| {
+            let Some(voter_id) = ballot.voter_id_string.clone() else {
+                return true;
+            };
+
+            let Some(election_id) = ballot.election_id.clone() else {
+                return true;
+            };
+
+            let Some(ballot_created_at) = ballot.created_at else {
+                return true;
+            };
+            /*
+            let valid = match elections_end_dates.get(&election_id) {
+                Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
+                _ => true,
+            };
+            */
+            let valid: bool = true;
+
+            !users_map.contains(&voter_id) || !valid
+        })
+        .collect();
+    Ok(auditable_ballots.len())
 }

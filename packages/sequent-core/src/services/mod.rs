@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#[cfg(feature = "reports")]
+#[cfg(feature = "areas")]
 pub mod area_tree;
 #[cfg(feature = "keycloak")]
 pub mod connection;
@@ -18,6 +18,7 @@ pub mod probe;
 pub mod reports;
 
 pub mod error_checker;
+pub mod generate_urls;
 
 #[cfg(feature = "keycloak")]
 pub mod replace_uuids;
