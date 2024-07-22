@@ -29,6 +29,8 @@ enum Commands {
     CreateCandidate(commands::create_candidate::CreateCandidate),
     CreateArea(commands::create_area::CreateArea),
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
+    CreateVoter(commands::create_voter::CreateVoter),
+    UpdateVoter(commands::update_voter::UpdateVoter),
     UpdateElectionEventStatus(commands::update_election_event_status::UpdateElectionEventStatus),
     UpdateElectionStatus(commands::update_election_status::UpdateElectionStatus),
     ImportElection(commands::import_election_event::ImportElectionEventFile),
@@ -49,5 +51,7 @@ fn main() {
         Commands::UpdateElectionEventStatus(update_event) => update_event.run(),
         Commands::UpdateElectionStatus(update_election) => update_election.run(),
         Commands::ImportElection(import) => import.run(),
+        Commands::CreateVoter(create_voter) => create_voter.run(),
+        Commands::UpdateVoter(update_voter) => update_voter.run(),
     }
 }

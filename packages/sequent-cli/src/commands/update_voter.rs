@@ -7,15 +7,20 @@ use crate::{
     utils::{keycloak::read_token, read_config::read_config},
 };
 use clap::Args;
-use create_user::KeycloakUser2;
+use edit_user::EditUsersInput;
 use graphql_client::{GraphQLQuery, Response};
+use serde_json::json;
 
 #[derive(Args)]
-#[command(about = "Create a new voter", long_about = None)]
-pub struct CreateVoter {
+#[command(about = "Edit a voter", long_about = None)]
+pub struct UpdateVoter {
     /// Election event id - the election event to be associated with
     #[arg(long)]
     election_event_id: String,
+
+    /// User Id
+    #[arg(long)]
+    user_id: String,
 
     /// User first name
     #[arg(long, default_value = "")]
@@ -30,52 +35,76 @@ pub struct CreateVoter {
     username: String,
 
     /// User Email
-    #[arg(long)]
+    #[arg(long, default_value = "")]
     email: String,
+
+    /// User Password
+    #[arg(long, default_value = "")]
+    password: String,
+
+    /// Area id - area associated to user
+    #[arg(long, default_value = "")]
+    area_id: String,
+
+    /// mobile - user mobile_number
+    #[arg(long, default_value = "")]
+    mobile: String,
 }
 
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/create_user.graphql",
+    query_path = "src/graphql/edit_user.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-pub struct CreateUser;
+pub struct EditUser;
 
-impl CreateVoter {
+impl UpdateVoter {
     pub fn run(&self) {
-        match create_voter(
+        match edit_voter(
             &self.election_event_id,
+            &self.user_id,
             &self.first_name,
             &self.last_name,
             &self.username,
             &self.email,
+            &self.password,
+            &self.area_id,
+            &self.mobile,
         ) {
             Ok(id) => {
-                println!("Voter created successfully! ID: {}", id);
+                println!("Voter updated successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create voter: {}", err)
+                eprintln!("Failed to update voter: {}", err)
             }
         }
     }
 }
 
-fn create_voter(
+fn edit_voter(
     election_event_id: &str,
+    user_id: &str,
     first_name: &str,
     last_name: &str,
     username: &str,
     email: &str,
+    password: &str,
+    area_id: &str,
+    mobile: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     // let auth = read_token()?;
     let client = reqwest::blocking::Client::new();
-
-    let variables = create_user::Variables {
-        tenant_id: config.tenant_id.clone(),
-        election_event_id: Some(election_event_id.to_string()),
-        user: KeycloakUser2 {
+    let variables = edit_user::Variables {
+        body: EditUsersInput {
+            tenant_id: config.tenant_id.clone(),
+            user_id: user_id.to_string(),
+            password: if password.is_empty() {
+                None
+            } else {
+                Some(password.to_string())
+            },
             first_name: if first_name.is_empty() {
                 None
             } else {
@@ -86,21 +115,28 @@ fn create_voter(
             } else {
                 Some(last_name.to_string())
             },
-            attributes: None,
-            email: Some(email.to_string()),
+            attributes: Some(json!({
+                    "area-id": if area_id.is_empty() { None } else { Some(area_id.to_string()) },
+                    "sequent.read-only.mobile-number":
+                    if mobile.is_empty() { None } else { Some(mobile.to_string()) },
+            })),
+            email: if email.is_empty() {
+                None
+            } else {
+                Some(email.to_string())
+            },
             username: if username.is_empty() {
                 None
             } else {
                 Some(username.to_string())
             },
-            email_verified: None,
             enabled: Some(true),
             groups: None,
-            id: None,
+            election_event_id: Some(election_event_id.to_string()),
         },
     };
 
-    let request_body = CreateUser::build_query(variables);
+    let request_body = EditUser::build_query(variables);
 
     let response = client
         .post(&config.endpoint_url)
@@ -109,9 +145,9 @@ fn create_voter(
         .send()?;
 
     if response.status().is_success() {
-        let response_body: Response<create_user::ResponseData> = response.json()?;
+        let response_body: Response<edit_user::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            let user_data = data.create_user;
+            let user_data = data.edit_user;
             if let Some(id) = user_data.id {
                 Ok(id)
             } else {
