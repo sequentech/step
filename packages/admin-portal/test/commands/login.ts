@@ -1,6 +1,13 @@
-import {admin_portal_password, admin_portal_username, testUrl} from ".."
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-exports.command = function (username = admin_portal_username, password = admin_portal_password) {
+import {admin_portal_password, admin_portal_username, NightWatchLogin, testUrl} from ".."
+
+exports.command = function (
+    username = admin_portal_username,
+    password = admin_portal_password
+): NightWatchLogin {
     this.username = "input[name=username]"
     this.password = "input[name=password]"
     this.submitButton = "*[type=submit]"

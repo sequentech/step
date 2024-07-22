@@ -1,13 +1,10 @@
-exports.command = async function (
-    el:
-        | string
-        | {
-              hoverElement: string
-              clickElement: string
-          }
-) {
-    console.log({el})
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
+import {NightWatchHoverAndClick} from ".."
+
+exports.command = async function (el: NightWatchHoverAndClick) {
     // if el is an object
     if (typeof el === "object") {
         // then it contains an element to hover and one to click

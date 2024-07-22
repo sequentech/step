@@ -1,22 +1,15 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-const createElectionEvent = require("../commands/createElectionEvent")
-const deleteElectionEvent = require("../commands/deleteElectionEvent")
+import {NightwatchAPI} from "nightwatch"
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {createElectionEvent} from "../commands/election-event/create"
+import {deleteElectionEvent} from "../commands/election-event/delete"
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("publish tests", function () {
+    before(function (browser) {
         browser.login()
 
         // create election event
@@ -26,7 +19,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
         createElectionEvent.createCandidates(browser)
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         //delete election event
         deleteElectionEvent.deleteCandidates(browser)
         deleteElectionEvent.deleteContest(browser)
@@ -40,7 +33,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     it("create a publish", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -72,7 +65,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     it("publish view can go back", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -105,7 +98,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     it("publish can start election", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -139,7 +132,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     it("publish can pause election", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -176,7 +169,7 @@ describe("publish tests", function (this: ExtendDescribeThis<LoginThis>) {
     it("publish can stop election", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 

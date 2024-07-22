@@ -1,67 +1,100 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {NightwatchAPI} from "nightwatch"
 import {candidateLink, contestLink, electionEventLink, electionLink} from "../.."
-import { createElectionEvent } from "./create"
+import {createElectionEvent} from "./create"
 
 export const deleteElectionEvent = {
-    deleteElectionEvent: (browser) => {
+    deleteElectionEvent: (browser: NightwatchAPI) => {
         // delete election event
-        // browser.hoverAndClick(`a[title='${createElectionEvent.config.electionEventName}'] + div.menu-actions-${electionEventLink!}`)
         browser.hoverAndClick({
-            hoverElement: `a[title='${createElectionEvent.config.electionEventName}']`,
+            hoverElement: `a[title='${createElectionEvent.config.electionEvent.name}']`,
             clickElement: `a[title='${
-                createElectionEvent.config.electionEventName
+                createElectionEvent.config.electionEvent.name
             }'] + div.menu-actions-${electionEventLink!}`,
         })
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${electionEventLink!}`).click()
+        browser.assert
+            .visible(`li.menu-action-delete-${electionEventLink!}`)
+            .element(`li.menu-action-delete-${electionEventLink!}`)
+            .click()
         browser.element(`button.ok-button`).click()
-        browser.pause(200)
     },
-    deleteElection: (browser) => {
+    deleteElection: (browser: NightwatchAPI) => {
         // delete election
         browser.hoverAndClick(
             `a[title='${
-                createElectionEvent.config.electionName
+                createElectionEvent.config.election.name
             }'] + div.menu-actions-${electionLink!}`
         )
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${electionLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
-    },
-    deleteContest: (browser) => {
-        // delete contest
-        browser.hoverAndClick(
+        browser.assert
+            .visible(`li.menu-action-delete-${electionLink!}`)
+            .click(`li.menu-action-delete-${electionLink!}`)
+        browser.assert.enabled(`button.ok-button`).click(`button.ok-button`)
+        browser.assert.not.visible(
             `a[title='${
-                createElectionEvent.config.contestName
+                createElectionEvent.config.election.name
+            }'] + div.menu-actions-${electionLink!}`
+        )
+    },
+    deleteContest: (browser: NightwatchAPI) => {
+        // delete contest
+        browser.hoverAndClick({
+            hoverElement: `a[title='${createElectionEvent.config.contest.name}']`,
+            clickElement: `a[title='${
+                createElectionEvent.config.contest.name
+            }'] + div.menu-actions-${contestLink!}`,
+        })
+        browser.assert
+            .visible(`li.menu-action-delete-${contestLink!}`)
+            .element(`li.menu-action-delete-${contestLink!}`)
+            .click()
+        browser.assert.enabled(`button.ok-button`).element(`button.ok-button`).click()
+        browser.assert.not.visible(
+            `a[title='${
+                createElectionEvent.config.contest.name
             }'] + div.menu-actions-${contestLink!}`
         )
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${contestLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
     },
-    deleteCandidates: async (browser) => {
+    deleteCandidates: (browser: NightwatchAPI) => {
         // delete candidate two
-        browser.hoverAndClick(
+        browser.hoverAndClick({
+            hoverElement: `a[title='${createElectionEvent.config.candidate2.name}']`,
+            clickElement: `a[title='${
+                createElectionEvent.config.candidate2.name
+            }'] + div.menu-actions-${candidateLink!}`,
+        })
+        browser.assert
+            .visible(`li.menu-action-delete-${candidateLink!}`)
+            .element(`li.menu-action-delete-${candidateLink!}`)
+            .click()
+        browser.assert
+            .visible(`button.ok-button`)
+            .assert.enabled(`button.ok-button`)
+            .click(`button.ok-button`)
+        browser.assert.not.visible(
             `a[title='${
-                createElectionEvent.config.candidate2Name
+                createElectionEvent.config.candidate2.name
             }'] + div.menu-actions-${candidateLink!}`
         )
-        browser.pause(200)
-        browser.element(`li.menu-action-delete-${candidateLink!}`).click()
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
 
         // delete candidate one
-        browser.hoverAndClick(
+        browser.hoverAndClick({
+            hoverElement: `a[title='${createElectionEvent.config.candidate1.name}']`,
+            clickElement: `a[title='${
+                createElectionEvent.config.candidate1.name
+            }'] + div.menu-actions-${candidateLink!}`,
+        })
+        browser.assert
+            .visible(`li.menu-action-delete-${candidateLink!}`)
+            .element(`li.menu-action-delete-${candidateLink!}`)
+            .click()
+        browser.assert.visible(`button.ok-button`).click(`button.ok-button`)
+        browser.assert.not.visible(
             `a[title='${
-                createElectionEvent.config.candidate1Name
+                createElectionEvent.config.candidate1.name
             }'] + div.menu-actions-${candidateLink!}`
         )
-
-        browser.element(`li.menu-action-delete-${candidateLink!}`).click()
-        browser.pause(200)
-        browser.element(`button.ok-button`).click()
-        browser.pause(200)
     },
 }

@@ -1,22 +1,14 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
-import {electionEventLink} from ".."
-import { createElectionEvent } from "../commands/election-event/create"
-import { deleteElectionEvent } from "../commands/election-event/delete"
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {NightwatchAPI} from "nightwatch"
+import {createElectionEvent} from "../commands/election-event/create"
+import {deleteElectionEvent} from "../commands/election-event/delete"
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("keys tests", function () {
+    before(function (browser) {
         // login
         browser.login()
 
@@ -27,22 +19,20 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
         createElectionEvent.createCandidates(browser)
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         //delete election event
         deleteElectionEvent.deleteCandidates(browser)
         deleteElectionEvent.deleteContest(browser)
         deleteElectionEvent.deleteElection(browser)
         deleteElectionEvent.deleteElectionEvent(browser)
-
         // Logout
         browser.logout()
     })
 
     it("has list of keys", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
-        // browser.debug()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -55,17 +45,8 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    //there are no keys so gracefully exit
-                } else {
+                if (!result.value) {
                     browser.assert.visible(".keys-view-admin-icon").click(".keys-view-admin-icon")
-                    // browser.waitUntil(async () => {
-                    //     const status = await browser
-                    //         .element(".keys-ceremony-status > span")
-                    //         .getText()
-                    //     return status.includes("NOT_STARTED")
-                    // })
-                    // browser.assert.textContains(".keys-ceremony-status > span", "NOT_STARTED")
                     browser.waitUntil(async () => {
                         const status = await browser
                             .element(".keys-ceremony-status > span")

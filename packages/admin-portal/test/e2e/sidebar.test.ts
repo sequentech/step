@@ -1,44 +1,27 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {NightwatchAPI} from "nightwatch"
+import {contestLink, electionEventLink, electionLink} from ".."
 
-// eslint-disable-next-line jest/valid-describe-callback
-describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("sidebar tests", function () {
+    before(function (browser) {
         browser.login()
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         // Logout
         browser.logout()
     })
 
     it("click on an election event", async (browser: NightwatchAPI) => {
-        // const resultElement = await browser.element.findAll(
-        //     `a.menu-item-${this.electionEventLink!}`
-        // )
-        // resultElement[resultElement.length - 1].click()
-
-        // opens ee menu
-        browser.assert
-            .visible("a.menu-item-active")
-            .click(`div.menu-item-toggle-${this.electionEventLink}:has(+ a.menu-item-active)`)
-
         // checks if has election menu
         // case yes opens election menu
         // case no asserts create election is visible
         browser.isPresent(
             {
-                selector: `a.menu-item-${this.electionLink}`,
+                selector: `a.menu-item-${electionLink}`,
                 supressNotFoundErrors: true,
                 timeout: 1000,
             },
@@ -46,9 +29,9 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     // opens election menu
                     browser.assert
-                        .visible(`a.menu-item-${this.electionLink}`)
+                        .visible(`a.menu-item-${electionLink}`)
                         .click(
-                            `div.menu-item-toggle-${this.electionLink}:has(+ a.menu-item-${this.electionLink})`
+                            `div.menu-item-toggle-${electionLink}:has(+ a.menu-item-${electionLink})`
                         )
 
                     // checks if has contest menu
@@ -56,7 +39,7 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
                     // case no asserts create contest is visible
                     browser.isPresent(
                         {
-                            selector: `a.menu-item-${this.contestLink}`,
+                            selector: `a.menu-item-${contestLink}`,
                             supressNotFoundErrors: true,
                             timeout: 1000,
                         },
@@ -64,45 +47,45 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
                             if (result.value) {
                                 // opens contest menu
                                 browser.assert
-                                    .visible(`a.menu-item-${this.contestLink}`)
+                                    .visible(`a.menu-item-${contestLink}`)
                                     .click(
-                                        `div.menu-item-toggle-${this.contestLink}:has(+ a.menu-item-${this.electionLink})`
+                                        `div.menu-item-toggle-${contestLink}:has(+ a.menu-item-${electionLink})`
                                     )
                             } else {
                                 // check has new
-                                browser.assert.visible(`a.${this.contestLink!}`)
+                                browser.assert.visible(`a.${contestLink!}`)
                             }
                         }
                     )
 
                     // closes election menu
                     browser.assert
-                        .visible(`a.menu-item-${this.electionLink}`)
+                        .visible(`a.menu-item-${electionLink}`)
                         .click(
-                            `div.menu-item-toggle-${this.electionLink}:has(+ a.menu-item-${this.electionLink})`
+                            `div.menu-item-toggle-${electionLink}:has(+ a.menu-item-${electionLink})`
                         )
 
                     // closes ee menu
                     browser.assert
                         .visible("a.menu-item-active")
                         .click(
-                            `div.menu-item-toggle-${this.electionEventLink}:has(+ a.menu-item-active)`
+                            `div.menu-item-toggle-${electionEventLink}:has(+ a.menu-item-active)`
                         )
                 } else {
-                    browser.assert.visible(`a.${this.electionLink!}`)
-                    // .click(`a.${this.electionLink!}`)
+                    browser.assert.visible(`a.${electionLink!}`)
+                    // .click(`a.${electionLink!}`)
                     browser.assert
                         .visible("a.menu-item-active")
                         .click(
-                            `div.menu-item-toggle-${this.electionEventLink}:has(+ a.menu-item-active)`
+                            `div.menu-item-toggle-${electionEventLink}:has(+ a.menu-item-active)`
                         )
                 }
             }
         )
 
         browser.pause(2000)
-        // .visible(`a.${this.electionLink!}`)
-        // .click(`a.${this.electionLink!}`)
+        // .visible(`a.${electionLink!}`)
+        // .click(`a.${electionLink!}`)
 
         // await browser.debug()
     })
@@ -110,8 +93,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     // it("create an election", async (browser: NightwatchAPI) => {
     //     browser.assert.urlContains("sequent_backend_election_event")
     //     browser.assert
-    //         .visible(`a.${this.electionLink!}`)
-    //         .click(`a.${this.electionLink!}`)
+    //         .visible(`a.${electionLink!}`)
+    //         .click(`a.${electionLink!}`)
     //         .assert.visible("input[name=name]")
     //         .sendKeys("input[name=name]", "this is a test election name")
     //         .assert.visible("input[name=description]")
@@ -125,8 +108,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     // it("create a contest", async (browser: NightwatchAPI) => {
     //     browser.assert.urlContains("sequent_backend_election")
     //     browser.assert
-    //         .visible(`a.${this.contestLink!}`)
-    //         .click(`a.${this.contestLink!}`)
+    //         .visible(`a.${contestLink!}`)
+    //         .click(`a.${contestLink!}`)
     //         .assert.visible("input[name=name]")
     //         .sendKeys("input[name=name]", "this is a test contest name")
     //         .assert.visible("input[name=description]")
@@ -140,8 +123,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     // it("create a candidate one", async (browser: NightwatchAPI) => {
     //     browser.assert.urlContains("sequent_backend_contest")
     //     browser.assert
-    //         .visible(`a.${this.candidateLink!}`)
-    //         .click(`a.${this.candidateLink!}`)
+    //         .visible(`a.${candidateLink!}`)
+    //         .click(`a.${candidateLink!}`)
     //         .assert.visible("input[name=name]")
     //         .sendKeys("input[name=name]", "this is candidate one name")
     //         .assert.visible("input[name=description]")
@@ -155,8 +138,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     // it("create a candidate two", async (browser: NightwatchAPI) => {
     //     browser.assert.urlContains("sequent_backend_candidate")
     //     browser.assert
-    //         .visible(`a.${this.candidateLink!}`)
-    //         .click(`a.${this.candidateLink!}`)
+    //         .visible(`a.${candidateLink!}`)
+    //         .click(`a.${candidateLink!}`)
     //         .assert.visible("input[name=name]")
     //         .sendKeys("input[name=name]", "this is candidate two name")
     //         .assert.visible("input[name=description]")
@@ -170,8 +153,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     // it("create a new area", async (browser: NightwatchAPI) => {
     //     browser.assert.urlContains("sequent_backend_candidate")
     //     browser.assert
-    //         .visible(`a.${this.candidateLink!}`)
-    //         .click(`a.${this.candidateLink!}`)
+    //         .visible(`a.${candidateLink!}`)
+    //         .click(`a.${candidateLink!}`)
     //         .assert.visible("input[name=name]")
     //         .sendKeys("input[name=name]", "this is candidate two name")
     //         .assert.visible("input[name=description]")
@@ -186,13 +169,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     //     // browser.debug()
     //     const menu = await browser
     //         .element(
-    //             `a[title='this is candidate one name'] + div.menu-actions-${this.candidateLink!}`
+    //             `a[title='this is candidate one name'] + div.menu-actions-${candidateLink!}`
     //         )
     //         .moveTo()
     //     browser.click(menu)
     //     browser.assert
-    //         .visible(`li.menu-action-delete-${this.candidateLink!}`)
-    //         .click(`li.menu-action-delete-${this.candidateLink!}`)
+    //         .visible(`li.menu-action-delete-${candidateLink!}`)
+    //         .click(`li.menu-action-delete-${candidateLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
     //         .pause(1000)
@@ -202,13 +185,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     //     // browser.debug()
     //     const menu = await browser
     //         .element(
-    //             `a[title='this is candidate two name'] + div.menu-actions-${this.candidateLink!}`
+    //             `a[title='this is candidate two name'] + div.menu-actions-${candidateLink!}`
     //         )
     //         .moveTo()
     //     browser.click(menu)
     //     browser.assert
-    //         .visible(`li.menu-action-delete-${this.candidateLink!}`)
-    //         .click(`li.menu-action-delete-${this.candidateLink!}`)
+    //         .visible(`li.menu-action-delete-${candidateLink!}`)
+    //         .click(`li.menu-action-delete-${candidateLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
     //         .pause(1000)
@@ -218,13 +201,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     //     // browser.debug()
     //     const menu = await browser
     //         .element(
-    //             `a[title='this is a test contest name'] + div.menu-actions-${this.contestLink!}`
+    //             `a[title='this is a test contest name'] + div.menu-actions-${contestLink!}`
     //         )
     //         .moveTo()
     //     browser.click(menu)
     //     browser.assert
-    //         .visible(`li.menu-action-delete-${this.contestLink!}`)
-    //         .click(`li.menu-action-delete-${this.contestLink!}`)
+    //         .visible(`li.menu-action-delete-${contestLink!}`)
+    //         .click(`li.menu-action-delete-${contestLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
     //         .pause(1000)
@@ -234,13 +217,13 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     //     // browser.debug()
     //     const menu = await browser
     //         .element(
-    //             `a[title='this is a test election name'] + div.menu-actions-${this.electionLink!}`
+    //             `a[title='this is a test election name'] + div.menu-actions-${electionLink!}`
     //         )
     //         .moveTo()
     //     browser.click(menu)
     //     browser.assert
-    //         .visible(`li.menu-action-delete-${this.electionLink!}`)
-    //         .click(`li.menu-action-delete-${this.electionLink!}`)
+    //         .visible(`li.menu-action-delete-${electionLink!}`)
+    //         .click(`li.menu-action-delete-${electionLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
     //         .pause(1000)
@@ -256,8 +239,8 @@ describe("sidebar tests", function (this: ExtendDescribeThis<LoginThis>) {
     //         .moveTo()
     //     browser.click(menu)
     //     browser.assert
-    //         .visible(`li.menu-action-delete-${this.electionEventLink!}`)
-    //         .click(`li.menu-action-delete-${this.electionEventLink!}`)
+    //         .visible(`li.menu-action-delete-${electionEventLink!}`)
+    //         .click(`li.menu-action-delete-${electionEventLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
     //         .pause(1000)

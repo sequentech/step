@@ -1,23 +1,15 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
-import {voterDetails} from ".."
-import {assertListItemText} from "../commands/assertListItemText"
-import { createElectionEvent } from "../commands/election-event/create"
-import { deleteElectionEvent } from "../commands/election-event/delete"
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {NightwatchAPI} from "nightwatch"
+import {voterDetails} from ".."
+import {createElectionEvent} from "../commands/election-event/create"
+import {deleteElectionEvent} from "../commands/election-event/delete"
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("voters tests", function () {
+    before(function (browser) {
         browser.login()
 
         // create election event
@@ -27,7 +19,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
         createElectionEvent.createCandidates(browser)
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         //delete election event
         deleteElectionEvent.deleteCandidates(browser)
         deleteElectionEvent.deleteContest(browser)
@@ -40,7 +32,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("create a voter", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -71,51 +63,31 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                     .pause(1000)
                 // .debug()
 
-                // const fnameEl = await browser.element.findAll(
-                // 	"span.first_name"
-                // )
-                // const lnameEl = await browser.element.findAll(
-                // 	"span.last_name"
-                // )
-                // const emailEl = await browser.element.findAll(
-                // 	"span.email"
-                // )
-                // const usernameEl = await browser.element.findAll(
-                // 	"span.username"
-                // )
-                // browser.assert.textContains(fnameEl[fnameEl.length - 1], voterDetails.firstName)
-                // 	.assert.textContains(lnameEl[lnameEl.length - 1], voterDetails.lastName)
-                // 	.assert.textContains(emailEl[emailEl.length - 1], voterDetails.email)
-                // 	.assert.textContains(usernameEl[usernameEl.length - 1], voterDetails.email)
-                Promise.all([
-                    assertListItemText({
-                        el: "span.first_name",
-                        text: voterDetails.firstName,
-                        browser,
-                    }),
-                    assertListItemText({
-                        el: "span.last_name",
-                        text: voterDetails.lastName,
-                        browser,
-                    }),
-                    assertListItemText({
-                        el: "span.email",
-                        text: voterDetails.email,
-                        browser,
-                    }),
-                    assertListItemText({
-                        el: "span.username",
-                        text: voterDetails.email,
-                        browser,
-                    }),
-                ])
+                browser.useXpath()
+
+                //assert voter created with proper details
+                browser.assert.visible(
+                    `//span[contains(@class, 'first_name') and text()='${voterDetails.firstName}']`
+                )
+                browser.assert.visible(
+                    `//span[contains(@class, 'last_name') and text()='${voterDetails.lastName}']`
+                )
+                browser.assert.visible(
+                    `//span[contains(@class, 'email') and text()='${voterDetails.email}']`
+                )
+                //voter details is for some reason
+                browser.assert.visible(
+                    `//span[contains(@class, 'username') and text()='${voterDetails.email}']`
+                )
+
+                browser.useCss()
             }
         )
     })
 
     it("edit a voter to set password", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -139,11 +111,12 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                         .click("button[type=submit]")
                         .pause(200)
 
-                    await assertListItemText({
-                        el: "span.first_name",
-                        text: voterDetails.firstName,
-                        browser,
-                    })
+                    browser
+                        .useXpath()
+                        .assert.visible(
+                            `//span[contains(@class, 'first_name') and text()='${voterDetails.firstName}']`
+                        )
+                        .useCss()
                 }
             }
         )
@@ -171,17 +144,18 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                     .click("button[type=submit]")
                     .pause(200)
 
-                await assertListItemText({
-                    el: "span.area-name",
-                    text: "this is an area name",
-                    browser,
-                })
+                browser
+                    .useXpath()
+                    .assert.visible(
+                        `//span[contains(@class, 'area-name') and text()='this is an area name']`
+                    )
+                    .useCss()
             }
         )
 
         // activate voters tab
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -206,13 +180,12 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                         .click("button[type=submit]")
                         .pause(200)
 
-                    await assertListItemText({
-                        el: "span.first_name",
-                        text: voterDetails.firstName,
-                        browser,
-                    })
-
-                    // .assert.textContains("span.first_name", voterDetails.firstName)
+                    browser
+                        .useXpath()
+                        .assert.visible(
+                            `//span[contains(@class, 'first_name') and text()='${voterDetails.firstName}']`
+                        )
+                        .useCss()
                 }
             }
         )
@@ -243,7 +216,7 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("delete a voter", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -259,21 +232,25 @@ describe("voters tests", function (this: ExtendDescribeThis<LoginThis>) {
                 if (result.value) {
                     browser.end()
                 } else {
+                    browser.useXpath()
                     browser.assert
                         .visible(
-                            // `//tr[td/span[contains(@class, 'first_name') and text()=]]/td/button[contains(@class, 'delete-voter-icon')]`
-							`//span[normalize-space()=${voterDetails.firstName}]/../../td/button[3]`
+                            //due to how the markup has been built, we need to select the delete action button by index. There are four action buttons that can be selected in this instance with delete being the 3rd one and hence [3]
+                            `//span[normalize-space()='${voterDetails.firstName}']/../../td/button[3]`
                         )
                         .click(
-							`//span[normalize-space()=${voterDetails.firstName}]/../../td/button[3]`
+                            `//span[normalize-space()='${voterDetails.firstName}']/../../td/button[3]`
                         )
+                    browser.useCss()
                     browser.assert
                         .enabled(`button.ok-button`)
                         .click("button.ok-button")
                         .pause(1000)
+                        .useXpath()
                         .assert.not.elementPresent(
-                            `//span[contains(@class, 'first_name') and text()=${voterDetails.firstName}]`
+                            `//span[contains(@class, 'first_name') and text()='${voterDetails.firstName}']`
                         )
+                        .useCss()
                 }
             }
         )

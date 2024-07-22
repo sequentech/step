@@ -1,42 +1,25 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
-const createElectionEvent = require("../commands/createElectionEvent")
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {NightwatchAPI} from "nightwatch"
+import {createElectionEvent} from "../commands/election-event/create"
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) {
-    this.testUrl = "http://127.0.0.1:3002"
-    this.username = "input[name=username]"
-    this.password = "input[name=password]"
-    this.submitButton = "*[type=submit]"
-
-    this.electionEventLink = "sequent_backend_election_event"
-    this.electionLink = "sequent_backend_election"
-    this.contestLink = "sequent_backend_contest"
-    this.candidateLink = "sequent_backend_candidate"
-
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("keys trustee 1 tests", function () {
+    before(function (browser) {
         // login
         browser.login()
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         // Logout
         browser.logout()
     })
 
     it("has list of keys back button", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -49,9 +32,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    browser.end()
-                } else {
+                if (!result.value) {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
@@ -67,7 +48,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
     it("has list of keys start next button", async (browser: NightwatchAPI) => {
         await browser.window.maximize()
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -80,9 +61,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    browser.end()
-                } else {
+                if (!result.value) {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
@@ -96,7 +75,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
 
     it("has list of keys download back button", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -109,9 +88,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    browser.end()
-                } else {
+                if (!result.value) {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
@@ -131,7 +108,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
 
     it("has list of keys download button", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -144,9 +121,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    browser.end()
-                } else {
+                if (!result.value) {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
@@ -178,7 +153,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
 
     it("has list of keys check button", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -192,8 +167,6 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
             },
             (result) => {
                 if (result.value) {
-                    browser.end()
-                } else {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
@@ -217,7 +190,6 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                     browser.assert.visible(".drop-file-dropzone")
                     browser.assert
                         .visible("button.keys-check-next-button")
-                        // .click("button.keys-check-next-button")
 
                         .pause(2000)
                 }
@@ -227,7 +199,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
 
     it("has list of keys finish screen", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -240,9 +212,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    browser.end()
-                } else {
+                if (!result.value) {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")
@@ -273,9 +243,9 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
             }
         )
     })
-    it("has list of keys check button", async (browser: NightwatchAPI) => {
+    it("has list of keys check button 2", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -288,9 +258,7 @@ describe("keys trustee 1 tests", function (this: ExtendDescribeThis<LoginThis>) 
                 timeout: 1000,
             },
             (result) => {
-                if (result.value) {
-                    browser.end()
-                } else {
+                if (!result.value) {
                     browser.assert
                         .visible(".keys-view-trustee-icon")
                         .click(".keys-view-trustee-icon")

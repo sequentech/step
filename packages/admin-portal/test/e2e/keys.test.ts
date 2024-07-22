@@ -1,21 +1,14 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
-const createElectionEvent = require("../commands/createElectionEvent")
-const deleteElectionEvent = require("../commands/deleteElectionEvent")
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {NightwatchAPI} from "nightwatch"
+import {createElectionEvent} from "../commands/election-event/create"
+import {deleteElectionEvent} from "../commands/election-event/delete"
 
 // eslint-disable-next-line jest/valid-describe-callback
-describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("keys tests", function () {
+    before(function (browser) {
         browser.login()
 
         // create election event
@@ -25,7 +18,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
         createElectionEvent.createCandidates(browser)
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         //delete election event
         deleteElectionEvent.deleteCandidates(browser)
         deleteElectionEvent.deleteContest(browser)
@@ -38,7 +31,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("create a publish", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -69,7 +62,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("start new key generation", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -92,7 +85,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("start new key generation should throw error if one trustee", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -122,7 +115,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("start new key generation should continue if two trustees", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -155,7 +148,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("has list of keys", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -186,7 +179,7 @@ describe("keys tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("keys status is in process", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 

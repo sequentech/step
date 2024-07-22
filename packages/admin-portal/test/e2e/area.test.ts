@@ -1,22 +1,14 @@
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
-import {candidateLink} from ".."
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
-const createElectionEvent = require("../commands/createElectionEvent")
-const deleteElectionEvent = require("../commands/deleteElectionEvent")
+import {NightwatchAPI} from "nightwatch"
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-    electionEventLink: string
-    electionLink: string
-    contestLink: string
-    candidateLink: string
-}
+import {createElectionEvent} from "../commands/election-event/create"
+import {deleteElectionEvent} from "../commands/election-event/delete"
 
-describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
-    before(function (this: ExtendDescribeThis<LoginThis>, browser) {
+describe("areas tests", function () {
+    before(function (browser) {
         // login
         browser.login()
 
@@ -27,7 +19,7 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
         createElectionEvent.createCandidates(browser)
     })
 
-    after(async function (this: ExtendDescribeThis<LoginThis>, browser) {
+    after(async function (browser) {
         //delete election event
         deleteElectionEvent.deleteCandidates(browser)
         deleteElectionEvent.deleteContest(browser)
@@ -40,7 +32,7 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("create an area", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -70,7 +62,7 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("edit an area", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -100,7 +92,7 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("edit an area contest", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -112,14 +104,18 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
                 suppressNotFoundErrors: true,
                 timeout: 1000,
             },
-            (result) => {
+            async (result) => {
                 if (result.value) {
                     browser.end()
                 } else {
                     browser.assert.visible(".edit-area-icon").click(".edit-area-icon")
-                    browser
-                        .click(".area-contest label")
-                        .assert.enabled("button[type=submit]")
+                    browser.click("#area_contest_ids")
+
+                    const option = await browser.element.findByRole("option")
+                    option.click()
+
+                    browser.assert
+                        .enabled("button[type=submit]")
                         .click("button[type=submit]")
                         .pause(200)
                 }
@@ -129,7 +125,7 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
 
     it("edit an area contest unset contest", async (browser: NightwatchAPI) => {
         const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
+            `a[title = '${createElectionEvent.config.electionEvent.name}']`
         )
         resultElement[resultElement.length - 1].click()
 
@@ -147,7 +143,11 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
                 } else {
                     browser.assert.visible(".edit-area-icon").click(".edit-area-icon")
                     browser
-                        .click(".area-contest label")
+                        .useXpath()
+                        .click(
+                            "//div[span[text()='this is a test contest name']]//*[local-name()='svg']"
+                        )
+                        .useCss()
                         .assert.enabled("button[type=submit]")
                         .click("button[type=submit]")
                         .pause(200)
@@ -157,11 +157,6 @@ describe("areas tests", function (this: ExtendDescribeThis<LoginThis>) {
     })
 
     it("delete an area", async (browser: NightwatchAPI) => {
-        const resultElement = await browser.element.findAll(
-            `a[title = '${createElectionEvent.config.electionEventName}']`
-        )
-        resultElement[resultElement.length - 1].click()
-
         browser.assert.visible("a.election-event-area-tab").click("a.election-event-area-tab")
 
         browser.isPresent(
