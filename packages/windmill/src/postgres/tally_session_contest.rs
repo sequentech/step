@@ -108,7 +108,9 @@ pub async fn get_tally_session_highest_batch(
                     sequent_backend.tally_session_contest
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2;
+                    election_event_id = $2
+                ORDER BY session_id DESC
+                LIMIT 1;
             "#,
         )
         .await?;

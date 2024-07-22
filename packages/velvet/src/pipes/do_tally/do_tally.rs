@@ -14,7 +14,7 @@ use crate::utils::HasId;
 use sequent_core::{
     ballot::Candidate,
     services::area_tree::TreeNodeArea,
-    types::hasura::core::TallySheet,
+    types::{hasura::core::TallySheet, tally_sheets::VotingChannel},
     util::path::{get_folder_name, list_subfolders},
 };
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
@@ -25,12 +25,13 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
 pub const INPUT_TALLY_SHEET_FILE: &str = "tally-sheet.json";
+pub const OUTPUT_BREAKDOWNS_FOLDER: &str = "breakdowns";
 
 pub struct DoTally {
     pub pipe_inputs: PipeInputs,
@@ -58,6 +59,39 @@ pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
     tally_sheet_folders
 }
 
+impl DoTally {
+    #[instrument(skip_all)]
+    fn save_tally_sheets_breakdown(
+        &self,
+        tally_sheet_results: &Vec<(ContestResult, TallySheet)>,
+        base_file_path: &PathBuf,
+    ) -> Result<()> {
+        let base_breakdown_path = base_file_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let mut breakdown_map: HashMap<VotingChannel, ContestResult> = HashMap::new();
+
+        for (contest_result, tally_sheet) in tally_sheet_results {
+            let channel: VotingChannel = tally_sheet.channel.clone().into();
+
+            breakdown_map
+                .entry(channel)
+                .and_modify(|current_result| {
+                    current_result.aggregate(&contest_result, true);
+                })
+                .or_insert_with(|| contest_result.clone());
+        }
+
+        for (channel, contest_result) in breakdown_map {
+            let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
+            fs::create_dir_all(&breakdown_folder_path)?;
+            let breakdown_file_path = breakdown_folder_path.join((OUTPUT_CONTEST_RESULT_FILE));
+            let contest_result_file = fs::File::create(&breakdown_file_path)?;
+            serde_json::to_writer(contest_result_file, &contest_result)?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Pipe for DoTally {
     #[instrument(skip_all, name = "DoTally::new")]
     fn exec(&self) -> Result<()> {
@@ -80,14 +114,17 @@ impl Pipe for DoTally {
             for contest_input in &election_input.contest_list {
                 let mut contest_ballot_files = vec![];
                 let mut sum_census: u64 = 0;
+                let mut sum_auditable_votes: u64 = 0;
 
                 let areas: Vec<TreeNodeArea> = contest_input
                     .area_list
                     .iter()
                     .map(|area| (&area.area).into())
                     .collect();
+                info!("areas: {:?}", areas);
+                let all_areas = election_input.areas.clone();
 
-                let areas_tree = TreeNode::<()>::from_areas(areas).map_err(|err| {
+                let areas_tree = TreeNode::<()>::from_areas(all_areas).map_err(|err| {
                     Error::UnexpectedError(format!("Error building area tree {:?}", err))
                 })?;
                 let census_map: HashMap<String, u64> = contest_input
@@ -95,8 +132,13 @@ impl Pipe for DoTally {
                     .iter()
                     .map(|area_input| (area_input.area.id.to_string(), area_input.census))
                     .collect();
+                let auditable_votes_map: HashMap<String, u64> = contest_input
+                    .area_list
+                    .iter()
+                    .map(|area_input| (area_input.area.id.to_string(), area_input.auditable_votes))
+                    .collect();
 
-                let mut tally_sheet_results: Vec<ContestResult> = vec![];
+                let mut tally_sheet_results: Vec<(ContestResult, TallySheet)> = vec![];
 
                 for area_input in &contest_input.area_list {
                     let base_input_path = PipeInputs::build_path(
@@ -142,6 +184,12 @@ impl Pipe for DoTally {
                             .filter_map(|census| census.clone())
                             .sum();
 
+                        let auditable_votes_size: u64 = children_areas
+                            .iter()
+                            .map(|child_area| auditable_votes_map.get(&child_area.id))
+                            .filter_map(|auditable_votes: Option<&u64>| auditable_votes.clone())
+                            .sum();
+
                         let children_area_paths: Vec<PathBuf> = children_areas
                             .iter()
                             .map(|child_area| -> Result<PathBuf> {
@@ -161,6 +209,7 @@ impl Pipe for DoTally {
                             &contest_input.contest,
                             children_area_paths,
                             census_size,
+                            auditable_votes_size,
                             vec![],
                         )
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -179,6 +228,7 @@ impl Pipe for DoTally {
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
                         area_input.census,
+                        area_input.auditable_votes,
                         vec![],
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -196,6 +246,7 @@ impl Pipe for DoTally {
                     contest_ballot_files.push(decoded_ballots_file);
 
                     sum_census += area_input.census;
+                    sum_auditable_votes += area_input.auditable_votes;
 
                     // tally sheets tally
                     let input_tally_sheets_dir = PipeInputs::build_path(
@@ -232,32 +283,40 @@ impl Pipe for DoTally {
                                 fs::File::create(&output_tally_sheets_file_path)?;
                             serde_json::to_writer(contest_result_file, &contest_result)?;
 
-                            tally_sheet_results.push(contest_result);
+                            tally_sheet_results.push((contest_result, tally_sheet));
                         }
                     }
                 }
+                let mut file_path = PipeInputs::build_path(
+                    &output_dir,
+                    &contest_input.election_id,
+                    Some(&contest_input.id),
+                    None,
+                );
+
+                self.save_tally_sheets_breakdown(&tally_sheet_results, &file_path)?;
+
+                let only_sheet_results = tally_sheet_results
+                    .iter()
+                    .map(|val| val.0.clone())
+                    .collect();
 
                 // create contest tally
                 let counting_algorithm = tally::create_tally(
                     &contest_input.contest,
                     contest_ballot_files,
                     sum_census,
-                    tally_sheet_results.clone(),
+                    sum_auditable_votes,
+                    only_sheet_results,
                 )
                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                 let res = counting_algorithm
                     .tally()
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                let mut file = PipeInputs::build_path(
-                    &output_dir,
-                    &contest_input.election_id,
-                    Some(&contest_input.id),
-                    None,
-                );
-                file.push(OUTPUT_CONTEST_RESULT_FILE);
+                file_path.push(OUTPUT_CONTEST_RESULT_FILE);
 
-                let file = fs::File::create(file)?;
+                let file = fs::File::create(file_path)?;
 
                 serde_json::to_writer(file, &res)?;
             }
@@ -289,6 +348,8 @@ pub struct ContestResult {
     pub contest: Contest,
     pub census: u64,
     pub percentage_census: f64,
+    pub auditable_votes: u64,
+    pub percentage_auditable_votes: f64,
     pub total_votes: u64,
     pub percentage_total_votes: f64,
     pub total_valid_votes: u64,
@@ -326,6 +387,12 @@ impl ContestResult {
         let count_valid = self.total_valid_votes;
 
         let census_base = cmp::max(1, self.census) as f64;
+
+        // `percentage_auditable_votes` is calculated over `census_base`.
+        // Otherwise we could end up with strange percentages. Imagine a test
+        // election with 2 auditable votes and 1 valid vote. That's maybe 66%
+        // auditable votes over the census, but 200% over total votes.
+        let percentage_auditable_votes = (self.auditable_votes as f64) * 100.0 / census_base;
         let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes =
@@ -339,6 +406,7 @@ impl ContestResult {
 
         let mut contest_result = self.clone();
         contest_result.percentage_census = 100.0;
+        contest_result.percentage_auditable_votes = percentage_auditable_votes.clamp(0.0, 100.0);
         contest_result.percentage_total_votes = percentage_total_votes.clamp(0.0, 100.0);
         contest_result.percentage_total_valid_votes =
             percentage_total_valid_votes.clamp(0.0, 100.0);

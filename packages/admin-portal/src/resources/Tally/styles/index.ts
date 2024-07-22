@@ -27,3 +27,12 @@ export const NextButton = styled(Button)`
         color: ${({theme}) => theme.palette.brandColor};
     }
 `
+
+export const StyledTitle = styled.div`
+    color: rgba(0, 0, 0, 0.87);
+    font-size: 24px;
+    font-family: Roboto;
+    font-weight: 700;
+    line-height: 32.02px;
+    word-wrap: break-word;
+`

@@ -18,6 +18,7 @@ import {
     Button,
     SelectInput,
     NumberInput,
+    required,
 } from "react-admin"
 import {
     Accordion,
@@ -30,7 +31,7 @@ import {
     Typography,
 } from "@mui/material"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useTranslation} from "react-i18next"
@@ -60,6 +61,9 @@ import {DownloadDocument} from "../User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
+import {useWatch} from "react-hook-form"
+import {convertToNumber} from "@/lib/helpers"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -72,6 +76,39 @@ interface ExportWrapperProps {
     setOpenExport: (val: boolean) => void
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
+}
+
+interface ManagedNumberInputProps {
+    source: string
+    label: string
+    defaultValue: number
+    sourceToWatch: string
+}
+
+const ManagedNumberInput = ({
+    source,
+    label,
+    defaultValue,
+    sourceToWatch,
+}: ManagedNumberInputProps) => {
+    const secondsToShowCountdownSource = `presentation.voting_portal_countdown_policy.countdown_anticipation_secs`
+    const secondsToShowAlretSource = `presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`
+    const selectedPolicy = useWatch({name: sourceToWatch})
+    const isDisabled =
+        (source === secondsToShowCountdownSource &&
+            selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN) ||
+        (source === secondsToShowAlretSource &&
+            selectedPolicy !== EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT)
+
+    return (
+        <NumberInput
+            source={source}
+            disabled={isDisabled}
+            label={label}
+            defaultValue={defaultValue}
+            style={{flex: 1}}
+        />
+    )
 }
 
 const ExportWrapper: React.FC<ExportWrapperProps> = ({
@@ -163,8 +200,11 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
+    const {globalSettings} = useContext(SettingsContext)
     const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
+    const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
+    const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const notify = useNotify()
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -458,9 +498,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withFilter={false}
                     extraActions={[
                         <Button
-                            className="felix-test"
+                            className="import-candidates"
                             onClick={() => setOpenImportCandidates(true)}
-                            label="Import Candidates"
+                            label={t("electionEventScreen.edit.importCandidates")}
                             key="1"
                         >
                             <DownloadIcon />
@@ -710,6 +750,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         )}
                                         defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
                                         emptyText={undefined}
+                                        validate={required()}
                                     />
                                     <Box
                                         sx={{
@@ -720,21 +761,26 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             gap: "16px",
                                         }}
                                     >
-                                        <NumberInput
-                                            source={`presentation.voting_portal_countdown_policy.countdown_anticipation_secs`}
-                                            min={0}
+                                        <ManagedNumberInput
+                                            source={
+                                                "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
+                                            }
                                             label={t(
                                                 "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
                                             )}
-                                            style={{flex: 1}}
+                                            defaultValue={defaultSecondsForCountdown}
+                                            sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                         />
-                                        <NumberInput
-                                            source={`presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`}
-                                            min={0}
-                                            style={{flex: 1}}
+
+                                        <ManagedNumberInput
+                                            source={
+                                                "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
+                                            }
                                             label={t(
                                                 "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
                                             )}
+                                            defaultValue={defaultSecondsForAlret}
+                                            sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                         />
                                     </Box>
                                 </AccordionDetails>

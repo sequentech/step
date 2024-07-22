@@ -146,6 +146,7 @@ impl PipeInputs {
             path: path.to_path_buf(),
             census: election.census,
             total_votes: election.total_votes,
+            areas: election.areas,
         })
     }
 
@@ -185,6 +186,7 @@ impl PipeInputs {
                     election_id,
                     contest_id,
                     census: area_config.census,
+                    auditable_votes: area_config.auditable_votes,
                     path: path_area,
                     area: area_config.clone(),
                 });
@@ -222,6 +224,7 @@ pub struct InputElectionConfig {
     pub path: PathBuf,
     pub census: u64,
     pub total_votes: u64,
+    pub areas: Vec<TreeNodeArea>,
 }
 
 #[derive(Debug)]
@@ -239,6 +242,7 @@ pub struct InputAreaConfig {
     pub election_id: Uuid,
     pub contest_id: Uuid,
     pub census: u64,
+    pub auditable_votes: u64,
     pub path: PathBuf,
     pub area: AreaConfig,
 }
@@ -252,16 +256,19 @@ pub struct ElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub ballot_styles: Vec<BallotStyle>,
+    pub areas: Vec<TreeNodeArea>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaConfig {
     pub id: Uuid,
+    pub name: String,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub census: u64,
     pub parent_id: Option<Uuid>,
+    pub auditable_votes: u64,
 }
 
 impl Into<TreeNodeArea> for &AreaConfig {
