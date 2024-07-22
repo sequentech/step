@@ -34,9 +34,7 @@ public class AwsSesEmailSenderProviderTest {
 
     @BeforeEach
     public void setUp() {
-        MockitoAnnotations.openMocks(this);
-        // Reinitialize emailSenderProvider with the mock
-        emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
+  
     }
 
     @Test
