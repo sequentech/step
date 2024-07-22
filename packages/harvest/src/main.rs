@@ -22,7 +22,7 @@ async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
 
-    setup_probe();
+    setup_probe().await;
 
     rocket::build()
         .register(
@@ -89,7 +89,7 @@ async fn rocket() -> _ {
         )
 }
 
-fn setup_probe() {
+async fn setup_probe() {
     let addr_s = std::env::var("HARVEST_PROBE_ADDR")
         .unwrap_or("0.0.0.0:3030".to_string());
     let live_path =
@@ -100,9 +100,10 @@ fn setup_probe() {
     let addr: Result<SocketAddr, _> = addr_s.parse();
 
     if let Ok(addr) = addr {
-        let mut ph = ProbeHandler::new(&live_path, &ready_path, addr);
+        let ph = ProbeHandler::new(&live_path, &ready_path, addr);
         let f = ph.future();
-        ph.set_live(move || true);
+        ph.set_live(move || true).await;
+        ph.set_ready(move || Box::pin(async { true })).await;
         tokio::spawn(f);
     } else {
         warn!("Could not parse address for probe '{}'", addr_s);
