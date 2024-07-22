@@ -9,7 +9,7 @@ use crate::{
 use clap::Args;
 use edit_user::EditUsersInput;
 use graphql_client::{GraphQLQuery, Response};
-use serde_json::json;
+use serde_json::{Map, Value};
 
 #[derive(Args)]
 #[command(about = "Edit a voter", long_about = None)]
@@ -96,6 +96,26 @@ fn edit_voter(
     let config = read_config()?;
     // let auth = read_token()?;
     let client = reqwest::blocking::Client::new();
+
+    let mut attributes = Map::new();
+
+if !area_id.is_empty() {
+    attributes.insert("area-id".to_string(), Value::Array(vec![Value::String(area_id.to_string())]));
+}
+
+if !mobile.is_empty() {
+    attributes.insert(
+        "sequent.read-only.mobile-number".to_string(),
+        Value::Array(vec![Value::String(mobile.to_string())]),
+    );
+}
+
+let attributes_value = if attributes.is_empty() {
+    None
+} else {
+    Some(Value::Object(attributes))
+};
+
     let variables = edit_user::Variables {
         body: EditUsersInput {
             tenant_id: config.tenant_id.clone(),
@@ -115,11 +135,7 @@ fn edit_voter(
             } else {
                 Some(last_name.to_string())
             },
-            attributes: Some(json!({
-                    "area-id": if area_id.is_empty() { None } else { Some(area_id.to_string()) },
-                    "sequent.read-only.mobile-number":
-                    if mobile.is_empty() { None } else { Some(mobile.to_string()) },
-            })),
+            attributes: attributes_value,
             email: if email.is_empty() {
                 None
             } else {
