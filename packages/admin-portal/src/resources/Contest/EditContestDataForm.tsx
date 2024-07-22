@@ -701,6 +701,18 @@ export const ContestDataForm: React.FC = () => {
                                     isRequired={false}
                                 />
 
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "0.5rem 1rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    Policies
+                                </Typography>
                                 <SelectInput
                                     source={`presentation.blank_vote_policy`}
                                     choices={blankVotePolicyChoices()}
