@@ -2,25 +2,28 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only -->
 
+# Sequent CLI
+A tool created to automate and streamline actions within the sequent ecosystem
 
-# Help
-Run cargo run -- help to see list of commands
+## Help
+Run 
+``` cargo run -- help``` to see list of commands
 For any given command you can run -h to see list of arguments you can pass
 
 
-# Configure
-Run cargo run -- config --auth-token "your_auth_token" --tenant-id "your_tenant_id" --endpoint-url "your_endpoint_url"
+## Configure
+Run ```cargo run -- config --auth-token <AUTH_TOKEN> --tenant-id <TENANT_ID> --endpoint-url <ENDPOINT_URL>```
 
-- auth_token is the keycloak auth token
-- endpoint_url is "http://graphql-engine:8080/v1/graphql" when in local dev codespace environment
-- You can grab tenant_id from the local storage in Admin Portal
+- auth_token is the keycloak auth token - required*
+- endpoint_url is http://graphql-engine:8080/v1/graphql when in local dev codespace environment - required*
+- You can grab tenant_id from the local storage in Admin Portal - required*
 
-# Create Auth Token
-Run cargo run -- generate-auth
+## Create Auth Token
+Run ```cargo run -- generate-auth```
 
 
-# Create Election Event
-Run cargo run -- create-election-event --name "Election_Event_Name" --description "Description" --encryption-protocol "RSA256" --is-archived false
+## Create Election Event
+Run ```cargo run -- create-election-event --name <ELECTION_EVENT_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived false```
 
 - name - the election event name - required*
 - description - the election event desciption - optional*
@@ -28,58 +31,80 @@ Run cargo run -- create-election-event --name "Election_Event_Name" --descriptio
 - is_archived - boolean if should be archived - optional*
 
 
-# Create Election
-Run cargo run -- create-election --name "Name" --description "Description" --election-event-id "election event id"
+## Create Election
+Run ```cargo run -- create-election --name <ELECTION_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the election name - required*
 - description - the election desciption - optional*
 - election_event_id - The associated election event id - required*
 
-# Create Contest
-Run cargo run -- create-contest --name "Name" --description "Description" --election-event-id "election event id"
+## Create Contest
+Run ```cargo run -- create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the contest name - required*
 - description - the contest desciption - optional*
 - election_event_id - The associated election event id - required*
 - election_id - The associated election id - required*
 
-# Create Candidate
-Run cargo run -- create-candidate --name "name" --description "Description" --election-event-id "election event id"
+## Create Candidate
+Run ```cargo run -- create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the candidate name - required*
 - description - the candidate desciption - optional*
 - election_event_id - The associated election event id - required*
 - contest_id - The associated contest id - required*
 
-# Create Area
-Run cargo run -- create-area --name "Area_Name" --description "Description" --election-event-id "election event id"
+## Create Area
+Run ```cargo run -- create-area --name <AREA_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
 
 - name - the area name - required*
 - description - the area desciption - optional*
 - election_event_id - The associated election event id - required*
 
-# Create Area
-Run cargo run -- create-area-contest --election-event-id "election event id" --contest-id "contest id" --area-id "area id" 
+## Create Area
+Run ```cargo run -- create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-id <CONTEST_ID> --area-id <AREA_ID>```
 
 - election_event_id - The associated election event id - required*
 - contest_id - The associated contest id - required*
 - area_id - The associated area id - required*
 
-# Update Election Event Voting Status
-Run cargo run -- update-election-event-status --election-event-id "election event id" --status "STATUS"
+## Update Election Event Voting Status
+Run ```cargo run -- update-election-event-status --election-event-id <ELECTION_EVENT_ID> --status <STATUS>```
 
 - election_event_id - The associated election event id - required*
 - status - A valid voting status (OPEN, CLOSED,...)- required*
 
-# Update Event Voting Status
-Run cargo run -- update-election-status --election-event-id "election event id" --election-id "election id" --status "STATUS"
+## Update Event Voting Status
+Run ```cargo run -- update-election-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --status <STATUS>```
 
 - election_event_id - The associated election event id - required*
 - election_id - The associated election id - required*
 - status - A valid voting status (OPEN, CLOSED,...)- required*
 
-# Import election event from .json file
-Run cargo run -- import-election --file-path "/workspaces/step/packages/sequent-cli/data/mock.json" --is-local
+## Import election event from .json file
+Run ```cargo run -- import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>```
 
-- file-path - Path to file - required*
+- file-path - Path to file - required* (Example - /workspaces/step/packages/sequent-cli/data/mock.json)
 - is-local - If run locally add this flag
+
+## Create Voter
+Run ```cargo run -- create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>```
+
+- Election event id - the election event to be associated with - required*
+- Email - voter email - required*
+- First name - voter name
+- Last name - voter name
+- username - voter username
+
+## Update Voter
+
+Run ```cargo run -- update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>  --password <PASSWORD> --area-id <AREA_ID>```
+
+- Election event id - the election event to be associated with - required*
+- User Id - user identifier - required*
+- Email - voter email - required*
+- First name - voter name
+- Last name - voter name
+- username - voter username
+- Password - user password
+- Area Id - area to be associated to user

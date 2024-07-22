@@ -99,22 +99,25 @@ fn edit_voter(
 
     let mut attributes = Map::new();
 
-if !area_id.is_empty() {
-    attributes.insert("area-id".to_string(), Value::Array(vec![Value::String(area_id.to_string())]));
-}
+    if !area_id.is_empty() {
+        attributes.insert(
+            "area-id".to_string(),
+            Value::Array(vec![Value::String(area_id.to_string())]),
+        );
+    }
 
-if !mobile.is_empty() {
-    attributes.insert(
-        "sequent.read-only.mobile-number".to_string(),
-        Value::Array(vec![Value::String(mobile.to_string())]),
-    );
-}
+    if !mobile.is_empty() {
+        attributes.insert(
+            "sequent.read-only.mobile-number".to_string(),
+            Value::Array(vec![Value::String(mobile.to_string())]),
+        );
+    }
 
-let attributes_value = if attributes.is_empty() {
-    None
-} else {
-    Some(Value::Object(attributes))
-};
+    let attributes_value = if attributes.is_empty() {
+        None
+    } else {
+        Some(Value::Object(attributes))
+    };
 
     let variables = edit_user::Variables {
         body: EditUsersInput {
