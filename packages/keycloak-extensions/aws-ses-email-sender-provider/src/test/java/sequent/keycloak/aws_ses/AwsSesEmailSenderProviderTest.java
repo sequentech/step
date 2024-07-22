@@ -32,6 +32,11 @@ public class AwsSesEmailSenderProviderTest {
     @InjectMocks
     private AwsSesEmailSenderProvider emailSenderProvider;
 
+    public AwsSesEmailSenderProviderTest(@Mock SesClient sesClientMock) {
+        this.sesClientMock = sesClientMock;
+        this.emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
+    }
+
     @BeforeEach
     public void setUp() {
   
