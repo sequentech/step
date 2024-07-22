@@ -12,6 +12,8 @@ For any given command you can run -h to see list of arguments you can pass
 
 
 ## Configure
+> This is a mandatory first command to setup the credetials in order to use the CLI 
+
 Run ```cargo run -- config --auth-token <AUTH_TOKEN> --tenant-id <TENANT_ID> --endpoint-url <ENDPOINT_URL>```
 
 - auth_token is the keycloak auth token - required*
@@ -88,6 +90,8 @@ Run ```cargo run -- import-election --file-path <PATH> --is-local <ADD THIS FOR 
 - is-local - If run locally add this flag
 
 ## Create Voter
+> This can be used to create a new voter for an election event
+
 Run ```cargo run -- create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>```
 
 - Election event id - the election event to be associated with - required*
@@ -97,6 +101,8 @@ Run ```cargo run -- create-voter --election-event-id <ELECTION_EVENT_ID> --first
 - username - voter username
 
 ## Update Voter
+
+> This can be used to update voter details, set a password and area for a voter
 
 Run ```cargo run -- update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>  --password <PASSWORD> --area-id <AREA_ID>```
 
@@ -108,3 +114,11 @@ Run ```cargo run -- update-voter --election-event-id <ELECTION_EVENT_ID> --user-
 - username - voter username
 - Password - user password
 - Area Id - area to be associated to user
+
+## Publish Ballot
+
+> This generates a new publication and publishes it
+
+Run ```cargo run -- publish --election-event-id <ELECTION_EVENT_ID>```
+
+- Election event id - the election event to be associated with - required*

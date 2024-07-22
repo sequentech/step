@@ -3,5 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod keycloak;
+pub mod publication;
 pub mod read_config;
 pub mod upload_file;

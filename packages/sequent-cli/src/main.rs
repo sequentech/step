@@ -34,6 +34,7 @@ enum Commands {
     UpdateElectionEventStatus(commands::update_election_event_status::UpdateElectionEventStatus),
     UpdateElectionStatus(commands::update_election_status::UpdateElectionStatus),
     ImportElection(commands::import_election_event::ImportElectionEventFile),
+    Publish(commands::publish_changes::PublishChanges),
 }
 
 fn main() {
@@ -53,5 +54,6 @@ fn main() {
         Commands::ImportElection(import) => import.run(),
         Commands::CreateVoter(create_voter) => create_voter.run(),
         Commands::UpdateVoter(update_voter) => update_voter.run(),
+        Commands::Publish(publish_ballot) => publish_ballot.run(),
     }
 }
