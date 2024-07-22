@@ -15,11 +15,14 @@ pub fn generate_keycloak_token(
     username: &str,
     password: &str,
     client_id: &str,
+    client_secret: &str,
     tenant_id: &str,
 ) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
     let params = [
         ("grant_type", "password"),
+        ("scope", "openid"),
         ("client_id", client_id),
+        ("client_secret", client_secret),
         ("username", username),
         ("password", password),
     ];
@@ -48,11 +51,13 @@ pub fn refresh_keycloak_token(
     keycloak_url: &str,
     refresh_token: &str,
     client_id: &str,
+    client_secret: &str,
     tenant_id: &str,
 ) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
     let params = [
         ("grant_type", "refresh_token"),
         ("client_id", client_id),
+        ("client_secret", client_secret),
         ("refresh_token", refresh_token),
     ];
 

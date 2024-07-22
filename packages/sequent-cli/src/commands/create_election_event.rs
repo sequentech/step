@@ -24,7 +24,7 @@ pub struct CreateElectionEventCLI {
     encryption_protocol: String,
 
     /// Whether the event is archived
-    #[arg(long, default_value = "false")]
+    #[arg(long, default_value_t = false)]
     is_archived: bool,
 }
 

@@ -12,20 +12,20 @@ For any given command you can run -h to see list of arguments you can pass
 
 
 ## Configure
-> This is a mandatory first command to setup the credetials in order to use the CLI 
+> This is a mandatory first command to setup the credentials in order to use the CLI 
 
-Run ```cargo run -- config --auth-token <AUTH_TOKEN> --tenant-id <TENANT_ID> --endpoint-url <ENDPOINT_URL>```
+Run ```cargo run -- config --tenant-id <TENANT_ID> --endpoint-url <ENDPOINT_URL> --keycloak-url <KEYCLOAK_URL> --keycloak-user <KEYCLOAK_USER> --keycloak-password <KEYCLOAK_PASSWORD> --keycloak-client-id <KEYCLOAK_CLIENT_ID> --keycloak-client-secret <KEYCLOAK_CLIENT_SECRET>```
 
-- auth_token is the keycloak auth token - required*
-- endpoint_url is http://graphql-engine:8080/v1/graphql when in local dev codespace environment - required*
-- You can grab tenant_id from the local storage in Admin Portal - required*
-
-## Create Auth Token
-Run ```cargo run -- generate-auth```
-
+- Tenant id - You can use 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 when in local dev - required*
+- Endpoint url - endpoint_url is http://graphql-engine:8080/v1/graphql when in local dev codespace environment - required*
+- Keycloak url - this is http://keycloak:8090 when in local dev codespace environment - required*
+- Keycloak user - use admin for local - required*
+- Keycloak password - use admin for local - required*
+- Keycloak client id - use service-account for local - required*
+- Keycloak client secret - use zh0GWEjbynXJDcpF1YipFXUleEKTQiO0 for local - required*
 
 ## Create Election Event
-Run ```cargo run -- create-election-event --name <ELECTION_EVENT_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived false```
+Run ```cargo run -- create-election-event --name <ELECTION_EVENT_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived```
 
 - name - the election event name - required*
 - description - the election event desciption - optional*

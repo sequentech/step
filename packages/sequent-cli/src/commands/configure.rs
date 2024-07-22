@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::config::ConfigData;
+use crate::utils::keycloak::generate_keycloak_token;
 use crate::utils::read_config::get_config_dir;
 use clap::Args;
 use std::fs;
@@ -19,31 +20,80 @@ pub struct Config {
     #[arg(long)]
     endpoint_url: String,
 
-    /// Auth Token
+    /// Keycloak endpoint URL
     #[arg(long)]
-    auth_token: String,
+    keycloak_url: String,
+
+    /// Keycloak user name
+    #[arg(long)]
+    keycloak_user: String,
+
+    /// Keycloak password
+    #[arg(long)]
+    keycloak_password: String,
+
+    /// Keycloak Client ID
+    #[arg(long)]
+    keycloak_client_id: String,
+
+    /// Keycloak Client secret
+    #[arg(long)]
+    keycloak_client_secret: String,
 }
 
 impl Config {
     pub fn run(&self) {
-        let config_data = ConfigData {
-            endpoint_url: self.endpoint_url.clone(),
-            tenant_id: self.tenant_id.clone(),
-            auth_token: self.auth_token.clone(),
-        };
-
-        let config_dir = get_config_dir();
-        let config_file = config_dir.join("configuration.json");
-
-        if !Path::new(&config_dir).exists() {
-            fs::create_dir_all(&config_dir).expect("Failed to create config directory");
+        match create_config(
+            &self.endpoint_url,
+            &self.keycloak_url,
+            &self.keycloak_user,
+            &self.keycloak_password,
+            &self.keycloak_client_id,
+            &self.keycloak_client_secret,
+            &self.tenant_id,
+        ) {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Failed to create configuration file: {}", err)
+            }
         }
-
-        let json_data =
-            serde_json::to_string_pretty(&config_data).expect("Failed to serialize config data");
-
-        fs::write(&config_file, json_data).expect("Failed to write config file");
-
-        println!("Configuration saved successfully at {:?}", config_file);
     }
+}
+
+fn create_config(
+    endpoint_url: &str,
+    keycloak_url: &str,
+    username: &str,
+    password: &str,
+    client_id: &str,
+    client_secret: &str,
+    tenant_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let auth_details = generate_keycloak_token(
+        &keycloak_url,
+        &username,
+        &password,
+        &client_id,
+        &client_secret,
+        &tenant_id,
+    )?;
+    let config_data = ConfigData {
+        endpoint_url: endpoint_url.to_string(),
+        tenant_id: tenant_id.to_string(),
+        auth_token: auth_details.access_token.clone(),
+    };
+
+    let config_dir = get_config_dir()?;
+    let config_file = config_dir.join("configuration.json");
+
+    if !Path::new(&config_dir).exists() {
+        fs::create_dir_all(&config_dir)?;
+    }
+
+    let json_data = serde_json::to_string_pretty(&config_data)?;
+
+    fs::write(&config_file, json_data)?;
+
+    println!("Configuration saved successfully at {:?}", config_file);
+    Ok(())
 }
