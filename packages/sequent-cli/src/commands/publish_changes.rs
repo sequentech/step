@@ -10,7 +10,6 @@ use std::{
 use crate::{
     types::hasura_types::*,
     utils::{
-        keycloak::read_token,
         publication::{generate::GenerateBallotPublication, get::GetBallotPublicationStatus},
         read_config::read_config,
     },
@@ -49,7 +48,6 @@ impl PublishChanges {
 
 fn publish_changes(election_event_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
-    // let auth = read_token()?;
 
     let client = reqwest::blocking::Client::new();
 

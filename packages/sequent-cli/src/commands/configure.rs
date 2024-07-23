@@ -85,6 +85,7 @@ fn create_config(
         refresh_token: auth_details.refresh_token.clone(),
         client_id: client_id.to_string(),
         client_secret: client_secret.to_string(),
+        username: username.to_string(),
     };
 
     let config_dir = get_config_dir()?;

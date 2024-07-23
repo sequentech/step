@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{
-    types::hasura_types::*,
-    utils::{keycloak::read_token, read_config::read_config},
-};
+use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use edit_user::EditUsersInput;
 use graphql_client::{GraphQLQuery, Response};
@@ -94,7 +91,6 @@ fn edit_voter(
     mobile: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
-    // let auth = read_token()?;
     let client = reqwest::blocking::Client::new();
 
     let mut attributes = Map::new();

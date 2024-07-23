@@ -36,6 +36,7 @@ enum Commands {
     Publish(commands::publish_changes::PublishChanges),
     RefreshToken(commands::refresh_token::Refresh),
     StartKeyCeremony(commands::start_key_ceremony::StartKeyCeremony),
+    CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
 }
 
 fn main() {
@@ -57,5 +58,6 @@ fn main() {
         Commands::Publish(publish_ballot) => publish_ballot.run(),
         Commands::RefreshToken(refresh) => refresh.run(),
         Commands::StartKeyCeremony(start) => start.run(),
+        Commands::CompleteKeyCeremony(complete) => complete.run(),
     }
 }

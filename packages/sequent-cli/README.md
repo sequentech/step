@@ -134,3 +134,12 @@ Run ```cargo run -- publish --election-event-id <ELECTION_EVENT_ID>```
 Run ```cargo run -- start-key-ceremony --election-event-id <ELECTION_EVENT_ID>```
 
 - Election event id - the election event to be associated with - required*
+
+## Complete Key Ceremony
+
+> This needs to be done by a trustee - authenticate with a trustee using the config command
+
+Run ```cargo run -- complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID>```
+
+- Election event id - the election event to be associated with - required*
+- Key ceremony id - the key ceremony to complete - required*

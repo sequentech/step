@@ -4,7 +4,7 @@
 
 use crate::{
     types::hasura_types::*,
-    utils::{keycloak::read_token, read_config::read_config, upload_file::GetUploadUrl},
+    utils::{read_config::read_config, upload_file::GetUploadUrl},
 };
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};

@@ -8,8 +8,6 @@ use crate::{
 };
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
-use sequent_core::ballot::VotingStatus;
-use std::str::FromStr;
 
 #[derive(Args)]
 #[command(about = "Start Key Ceremony", long_about = None)]

@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{
-    types::hasura_types::*,
-    utils::{keycloak::read_token, read_config::read_config},
-};
+use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use create_user::KeycloakUser2;
 use graphql_client::{GraphQLQuery, Response};
@@ -69,7 +66,6 @@ fn create_voter(
     email: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
-    // let auth = read_token()?;
     let client = reqwest::blocking::Client::new();
 
     let variables = create_user::Variables {

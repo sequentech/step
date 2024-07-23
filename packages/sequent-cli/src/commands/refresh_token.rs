@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::config::ConfigData;
-use crate::utils::keycloak::{generate_keycloak_token, refresh_keycloak_token};
+use crate::utils::keycloak::refresh_keycloak_token;
 use crate::utils::read_config::{get_config_dir, read_config};
 use clap::Args;
 use std::fs;
@@ -42,6 +42,7 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
         refresh_token: auth_details.refresh_token.clone(),
         client_id: config_data.client_id.clone(),
         client_secret: config_data.client_secret.clone(),
+        username: config_data.username.clone(),
     };
 
     let config_dir = get_config_dir()?;
