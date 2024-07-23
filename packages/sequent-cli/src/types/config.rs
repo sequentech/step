@@ -8,5 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct ConfigData {
     pub endpoint_url: String,
     pub tenant_id: String,
+    pub keycloak_url: String,
     pub auth_token: String,
+    pub refresh_token: String,
+    pub client_id: String,
+    pub client_secret: String,
 }

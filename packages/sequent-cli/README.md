@@ -21,8 +21,12 @@ Run ```cargo run -- config --tenant-id <TENANT_ID> --endpoint-url <ENDPOINT_URL>
 - Keycloak url - this is http://keycloak:8090 when in local dev codespace environment - required*
 - Keycloak user - use admin for local - required*
 - Keycloak password - use admin for local - required*
-- Keycloak client id - use service-account for local - required*
-- Keycloak client secret - use zh0GWEjbynXJDcpF1YipFXUleEKTQiO0 for local - required*
+- Keycloak client id - use admin for local - required*
+- Keycloak client secret - use admin for local - required*
+
+## Refresh Auth Token
+> This command should be called when the jwt has expired
+Run ```cargo run -- refresh-token```
 
 ## Create Election Event
 Run ```cargo run -- create-election-event --name <ELECTION_EVENT_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived```
