@@ -24,11 +24,11 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
     let tar_file_str = tar_file_temp_path.to_string_lossy().to_string();
     event!(Level::INFO, " Path: {tar_file_str}");
     if !folder_path.is_dir() {
-        event!(
-            Level::ERROR,
-            " FFF Path doesn't exist or it's not a folder: {}",
+        return Err(format!(
+            "Path doesn't exist or it's not a folder: {}",
             folder_path.display()
-        );
+        )
+        .into());
     }
     let enc = GzEncoder::new(&file2, Compression::default());
     let mut tar_builder = tar::Builder::new(enc);
