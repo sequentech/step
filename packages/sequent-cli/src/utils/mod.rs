@@ -5,4 +5,5 @@
 pub mod keycloak;
 pub mod publication;
 pub mod read_config;
+pub mod trustees;
 pub mod upload_file;

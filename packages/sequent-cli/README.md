@@ -126,3 +126,11 @@ Run ```cargo run -- update-voter --election-event-id <ELECTION_EVENT_ID> --user-
 Run ```cargo run -- publish --election-event-id <ELECTION_EVENT_ID>```
 
 - Election event id - the election event to be associated with - required*
+
+## Start Key Ceremony
+
+> This <b>only</b> starts a key ceremony
+
+Run ```cargo run -- start-key-ceremony --election-event-id <ELECTION_EVENT_ID>```
+
+- Election event id - the election event to be associated with - required*

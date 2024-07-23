@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod cast_vote;
 pub mod configure;
 pub mod create_area;
 pub mod create_area_contest;
@@ -13,6 +14,7 @@ pub mod create_voter;
 pub mod import_election_event;
 pub mod publish_changes;
 pub mod refresh_token;
+pub mod start_key_ceremony;
 pub mod update_election_event_status;
 pub mod update_election_status;
 pub mod update_voter;
