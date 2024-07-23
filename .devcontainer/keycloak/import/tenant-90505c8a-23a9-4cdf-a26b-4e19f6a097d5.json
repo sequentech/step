@@ -726,22 +726,7 @@
         "containerId" : "e73762d5-94a3-45dd-a945-a70fd9c05fcd",
         "attributes" : { }
       } ],
-      "api-key-client" : [ {
-        "id" : "c31ad386-eb85-4011-a94c-2bdc801800b4",
-        "name" : "uma_protection",
-        "composite" : false,
-        "clientRole" : true,
-        "containerId" : "0a0f55e7-900e-47d7-abb0-2ebf258bbcea",
-        "attributes" : { }
-      }, {
-        "id" : "1353285e-eecb-411d-bd23-5739a1d3b3b7",
-        "name" : "api-key-role",
-        "description" : "",
-        "composite" : false,
-        "clientRole" : true,
-        "containerId" : "0a0f55e7-900e-47d7-abb0-2ebf258bbcea",
-        "attributes" : { }
-      } ],
+      "api-key-client" : [ ],
       "security-admin-console" : [ ],
       "voting-portal" : [ {
         "id" : "64215066-79c4-47cf-8573-3c0649caaead",
@@ -941,10 +926,34 @@
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-electoral-process" ],
-    "clientRoles" : {
-      "api-key-client" : [ "api-key-role" ]
-    },
     "notBefore" : 1712715173,
+    "groups" : [ "/admin" ]
+  }, {
+    "id" : "c0124bdb-1deb-4517-aa69-bf73b991e0bf",
+    "username" : "api-user",
+    "email" : "edu+api_user@sequentech.io",
+    "emailVerified" : true,
+    "attributes" : {
+      "sequent.read-only.otp-method" : [ "email-or-sms" ],
+      "sequent.read-only.mobile-number" : [ "+34666000222" ],
+      "locale" : [ "en" ],
+      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
+    },
+    "createdTimestamp" : 1721744057416,
+    "enabled" : true,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "2f016e01-f315-47ed-8315-e9108af25cf4",
+      "type" : "password",
+      "userLabel" : "My password",
+      "createdDate" : 1721744083814,
+      "secretData" : "{\"value\":\"z899TgCXlt4bJac+ftqLmM9Mb7NlO27U/DWQ03UTiuqNTujYITEZjNgfvkSvvIMzMri67WQlBf4x1+soZ5plBw==\",\"salt\":\"KBU/wUiXire1mObV6DKWiQ==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-electoral-process" ],
+    "notBefore" : 0,
     "groups" : [ "/admin" ]
   }, {
     "id" : "0516ed22-3a8f-48ca-9514-83020e242159",
@@ -977,10 +986,10 @@
     "notBefore" : 0,
     "groups" : [ ]
   }, {
-    "id" : "0906192b-4e44-46ee-92b2-0ed68c89b22e",
+    "id" : "f3bb9d41-eff4-4014-a2ac-d8fc750d9390",
     "username" : "service-account-api-key-client",
     "emailVerified" : false,
-    "createdTimestamp" : 1721247305227,
+    "createdTimestamp" : 1721740319101,
     "enabled" : true,
     "totp" : false,
     "serviceAccountClientId" : "api-key-client",
@@ -988,9 +997,6 @@
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-electoral-process" ],
-    "clientRoles" : {
-      "api-key-client" : [ "uma_protection" ]
-    },
     "notBefore" : 0,
     "groups" : [ ]
   }, {
@@ -1282,9 +1288,9 @@
     "defaultClientScopes" : [ "web-origins", "acr", "profile", "roles", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
   }, {
-    "id" : "0a0f55e7-900e-47d7-abb0-2ebf258bbcea",
+    "id" : "251dba87-0b1c-404e-87b0-c19eef2a08ec",
     "clientId" : "api-key-client",
-    "name" : "api-key-client",
+    "name" : "",
     "description" : "",
     "rootUrl" : "",
     "adminUrl" : "",
@@ -1293,7 +1299,7 @@
     "enabled" : true,
     "alwaysDisplayInConsole" : false,
     "clientAuthenticatorType" : "client-secret",
-    "secret" : "OkT3TE5LgwLkKv0b8iGycz8ocpK8V7hD",
+    "secret" : "4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL",
     "redirectUris" : [ "*" ],
     "webOrigins" : [ "*" ],
     "notBefore" : 0,
@@ -1307,57 +1313,18 @@
     "frontchannelLogout" : true,
     "protocol" : "openid-connect",
     "attributes" : {
-      "client.secret.creation.time" : "1721247305",
+      "oidc.ciba.grant.enabled" : "false",
+      "client.secret.creation.time" : "1721740319",
+      "backchannel.logout.session.required" : "true",
       "post.logout.redirect.uris" : "*",
       "oauth2.device.authorization.grant.enabled" : "false",
-      "backchannel.logout.revoke.offline.tokens" : "false",
-      "use.refresh.tokens" : "true",
-      "oidc.ciba.grant.enabled" : "false",
-      "client.use.lightweight.access.token.enabled" : "false",
-      "backchannel.logout.session.required" : "true",
-      "client_credentials.use_refresh_token" : "false",
-      "tls.client.certificate.bound.access.tokens" : "false",
-      "require.pushed.authorization.requests" : "false",
-      "acr.loa.map" : "{}",
-      "display.on.consent.screen" : "false",
-      "token.response.type.bearer.lower-case" : "false",
-      "dpop.bound.access.tokens" : "false"
+      "backchannel.logout.revoke.offline.tokens" : "false"
     },
-    "authenticationFlowBindingOverrides" : {
-      "direct_grant" : "102c92a6-3282-4a01-8913-2b24fd54b4fe"
-    },
+    "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : true,
     "nodeReRegistrationTimeout" : -1,
     "protocolMappers" : [ {
-      "id" : "2e415e31-7990-40fa-ba28-2c918d3bd881",
-      "name" : "Client ID",
-      "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
-      "consentRequired" : false,
-      "config" : {
-        "user.session.note" : "client_id",
-        "introspection.token.claim" : "true",
-        "id.token.claim" : "true",
-        "access.token.claim" : "true",
-        "claim.name" : "client_id",
-        "jsonType.label" : "String"
-      }
-    }, {
-      "id" : "59c7a8f6-7a46-4e94-ac9e-b48bec4ffa38",
-      "name" : "Client Host",
-      "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
-      "consentRequired" : false,
-      "config" : {
-        "user.session.note" : "clientHost",
-        "introspection.token.claim" : "true",
-        "id.token.claim" : "true",
-        "access.token.claim" : "true",
-        "claim.name" : "clientHost",
-        "jsonType.label" : "String"
-      }
-    }, {
-      "id" : "4ccad36d-0dfe-4cd9-8a5e-744856a1be48",
+      "id" : "e48bb89e-5452-4f01-a96a-b94b0663eb8a",
       "name" : "x-hasura-default-role",
       "protocol" : "openid-connect",
       "protocolMapper" : "oidc-hardcoded-claim-mapper",
@@ -1374,55 +1341,35 @@
         "access.tokenResponse.claim" : "false"
       }
     }, {
-      "id" : "6d3c8fcb-aaf4-48d4-a2b0-a7565136afa0",
-      "name" : "x-hasura-user-id",
+      "id" : "046b121c-b86d-4bb5-82cf-98da389b7eb2",
+      "name" : "Client Host",
       "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usermodel-property-mapper",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
       "consentRequired" : false,
       "config" : {
+        "user.session.note" : "clientHost",
         "introspection.token.claim" : "true",
-        "userinfo.token.claim" : "true",
-        "user.attribute" : "id",
         "id.token.claim" : "true",
-        "lightweight.claim" : "false",
         "access.token.claim" : "true",
-        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+        "claim.name" : "clientHost",
         "jsonType.label" : "String"
       }
     }, {
-      "id" : "94cec847-1477-4170-b99c-5d64a726cec0",
-      "name" : "x-hasura-tenant-id",
+      "id" : "510cbb09-9a5a-4c7a-8598-e373325457ea",
+      "name" : "Client ID",
       "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usermodel-attribute-mapper",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
       "consentRequired" : false,
       "config" : {
+        "user.session.note" : "client_id",
         "introspection.token.claim" : "true",
-        "userinfo.token.claim" : "true",
-        "user.attribute" : "tenant-id",
         "id.token.claim" : "true",
-        "lightweight.claim" : "false",
         "access.token.claim" : "true",
-        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+        "claim.name" : "client_id",
         "jsonType.label" : "String"
       }
     }, {
-      "id" : "1e4e4793-1a01-459e-a8a1-f3d340fe467c",
-      "name" : "x-hasura-allowed-roles",
-      "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usermodel-realm-role-mapper",
-      "consentRequired" : false,
-      "config" : {
-        "introspection.token.claim" : "true",
-        "multivalued" : "true",
-        "userinfo.token.claim" : "true",
-        "id.token.claim" : "true",
-        "lightweight.claim" : "false",
-        "access.token.claim" : "true",
-        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
-        "jsonType.label" : "String"
-      }
-    }, {
-      "id" : "01ea7908-5f00-4f74-8b72-382aa0d198e0",
+      "id" : "f4f22e5a-5f1a-4461-8cd7-042b5cf2a818",
       "name" : "Client IP Address",
       "protocol" : "openid-connect",
       "protocolMapper" : "oidc-usersessionmodel-note-mapper",
@@ -2294,7 +2241,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "oidc-usermodel-attribute-mapper", "saml-user-attribute-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-full-name-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-usermodel-property-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "oidc-address-mapper" ]
       }
     }, {
       "id" : "563febd2-5ea9-4258-bc2d-a4e9f2fcac38",
@@ -2347,7 +2294,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "oidc-full-name-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-attribute-mapper", "oidc-address-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "saml-user-property-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "oidc-full-name-mapper" ]
       }
     } ],
     "org.keycloak.userprofile.UserProfileProvider" : [ {
