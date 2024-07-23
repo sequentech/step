@@ -32,7 +32,7 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
     }
     let enc = GzEncoder::new(&file2, Compression::default());
     let mut tar_builder = tar::Builder::new(enc);
-    tar_builder.append_dir_all(".", folder_path)?;
+    tar_builder.append_dir_all("", folder_path)?;
 
     // Finish writing the .tar.gz file and get the file (temporary file in this
     // case)
