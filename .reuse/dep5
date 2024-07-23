@@ -52,6 +52,7 @@ License: Apache-2.0
 
 Files:
   packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/resources/intl-tel-input-23.3.2/*
+  packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/resources/js/jquery-3.7.1.slim.min.js
 Copyright:
   2014-2016 Jack O'Connor
 License: MIT
