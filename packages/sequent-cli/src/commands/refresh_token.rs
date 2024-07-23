@@ -27,12 +27,11 @@ impl Refresh {
 fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
     let config_data = read_config()?;
     let auth_details = refresh_keycloak_token(
-       &config_data.keycloak_url,
-       &config_data.refresh_token,
-       &config_data.client_id,
-       &config_data.client_secret,
-       &config_data.tenant_id,
-
+        &config_data.keycloak_url,
+        &config_data.refresh_token,
+        &config_data.client_id,
+        &config_data.client_secret,
+        &config_data.tenant_id,
     )?;
 
     let config_data = ConfigData {
@@ -41,7 +40,7 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
         keycloak_url: config_data.keycloak_url.clone(),
         auth_token: auth_details.access_token.clone(),
         refresh_token: auth_details.refresh_token.clone(),
-        client_id:config_data.client_id.clone(),
+        client_id: config_data.client_id.clone(),
         client_secret: config_data.client_secret.clone(),
     };
 

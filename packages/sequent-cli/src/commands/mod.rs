@@ -12,7 +12,7 @@ pub mod create_election_event;
 pub mod create_voter;
 pub mod import_election_event;
 pub mod publish_changes;
+pub mod refresh_token;
 pub mod update_election_event_status;
 pub mod update_election_status;
 pub mod update_voter;
-pub mod refresh_token;
