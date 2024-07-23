@@ -76,8 +76,5 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      - name: Build with Maven
-        run: mvn clean install
-
       - name: Run Spotless Check
-        run: cd packages/keycloak-extensions && mvn invoker:run@run-spotless-check
+        run: cd packages/keycloak-extensions && mvn clean install &&mvn invoker:run@run-spotless-check
