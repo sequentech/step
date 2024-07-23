@@ -129,6 +129,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</execution>
 				</executions>
 			</plugin>
+		 <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-invoker-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>run-spotless-check</id>
+            <configuration>
+              <projectsDirectory>${basedir}</projectsDirectory>
+              <includes>
+                <include>aws-ses-email-sender-provider/pom.xml</include>
+                <include>conditional-authenticators/pom.xml</include>
+				<include>dummy-email-sender-provider/pom.xml</include>
+				<include>inetum-authenticator/pom.xml</include>
+				<include>message-otp-authenticator/pom.xml</include>
+              </includes>
+              <goals>
+                <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
+              </goals>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 		</plugins>
 	</build>
 
