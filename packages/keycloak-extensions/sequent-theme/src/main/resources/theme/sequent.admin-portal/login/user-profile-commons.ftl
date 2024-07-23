@@ -155,6 +155,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#if attribute.readOnly>disabled</#if>
 		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
+		<#if attribute.annotations.filterSelectAttribute??>onchange="filterSelectAttribute(event, '${attribute.annotations.filterSelectAttribute}')"</#if>
 	>
 	<#if attribute.annotations.inputType=='select'>
 		<option value=""></option>

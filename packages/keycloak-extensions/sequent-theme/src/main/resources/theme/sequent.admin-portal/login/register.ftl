@@ -109,6 +109,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
         <script type="text/javascript" src="${url.resourcesPath}/js/timezone-countrycode-data.js"></script>
 
+        <#-- jQuery -->
+        <script type="text/javascript" src="${url.resourcesPath}/js/jquery-3.7.1.slim.min.js"></script>
+
         <script>
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
@@ -142,5 +145,29 @@ SPDX-License-Identifier: AGPL-3.0-only
                 document.getElementById(idToSetReadOnly).readOnly = !target.checked;
             }
         </script>
+
+        <#-- Filter for select inputs -->
+        <script>
+            function filterSelectAttribute(e, elementId) {
+                e = e || window.event;
+                var selectElement = e.target;
+                var value = selectElement.value;
+
+                let first = null;
+                $('#' + elementId + ' option').hide();
+                $('#' + elementId).find('option').filter(function() {
+                    var optionValue = $(this)[0].value;
+                    let found = optionValue.indexOf(value) != -1;
+                    if (found && first === null) {
+                        first = optionValue;
+                    }
+                    return found;
+                }).show();
+                
+                // Set default value
+                $('#' + elementId).val(first);
+            }
+        </script>
+
     </#if>
 </@layout.registrationLayout>
