@@ -7,10 +7,17 @@
 extern crate rocket;
 
 use dotenv::dotenv;
+use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
 use sequent_core::util::init_log::init_log;
 use std::net::SocketAddr;
-use tracing::warn;
+use tokio::join;
+use tracing::{instrument, warn};
+use uuid::Uuid;
+use windmill::services::database::get_hasura_pool;
+use windmill::{
+    hasura::tenant::get_tenant, services::celery_app::get_celery_app,
+};
 
 mod pdf;
 mod routes;
@@ -89,6 +96,44 @@ async fn rocket() -> _ {
         )
 }
 
+#[instrument]
+async fn readiness_test() -> bool {
+    let celery_app = get_celery_app().await;
+
+    let broker_connection_timeout = 2;
+
+    // Use futures::join! to await multiple futures concurrently
+    let (celery_result, hasura_db_result, keycloak_hasura_result) = join!(
+        celery_app.broker.reconnect(broker_connection_timeout),
+        get_hasura_pool(),
+        get_client_credentials()
+    );
+
+    let celery_ok = celery_result.is_ok();
+    let hasura_db_client_ok = hasura_db_result.get().await.is_ok();
+    let hasura_graphql_client_ok = keycloak_hasura_result.is_ok();
+
+    let hasura_query_ok = if let Ok(auth_headers) = keycloak_hasura_result {
+        get_tenant(auth_headers, Uuid::new_v4().to_string())
+            .await
+            .is_ok()
+    } else {
+        false
+    };
+    warn!(
+        "celery: {}, hasura_db: {} , keycloak_hasura {}, hasura_query: {}",
+        celery_ok,
+        hasura_db_client_ok,
+        hasura_graphql_client_ok,
+        hasura_query_ok
+    );
+
+    celery_ok
+        && hasura_db_client_ok
+        && hasura_graphql_client_ok
+        && hasura_query_ok
+}
+
 async fn setup_probe() {
     let addr_s = std::env::var("HARVEST_PROBE_ADDR")
         .unwrap_or("0.0.0.0:3030".to_string());
@@ -103,7 +148,8 @@ async fn setup_probe() {
         let ph = ProbeHandler::new(&live_path, &ready_path, addr);
         let f = ph.future();
         ph.set_live(move || true).await;
-        ph.set_ready(move || Box::pin(async { true })).await;
+        ph.set_ready(move || Box::pin(async { readiness_test().await }))
+            .await;
         tokio::spawn(f);
     } else {
         warn!("Could not parse address for probe '{}'", addr_s);
