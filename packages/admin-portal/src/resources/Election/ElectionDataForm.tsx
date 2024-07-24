@@ -42,6 +42,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     DropFile,
+    IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-essentials"
@@ -107,6 +108,24 @@ export const ElectionDataForm: React.FC = () => {
     )
 
     const [updateImage] = useUpdate()
+
+    useEffect(() => {
+        let dates = record.dates as IElectionDates | undefined
+        if (dates?.start_date && !startDateValue) {
+            setStartDateValue(dates.start_date)
+        }
+        if (dates?.end_date && !endDateValue) {
+            setEndDateValue(dates.end_date)
+        }
+    }, [
+        record.dates,
+        record.dates?.start_date,
+        record.dates?.end_date,
+        startDateValue,
+        setStartDateValue,
+        endDateValue,
+        setEndDateValue,
+    ])
 
     useEffect(() => {
         if (!data || !record) {
@@ -390,14 +409,14 @@ export const ElectionDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {presentation: {dates: {}}}
-        if (
+        /*if (
             values?.presentation.dates?.start_date &&
             values?.presentation?.dates?.end_date <= values?.presentation?.dates?.start_date
         ) {
             errors.presentation.dates.end_date = t("electionEventScreen.error.endDate")
         } else if (new Date(values?.presentation?.dates?.start_date) < new Date(Date.now())) {
             errors.presentation.dates.start_date = t("electionEventScreen.error.startDate")
-        }
+        }*/
         return errors
     }
 
@@ -410,13 +429,6 @@ export const ElectionDataForm: React.FC = () => {
                 )
 
                 const onSave = async () => {
-                    if (
-                        startDateValue &&
-                        new Date(startDateValue) <
-                            new Date(endDateValue ? endDateValue : Date.now())
-                    ) {
-                        return
-                    }
                     await manageElectionDates({
                         variables: {
                             electionEventId: parsedValue.election_event_id,

@@ -42,6 +42,7 @@ import {IPermissions} from "@/types/keycloak"
 import {
     Dialog,
     EVotingPortalCountdownPolicy,
+    IElectionDates,
     IElectionEventPresentation,
     ITenantSettings,
 } from "@sequentech/ui-essentials"
@@ -202,7 +203,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [openExport, setOpenExport] = React.useState(false)
     const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-    const {globalSettings} = useContext(SettingsContext)
     const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
@@ -222,6 +222,24 @@ export const EditElectionEventDataForm: React.FC = () => {
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
     })
+
+    useEffect(() => {
+        let dates = record.dates as IElectionDates | undefined
+        if (dates?.start_date && !startDate) {
+            setStartDate(dates.start_date)
+        }
+        if (dates?.end_date && !endDate) {
+            setEndDate(dates.end_date)
+        }
+    }, [
+        record.dates,
+        record.dates?.start_date,
+        record.dates?.end_date,
+        startDate,
+        setStartDate,
+        endDate,
+        setEndDate,
+    ])
 
     useEffect(() => {
         let tenantAvailableLangs = (tenant?.settings as ITenantSettings | undefined)?.language_conf
@@ -323,11 +341,11 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
+        /*if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         } else if (new Date(values?.dates?.start_date) <= new Date(Date.now())) {
             errors.dates.start_date = t("electionEventScreen.error.startDate")
-        }
+        }*/
         return errors
     }
 

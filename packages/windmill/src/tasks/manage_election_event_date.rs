@@ -7,20 +7,24 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::update_elections_status_by_election_event;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
+use crate::services::date::ISO8601;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::*;
+use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::{CronConfig, EventProcessors};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, VotingStatus};
 use sequent_core::services::keycloak::get_client_credentials;
 use serde::{Deserialize, Serialize};
 use tracing::{event, Level};
 use tracing::{info, instrument};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManageElectionDatePayload {
@@ -31,10 +35,19 @@ pub struct ManageElectionDatePayload {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn manage_election_event_date(
-    tenant_id: Option<String>,
-    election_event_id: Option<String>,
+    tenant_id: String,
+    election_event_id: String,
     scheduled_event_id: String,
 ) -> Result<()> {
+    let lock: PgLock = PgLock::acquire(
+        format!(
+            "execute_manage_election_event_date-{}-{}-{}",
+            tenant_id, election_event_id, scheduled_event_id
+        ),
+        Uuid::new_v4().to_string(),
+        ISO8601::now() + Duration::seconds(120),
+    )
+    .await?;
     let auth_headers = get_client_credentials().await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -44,8 +57,8 @@ pub async fn manage_election_event_date(
     let hasura_transaction = hasura_db_client.transaction().await?;
     let scheduled_manage_date_opt = find_scheduled_event_by_id(
         &hasura_transaction,
-        tenant_id,
-        election_event_id,
+        Some(tenant_id.clone()),
+        Some(election_event_id.clone()),
         &scheduled_event_id,
     )
     .await?;
@@ -54,16 +67,7 @@ pub async fn manage_election_event_date(
             Level::WARN,
             "Can't find scheduled event with id: {scheduled_event_id}"
         );
-        return Ok(());
-    };
-
-    let Some(tenant_id) = scheduled_manage_date.tenant_id.clone() else {
-        event!(Level::WARN, "Missing tenant_id");
-        return Ok(());
-    };
-
-    let Some(election_event_id) = scheduled_manage_date.election_event_id.clone() else {
-        event!(Level::WARN, "Missing election_event_id");
+        lock.release().await?;
         return Ok(());
     };
 
@@ -77,6 +81,7 @@ pub async fn manage_election_event_date(
 
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         event!(Level::WARN, "Missing event processor");
+        lock.release().await?;
         return Ok(());
     };
 
@@ -114,6 +119,7 @@ pub async fn manage_election_event_date(
                 .with_context(|| "error posting to the electoral log")?;
         }
         voting_status @ _ => {
+            lock.release().await?;
             return Err(Error::Anyhow(anyhow!(
                 "Invalid scheduled event type: {voting_status:?}"
             )));
@@ -125,6 +131,7 @@ pub async fn manage_election_event_date(
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed manae_election_dates: {}", e));
+    lock.release().await?;
 
     Ok(())
 }

@@ -65,6 +65,12 @@ pub async fn scheduled_events() -> Result<()> {
             let Some(datetime) = get_datetime(scheduled_event) else {
                 continue;
             };
+            let Some(tenant_id) = scheduled_event.tenant_id.clone() else {
+                continue;
+            };
+            let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
+                continue;
+            };
             let Some(event_payload) = scheduled_event.event_payload.clone() else {
                 event!(Level::WARN, "Missing election_event_id");
                 return Ok(());
@@ -76,8 +82,8 @@ pub async fn scheduled_events() -> Result<()> {
                     let task = celery_app
                         .send_task(
                             manage_election_date::new(
-                                scheduled_event.tenant_id.clone(),
-                                scheduled_event.election_event_id.clone(),
+                                tenant_id.clone(),
+                                election_event_id.clone(),
                                 scheduled_event.id.clone(),
                                 election_id,
                             )
@@ -94,8 +100,8 @@ pub async fn scheduled_events() -> Result<()> {
                     let task = celery_app
                         .send_task(
                             manage_election_event_date::new(
-                                scheduled_event.tenant_id.clone(),
-                                scheduled_event.election_event_id.clone(),
+                                tenant_id.clone(),
+                                election_event_id.clone(),
                                 scheduled_event.id.clone(),
                             )
                             .with_eta(datetime.with_timezone(&Utc)),

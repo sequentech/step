@@ -166,6 +166,7 @@ pub async fn get_election_by_id(
     Ok(elections.get(0).map(|election| election.clone()))
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_presentation(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -211,6 +212,7 @@ pub async fn update_election_presentation(
     Ok(())
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -348,6 +350,7 @@ pub async fn export_elections(
     Ok(election_events)
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_dates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

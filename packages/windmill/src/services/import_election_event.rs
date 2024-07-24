@@ -4,19 +4,15 @@
 
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
-use chrono::DateTime;
-use chrono::Local;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
 use sequent_core::ballot::ElectionDates;
 use sequent_core::ballot::ElectionEventDates;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
@@ -94,6 +90,7 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
     Ok(board_value)
 }
 
+#[instrument(err)]
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
         "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
@@ -215,7 +212,7 @@ pub fn replace_ids(
     Ok(data.clone())
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
@@ -329,6 +326,7 @@ pub async fn process(
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 pub async fn manage_dates(
     data: &ImportElectionEventSchema,
     hasura_transaction: &Transaction<'_>,
@@ -366,42 +364,36 @@ pub async fn manage_dates(
     //Manage elections
     let elections = &data.elections;
     for election in elections {
-        if let Some(presetnation) = election.presentation.clone() {
-            let election_presetnation: ElectionPresentation =
-                serde_json::from_value(presetnation.clone())?;
-            match election_presetnation.dates {
-                Some(dates) => {
-                    if let Some(start_date) = dates.start_date {
-                        maybe_create_scheduled_event(
-                            hasura_transaction,
-                            data.tenant_id.to_string().as_str(),
-                            &data.election_event.id,
-                            EventProcessors::START_ELECTION,
-                            start_date,
-                            Some(&election.id),
-                        )
-                        .await?;
-                    }
-                    if let Some(end_date) = dates.end_date {
-                        maybe_create_scheduled_event(
-                            hasura_transaction,
-                            data.tenant_id.to_string().as_str(),
-                            &data.election_event.id,
-                            EventProcessors::END_ELECTION,
-                            end_date,
-                            Some(&election.id),
-                        )
-                        .await?;
-                    }
-                }
-
-                None => {}
+        if let Some(dates_js) = election.dates.clone() {
+            let dates: ElectionDates = serde_json::from_value(dates_js)?;
+            if let Some(start_date) = dates.start_date {
+                maybe_create_scheduled_event(
+                    hasura_transaction,
+                    data.tenant_id.to_string().as_str(),
+                    &data.election_event.id,
+                    EventProcessors::START_ELECTION,
+                    start_date,
+                    Some(&election.id),
+                )
+                .await?;
+            }
+            if let Some(end_date) = dates.end_date {
+                maybe_create_scheduled_event(
+                    hasura_transaction,
+                    data.tenant_id.to_string().as_str(),
+                    &data.election_event.id,
+                    EventProcessors::END_ELECTION,
+                    end_date,
+                    Some(&election.id),
+                )
+                .await?;
             }
         }
     }
     Ok(())
 }
 
+#[instrument(err, skip_all)]
 pub async fn maybe_create_scheduled_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
