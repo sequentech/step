@@ -33,7 +33,7 @@ public class AwsSesEmailSenderProviderTest {
 
   @BeforeEach
   public void setUp() {
-    MockitoAnnotations.openMocks(this);
+    sesClientMock = mock(SesClient.class);
     emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
   }
 
