@@ -422,20 +422,26 @@ pub fn generate_ids_map(
     for election_report in election_reports {
         rename_map.insert(
             election_report.contest.election_id.clone(),
-            election_report.election_name.clone(),
+            format!(
+                "{}__{}",
+                election_report.election_name, election_report.contest.election_id
+            ),
         );
 
         let Some(contest_name) = election_report.contest.name.clone() else {
             continue;
         };
-        rename_map.insert(election_report.contest.id.clone(), contest_name);
+        rename_map.insert(
+            election_report.contest.id.clone(),
+            format!("{}__{}", contest_name, election_report.contest.id),
+        );
     }
 
     for area in areas {
         let Some(name) = area.name.clone() else {
             continue;
         };
-        rename_map.insert(area.id.clone(), name);
+        rename_map.insert(area.id.clone(), format!("{}__{}", name, area.id));
     }
 
     Ok(rename_map)
