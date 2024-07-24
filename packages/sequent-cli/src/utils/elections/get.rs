@@ -15,7 +15,9 @@ use graphql_client::{GraphQLQuery, Response};
 pub struct GetElections;
 
 impl GetElections {
-    pub fn get_by_election_event(election_event_id:&str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    pub fn get_by_election_event(
+        election_event_id: &str,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
@@ -34,7 +36,8 @@ impl GetElections {
         if response.status().is_success() {
             let response_body: Response<get_elections::ResponseData> = response.json()?;
             if let Some(data) = response_body.data {
-                let ids: Vec<String> = data.sequent_backend_election
+                let ids: Vec<String> = data
+                    .sequent_backend_election
                     .iter()
                     .map(|election| election.id.clone())
                     .collect();

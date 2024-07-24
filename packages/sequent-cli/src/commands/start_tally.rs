@@ -16,9 +16,9 @@ pub struct StartTallyCeremony {
     #[arg(long)]
     election_event_id: String,
 
-     /// Election ids- optional specific elections to start the tally for - if not provided - all elections will be tallied
-     #[arg(long)]
-     election_ids: Option<Vec<String>>,
+    /// Election ids- optional specific elections to start the tally for - if not provided - all elections will be tallied
+    #[arg(long)]
+    election_ids: Option<Vec<String>>,
 }
 
 #[derive(GraphQLQuery)]
@@ -44,16 +44,14 @@ impl StartTallyCeremony {
 
 fn start_ceremony(
     election_event_id: &str,
-    election_ids:  Option<Vec<String>>,
+    election_ids: Option<Vec<String>>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
     let elections = match election_ids {
         Some(el) => el,
-        None =>{
-            GetElections::get_by_election_event(&election_event_id)?
-        }
+        None => GetElections::get_by_election_event(&election_event_id)?,
     };
 
     let variables = create_tally_ceremony::Variables {

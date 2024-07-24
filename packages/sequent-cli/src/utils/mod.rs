@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod elections;
 pub mod keycloak;
 pub mod publication;
 pub mod read_config;
 pub mod trustees;
 pub mod upload_file;
-pub mod elections;

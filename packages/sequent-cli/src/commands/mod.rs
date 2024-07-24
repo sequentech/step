@@ -16,7 +16,7 @@ pub mod import_election_event;
 pub mod publish_changes;
 pub mod refresh_token;
 pub mod start_key_ceremony;
+pub mod start_tally;
 pub mod update_election_event_status;
 pub mod update_election_status;
 pub mod update_voter;
-pub mod start_tally;
