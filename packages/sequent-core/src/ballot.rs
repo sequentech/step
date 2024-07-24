@@ -908,4 +908,5 @@ pub struct BallotStyle {
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
+    pub election_dates: Option<ElectionDates>,
 }

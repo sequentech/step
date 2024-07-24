@@ -149,7 +149,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
-    const dates = ballotStyle?.ballot_eml?.election_presentation?.dates
+    const dates = ballotStyle?.ballot_eml?.election_dates
 
     return (
         <SelectElection
