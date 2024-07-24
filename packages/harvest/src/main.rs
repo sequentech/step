@@ -10,14 +10,7 @@ use dotenv::dotenv;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
 use sequent_core::util::init_log::init_log;
-use std::net::SocketAddr;
-use tokio::join;
-use tracing::{instrument, warn};
-use uuid::Uuid;
-use windmill::services::database::get_hasura_pool;
-use windmill::{
-    hasura::tenant::get_tenant, services::celery_app::get_celery_app,
-};
+use windmill::services::probe::{setup_probe, AppName};
 
 mod pdf;
 mod routes;
@@ -29,7 +22,7 @@ async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
 
-    setup_probe().await;
+    setup_probe(AppName::HARVEST).await;
 
     rocket::build()
         .register(
@@ -94,64 +87,4 @@ async fn rocket() -> _ {
                 routes::election_dates::manage_election_dates,
             ],
         )
-}
-
-#[instrument]
-async fn readiness_test() -> bool {
-    let celery_app = get_celery_app().await;
-
-    let broker_connection_timeout = 2;
-
-    // Use futures::join! to await multiple futures concurrently
-    let (celery_result, hasura_db_result, keycloak_hasura_result) = join!(
-        celery_app.broker.reconnect(broker_connection_timeout),
-        get_hasura_pool(),
-        get_client_credentials()
-    );
-
-    let celery_ok = celery_result.is_ok();
-    let hasura_db_client_ok = hasura_db_result.get().await.is_ok();
-    let hasura_graphql_client_ok = keycloak_hasura_result.is_ok();
-
-    let hasura_query_ok = if let Ok(auth_headers) = keycloak_hasura_result {
-        get_tenant(auth_headers, Uuid::new_v4().to_string())
-            .await
-            .is_ok()
-    } else {
-        false
-    };
-    warn!(
-        "celery: {}, hasura_db: {} , keycloak_hasura {}, hasura_query: {}",
-        celery_ok,
-        hasura_db_client_ok,
-        hasura_graphql_client_ok,
-        hasura_query_ok
-    );
-
-    celery_ok
-        && hasura_db_client_ok
-        && hasura_graphql_client_ok
-        && hasura_query_ok
-}
-
-async fn setup_probe() {
-    let addr_s = std::env::var("HARVEST_PROBE_ADDR")
-        .unwrap_or("0.0.0.0:3030".to_string());
-    let live_path =
-        std::env::var("HARVEST_PROBE_LIVE_PATH").unwrap_or("live".to_string());
-    let ready_path = std::env::var("HARVEST_PROBE_READY_PATH")
-        .unwrap_or("ready".to_string());
-
-    let addr: Result<SocketAddr, _> = addr_s.parse();
-
-    if let Ok(addr) = addr {
-        let ph = ProbeHandler::new(&live_path, &ready_path, addr);
-        let f = ph.future();
-        ph.set_live(move || true).await;
-        ph.set_ready(move || Box::pin(async { readiness_test().await }))
-            .await;
-        tokio::spawn(f);
-    } else {
-        warn!("Could not parse address for probe '{}'", addr_s);
-    }
 }
