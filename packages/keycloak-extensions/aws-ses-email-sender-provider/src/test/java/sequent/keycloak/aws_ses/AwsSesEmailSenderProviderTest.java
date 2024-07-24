@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.email.EmailException;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
@@ -32,6 +33,7 @@ public class AwsSesEmailSenderProviderTest {
 
   @BeforeEach
   public void setUp() {
+    MockitoAnnotations.openMocks(this);
     emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
   }
 
