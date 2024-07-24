@@ -5,6 +5,7 @@
 pub mod cast_vote;
 pub mod complete_key_ceremony;
 pub mod configure;
+pub mod confirm_tally_ceremoney_key;
 pub mod create_area;
 pub mod create_area_contest;
 pub mod create_candidate;
@@ -19,4 +20,5 @@ pub mod start_key_ceremony;
 pub mod start_tally;
 pub mod update_election_event_status;
 pub mod update_election_status;
+pub mod update_tally_status;
 pub mod update_voter;

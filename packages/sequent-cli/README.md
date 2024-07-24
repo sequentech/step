@@ -150,3 +150,22 @@ Run ```cargo run -- start-tally --election-event-id <ELECTION_EVENT_ID>```
 
 - Election event id - the election event to be associated with - required*
 - Election ids - optional string vec of election ids - optional*
+
+## Confirm Trustee Key For Tally Ceremony
+
+> This needs to be done by a trustee - authenticate with a trustee using the config command
+
+Run ```cargo run -- confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID>```
+
+- Election event id - the election event to be associated with - required*
+- Tally id - the tally ceremony id to confirm the key for - required*
+
+## Update Tally Ceremony Status
+
+> This can be used to complete the tally ceremony after the trustee keys have been confirmed
+
+Run ```cargo run -- update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --status <STATUS>```
+
+- Election event id - the election event to be associated with - required*
+- Tally id - the tally ceremony id to confirm the key for - required*
+- Status - the status of the tally - enter <b>IN_PROGRESS</b> for completing the tally ceremony

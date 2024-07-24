@@ -38,6 +38,8 @@ enum Commands {
     StartKeyCeremony(commands::start_key_ceremony::StartKeyCeremony),
     CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
     StartTally(commands::start_tally::StartTallyCeremony),
+    UpdateTally(commands::update_tally_status::UpdateTallyStatus),
+    ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
 }
 
 fn main() {
@@ -61,5 +63,7 @@ fn main() {
         Commands::StartKeyCeremony(start) => start.run(),
         Commands::CompleteKeyCeremony(complete) => complete.run(),
         Commands::StartTally(start) => start.run(),
+        Commands::UpdateTally(update) => update.run(),
+        Commands::ConfirmKeyTally(confirm) => confirm.run(),
     }
 }
