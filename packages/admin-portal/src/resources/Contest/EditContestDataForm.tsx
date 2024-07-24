@@ -387,10 +387,10 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation = newPresentation
             // name, alias and description fields
             if (!newContest.presentation) {
-                newContest.presentation = {i18n: {en: {}}}
+                newContest.presentation = {}
             }
             if (!newContest.presentation.i18n) {
-                newContest.presentation.i18n = {en: {}}
+                newContest.presentation.i18n = {}
             }
             if (!newContest.presentation.i18n.en) {
                 newContest.presentation.i18n.en = {}
