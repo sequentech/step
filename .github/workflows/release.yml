@@ -16,6 +16,16 @@ on:
           - patch
           - minor
           - major
+      preRelease:
+        description: 'Pre-release - If true, the release will be marked as pre-release'
+        required: false
+        type: boolean
+        default: false
+      incrementPreRelease:
+        description: 'Increment Pre-release - Only applicable if pre-release is true - If true, the pre-release version will be incremented'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -50,7 +60,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        release-it --ci --increment=${{ github.event.inputs.releaseType }}
+        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          if [ "${{ github.event.inputs.incrementPreRelease }}" = "true" ]; then
+            release-it --ci --increment=${{ github.event.inputs.releaseType }} --preRelease=rc
+          else
+            release-it --ci --preRelease
+          fi
+        else
+          release-it --ci --increment=${{ github.event.inputs.releaseType }}
+        fi
         # Capture the Release Version
         echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
