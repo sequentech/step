@@ -33,6 +33,7 @@ pub fn get_ballot_style_1(
         )],
         election_event_presentation: None,
         election_presentation: None,
+        election_dates: None,
     }
 }
 
@@ -59,5 +60,6 @@ pub fn generate_ballot_style(
         contests,
         election_event_presentation: None,
         election_presentation: None,
+        election_dates: None,
     }
 }

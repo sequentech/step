@@ -273,6 +273,7 @@ const spanishTranslation: TranslationType = {
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 noResult: "No Election Event yet",
+                startDate: "La fecha de inicio debe ser en el futuro",
             },
             voters: {
                 title: "Votantes",
