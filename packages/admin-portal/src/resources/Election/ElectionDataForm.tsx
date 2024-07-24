@@ -208,8 +208,14 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             // name, alias and description fields
-            if (!temp.presentation || !temp.presentation?.i18n) {
-                temp.presentation = {i18n: {en: {}}}
+            if (!temp.presentation) {
+                temp.presentation = {}
+            }
+            if (!temp.presentation?.i18n) {
+                temp.presentation.i18n = {}
+            }
+            if (!temp.presentation?.i18n?.en) {
+                temp.presentation.i18n.en = {}
             }
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
