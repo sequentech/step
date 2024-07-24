@@ -27,15 +27,14 @@ import software.amazon.awssdk.services.ses.model.SendEmailResponse;
 @ExtendWith(MockitoExtension.class)
 public class AwsSesEmailSenderProviderTest {
 
-  @Mock private SesClient sesClientMock;
+  private SesClient sesClientMock;
 
-  @InjectMocks private AwsSesEmailSenderProvider emailSenderProvider;
+  private AwsSesEmailSenderProvider emailSenderProvider;
 
-  @BeforeEach
-  public void setUp() {
-    sesClientMock = mock(SesClient.class);
-    emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
-  }
+  public AwsSesEmailSenderProviderTest(@Mock SesClient sesClientMock) {
+    this.sesClientMock = sesClientMock;
+    this.emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
+}
 
   @Test
   public void testSendEmail() throws EmailException {
