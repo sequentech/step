@@ -95,8 +95,9 @@ rand = { package="rand", version = "0.8" }
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
-wasm = ["wasm-bindgen"]
+wasm = ["wasm-bindgen", "areas"]
 default = []
+areas = []
 reports = ["dep:handlebars", "dep:headless_chrome", "dep:tracing", "dep:tempfile", "dep:num-format"]
 keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
