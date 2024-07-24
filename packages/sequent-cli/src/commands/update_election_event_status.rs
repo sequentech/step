@@ -32,10 +32,10 @@ impl UpdateElectionEventStatus {
     pub fn run(&self) {
         match update_status(&self.election_event_id, &self.status) {
             Ok(id) => {
-                println!("Successfully updated status to {}", &self.status);
+                println!("Success! Successfully updated status to {}", &self.status);
             }
             Err(err) => {
-                eprintln!("Failed to update status: {}", err)
+                eprintln!("Error! Failed to update status: {}", err)
             }
         }
     }

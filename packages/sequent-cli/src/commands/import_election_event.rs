@@ -32,10 +32,10 @@ impl ImportElectionEventFile {
     pub fn run(&self) {
         match import(&self.file_path, self.is_local) {
             Ok(id) => {
-                println!("Election event created successfully! ID: {}", id);
+                println!("Success! Election event created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create election event: {}", err)
+                eprintln!("Error! Failed to create election event: {}", err)
             }
         }
     }

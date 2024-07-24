@@ -25,10 +25,13 @@ impl Complete {
     pub fn run(&self) {
         match complete_ceremony(&self.election_event_id, &self.key_ceremony_id) {
             Ok(path) => {
-                println!("Successfully completed key ceremony. Path to key: {}", path);
+                println!(
+                    "Success! Successfully completed key ceremony. Path to key: {}",
+                    path
+                );
             }
             Err(err) => {
-                eprintln!("Failed to complete key ceremony: {}", err)
+                eprintln!("Error! Failed to complete key ceremony: {}", err)
             }
         }
     }

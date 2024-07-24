@@ -54,7 +54,7 @@ impl Config {
         ) {
             Ok(_) => {}
             Err(err) => {
-                eprintln!("Failed to create configuration file: {}", err)
+                eprintln!("Error! Failed to create configuration file: {}", err)
             }
         }
     }
@@ -99,6 +99,9 @@ fn create_config(
 
     fs::write(&config_file, json_data)?;
 
-    println!("Configuration saved successfully at {:?}", config_file);
+    println!(
+        "Success! Configuration saved successfully at {:?}",
+        config_file
+    );
     Ok(())
 }

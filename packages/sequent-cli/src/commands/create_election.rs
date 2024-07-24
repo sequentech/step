@@ -34,10 +34,10 @@ impl CreateElection {
     pub fn run(&self) {
         match create_election(&self.name, &self.description, &self.election_event_id) {
             Ok(id) => {
-                println!("Election created successfully! ID: {}", id);
+                println!("Success! Election created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create election: {}", err)
+                eprintln!("Error! Failed to create election: {}", err)
             }
         }
     }

@@ -18,7 +18,7 @@ impl Refresh {
         match refresh_token() {
             Ok(_) => {}
             Err(err) => {
-                eprintln!("Failed to refresh token: {}", err)
+                eprintln!("Error! Failed to refresh token: {}", err)
             }
         }
     }
@@ -56,6 +56,9 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
 
     fs::write(&config_file, json_data)?;
 
-    println!("Configuration refreshed successfully at {:?}", config_file);
+    println!(
+        "Success! Configuration refreshed successfully at {:?}",
+        config_file
+    );
     Ok(())
 }

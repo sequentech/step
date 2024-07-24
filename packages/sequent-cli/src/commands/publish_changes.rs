@@ -37,10 +37,10 @@ impl PublishChanges {
     pub fn run(&self) {
         match publish_changes(&self.election_event_id) {
             Ok(id) => {
-                println!("Published successfully! ID: {}", id);
+                println!("Success! Published successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to publish: {}", err)
+                eprintln!("Error! Failed to publish: {}", err)
             }
         }
     }

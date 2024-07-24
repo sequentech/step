@@ -26,10 +26,10 @@ impl CastVote {
     pub fn run(&self) {
         match cast_vote(&self.election_id) {
             Ok(id) => {
-                println!("Vote casted! ID: {}", id);
+                println!("Success! Vote casted! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to cast vote: {}", err)
+                eprintln!("Error! Failed to cast vote: {}", err)
             }
         }
     }

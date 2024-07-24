@@ -34,10 +34,10 @@ impl CreateArea {
     pub fn run(&self) {
         match create_area(&self.name, &self.description, &self.election_event_id) {
             Ok(id) => {
-                println!("Area created successfully! ID: {}", id);
+                println!("Success! Area created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create Area: {}", err)
+                eprintln!("Error! Failed to create Area: {}", err)
             }
         }
     }

@@ -33,10 +33,10 @@ impl StartKeyCeremony {
     pub fn run(&self) {
         match start_ceremony(&self.election_event_id, self.threshold) {
             Ok(id) => {
-                println!("Successfully started key ceremony. ID: {}", id);
+                println!("Success! Successfully started key ceremony. ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to start key ceremony: {}", err)
+                eprintln!("Error! Failed to start key ceremony: {}", err)
             }
         }
     }

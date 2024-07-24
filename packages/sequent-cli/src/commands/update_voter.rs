@@ -70,10 +70,10 @@ impl UpdateVoter {
             &self.mobile,
         ) {
             Ok(id) => {
-                println!("Voter updated successfully! ID: {}", id);
+                println!("Success! Voter updated successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to update voter: {}", err)
+                eprintln!("Error! Failed to update voter: {}", err)
             }
         }
     }

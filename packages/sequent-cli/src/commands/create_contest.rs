@@ -43,10 +43,10 @@ impl CreateContest {
             &self.election_id,
         ) {
             Ok(id) => {
-                println!("Contest created successfully! ID: {}", id);
+                println!("Success! Contest created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create contest: {}", err)
+                eprintln!("Error! Failed to create contest: {}", err)
             }
         }
     }

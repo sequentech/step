@@ -34,10 +34,10 @@ impl CreateAreaContest {
     pub fn run(&self) {
         match create_area_contest(&self.election_event_id, &self.contest_id, &self.area_id) {
             Ok(id) => {
-                println!("Area contest created successfully! ID: {}", id);
+                println!("Success! Area contest created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create Area contest: {}", err)
+                eprintln!("Error! Failed to create Area contest: {}", err)
             }
         }
     }

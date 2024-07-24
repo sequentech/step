@@ -43,10 +43,10 @@ impl CreateCandidate {
             &self.contest_id,
         ) {
             Ok(id) => {
-                println!("Candidate created successfully! ID: {}", id);
+                println!("Success! Candidate created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create candidate: {}", err)
+                eprintln!("Error! Failed to create candidate: {}", err)
             }
         }
     }

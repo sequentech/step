@@ -49,10 +49,10 @@ impl CreateVoter {
             &self.email,
         ) {
             Ok(id) => {
-                println!("Voter created successfully! ID: {}", id);
+                println!("Success! Voter created successfully! ID: {}", id);
             }
             Err(err) => {
-                eprintln!("Failed to create voter: {}", err)
+                eprintln!("Error! Failed to create voter: {}", err)
             }
         }
     }

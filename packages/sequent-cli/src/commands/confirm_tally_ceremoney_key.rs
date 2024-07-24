@@ -34,9 +34,9 @@ impl ConfirmKeyForTally {
         match confirm_key(&self.election_event_id, &self.tally_id) {
             Ok(is_valid) => {
                 if is_valid {
-                    println!("Successfully confirmed key");
+                    println!("Success! Successfully confirmed key");
                 } else {
-                    eprintln!("Failed to confirm key")
+                    eprintln!("Error! Failed to confirm key")
                 }
             }
             Err(err) => {
