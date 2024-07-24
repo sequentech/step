@@ -12,13 +12,10 @@ import static org.mockito.Mockito.*;
 import jakarta.mail.internet.InternetAddress;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.email.EmailException;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
@@ -34,7 +31,7 @@ public class AwsSesEmailSenderProviderTest {
   public AwsSesEmailSenderProviderTest(@Mock SesClient sesClientMock) {
     this.sesClientMock = sesClientMock;
     this.emailSenderProvider = new AwsSesEmailSenderProvider(sesClientMock);
-}
+  }
 
   @Test
   public void testSendEmail() throws EmailException {
