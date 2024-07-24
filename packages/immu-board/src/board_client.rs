@@ -10,7 +10,7 @@ use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
 
-const IMMUDB_DEFAULT_LIMIT: usize = 2500;
+const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 
