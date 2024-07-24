@@ -8,7 +8,7 @@ use crate::types::scheduled_event::EventProcessors;
 use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::ElectionPresentation;
+use sequent_core::ballot::{ElectionDates, ElectionPresentation};
 use tracing::{info, instrument};
 
 #[instrument(skip(hasura_transaction), err)]
@@ -30,16 +30,13 @@ pub async fn manage_dates(
     let Some(election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
-    let election_presentation: ElectionPresentation = election
-        .presentation
+
+    let current_dates: ElectionDates = election
+        .dates
         .clone()
         .map(|presentation| serde_json::from_value(presentation))
         .transpose()
-        .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
-        .unwrap_or(Default::default());
-    let current_dates = election_presentation
-        .dates
-        .clone()
+        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
         .unwrap_or(Default::default());
     let mut new_dates = current_dates.clone();
     let start_task_id =
@@ -102,7 +99,7 @@ pub async fn manage_dates(
             new_dates.start_date = None;
             if (current_dates.start_date.is_none()) {
             } else {
-                //STOP PREVIOS START TASK
+                //STOP PREVIOUS START TASK
                 new_dates.scheduled_opening = Some(false);
                 if let Some(scheduled_manage_start_date) = scheduled_manage_start_date_opt {
                     stop_scheduled_event(
@@ -156,7 +153,7 @@ pub async fn manage_dates(
             new_dates.end_date = None;
             if (current_dates.scheduled_closing.is_none()) {
             } else {
-                //STOP PREVIOS END TASK
+                //STOP PREVIOUS END TASK
                 if let Some(scheduled_manage_end_date) = scheduled_manage_end_date_opt {
                     stop_scheduled_event(
                         hasura_transaction,
@@ -169,14 +166,12 @@ pub async fn manage_dates(
         }
     }
 
-    let mut new_election_presentation: ElectionPresentation = election_presentation.clone();
-    new_election_presentation.dates = Some(new_dates);
-    update_election_presentation(
+    update_election_dates(
         hasura_transaction,
         tenant_id,
         election_event_id,
         election_id,
-        serde_json::to_value(new_election_presentation)?,
+        serde_json::to_value(new_dates)?,
     )
     .await?;
     Ok(())

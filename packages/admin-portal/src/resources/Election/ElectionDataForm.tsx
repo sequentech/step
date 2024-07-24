@@ -481,7 +481,7 @@ export const ElectionDataForm: React.FC = () => {
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
                                         <DateTimeInput
-                                            source={`presentation.dates.start_date`}
+                                            source={`dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
                                             parse={(value) =>
                                                 value && new Date(value).toISOString()
@@ -497,7 +497,7 @@ export const ElectionDataForm: React.FC = () => {
                                     </Grid>
                                     <Grid item xs={12} md={6}>
                                         <DateTimeInput
-                                            source="presentation.dates.end_date"
+                                            source="dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
                                             parse={(value) =>
                                                 value && new Date(value).toISOString()

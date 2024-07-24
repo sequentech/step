@@ -6,7 +6,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Election;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 use crate::services::import_election_event::ImportElectionEventSchema;
@@ -270,7 +270,9 @@ pub async fn insert_election(
         )
         .await?;
 
-        let rows: Vec<Row> = hasura_transaction
+        info!("dates: {:?}", election.dates);
+
+        let _rows: Vec<Row> = hasura_transaction
             .query(
                 &statement,
                 &[
@@ -344,4 +346,37 @@ pub async fn export_elections(
         .collect::<Result<Vec<Election>>>()?;
 
     Ok(election_events)
+}
+
+pub async fn update_election_dates(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    dates: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let election_uuid: uuid::Uuid =
+        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.election
+                SET dates = $1
+                WHERE tenant_id = $2 AND election_event_id = $3 AND id = $4;
+            "#,
+        )
+        .await?;
+    let _row: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&dates, &tenant_uuid, &election_event_uuid, &election_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_dates query: {err}"))?;
+
+    Ok(())
 }

@@ -76,7 +76,7 @@ pub async fn manage_election_dates(
         }
     }
 
-    let commit = hasura_transaction
+    let _commit = hasura_transaction
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed: {}", e));
