@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2022-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
@@ -23,13 +23,20 @@ use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
 
-trait IntoResult<T> {
+pub trait IntoResult<T> {
     fn into_json(self) -> Result<T, JsValue>;
 }
 
 impl<T> IntoResult<T> for Result<T, String> {
     fn into_json(self) -> Result<T, JsValue> {
-        self.map_err(|err| serde_wasm_bindgen::to_value(&err).unwrap())
+        self.map_err(|err| {
+            serde_wasm_bindgen::to_value(&err).unwrap_or_else(|serde_err| {
+                JsValue::from_str(&format!(
+                    "Error converting error to JSON: {}",
+                    serde_err
+                ))
+            })
+        })
     }
 }
 

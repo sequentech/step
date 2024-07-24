@@ -170,14 +170,27 @@ pub fn replace_ids(
     id_opt: Option<String>,
     tenant_id: String,
 ) -> Result<ImportElectionEventSchema> {
-    let keep: Vec<String> = if id_opt.is_some() {
-        vec![
-            original_data.election_event.id.clone(),
-            original_data.tenant_id.clone().to_string(),
-        ]
-    } else {
-        vec![original_data.tenant_id.clone().to_string()]
-    };
+    let mut keep: Vec<String> = vec![];
+    keep.push(original_data.tenant_id.clone().to_string());
+    if id_opt.is_some() {
+        keep.push(original_data.election_event.id.clone());
+    }
+    // find other ids to maintain
+    if let Some(realm) = original_data.keycloak_event_realm.clone() {
+        if let Some(authenticator_configs) = realm.authenticator_config.clone() {
+            for authenticator_config in authenticator_configs {
+                let Some(config) = authenticator_config.config.clone() else {
+                    continue;
+                };
+                for (_key, value) in config {
+                    if Uuid::parse_str(&value).is_ok() {
+                        keep.push(value.clone());
+                    }
+                }
+            }
+        }
+    }
+
     let mut new_data = replace_uuids(data_str, keep);
 
     if let Some(id) = id_opt {

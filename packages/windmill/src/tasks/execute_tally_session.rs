@@ -931,6 +931,9 @@ pub async fn execute_tally_session_wrapped(
     // base temp folder
     let base_tempdir = tempdir()?;
 
+    let areas: Vec<Area> =
+        get_event_areas(&hasura_transaction, &tenant_id, &election_event_id).await?;
+
     let status = if plaintexts_data.len() > 0 {
         Some(
             run_velvet_tally(
@@ -939,6 +942,7 @@ pub async fn execute_tally_session_wrapped(
                 &cast_votes_count,
                 &tally_sheets,
                 report_content_template,
+                &areas,
             )
             .await?,
         )
@@ -954,6 +958,7 @@ pub async fn execute_tally_session_wrapped(
         &election_event_id,
         session_ids.clone(),
         tally_session_execution.clone(),
+        &areas,
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials
