@@ -12,6 +12,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
+use sequent_core::types::hasura::core::Area;
 use std::cmp;
 use std::path::PathBuf;
 use tracing::{event, instrument, Level};
@@ -239,6 +240,7 @@ pub async fn populate_results_tables(
     election_event_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+    areas: &Vec<Area>,
 ) -> Result<Option<String>> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
@@ -267,6 +269,7 @@ pub async fn populate_results_tables(
                 election_event_id,
                 &results_event_id,
                 base_tally_path,
+                areas,
             )
             .await?;
         }

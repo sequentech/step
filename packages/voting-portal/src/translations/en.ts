@@ -20,7 +20,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
+                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -49,9 +49,9 @@ const englishTranslation = {
         reviewScreen: {
             title: "Review your ballot",
             description:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button bellow, and to audit your ballot click the “<b>Audit Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
+                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
             descriptionNoAudit:
-                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
+                "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this Ballot.",
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",
@@ -71,7 +71,7 @@ const englishTranslation = {
             auditBallotHelpDialog: {
                 title: "Do you want to audit the ballot?",
                 content:
-                    "<p>Auditing the ballot will spoil it and you will need to start the process of voting again if you want to cast your vote. The ballot audit process allows you to verify it's correctly encoded. Doing this process requires you to have important technical knowledge, so we do not recommend it if you do not know what you are doing.</p><p><b>If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
+                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
                 ok: "Yes, I want to DISCARD my ballot to audit it",
                 cancel: "Cancel",
             },
@@ -79,7 +79,7 @@ const englishTranslation = {
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
-                "The confirmation code bellow verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
+                "The confirmation code below verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",
@@ -125,7 +125,7 @@ const englishTranslation = {
             printButton: "Print",
             restartButton: "Start Voting",
             title: "Audit your Ballot",
-            description: "To verify your ballot you will need. to follow the bellow steps:",
+            description: "To verify your ballot, please follow the steps below:",
             step1Title: "1. Download or copy the following information",
             step1Description:
                 "Your <b>Ballot ID</b> that appears at the top of the screen and your encrypted ballot below:",
@@ -146,7 +146,7 @@ const englishTranslation = {
                 ok: "OK",
             },
             bottomWarning:
-                "For security reason, when you audit your ballot, it need to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ bellow.",
+                "For security reasons, when you audit your ballot, it needs to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ below.",
         },
         electionSelectionScreen: {
             title: "Ballot list",
@@ -208,7 +208,7 @@ const englishTranslation = {
         ballotLocator: {
             title: "Locate your Ballot",
             titleResult: "Result of your Ballot lookup",
-            description: "Verify that your Ballot has been correctly emitted",
+            description: "Verify that your Ballot has been correctly submitted",
             locate: "Locate your Ballot",
             locateAgain: "Locate another Ballot",
             found: "Your ballot ID {{ballotId}} has been located",

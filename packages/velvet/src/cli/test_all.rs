@@ -30,7 +30,8 @@ pub fn generate_ballots(
     let election_event_id = Uuid::new_v4();
 
     (0..election_num).try_for_each(|_| {
-        let mut election = fixture.create_election_config(&election_event_id)?;
+        let areas: Vec<Uuid> = (0..area_num).map(|_| Uuid::new_v4()).collect();
+        let mut election = fixture.create_election_config(&election_event_id, areas)?;
         election.ballot_styles.clear();
 
         (0..contest_num).try_for_each(|_| {
@@ -48,6 +49,11 @@ pub fn generate_ballots(
                     100,
                     0,
                     None,
+                    election
+                        .areas
+                        .get(index as usize)
+                        .cloned()
+                        .map(|val| val.id),
                 )?;
 
                 election.ballot_styles.push(generate_ballot_style(
@@ -185,7 +191,8 @@ mod tests {
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
-        let election = fixture.create_election_config(&election_event_id)?;
+        let areas: Vec<Uuid> = vec![Uuid::new_v4()];
+        let election = fixture.create_election_config(&election_event_id, areas)?;
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
@@ -399,8 +406,9 @@ mod tests {
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
+        let areas: Vec<Uuid> = vec![Uuid::new_v4(), Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id)?;
+        let mut election = fixture.create_election_config(&election_event_id, areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -417,6 +425,7 @@ mod tests {
             100,
             0,
             None,
+            election.areas.first().cloned().map(|val| val.id),
         )?;
         let first_area_id = area_config.id;
 
@@ -520,6 +529,7 @@ mod tests {
             100,
             0,
             None,
+            election.areas.get(1).cloned().map(|val| val.id),
         )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
@@ -625,6 +635,7 @@ mod tests {
             100,
             0,
             None,
+            election.areas.first().cloned().map(|val| val.id),
         )?;
 
         election.ballot_styles.push(generate_ballot_style(
@@ -823,8 +834,9 @@ mod tests {
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
+        let areas: Vec<Uuid> = vec![Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id)?;
+        let mut election = fixture.create_election_config(&election_event_id, areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -840,6 +852,7 @@ mod tests {
             100,
             0,
             None,
+            election.areas.first().cloned().map(|val| val.id),
         )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
@@ -920,8 +933,9 @@ mod tests {
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
+        let areas: Vec<Uuid> = vec![Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id)?;
+        let mut election = fixture.create_election_config(&election_event_id, areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -937,6 +951,7 @@ mod tests {
             100,
             0,
             None,
+            election.areas.first().cloned().map(|val| val.id),
         )?;
 
         election.ballot_styles.push(generate_ballot_style(
@@ -1070,8 +1085,9 @@ mod tests {
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
+        let areas: Vec<Uuid> = vec![Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id)?;
+        let mut election = fixture.create_election_config(&election_event_id, areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -1092,6 +1108,7 @@ mod tests {
             100,
             0,
             None,
+            election.areas.first().cloned().map(|val| val.id),
         )?;
 
         election.ballot_styles.push(generate_ballot_style(

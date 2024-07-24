@@ -96,10 +96,12 @@ pub async fn insert_ballots_messages(
         )
         .await?;
 
+        /*
         let elections_end_dates =
             get_elections_end_dates(auth_headers, tenant_id, election_event_id)
                 .await
                 .with_context(|| "error getting elections' end_date")?;
+        */
 
         let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
             .iter()
@@ -116,10 +118,11 @@ pub async fn insert_ballots_messages(
                     return false;
                 };
 
-                let valid = match elections_end_dates.get(&election_id) {
+                /*let valid = match elections_end_dates.get(&election_id) {
                     Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
                     _ => true,
-                };
+                };*/
+                let valid = true;
 
                 users_map.contains(&voter_id) && valid
             })
@@ -235,9 +238,11 @@ pub async fn count_auditable_ballots(
     let users_map =
         list_keycloak_enabled_users_by_area_id(keycloak_transaction, &realm, area_id).await?;
 
+    /*
     let elections_end_dates = get_elections_end_dates(auth_headers, tenant_id, election_event_id)
         .await
         .with_context(|| "error getting elections' end_date")?;
+    */
 
     let auditable_ballots: Vec<&CastVote> = ballots_list
         .iter()
@@ -253,11 +258,13 @@ pub async fn count_auditable_ballots(
             let Some(ballot_created_at) = ballot.created_at else {
                 return true;
             };
-
+            /*
             let valid = match elections_end_dates.get(&election_id) {
                 Some(Some(election_end_date)) => ballot_created_at <= *election_end_date,
                 _ => true,
             };
+            */
+            let valid: bool = true;
 
             !users_map.contains(&voter_id) || !valid
         })
