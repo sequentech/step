@@ -14,89 +14,67 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.UserModel;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 public class ConditionalHasUserAttributeAuthenticatorTest {
 
   private ConditionalHasUserAttributeAuthenticator authenticator;
-  private AuthenticationFlowContext context;
-  private AuthenticatorConfigModel authConfig;
-  private UserModel user;
+  @Mock private AuthenticationFlowContext context;
+  @Mock private AuthenticatorConfigModel authConfig;
+  @Mock private UserModel user;
 
   @BeforeEach
   void setUp() {
+    MockitoAnnotations.openMocks(this);
     authenticator = ConditionalHasUserAttributeAuthenticator.SINGLETON;
-    context = mock(AuthenticationFlowContext.class);
-    authConfig = mock(AuthenticatorConfigModel.class);
-    user = mock(UserModel.class);
   }
 
   @Test
   public void testMatchConditionUserAttributePresent() {
-    // Mock configuration
-    Map<String, String> config = new HashMap<>();
-    config.put(
-        ConditionalHasUserAttributeAuthenticatorFactory.CONF_USER_ATTRIBUTE_KEY, "testAttribute");
-    config.put(ConditionalHasUserAttributeAuthenticatorFactory.CONF_NEGATE, "false");
-    when(authConfig.getConfig()).thenReturn(config);
-
-    // Mock context behavior
-    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    setValidAuthConfig("testAttribute", false);
     when(context.getUser()).thenReturn(user);
     when(user.getFirstAttribute("testAttribute")).thenReturn("attributeValue");
-
-    // Test the method
     boolean result = authenticator.matchCondition(context);
-
     assertTrue(result, "Condition should match when user attribute is present");
   }
 
   @Test
-  public void testMatchConditionUserAttributeNotPresent() {
-    // Mock configuration
-    Map<String, String> config = new HashMap<>();
-    config.put(
-        ConditionalHasUserAttributeAuthenticatorFactory.CONF_USER_ATTRIBUTE_KEY, "testAttribute");
-    config.put(ConditionalHasUserAttributeAuthenticatorFactory.CONF_NEGATE, "false");
-    when(authConfig.getConfig()).thenReturn(config);
-
-    // Mock context behavior
-    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+  public void testMatchConditionUserNullAttributet() {
+    setValidAuthConfig("testAttribute", false);
     when(context.getUser()).thenReturn(user);
-    when(user.getFirstAttribute("testAttribute")).thenReturn(null); // Attribute is not present
-
-    // Test the method
+    when(user.getFirstAttribute("")).thenReturn(null);
     boolean result = authenticator.matchCondition(context);
-
     assertFalse(result, "Condition should not match when user attribute is not present");
   }
 
   @Test
   public void testMatchConditionNullAuthConfig() {
-    // Mock context behavior with null AuthenticatorConfigModel
     when(context.getAuthenticatorConfig()).thenReturn(null);
-
-    // Test the method
     boolean result = authenticator.matchCondition(context);
-
     assertFalse(result, "Condition should not match when AuthenticatorConfigModel is null");
   }
 
   @Test
   public void testMatchConditionNullUser() {
-    // Mock configuration
+    setValidAuthConfig("testAttributes", false);
+    when(context.getUser()).thenReturn(null);
+    boolean result = authenticator.matchCondition(context);
+    assertFalse(result, "Condition should not match when UserModel is null");
+  }
+
+  @Test
+  public void testIsReuiredUser() {
+    boolean results = authenticator.requiresUser();
+    assertTrue(results, "requiresUser() should return true");
+  }
+
+  public void setValidAuthConfig(String userAttributeKey, boolean negate) {
     Map<String, String> config = new HashMap<>();
     config.put(
-        ConditionalHasUserAttributeAuthenticatorFactory.CONF_USER_ATTRIBUTE_KEY, "testAttribute");
-    config.put(ConditionalHasUserAttributeAuthenticatorFactory.CONF_NEGATE, "false");
+        ConditionalHasUserAttributeAuthenticatorFactory.CONF_USER_ATTRIBUTE_KEY, userAttributeKey);
+    config.put(ConditionalHasUserAttributeAuthenticatorFactory.CONF_NEGATE, String.valueOf(negate));
     when(authConfig.getConfig()).thenReturn(config);
-
-    // Mock context behavior with null UserModel
     when(context.getAuthenticatorConfig()).thenReturn(authConfig);
-    when(context.getUser()).thenReturn(null);
-
-    // Test the method
-    boolean result = authenticator.matchCondition(context);
-
-    assertFalse(result, "Condition should not match when UserModel is null");
   }
 }

@@ -20,21 +20,16 @@ public class ManualVerificationTokenTest {
 
   @BeforeEach
   public void setup() {
-    // Initialize a sample ManualVerificationToken
     String userId = "sampleUserId";
-    int expirationInSecs = 3; // Adjust expiration time for testing (e.g., 3 seconds)
+    int expirationInSecs = 3600;
     String redirectUri = "https://example.com/callback";
-
     token = new ManualVerificationToken(userId, expirationInSecs, redirectUri);
   }
 
   @Test
   public void testTokenConstruction() {
-    // Verify token type
     assertEquals("manual-verification-token", token.getType());
-    // Verify user ID
     assertEquals("sampleUserId", token.getUserId());
-    // Verify redirect URI
     assertEquals("https://example.com/callback", token.getRedirectUri());
   }
 }

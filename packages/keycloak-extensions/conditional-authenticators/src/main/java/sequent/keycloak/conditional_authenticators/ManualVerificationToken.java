@@ -27,7 +27,6 @@ public class ManualVerificationToken extends DefaultActionToken {
   }
 
   ManualVerificationToken() {
-    // Required to deserialize from JWT
     super();
     log.info("ManualVerificationToken private");
   }

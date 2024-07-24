@@ -91,7 +91,6 @@ public class ManualVerificationProvider implements RealmResourceProvider {
       // Generate the token
       ManualVerificationToken mvToken =
           new ManualVerificationToken(user.getId(), expiration, redirectUri);
-
       UriBuilder builder = LoginActionsService.actionTokenProcessor(session.getContext().getUri());
       builder.queryParam("key", mvToken.serialize(session, realm, session.getContext().getUri()));
       return builder.build(realm.getName()).toString();

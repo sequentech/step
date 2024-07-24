@@ -36,41 +36,52 @@ public class ConditionalClientAuthenticatorTest {
 
   @Test
   public void testMatchConditionClientIdMatched() {
-    // Mock configuration
-    Map<String, String> config = new HashMap<>();
-    config.put(ConditionalClientAuthenticatorFactory.CONDITIONAL_CLIENT_ID, "test-client");
-    config.put(ConditionalClientAuthenticatorFactory.CONF_NEGATE, "false");
-    when(authConfig.getConfig()).thenReturn(config);
-
-    // Mock context behavior
-    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
-    when(context.getAuthenticationSession()).thenReturn(authSession);
-    when(authSession.getClient()).thenReturn(client);
-    when(client.getClientId()).thenReturn("test-client");
-
-    // Test matchCondition method
+    setupValidAuthConfig("test-client", false);
+    setupValidClientSession("test-client");
     boolean result = conditionalClientAuthenticator.matchCondition(context);
 
     assertTrue(result, "Condition should match when client ID matches");
   }
 
   @Test
-  public void testMatchConditionClientIdNotMatched() {
-    // Mock configuration
-    Map<String, String> config = new HashMap<>();
-    config.put(ConditionalClientAuthenticatorFactory.CONDITIONAL_CLIENT_ID, "test-client");
-    config.put(ConditionalClientAuthenticatorFactory.CONF_NEGATE, "false");
-    when(authConfig.getConfig()).thenReturn(config);
+  public void testClientIdMatchNegateOff() {
+    setupValidAuthConfig("client", false);
+    setupValidClientSession("different-client");
+    assertFalse(conditionalClientAuthenticator.matchCondition(context));
+  }
 
-    // Mock context behavior
+  @Test
+  void testNullAuthenticationSession() {
+    setupValidAuthConfig("client", false);
+    when(context.getAuthenticationSession()).thenReturn(null);
+    assertFalse(conditionalClientAuthenticator.matchCondition(context));
+  }
+
+  @Test
+  public void testNullAuthenticatorConfig() {
+    when(context.getAuthenticatorConfig()).thenReturn(null);
+    assertFalse(conditionalClientAuthenticator.matchCondition(context));
+  }
+
+  @Test
+  void testNullAuthenticatorConfigGetConfig() {
+    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
     when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    when(authConfig.getConfig()).thenReturn(null);
+    assertFalse(conditionalClientAuthenticator.matchCondition(context));
+  }
+
+  private void setupValidAuthConfig(String clientId, boolean negate) {
+    Map<String, String> config = new HashMap<>();
+    config.put(ConditionalClientAuthenticatorFactory.CONDITIONAL_CLIENT_ID, clientId);
+    config.put(ConditionalClientAuthenticatorFactory.CONF_NEGATE, String.valueOf(negate));
+    when(authConfig.getConfig()).thenReturn(config);
+    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+  }
+
+  private void setupValidClientSession(String clientId) {
     when(context.getAuthenticationSession()).thenReturn(authSession);
     when(authSession.getClient()).thenReturn(client);
-    when(client.getClientId()).thenReturn("another-client");
-
-    // Test matchCondition method
-    boolean result = conditionalClientAuthenticator.matchCondition(context);
-
-    assertFalse(result, "Condition should not match when client ID does not match");
+    when(client.getClientId()).thenReturn(clientId);
   }
 }

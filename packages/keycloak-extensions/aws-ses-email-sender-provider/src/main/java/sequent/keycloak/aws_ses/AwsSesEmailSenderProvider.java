@@ -93,7 +93,7 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
     }
   }
 
-  private InternetAddress toInternetAddress(String email, String displayName) throws Exception {
+  public InternetAddress toInternetAddress(String email, String displayName) throws Exception {
     if (email == null || "".equals(email.trim())) {
       throw new EmailException("Invalid email address", null);
     }
