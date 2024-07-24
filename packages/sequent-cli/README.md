@@ -143,3 +143,10 @@ Run ```cargo run -- complete-key-ceremony --election-event-id <ELECTION_EVENT_ID
 
 - Election event id - the election event to be associated with - required*
 - Key ceremony id - the key ceremony to complete - required*
+
+## Start Tally Ceremony
+
+Run ```cargo run -- start-tally --election-event-id <ELECTION_EVENT_ID>```
+
+- Election event id - the election event to be associated with - required*
+- Election ids - optional string vec of election ids - optional*

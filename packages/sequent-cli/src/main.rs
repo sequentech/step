@@ -37,6 +37,7 @@ enum Commands {
     RefreshToken(commands::refresh_token::Refresh),
     StartKeyCeremony(commands::start_key_ceremony::StartKeyCeremony),
     CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
+    StartTally(commands::start_tally::StartTallyCeremony),
 }
 
 fn main() {
@@ -59,5 +60,6 @@ fn main() {
         Commands::RefreshToken(refresh) => refresh.run(),
         Commands::StartKeyCeremony(start) => start.run(),
         Commands::CompleteKeyCeremony(complete) => complete.run(),
+        Commands::StartTally(start) => start.run(),
     }
 }

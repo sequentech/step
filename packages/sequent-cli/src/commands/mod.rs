@@ -19,3 +19,4 @@ pub mod start_key_ceremony;
 pub mod update_election_event_status;
 pub mod update_election_status;
 pub mod update_voter;
+pub mod start_tally;
