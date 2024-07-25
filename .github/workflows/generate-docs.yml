@@ -24,15 +24,13 @@ jobs:
       run: yarn run generate-full-docs
       working-directory: ./packages/api-docs/graphql
 
-    - name: Configure Git
+    - name: Commit changes
       run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-    - name: Commit and push changes
-      run: |
-        git add packages/api-docs/graphql/docs/processed-schema.graphql
-        git commit -m 'Update processed schema'
-        git push
+          git config --global user.email "no-reply@github.com"
+          git config --global user.name "GitHub Actions"
+          git add static/blog.json
+          git commit -m "Update blog.json"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git push
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
