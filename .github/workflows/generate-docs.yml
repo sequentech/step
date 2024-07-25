@@ -24,7 +24,7 @@ jobs:
       run: yarn run generate-full-docs
       working-directory: ./packages/api-docs/graphql
 
-     - name: Configure Git
+    - name: Configure Git
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
