@@ -273,6 +273,7 @@ const frenchTranslation: TranslationType = {
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 noResult: "Pas encore d'Événement Électoral",
+                startDate: "La date de début doit être dans le futur",
             },
             voters: {
                 title: "Électeurs",

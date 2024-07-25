@@ -506,6 +506,25 @@ pub struct ElectionDates {
     Clone,
     Default,
 )]
+pub struct ElectionEventDates {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub scheduled_closing: Option<bool>,
+    pub scheduled_opening: Option<bool>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
 pub struct VotingPortalCountdownPolicy {
     pub policy: Option<ECountdownPolicy>,
     pub countdown_anticipation_secs: Option<u64>,
@@ -889,4 +908,5 @@ pub struct BallotStyle {
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
+    pub election_dates: Option<ElectionDates>,
 }

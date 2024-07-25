@@ -42,6 +42,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     DropFile,
+    IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-essentials"
@@ -75,6 +76,8 @@ export const ElectionDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const {globalSettings} = useContext(SettingsContext)
+    const [startDateValue, setStartDateValue] = useState<string | undefined>(undefined)
+    const [endDateValue, setEndDateValue] = useState<string | undefined>(undefined)
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
 
@@ -105,6 +108,24 @@ export const ElectionDataForm: React.FC = () => {
     )
 
     const [updateImage] = useUpdate()
+
+    useEffect(() => {
+        let dates = record.dates as IElectionDates | undefined
+        if (dates?.start_date && !startDateValue) {
+            setStartDateValue(dates.start_date)
+        }
+        if (dates?.end_date && !endDateValue) {
+            setEndDateValue(dates.end_date)
+        }
+    }, [
+        record.dates,
+        record.dates?.start_date,
+        record.dates?.end_date,
+        startDateValue,
+        setStartDateValue,
+        endDateValue,
+        setEndDateValue,
+    ])
 
     useEffect(() => {
         if (!data || !record) {
@@ -183,7 +204,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledOpening = temp.presentation?.dates?.scheduled_opening
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
-
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
             // set english first lang always
@@ -206,8 +226,14 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             // name, alias and description fields
-            if (!temp.presentation || !temp.presentation?.i18n) {
-                temp.presentation = {i18n: {en: {}}}
+            if (!temp.presentation) {
+                temp.presentation = {}
+            }
+            if (!temp.presentation?.i18n) {
+                temp.presentation.i18n = {}
+            }
+            if (!temp.presentation?.i18n?.en) {
+                temp.presentation.i18n.en = {}
             }
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
@@ -238,14 +264,6 @@ export const ElectionDataForm: React.FC = () => {
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
-    }
-
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionEventScreen.error.endDate")
-        }
-        return errors
     }
 
     const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
@@ -389,6 +407,19 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const formValidator = (values: any): any => {
+        const errors: any = {presentation: {dates: {}}}
+        /*if (
+            values?.presentation.dates?.start_date &&
+            values?.presentation?.dates?.end_date <= values?.presentation?.dates?.start_date
+        ) {
+            errors.presentation.dates.end_date = t("electionEventScreen.error.endDate")
+        } else if (new Date(values?.presentation?.dates?.start_date) < new Date(Date.now())) {
+            errors.presentation.dates.start_date = t("electionEventScreen.error.startDate")
+        }*/
+        return errors
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -397,30 +428,13 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onScheduledOpening: React.MouseEventHandler<HTMLButtonElement> &
-                    React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    let isUnset = incoming.presentation.dates.scheduled_opening
-
-                    const {data} = await manageElectionDates({
+                const onSave = async () => {
+                    await manageElectionDates({
                         variables: {
                             electionEventId: parsedValue.election_event_id,
                             electionId: parsedValue.id,
-                            isStart: true,
-                            isUnset: !!isUnset,
-                        },
-                    })
-                }
-
-                const onScheduledClosing: React.MouseEventHandler<HTMLButtonElement> &
-                    React.MouseEventHandler<HTMLDivElement> = async (event) => {
-                    let isUnset = incoming.presentation.dates.scheduled_closing
-
-                    const {data} = await manageElectionDates({
-                        variables: {
-                            electionEventId: parsedValue.election_event_id,
-                            electionId: parsedValue.id,
-                            isStart: false,
-                            isUnset: !!isUnset,
+                            start_date: startDateValue,
+                            end_date: endDateValue,
                         },
                     })
                 }
@@ -431,7 +445,11 @@ export const ElectionDataForm: React.FC = () => {
                         record={parsedValue}
                         toolbar={
                             <Toolbar>
-                                <SaveButton />
+                                <SaveButton
+                                    onClick={() => {
+                                        onSave()
+                                    }}
+                                />
                             </Toolbar>
                         }
                     >
@@ -474,29 +492,35 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
-                                        <BooleanInput
-                                            source={`scheduledOpening`}
-                                            label={t(`electionScreen.field.scheduledOpening`)}
-                                            helperText={false}
-                                            onClick={onScheduledOpening}
-                                        />
                                         <DateTimeInput
-                                            source={`presentation.dates.start_date`}
+                                            source={`dates.start_date`}
                                             label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
+                                            parse={(value) =>
+                                                value && new Date(value).toISOString()
+                                            }
+                                            onChange={(value) => {
+                                                setStartDateValue(
+                                                    value.target.value !== ""
+                                                        ? new Date(value.target.value).toISOString()
+                                                        : undefined
+                                                )
+                                            }}
                                         />
                                     </Grid>
                                     <Grid item xs={12} md={6}>
-                                        <BooleanInput
-                                            source={`scheduledClosing`}
-                                            label={t(`electionScreen.field.scheduledClosing`)}
-                                            helperText={false}
-                                            onClick={onScheduledClosing}
-                                        />
                                         <DateTimeInput
-                                            source="presentation.dates.end_date"
+                                            source="dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
+                                            parse={(value) =>
+                                                value && new Date(value).toISOString()
+                                            }
+                                            onChange={(value) => {
+                                                setEndDateValue(
+                                                    value.target.value !== ""
+                                                        ? new Date(value.target.value).toISOString()
+                                                        : undefined
+                                                )
+                                            }}
                                         />
                                     </Grid>
                                 </Grid>
