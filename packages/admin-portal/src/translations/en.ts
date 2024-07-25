@@ -269,6 +269,7 @@ const englishTranslation = {
             error: {
                 endDate: "End date must be after start date",
                 noResult: "No Election Event yet",
+                startDate: "Start date must be in the future",
             },
             voters: {
                 title: "Voters",

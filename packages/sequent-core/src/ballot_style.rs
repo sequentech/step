@@ -71,7 +71,6 @@ pub fn create_ballot_style(
             anyhow!("Error parsing election presentation {:?}", err)
         })?
         .unwrap_or(Default::default());
-    election_presentation.dates = Some(election_dates);
 
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
@@ -109,6 +108,7 @@ pub fn create_ballot_style(
         contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
+        election_dates: Some(election_dates),
     })
 }
 
