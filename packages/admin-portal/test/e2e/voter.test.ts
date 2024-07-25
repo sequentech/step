@@ -235,11 +235,10 @@ describe("voters tests", function () {
                     browser.useXpath()
                     browser.assert
                         .visible(
-                            //due to how the markup has been built, we need to select the delete action button by index. There are four action buttons that can be selected in this instance with delete being the 3rd one and hence [3]
-                            `//span[normalize-space()='${voterDetails.firstName}']/../../td/button[3]`
+                            `//span[normalize-space()='${voterDetails.firstName}']/../../td/button[contains(@class,'delete-voter-icon')]`
                         )
                         .click(
-                            `//span[normalize-space()='${voterDetails.firstName}']/../../td/button[3]`
+                            `//span[normalize-space()='${voterDetails.firstName}']/../../td/button[contains(@class,'delete-voter-icon')]`
                         )
                     browser.useCss()
                     browser.assert

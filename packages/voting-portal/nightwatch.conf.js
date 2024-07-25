@@ -18,27 +18,23 @@
 module.exports = {
     // An array of folders (excluding subfolders) where your tests are located;
     // if this is not specified, the test source must be passed as the second argument to the test runner.
+    
     src_folders: ["test", "nightwatch"],
 
     // See https://nightwatchjs.org/guide/concepts/page-object-model.html
     page_objects_path: [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-commands.html
-    custom_commands_path: [],
+    custom_commands_path: ["test/commands"],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-assertions.html
     custom_assertions_path: [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-plugins.html
-    plugins: ["@nightwatch/react"],
+    plugins: [],
 
     // See https://nightwatchjs.org/guide/concepts/test-globals.html
     globals_path: "",
-
-    vite_dev_server: {
-        start_vite: true,
-        port: 5173,
-    },
 
     webdriver: {},
 

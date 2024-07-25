@@ -2,120 +2,113 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/* eslint-disable testing-library/await-async-query */
-import {ExtendDescribeThis, NightwatchAPI} from "nightwatch"
+import {NightwatchAPI} from "nightwatch"
+import {loginUrl, password, pause, username} from ".."
 
-interface LoginThis {
-    testUrl: string
-    username: string
-    password: string
-    submitButton: string
-}
-
-const getRandomIntInclusive = (min: number, max: number) => {
-    min = Math.ceil(min)
-    max = Math.floor(max)
-    return Math.floor(Math.random() * (max - min + 1)) + min
-}
-
-// eslint-disable-next-line jest/valid-describe-callback
-describe("cast ballot", function (this: ExtendDescribeThis<LoginThis>) {
-    this.testUrl =
-        "http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/0de7ebe5-09ab-4e4b-b228-48153286c648/election-chooser"
-    this.username = "input[name=username]"
-    this.password = "input[name=password]"
-    this.submitButton = "*[type=submit]"
-
-    beforeEach(function (this: ExtendDescribeThis<LoginThis>, browser: NightwatchAPI) {
-        // navigate to the login page
-        browser.navigateTo(this.testUrl!)
-        // perform login
-        browser
-            .waitForElementVisible(this.username!)
-            .waitForElementVisible(this.password!)
-            .sendKeys(this.username!, "felix")
-            .sendKeys(this.password!, "felix")
-            .click(this.submitButton!)
-            .pause(1000)
+describe("Cast ballot", function () {
+    before(function (browser) {
+        browser.pause(pause.medium).login({
+            loginUrl,
+            username,
+            password,
+        })
     })
 
-    afterEach(function (this: ExtendDescribeThis<LoginThis>, browser) {
-        browser
-            .click("button.profile-menu-button")
-            .click("li.logout-button")
-            .click("button.ok-button")
-            .end()
+    after(function (browser) {
+        browser.logout().end()
     })
 
-    it("should cast a ballot", async (browser: NightwatchAPI) => {
-        let selectedElectionText = ""
-        let selectedCandidateText = ""
+    it("should be able to cast ballot for all available elections", async (browser: NightwatchAPI) => {
+        const electionListLabel = await browser.element.findByText("Ballot List")
+        browser.assert.visible(electionListLabel).pause(pause.medium)
 
-        // navigate to the election list
-        const electionListLabel = browser.element.findByText("Election List")
-        browser.assert.visible(electionListLabel)
+        // let namesOfElections = []
 
-        browser.assert.visible("div.election-item")
-        const electionCount = await browser.element.findAll("div.election-item").count()
-        const selectedElection = getRandomIntInclusive(1, electionCount)
+        //get list of elections by class selector
+        const electionList = await browser.elements("css selector", `.election-title`)
+        console.log({electionList})
 
-        await browser.getText(
-            `div.elections-list div.election-item:nth-child(${selectedElection}) p.election-title`,
-            (result) => {
-                selectedElectionText = result.value as string
-            }
-        )
+        // loop through found elections
+        const namesOfElections = electionList.map(async function (electionItem) {
+            console.log({electionItem})
 
-        const electionSelector = `div.elections-list div.election-item:nth-child(${selectedElection}) button.click-to-vote-button`
-        browser.assert.visible(electionSelector).click(electionSelector)
-        browser.pause(500)
+            //get name of each election and push into namesOfElections array
+            const electionTitle = await browser.elementIdText(
+                Object.values(electionItem)[0] as string
+            )
 
-        // navigate to ballot instructions
-        const ballotInstructionsLabel = browser.element.findByText("Instructions")
-        browser.assert.visible(ballotInstructionsLabel)
-        browser.assert.visible("button.start-voting-button").click("button.start-voting-button")
-        browser.pause(500)
+            console.log({eTitle: electionTitle})
+            // namesOfElections.push(electionTitle);
+            return electionTitle
+        })
 
-        // navigate to ballot casting
-        const electionLabel = browser.element.findByText(selectedElectionText)
-        browser.assert.visible(electionLabel)
+        console.log({namesOfElections})
 
-        const candidateCount = await browser.element.findAll("p.candidate-title").count()
-        const selectedCandidate = getRandomIntInclusive(1, candidateCount)
+        const asyncFns = namesOfElections.map((nameOfElection) => {
+            console.log({nameOfElection})
+            return () =>
+                new Promise((res, rej) => {
+                    nameOfElection.then((e) => {
+                        console.log({e})
+                        browser
+                            .useXpath()
+                            .click(
+                                `//p[contains(normalize-space(),'${e}') and contains(@class,'election-title')]/../../div/button[normalize-space()='Click to Vote']`
+                            )
+                            .click(`//button[normalize-space()="Start Voting"]`)
 
-        await browser.getText(
-            `div.candidates-list div.candidate-item:nth-child(${selectedCandidate}) p.candidate-title`,
-            (result) => {
-                selectedCandidateText = result.value as string
-            }
-        )
+                        browser.elements("css selector", `.contest-title`, function (contestList) {
+                            console.log({contestList})
 
-        const candidateSelector = `div.candidates-list div.candidate-item:nth-child(${selectedCandidate}) input.candidate-input`
-        browser.click(candidateSelector)
-        browser.assert.visible("button.next-button").click("button.next-button")
-        browser.pause(500)
+                            contestList.value.forEach((contestItem) => {
+                                console.log({contestItem})
 
-        // navigate to ballot review
-        const reviewLabel = browser.element.findByText("Review your ballot")
-        browser.assert.visible(reviewLabel)
-        browser.assert.visible(
-            "div.candidates-list div.candidate-item:nth-child(1) p.candidate-title"
-        )
-        browser.assert.textEquals(
-            "div.candidates-list div.candidate-item:nth-child(1) p.candidate-title",
-            selectedCandidateText
-        )
-        browser.assert.visible("button.cast-ballot-button").click("button.cast-ballot-button")
-        browser.pause(500)
+                                browser.elementIdText(
+                                    Object.values(contestItem)[0] as string,
+                                    function (contestTitle) {
+                                        console.log({contestTitle})
+                                        browser.elements(
+                                            "xpath",
+                                            `//h5[normalize-space()='${contestTitle.value}']/..//div[contains(@class, 'candidate-item')]`,
+                                            function (candidateList) {
+                                                // console.log({res})
+                                                candidateList.value.forEach(function (el) {
+                                                    console.log({el})
+                                                })
 
-        // navigate to end of ballot casting
-        const castLabel = browser.element.findByText("Your vote has been cast")
-        browser.assert.visible(castLabel)
+                                                browser
+                                                    .useXpath()
+                                                    .click(
+                                                        `//h5[normalize-space()='${
+                                                            contestTitle.value
+                                                        }']/..//div[contains(@class, 'candidate-item')][${
+                                                            Math.floor(
+                                                                Math.random() *
+                                                                    candidateList.value.length
+                                                            ) + 1
+                                                        }]`
+                                                    )
+                                            }
+                                        )
+                                    }
+                                )
+                            })
 
-        // we do not push the finish button bacause it will navigate out and cannot logout then
-        browser.assert.visible("button.finish-button")
-        // browser.assert.visible("button.finish-button").click("button.finish-button")
-        // browser.pause(500)
-        // browser.assert.urlContains("sequentech")
+                            browser
+                                .click(`//button[contains(@class,"next-button")]`)
+                                .click(`//button[contains(normalize-space(),"Cast your ballot")]`)
+                                .click(`//button[contains(normalize-space(),"Finish")]`)
+                                .agreeDemo()
+
+                            console.log("finished ", {e})
+                            res("complete")
+                        })
+                    })
+                })
+        })
+
+        for (const fn of asyncFns) {
+            await fn()
+        }
     })
 })

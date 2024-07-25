@@ -365,6 +365,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
             showAction: () => canEditUsers,
+			className:"delete-voter-icon"
         },
         {
             icon: <CreditScoreIcon />,
