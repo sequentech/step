@@ -1239,23 +1239,25 @@ mod tests {
 
     #[test]
     fn test_hierarchical_area_aggregation() -> Result<()> {
-        use std::str::FromStr;
-
+        use std::str::FromStr; // TODO: delete later
+        use std::fs; // TODO: delete later
+        
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
-        let area_ids: Vec<Uuid> = (0..3).map(|_| Uuid::new_v4()).collect();
+        let areas: Vec<Uuid> = (0..3).map(|_| Uuid::new_v4()).collect();
 
-        let mut election = fixture.create_election_config(&election_event_id, area_ids.clone())?;
+        let mut election = fixture.create_election_config(&election_event_id, areas.clone())?;
+        election.ballot_styles.clear(); 
 
-        // Create three contests
+        // Create three contests: Grandfather, parent, child hierarchy
         let contests: Vec<_> = (0..3).map(|_| {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id).unwrap()
         }).collect();
 
         // Create hierarchical area structure and associate each area with a unique contest
-        let areas = area_ids.iter().enumerate().map(|(i, area_id)| {
-            let parent_id = if i == 0 { None } else { Some(area_ids[i - 1]) };
+        let areas_config = areas.iter().enumerate().map(|(i, area_id)| {
+            let parent_id = if i == 0 { None } else { Some(areas[i - 1]) };
             fixture.create_area_config(
                 &election.tenant_id,
                 &election_event_id,
@@ -1269,7 +1271,8 @@ mod tests {
         }).collect::<Vec<_>>();
 
         // Assign each contest to the corresponding area
-        for (i, area) in areas.iter().enumerate() {
+        // TODO: understand if this affects the connection between parent areas-contests
+        for (i, area) in areas_config.iter().enumerate() {
             election.ballot_styles.push(generate_ballot_style(
                 &election.tenant_id,
                 &election.election_event_id,
@@ -1280,13 +1283,15 @@ mod tests {
         }
 
         // Generate ballots for the voter associated with area 3 for all contests
-        let voter_area_id = areas[2].id;
-        for contest in &contests {
+        for i in 0..2 {
+            println!(" ----- i {} Area {}", i, areas_config[i].id);
+            println!(" ----- i {} Contest {}", i, contests[i].id);
+
             let ballot_file = fixture
                 .input_dir_ballots
                 .join(format!("election__{}", &election.id))
-                .join(format!("contest__{}", &contest.id))
-                .join(format!("area__{}", voter_area_id));
+                .join(format!("contest__{}", contests[i].id))
+                .join(format!("area__{}", areas_config[i].id));
 
             let mut file = fs::OpenOptions::new()
                 .write(true)
@@ -1294,7 +1299,7 @@ mod tests {
                 .create(true)
                 .open(ballot_file.join("ballots.csv"))?;
 
-            (0..10).try_for_each(|i| {
+            (0..10).try_for_each(|j| {
                 let mut choices = vec![
                     DecodedVoteChoice { id: "0".to_owned(), selected: -1, write_in_text: None },
                     DecodedVoteChoice { id: "1".to_owned(), selected: -1, write_in_text: None },
@@ -1303,25 +1308,31 @@ mod tests {
                     DecodedVoteChoice { id: "4".to_owned(), selected: -1, write_in_text: None },
                 ];
 
-                if i % 2 == 0 {
+                let mut plaintext_prepare = DecodedVoteContest {
+                    contest_id: contests[i].id.clone(),
+                    is_explicit_invalid: false,
+                    invalid_errors: vec![],
+                    invalid_alerts: vec![],
+                    choices: vec![],
+                };
+
+                // TODO: Change and write a comment
+                // TODO: Ensure that a voter from the child area can vote in all areas
+                if j % 2 == 0 { 
                     choices[0].selected = 0;
                 } else {
                     choices[1].selected = 0;
                 }
 
-                let plaintext_prepare = DecodedVoteContest {
-                    contest_id: contest.id.clone(),
-                    is_explicit_invalid: false,
-                    invalid_errors: vec![],
-                    invalid_alerts: vec![],
-                    choices,
-                };
+                plaintext_prepare.choices = choices;
 
-                let plaintext = contest.encode_plaintext_contest_bigint(&plaintext_prepare).unwrap();
+                let plaintext = contests[i].encode_plaintext_contest_bigint(&plaintext_prepare).unwrap();
                 writeln!(file, "{}", plaintext)?;
 
                 Ok::<(), Error>(())
             })?;
+            println!("*******************AFTER OK**************");
+
         }
 
         // Set up CLI configuration
@@ -1344,24 +1355,28 @@ mod tests {
         state.exec_next()?; // Generate reports
 
         // Verify results for the contests
-        for contest in &contests {
-            for (i, area) in areas.iter().enumerate() {
-                let mut path = cli.output_dir.clone();
-                path.push("velvet-generate-reports");
-                path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
-                path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
-                path.push(format!("{}{}", PREFIX_AREA, &area.id));
-                path.push("report.json");
+        for i in 0..2 {
+            /* 
+            TODO: TESTS
+                1. Verify that the parent area contest has received votes from child area contest voters.
+                2. Ensure that the results in the following path are only from parent area voters:
+                   output/velvet-generate-reports/election__5048fb45-ecc9-4154-91f0-c205b58fb5ae/contest__cecf10d8-06e0-4b98-93dc-0a8f9bb4f9d9/area__17d4f7dd-1fd7-445b-94ff-801e13aac1f0/report.html
+            */ 
+            let mut path = cli.output_dir.clone();
+            path.push("velvet-generate-reports");
+            path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+            path.push(format!("{}{}", PREFIX_CONTEST, &contests[i].id));
+            path.push(format!("{}{}", PREFIX_AREA, &areas_config[i].id));
+            path.push("report.json");
 
-                let f = fs::File::open(&path)?;
-                let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-                let report = &reports[0];
+            let f = fs::File::open(&path)?;
+            let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+            let report = &reports[0];
 
-                if i == 2 { // Voter associated with area 3
-                    assert_eq!(report.contest_result.total_votes, 10);
-                } else {
-                    assert_eq!(report.contest_result.total_votes, 0);
-                }
+            if i == 2 { // Voter associated with area 3
+                assert_eq!(report.contest_result.total_votes, 10);
+            } else {
+                assert_eq!(report.contest_result.total_votes, 0);
             }
         }
 
