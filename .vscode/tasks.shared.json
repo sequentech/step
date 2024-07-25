@@ -493,9 +493,13 @@
         },
         {
             "label": "init.cli",
-            "command": "bash",
+            "command": "devenv",
             "args": [
-                "./.devcontainer/scripts/init_cli.sh",
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd /workspaces/step/packages/sequent-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
             ],
             "presentation": {
                 "echo": true,
