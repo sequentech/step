@@ -653,7 +653,7 @@ These assets are located here: `step/.devcontainer/minio/public-assets` and are 
 
 ## Nightwatch e2e
 
-### Running nightwatch
+### Running nightwatch(Admin-Portal)
 
 Requires running both codespace instance as well as local instance at least for the client side.
  - run codespace
@@ -661,4 +661,6 @@ Requires running both codespace instance as well as local instance at least for 
  - change directory to specific client application
  - npx nightwatch path/to/testfile.test.ts e.g `admin-portal% npx nightwatch test/e2e/voter.test.ts`
  
+ ### Running Nightwatch(Voting-Portal)
+ refer to voting-portal/test/readme
  

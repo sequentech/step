@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NightwatchAPI} from "nightwatch"
-import {loginUrl, password, pause, username} from ".."
+import {loginUrl, password, pause, username} from "..";
+import { getRandomUniqueItems } from "../../src/utils/getRandomUniqueItems"
 
 describe("Cast ballot", function () {
     before(function (browser) {
@@ -59,20 +60,21 @@ describe("Cast ballot", function () {
                                         browser.elements(
                                             "xpath",
                                             `//h5[normalize-space()='${contestTitle.value}']/..//div[contains(@class, 'candidate-item')]`,
-                                            function (candidateList) {
+                                            async function (candidateList) {
 
-                                                browser
-                                                    .useXpath()
-                                                    .click(
-                                                        `//h5[normalize-space()='${
-                                                            contestTitle.value
-                                                        }']/..//div[contains(@class, 'candidate-item')][${
-                                                            Math.floor(
-                                                                Math.random() *
-                                                                    candidateList.value.length
-                                                            ) + 1
-                                                        }]`
-                                                    )
+												const maxVotes = await browser.getAttribute(`//h5[normalize-space()='${contestTitle.value}']`, 'data-max')
+
+												const voterSelections = getRandomUniqueItems(candidateList.value.map((_,i)=>i+1), maxVotes)
+
+												voterSelections.forEach(async (candidateIndex) => {
+													browser
+														.useXpath()
+														.click(
+															`//h5[normalize-space()='${
+																contestTitle.value
+															}']/..//div[contains(@class, 'candidate-item')][${candidateIndex}]`
+														)
+												})
                                             }
                                         )
                                     }
