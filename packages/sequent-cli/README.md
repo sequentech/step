@@ -129,7 +129,7 @@ Run ```cargo run -- publish --election-event-id <ELECTION_EVENT_ID>```
 
 ## Start Key Ceremony
 
-> This <b>only</b> starts a key ceremony
+> This <b>only</b> starts a key ceremony - make sure to first run in .devcontainer  ```docker compose up -d --no-deps beat trustee1 trustee2``` 
 
 Run ```cargo run -- start-key-ceremony --election-event-id <ELECTION_EVENT_ID>```
 
