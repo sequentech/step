@@ -274,6 +274,7 @@ const catalanTranslation: TranslationType = {
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 noResult: "Encara no hi ha Esdeveniment Electoral",
+                startDate: "La data d'inici ha de ser en el futur",
             },
             voters: {
                 title: "Votants",
