@@ -848,10 +848,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                         />
                                     </Box>
-                                    <BooleanInput
-                                        source={"presentation.cast_vote_confirm"}
-                                        label={t(`electionEventScreen.field.castVoteConfirm`)}
-                                    />
                                 </AccordionDetails>
                             </Accordion>
                         </SimpleForm>

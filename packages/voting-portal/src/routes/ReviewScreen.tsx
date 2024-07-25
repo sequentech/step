@@ -284,7 +284,7 @@ export const ReviewScreen: React.FC = () => {
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const castVoteConfirmModal =
-        ballotStyle?.ballot_eml?.election_event_presentation?.cast_vote_confirm ?? false
+        ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
     const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {

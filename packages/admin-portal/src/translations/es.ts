@@ -269,7 +269,6 @@ const spanishTranslation: TranslationType = {
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
-                castVoteConfirm: "Modal de Confirmación de Voto",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -403,6 +402,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
+                castVoteConfirm: "Modal de Confirmación de Voto",
             },
             field: {
                 name: "Nombre",

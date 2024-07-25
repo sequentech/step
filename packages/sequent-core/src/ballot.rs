@@ -473,7 +473,6 @@ pub struct ElectionEventPresentation {
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
-    pub cast_vote_confirm: Option<bool>,
 }
 
 #[derive(
@@ -568,6 +567,7 @@ pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
+    pub cast_vote_confirm: Option<bool>,
 }
 
 #[derive(

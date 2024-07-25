@@ -269,7 +269,6 @@ const frenchTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
                 },
-                castVoteConfirm: "Modal de Confirmation de Vote",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -405,6 +404,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {
                 name: "Nom",

@@ -265,7 +265,6 @@ const englishTranslation = {
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
                 },
-                castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             error: {
                 endDate: "End date must be after start date",
@@ -399,6 +398,7 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             field: {
                 name: "Name",
