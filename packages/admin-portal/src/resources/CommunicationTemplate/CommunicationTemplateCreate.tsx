@@ -27,7 +27,11 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {ICommunicationType, ICommunicationMethod} from "@/types/communications"
+import {
+    ICommunicationType,
+    ICommunicationMethod,
+    ISendCommunicationBody,
+} from "@/types/communications"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_COMMUNICATION_TEMPLATE} from "@/queries/InsertCommunicationTemplate"
@@ -99,7 +103,7 @@ export const ContentInput: React.FC = () => {
                 <FormStyles.TextInput
                     minRows={4}
                     multiline={true}
-                    source="template.sms"
+                    source="template.sms.message"
                     label={t("communicationTemplate.form.smsMessage")}
                 />
             )
@@ -147,8 +151,16 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
             name: t(`communicationTemplate.method.${value.toLowerCase()}`),
         }))
 
-        if (selectedCommunicationType?.value !== ICommunicationType.BALLOT_RECEIPT) {
+        if (
+            selectedCommunicationType?.value &&
+            ![ICommunicationType.BALLOT_RECEIPT, ICommunicationType.TALLY_REPORT].includes(
+                selectedCommunicationType.value
+            )
+        ) {
             res = res.filter((cm) => cm.id !== ICommunicationMethod.DOCUMENT)
+        }
+        if (ICommunicationType.TALLY_REPORT === selectedCommunicationType?.value) {
+            res = res.filter((cm) => cm.id === ICommunicationMethod.DOCUMENT)
         }
 
         return res
@@ -185,19 +197,22 @@ export const CommunicationTemplateCreate: React.FC<TCommunicationTemplateCreate>
         if (!incoming?.template) {
             temp.communication_type = ICommunicationType.CREDENTIALS
             temp.communication_method = ICommunicationMethod.EMAIL
-            temp.template = {
-                audience_selection: null,
+            let template: ISendCommunicationBody = {
+                audience_selection: undefined,
                 audience_voter_ids: [],
-                schedule_date: null,
-                schedule_now: null,
+                schedule_date: undefined,
+                schedule_now: undefined,
                 email: {
                     subject: globalSettings.DEFAULT_EMAIL_SUBJECT["en"] ?? "",
                     plaintext_body: globalSettings.DEFAULT_EMAIL_PLAINTEXT_BODY["en"] ?? "",
                     html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY["en"] ?? "",
                 },
-                sms: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
+                sms: {
+                    message: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
+                },
                 document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
             }
+            temp.template = template
         }
 
         return temp

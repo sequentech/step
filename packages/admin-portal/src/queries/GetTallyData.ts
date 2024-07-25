@@ -174,6 +174,8 @@ export const GET_TALLY_DATA = gql`
             voting_type
             total_votes_percent
             total_votes
+            total_auditable_votes
+            total_auditable_votes_percent
             total_valid_votes_percent
             total_valid_votes
             total_invalid_votes_percent
@@ -256,6 +258,8 @@ export const GET_TALLY_DATA = gql`
             total_valid_votes_percent
             total_votes
             total_votes_percent
+            total_auditable_votes
+            total_auditable_votes_percent
         }
     }
 `

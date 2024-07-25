@@ -7,9 +7,11 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::{
+    services::jwt::JwtClaims, types::hasura::core::TallySessionConfiguration,
+};
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::{
@@ -20,6 +22,7 @@ use windmill::services::{
 pub struct CreateTallyCeremonyInput {
     election_event_id: String,
     election_ids: Vec<String>,
+    configuration: Option<TallySessionConfiguration>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,6 +67,7 @@ pub async fn create_tally_ceremony(
         tenant_id,
         input.election_event_id.clone(),
         input.election_ids,
+        input.configuration,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

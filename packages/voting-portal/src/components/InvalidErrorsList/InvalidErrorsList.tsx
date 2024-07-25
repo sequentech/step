@@ -11,6 +11,8 @@ import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {isVotedByElectionId} from "../../store/extra/extraSlice"
+import {useParams} from "react-router-dom"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -40,9 +42,14 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const [decodedContestSelection, setDecodedContestSelection] = useState<
         IDecodedVoteContest | undefined
     >(undefined)
+    const [filteredSelection, setFilteredSelection] = useState<IDecodedVoteContest | undefined>(
+        undefined
+    )
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
+    const {electionId} = useParams<{electionId?: string}>()
+    const isVotedState = useAppSelector(isVotedByElectionId(electionId))
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = useMemo(
         () => selectionState?.find((contest) => contest.contest_id === question.id),
@@ -60,14 +67,16 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection, isTouched])
 
     useEffect(() => {
-        setDecodedContestSelection(
+        const state =
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
-        )
+        setDecodedContestSelection(state)
+        setFilteredSelection(state)
     }, [contestSelection])
 
     useEffect(() => {
-        if (!isReview && !isTouched) {
-            setDecodedContestSelection((prev) => {
+        if (!isReview && !isTouched && !isVotedState) {
+            // Filter min selection error in case where no user interaction was yet made
+            setFilteredSelection((prev) => {
                 if (!prev) return undefined
                 return {
                     ...prev,
@@ -76,7 +85,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                             (error) => error.message !== "errors.implicit.selectedMin"
                         ) || [],
                     invalid_alerts:
-                        prev?.invalid_errors.filter(
+                        prev?.invalid_alerts.filter(
                             (error) => error.message !== "errors.implicit.underVote"
                         ) || [],
                 }
@@ -110,12 +119,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     })}
                 </WarnBox>
             ) : null}
-            {decodedContestSelection?.invalid_errors.map((error, index) => (
+            {filteredSelection?.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
-            {decodedContestSelection?.invalid_alerts.map((error, index) => (
+            {filteredSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox variant="info" key={index}>
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>

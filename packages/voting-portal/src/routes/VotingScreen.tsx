@@ -16,9 +16,6 @@ import {
     Dialog,
     translateElection,
     sortContestList,
-    IContest,
-    EInvalidVotePolicy,
-    EInvalidPlaintextErrorType,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -31,7 +28,12 @@ import {
     setBallotSelection,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {provideBallotService} from "../services/BallotService"
+import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {
+    check_voting_error_dialog_bool,
+    check_voting_not_allowed_next_bool,
+    provideBallotService,
+} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -41,7 +43,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest} from "sequent-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -99,7 +101,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     force: true,
                 })
             )
+            dispatch(clearIsVoted())
         }
+    }
+
+    function handlePrev() {
+        dispatch(clearIsVoted())
     }
 
     return (
@@ -116,7 +123,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
             </StyledButton>
 
             <ActionsContainer>
-                <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                <StyledLink
+                    to={backLink}
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    onClick={() => handlePrev()}
+                >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Icon icon={faAngleLeft} size="sm" />
                         <Box>{t("votingScreen.backButton")}</Box>
@@ -180,62 +191,31 @@ const VotingScreen: React.FC = () => {
         })
     }
     const onSetDecodedContests = (id: string) => (value: IDecodedVoteContest) => {
-        setDecodedContests({
-            ...decodedContests,
+        setDecodedContests((prev) => ({
+            ...prev,
             [id]: value,
-        })
+        }))
     }
 
     // if true, when the user clicks next, there will be a dialog
     // that doesn't allow to continue and forces the user to fix the issues
     const disableNextButton = (): boolean => {
-        return (
-            ballotStyle?.ballot_eml.contests
-                .map((contest) => {
-                    let policy =
-                        contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
-                    let invalidErrors = decodedContests[contest.id]?.invalid_errors ?? []
-                    let explicitError = invalidErrors.find((error) =>
-                        [
-                            EInvalidPlaintextErrorType.Explicit,
-                            EInvalidPlaintextErrorType.EncodingError,
-                        ].includes(error.error_type as any)
-                    )
-                    return (
-                        explicitError ||
-                        ((invalidErrors?.length ?? 0) > 0 &&
-                            EInvalidVotePolicy.NOT_ALLOWED === policy)
-                    )
-                })
-                .includes(true) ?? false
-        )
+        return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
     const showNextDialog = () => {
-        return (
-            ballotStyle?.ballot_eml.contests
-                .map((contest) => {
-                    let policy =
-                        contest.presentation?.invalid_vote_policy ?? EInvalidVotePolicy.ALLOWED
-                    return (
-                        (EInvalidVotePolicy.ALLOWED !== policy &&
-                            (decodedContests[contest.id]?.invalid_errors?.length ?? 0) > 0) ||
-                        (EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT === policy &&
-                            decodedContests[contest.id]?.is_explicit_invalid)
-                    )
-                })
-                .includes(true) ?? false
-        )
+        return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
-        } else if (showNextDialog()) {
+        } else if (showNextDialog() || disableNextButton()) {
             setOpenNonVoted(true)
         } else {
             finallyEncryptAndReview()
         }
+        dispatch(setIsVoted(electionId))
     }
 
     const finallyEncryptAndReview = () => {

@@ -6,7 +6,7 @@ use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{tally::Tally, CandidateResult, ContestResult, InvalidVotes};
 use std::cmp;
 use std::collections::HashMap;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use super::Result;
 
@@ -62,7 +62,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         }
 
-        let result: Result<Vec<CandidateResult>> = vote_count
+        let result: Vec<CandidateResult> = vote_count
             .into_iter()
             .map(|(id, total_count)| {
                 let candidate = self
@@ -83,10 +83,9 @@ impl CountingAlgorithm for PluralityAtLarge {
                     total_count,
                 })
             })
-            .collect();
-        let result = result?;
+            .collect::<Result<Vec<CandidateResult>>>()?;
 
-        let result: Result<Vec<CandidateResult>> = contest
+        let result: Vec<CandidateResult> = contest
             .candidates
             .iter()
             .map(|c| {
@@ -95,32 +94,20 @@ impl CountingAlgorithm for PluralityAtLarge {
                 if let Some(candidate_result) = candidate_result {
                     Ok(candidate_result)
                 } else {
-                    let candidate = self
-                        .tally
-                        .contest
-                        .candidates
-                        .iter()
-                        .find(|rc| rc.id == c.id)
-                        .cloned();
-
-                    if let Some(candidate) = candidate {
-                        return Ok(CandidateResult {
-                            candidate,
-                            percentage_votes: 0.0,
-                            total_count: 0,
-                        });
-                    }
-
-                    Err(Error::CandidateNotFound(c.id.to_string()))
+                    return Ok(CandidateResult {
+                        candidate: c.clone(),
+                        percentage_votes: 0.0,
+                        total_count: 0,
+                    });
                 }
             })
-            .collect();
-        let result = result?;
+            .collect::<Result<Vec<CandidateResult>>>()?;
 
         let total_votes = count_valid + count_invalid;
         let total_votes_base = cmp::max(1, total_votes) as f64;
 
         let census_base = cmp::max(1, self.tally.census) as f64;
+        let percentage_auditable_votes = (self.tally.auditable_votes as f64) * 100.0 / census_base;
         let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
@@ -134,6 +121,8 @@ impl CountingAlgorithm for PluralityAtLarge {
             contest: self.tally.contest.clone(),
             census: self.tally.census,
             percentage_census: 100.0,
+            auditable_votes: self.tally.auditable_votes,
+            percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
             total_votes: total_votes,
             percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,
@@ -152,7 +141,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             .tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x));
+            .fold(contest_result, |acc, x| acc.aggregate(x, false));
 
         Ok(aggregate)
     }

@@ -110,6 +110,37 @@ export const ballotSelectionsSlice = createSlice({
             }
             return state
         },
+        setBallotSelectionBlankVote: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+                contestId: string
+            }>
+        ): BallotSelectionsState => {
+            const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
+                (contest) => contest.id === action.payload.contestId
+            )
+            // check bounds
+            if (isUndefined(ballotEmlContest)) {
+                return state
+            }
+            // find question
+            let currentElection = state[action.payload.ballotStyle.election_id]
+            let currentQuestion = currentElection?.find(
+                (contest) => contest.contest_id === action.payload.contestId
+            )
+            // update state
+            if (!isUndefined(currentQuestion)) {
+                currentQuestion.is_explicit_invalid = false
+                currentQuestion.choices = currentQuestion.choices.map((choice) => {
+                    if (choice.selected > -1) {
+                        choice.selected = -1
+                    }
+                    return choice
+                })
+            }
+            return state
+        },
         setBallotSelectionVoteChoice: (
             state,
             action: PayloadAction<{
@@ -173,6 +204,7 @@ export const {
     setBallotSelection,
     resetBallotSelection,
     setBallotSelectionInvalidVote,
+    setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
 } = ballotSelectionsSlice.actions
 

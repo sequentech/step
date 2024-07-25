@@ -204,7 +204,7 @@ pub async fn export_users(body: ExportUsersBody, document_id: String) -> Result<
         if total_count.is_none() {
             total_count = Some(count);
         }
-        offset += count;
+        offset += users.len() as i32;
 
         for user in users {
             // Serialize user data to TSV format and write it

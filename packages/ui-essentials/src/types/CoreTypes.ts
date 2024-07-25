@@ -6,7 +6,7 @@ import {TranslationDict} from "../services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
-import {IElectionPresentation} from "./ElectionPresentation"
+import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
@@ -100,6 +100,7 @@ export interface IBallotStyle {
     contests: Array<IContest>
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
+    election_dates?: IElectionDates
 }
 
 export interface IPublicKeyConfig {
@@ -126,4 +127,16 @@ export enum EInvalidPlaintextErrorType {
     Explicit = "Explicit",
     Implicit = "Implicit",
     EncodingError = "EncodingError",
+}
+
+export interface IVotingPortalCountdownPolicy {
+    policy: EVotingPortalCountdownPolicy
+    countdown_anticipation_secs: number
+    countdown_alert_anticipation_secs: number
+}
+
+export enum EVotingPortalCountdownPolicy {
+    NO_COUNTDOWN = "NO_COUNTDOWN",
+    COUNTDOWN = "COUNTDOWN",
+    COUNTDOWN_WITH_ALERT = "COUNTDOWN_WITH_ALERT",
 }

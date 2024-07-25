@@ -40,14 +40,14 @@ pub enum StringOrVec {
 pub struct JwtClaims {
     pub exp: i64,
     pub iat: i64,
-    pub auth_time: i64,
+    pub auth_time: Option<i64>,
     pub jti: String,
     pub iss: String,
     pub aud: Option<StringOrVec>,
     pub sub: String,
     pub typ: String,
     pub azp: String,
-    pub nonce: String,
+    pub nonce: Option<String>,
     pub session_state: String,
     pub acr: String,
     #[serde(rename = "allowed-origins")]

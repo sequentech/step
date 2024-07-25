@@ -33,7 +33,7 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
-import {useNavigate, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
@@ -54,8 +54,9 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {getLanguageFromURL} from "../utils/queryParams"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -88,6 +89,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     canVoteTest,
 }) => {
     const navigate = useNavigate()
+    const location = useLocation()
     const {i18n} = useTranslation()
 
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -101,8 +103,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
-    const eventStatus = electionEvent?.status as IElectionEventStatus | null
-    const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
+    const electionStatus = election?.status as IElectionEventStatus | null
+    const isVotingOpen = electionStatus?.voting_status === EVotingStatus.OPEN
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false
@@ -115,11 +117,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         if (!canVote()) {
             return
         }
-        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
+        navigate(
+            `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
+        )
     }
 
     const handleClickBallotLocator = () => {
-        navigate(`../election/${electionId}/ballot-locator`)
+        navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
     const formatDate = (input: string): string => {
@@ -145,14 +149,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
-    useEffect(() => {
-        let defaultLangCode =
-            ballotStyle?.ballot_eml?.election_event_presentation?.language_conf
-                ?.default_language_code ?? "en"
-        i18n.changeLanguage(defaultLangCode)
-    }, [ballotStyle?.ballot_eml?.election_event_presentation?.language_conf?.default_language_code])
-
-    const dates = ballotStyle?.ballot_eml?.election_presentation?.dates
+    const dates = ballotStyle?.ballot_eml?.election_dates
 
     return (
         <SelectElection
@@ -187,6 +184,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
             }
             dispatch(setElection(election))
             dispatch(setBallotStyle(formattedBallotStyle))
+            dispatch(clearIsVoted())
             dispatch(
                 resetBallotSelection({
                     ballotStyle: formattedBallotStyle,
@@ -202,6 +200,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 const ElectionSelectionScreen: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
+    const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
@@ -256,7 +255,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const hasNoResults = hasLoadElections && electionIds.length === 0
 
     const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/materials`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
     useEffect(() => {

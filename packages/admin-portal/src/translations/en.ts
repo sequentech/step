@@ -221,10 +221,13 @@ const englishTranslation = {
         dashboard: {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
+            voterLoginURL: "Voter Login URL",
         },
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",
+                showMore: "Show More",
+                showLess: "Show Less",
             },
             edit: {
                 general: "General",
@@ -233,6 +236,8 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                advancedConfigurations: "Advanced Configurations",
+                importCandidates: "Import Candidates",
             },
             field: {
                 name: "Name",
@@ -251,10 +256,20 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                countDownPolicyOptions: {
+                    NO_COUNTDOWN: "No Countdown",
+                    COUNTDOWN: "Countdown",
+                    COUNTDOWN_WITH_ALERT: "Countdown with alert",
+                    sectionTitle: "Voting Portal",
+                    policyLabel: "Voting Portal Countdown policy",
+                    coundownSecondsLabel: "time in seconds before expiration to show countdown",
+                    alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
             },
             error: {
                 endDate: "End date must be after start date",
                 noResult: "No Election Event yet",
+                startDate: "Start date must be in the future",
             },
             voters: {
                 title: "Voters",
@@ -714,6 +729,7 @@ const englishTranslation = {
                 image: "Image",
                 isDisabled: "Disabled",
                 isExplicitInvalid: "Invalid Vote",
+                isExplicitBlank: "Blank Vote",
                 isCategoryList: "Category List",
                 isWriteIn: "Write-in",
             },
@@ -862,6 +878,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            templateTitle: "Results Template",
+            templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
@@ -937,6 +955,8 @@ const englishTranslation = {
                 cast_votes_percent: "Percent of Votes",
                 total_votes: "Total Voters",
                 total_votes_percent: "Participation",
+                total_votes_counted: "Total Votes Counted",
+                total_auditable_votes: "Total Auditable Votes",
                 total_valid_votes: "Total Valid Votes",
                 total_valid_votes_percent: "Valid Votes Percent",
                 total_invalid_votes: "Total Invalid Votes",
@@ -983,6 +1003,7 @@ const englishTranslation = {
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
+                diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
             },
             notifications: {
                 generated: "Ballot generated",
@@ -1035,6 +1056,7 @@ const englishTranslation = {
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
             },
             email: {
                 subject: "Subject",
@@ -1142,6 +1164,7 @@ const englishTranslation = {
                 participation_report: "Participation Report",
                 electoral_results: "Electoral Results",
                 otp: "OTP",
+                tally_report: "Tally Report",
             },
             method: {
                 email: "Email",

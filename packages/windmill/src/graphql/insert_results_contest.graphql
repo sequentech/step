@@ -7,6 +7,8 @@ mutation InsertResultsContest(
     $elegibleCensus: Int,
     $totalVotes: Int,
     $totalVotesPercent: numeric,
+    $totalAuditableVotes: Int,
+    $totalAuditableVotesPercent: numeric,
     $totalValidVotes: Int,
     $totalValidVotesPercent: numeric,
     $totalInvalidVotes: Int,
@@ -32,6 +34,8 @@ mutation InsertResultsContest(
         elegible_census: $elegibleCensus,
         total_votes: $totalVotes,
         total_votes_percent: $totalVotesPercent,
+        total_auditable_votes: $totalAuditableVotes,
+        total_auditable_votes_percent: $totalAuditableVotesPercent,
         total_valid_votes: $totalValidVotes,
         total_valid_votes_percent: $totalValidVotesPercent,
         total_invalid_votes: $totalInvalidVotes,
@@ -61,6 +65,8 @@ mutation InsertResultsContest(
         explicit_invalid_votes_percent
         implicit_invalid_votes
         implicit_invalid_votes_percent
+        total_auditable_votes
+        total_auditable_votes_percent
         blank_votes
         blank_votes_percent
         name
