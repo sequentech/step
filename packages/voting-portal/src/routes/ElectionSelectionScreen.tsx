@@ -54,7 +54,7 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 
@@ -103,8 +103,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
-    const eventStatus = electionEvent?.status as IElectionEventStatus | null
-    const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
+    const electionStatus = election?.status as IElectionEventStatus | null
+    const isVotingOpen = electionStatus?.voting_status === EVotingStatus.OPEN
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false
@@ -149,7 +149,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
-    const dates = ballotStyle?.ballot_eml?.election_presentation?.dates
+    const dates = ballotStyle?.ballot_eml?.election_dates
 
     return (
         <SelectElection
@@ -184,6 +184,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
             }
             dispatch(setElection(election))
             dispatch(setBallotStyle(formattedBallotStyle))
+            dispatch(clearIsVoted())
             dispatch(
                 resetBallotSelection({
                     ballotStyle: formattedBallotStyle,
@@ -338,7 +339,6 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        console.log("openDemoModal", openDemoModal)
         if (isDemo && openDemoModal === undefined) {
             setOpenDemoModal(true)
         }

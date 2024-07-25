@@ -11,6 +11,8 @@ import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest} from "sequent-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {isVotedByElectionId} from "../../store/extra/extraSlice"
+import {useParams} from "react-router-dom"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -46,6 +48,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
+    const {electionId} = useParams<{electionId?: string}>()
+    const isVotedState = useAppSelector(isVotedByElectionId(electionId))
     const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = useMemo(
         () => selectionState?.find((contest) => contest.contest_id === question.id),
@@ -70,7 +74,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection])
 
     useEffect(() => {
-        if (!isReview && !isTouched) {
+        if (!isReview && !isTouched && !isVotedState) {
             // Filter min selection error in case where no user interaction was yet made
             setFilteredSelection((prev) => {
                 if (!prev) return undefined

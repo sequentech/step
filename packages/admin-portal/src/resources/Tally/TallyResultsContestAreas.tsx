@@ -147,7 +147,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                 <Typography variant="body2" component="div" sx={{width: "80px"}}>
                     {t("electionEventScreen.stats.areas")}.{" "}
                 </Typography>
-                <Tabs value={value} sx={{flex: 1}}>
+                <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
                     <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
                     {areasData?.map((area, index) => {
                         return (

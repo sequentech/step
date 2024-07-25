@@ -14,21 +14,25 @@ use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
     types::tally_sheets,
+    util::path::list_subfolders,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::pipes::{
-    do_tally::{
-        list_tally_sheet_subfolders, ContestResult,
-        OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+use crate::{
+    config::generate_reports::PipeConfigGenerateReports,
+    pipes::{
+        do_tally::{
+            list_tally_sheet_subfolders, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
+            OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+        },
+        mark_winners::{WinnerResult, OUTPUT_WINNERS},
+        pipe_inputs::{AreaConfig, PipeInputs},
+        pipe_name::PipeNameOutputDir,
+        Pipe,
     },
-    mark_winners::{WinnerResult, OUTPUT_WINNERS},
-    pipe_inputs::PipeInputs,
-    pipe_name::PipeNameOutputDir,
-    Pipe,
 };
 use crate::{
     pipes::error::{Error, Result},
@@ -39,11 +43,6 @@ pub const OUTPUT_PDF: &str = "report.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
-
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct PipeConfigGenerateReports {
-    pub enable_pdfs: bool,
-}
 
 #[derive(Debug)]
 pub struct GenerateReports {
@@ -95,22 +94,27 @@ impl GenerateReports {
     pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
         let reports = reports
             .iter()
-            .map(|r| {
-                let map_winners: HashMap<_, _> = r
+            .map(|report| {
+                let map_winners: HashMap<_, _> = report
                     .winners
                     .iter()
-                    .map(|cr| (cr.candidate.id.clone(), cr.winning_position))
+                    .map(|winner_result| {
+                        (
+                            winner_result.candidate.id.clone(),
+                            winner_result.winning_position,
+                        )
+                    })
                     .collect();
 
-                let mut candidate_result: Vec<CandidateResultForReport> = r
+                let mut candidate_result: Vec<CandidateResultForReport> = report
                     .contest_result
                     .candidate_result
                     .iter()
-                    .map(|cr| CandidateResultForReport {
-                        candidate: cr.candidate.clone(),
-                        total_count: cr.total_count,
-                        percentage_votes: cr.percentage_votes,
-                        winning_position: map_winners.get(&cr.candidate.id).cloned(),
+                    .map(|candidate_result| CandidateResultForReport {
+                        candidate: candidate_result.candidate.clone(),
+                        total_count: candidate_result.total_count,
+                        percentage_votes: candidate_result.percentage_votes,
+                        winning_position: map_winners.get(&candidate_result.candidate.id).cloned(),
                     })
                     .collect();
 
@@ -123,13 +127,14 @@ impl GenerateReports {
                 });
 
                 ReportDataComputed {
-                    election_name: r.election_name.clone(),
-                    contest: r.contest.clone(),
-                    contest_result: r.contest_result.clone(),
-                    area_id: r.area_id.clone(),
+                    election_name: report.election_name.clone(),
+                    contest: report.contest.clone(),
+                    contest_result: report.contest_result.clone(),
+                    area: report.area.clone(),
                     candidate_result,
                     is_aggregate: false,
                     tally_sheet_id: None,
+                    channel_type: report.channel_type.clone(),
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
@@ -143,38 +148,46 @@ impl GenerateReports {
         reports: Vec<ReportData>,
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
-        let reports = self.compute_reports(reports)?;
-        let reports = serde_json::to_value(reports)?;
+        let computed_reports = self.compute_reports(reports)?;
+        let json_reports = serde_json::to_value(computed_reports)?;
+        let config = self.get_config()?;
 
-        let mut map = Map::new();
+        let mut variables_map = Map::new();
 
-        map.insert("reports".to_owned(), reports.clone());
+        variables_map.insert("reports".to_owned(), json_reports.clone());
 
         let mut template_map = HashMap::new();
-        let html = include_str!("../../resources/report_base_html.hbs");
-        template_map.insert("report_base_html".to_string(), html.to_string());
-        let html = include_str!("../../resources/report_base_pdf.hbs");
-        template_map.insert("report_base_pdf".to_string(), html.to_string());
-        let html = include_str!("../../resources/report_content.hbs");
-        template_map.insert("report_content".to_string(), html.to_string());
+        let report_base_html = include_str!("../../resources/report_base_html.hbs");
+        template_map.insert("report_base_html".to_string(), report_base_html.to_string());
+        let report_base_pdf = include_str!("../../resources/report_base_pdf.hbs");
+        template_map.insert("report_base_pdf".to_string(), report_base_pdf.to_string());
+        let report_content = config
+            .report_content_template
+            .unwrap_or(include_str!("../../resources/report_content.hbs").to_string());
+        template_map.insert("report_content".to_string(), report_content);
 
-        let render_html =
-            reports::render_template("report_base_html", template_map.clone(), map.clone())
-                .map_err(|e| {
-                    Error::UnexpectedError(format!(
-                        "Error during render_template_text from report.hbs template file: {}",
-                        e
-                    ))
-                })?;
+        let render_html = reports::render_template(
+            "report_base_html",
+            template_map.clone(),
+            variables_map.clone(),
+        )
+        .map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during render_template_text from report.hbs template file: {}",
+                e
+            ))
+        })?;
 
         let bytes_pdf = if enable_pdfs {
-            let render_pdf = reports::render_template("report_base_pdf", template_map, map)
-                .map_err(|e| {
-                    Error::UnexpectedError(format!(
-                        "Error during render_template_text from report.hbs template file: {}",
-                        e
-                    ))
-                })?;
+            let render_pdf =
+                reports::render_template("report_base_pdf", template_map, variables_map).map_err(
+                    |e| {
+                        Error::UnexpectedError(format!(
+                            "Error during render_template_text from report.hbs template file: {}",
+                            e
+                        ))
+                    },
+                )?;
 
             let bytes_pdf = pdf::html_to_pdf(render_pdf.clone()).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
@@ -187,7 +200,7 @@ impl GenerateReports {
         Ok(GeneratedReportsBytes {
             bytes_pdf: bytes_pdf,
             bytes_html: render_html.as_bytes().to_vec(),
-            bytes_json: reports.to_string().as_bytes().to_vec(),
+            bytes_json: json_reports.to_string().as_bytes().to_vec(),
         })
     }
 
@@ -281,9 +294,9 @@ impl GenerateReports {
 
         let path = base_path.join(OUTPUT_WINNERS);
 
-        let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
+        let file = fs::File::open(&path).map_err(|error| Error::FileAccess(path.clone(), error))?;
 
-        let res: Vec<WinnerResult> = parse_file(f)?;
+        let res: Vec<WinnerResult> = parse_file(file)?;
 
         Ok(res)
     }
@@ -315,8 +328,9 @@ impl GenerateReports {
                     election_name: election_input.name.clone(),
                     contest: contest_input.contest.clone(),
                     contest_result,
-                    area_id: None,
+                    area: None,
                     winners,
+                    channel_type: None,
                 });
 
                 for area in &contest_input.area_list {
@@ -340,8 +354,12 @@ impl GenerateReports {
                         election_name: election_input.name.clone(),
                         contest: contest_input.contest.clone(),
                         contest_result,
-                        area_id: Some(area.id.to_string()),
+                        area: Some(BasicArea {
+                            id: area.id.to_string(),
+                            name: area.area.name.clone(),
+                        }),
                         winners,
+                        channel_type: None,
                     });
                 }
             }
@@ -350,7 +368,7 @@ impl GenerateReports {
 
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
-                area_id: None,
+                area: None,
                 census: election_input.census,
                 total_votes: election_input.total_votes,
                 reports: computed_reports,
@@ -359,22 +377,115 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
+    #[instrument(skip_all)]
+    fn read_breakdowns(
+        &self,
+        election_id: &Uuid,
+        election_name: &str,
+        contest_id: Option<&Uuid>,
+        contest: &Contest,
+        area_id: Option<&Uuid>,
+        area: &Option<BasicArea>,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+    ) -> Result<Vec<ReportData>> {
+        // read contest results
+        let mut contest_base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::DoTally.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        let mut winners_base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::MarkWinners.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            contest_base_path =
+                PipeInputs::build_tally_sheet_path(&contest_base_path, &tally_sheet);
+            winners_base_path =
+                PipeInputs::build_tally_sheet_path(&winners_base_path, &tally_sheet);
+        }
+
+        if is_aggregate {
+            contest_base_path =
+                contest_base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+            winners_base_path =
+                winners_base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        }
+        let contest_base_breakdown_path = contest_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let winners_base_breakdown_path = winners_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+
+        if (!contest_base_breakdown_path.exists()
+            || !contest_base_breakdown_path.is_dir()
+            || !winners_base_breakdown_path.exists()
+            || !winners_base_breakdown_path.is_dir())
+        {
+            return Ok(vec![]);
+        }
+        let contest_subfolders = list_subfolders(&contest_base_breakdown_path);
+
+        let mut reports: Vec<ReportData> = vec![];
+
+        for subfolder in contest_subfolders {
+            let contest_results_file_path = subfolder.join(OUTPUT_CONTEST_RESULT_FILE);
+            let contest_results_file = fs::File::open(&contest_results_file_path)
+                .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
+            let contest_result: ContestResult = parse_file(contest_results_file)?;
+
+            let subfolder_name = subfolder.file_name().unwrap();
+            let winners_subfolder = winners_base_breakdown_path.join(subfolder_name);
+            let winners_file_path = winners_subfolder.join(OUTPUT_WINNERS);
+            let winners_file = fs::File::open(&winners_file_path)
+                .map_err(|e| Error::FileAccess(winners_file_path.clone(), e))?;
+            let winners: Vec<WinnerResult> = parse_file(winners_file)?;
+
+            let report = ReportData {
+                election_name: election_name.to_string(),
+                contest: contest.clone(),
+                contest_result,
+                area: area.clone(),
+                winners,
+                channel_type: Some(subfolder_name.to_string_lossy().into_owned()),
+            };
+            reports.push(report);
+        }
+        Ok(reports)
+    }
+
     #[instrument(skip(self, contest), err)]
     fn make_report(
         &self,
         election_id: &Uuid,
         election_name: &str,
         contest_id: Option<&Uuid>,
-        area_id: Option<&Uuid>,
+        area: Option<BasicArea>,
         contest: Contest,
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
     ) -> Result<ReportData> {
+        let area_id = area
+            .clone()
+            .map(|value| Uuid::parse_str(&value.id))
+            .transpose()
+            .map_err(|err| Error::UnexpectedError(format!("{}", err)))?;
         let contest_result = self.read_contest_result(
             election_id,
             contest_id,
-            area_id,
+            area_id.as_ref(),
             is_aggregate,
             tally_sheet_id.clone(),
         )?;
@@ -382,7 +493,18 @@ impl GenerateReports {
         let winners = self.read_winners(
             election_id,
             contest_id,
-            area_id,
+            area_id.as_ref(),
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
+
+        let breakdowns = self.read_breakdowns(
+            election_id,
+            election_name,
+            contest_id,
+            &contest,
+            area_id.as_ref(),
+            &area,
             is_aggregate,
             tally_sheet_id.clone(),
         )?;
@@ -391,15 +513,20 @@ impl GenerateReports {
             election_name: election_name.to_string(),
             contest,
             contest_result,
-            area_id: area_id.clone().map(|val| val.to_string()),
+            area: area.clone(),
             winners,
+            channel_type: None,
         };
+
+        let mut combined: Vec<ReportData> = Vec::new();
+        combined.push(report.clone());
+        combined.extend(breakdowns);
 
         self.write_report(
             election_id,
             contest_id,
-            area_id,
-            vec![report.clone()],
+            area_id.as_ref(),
+            combined,
             is_aggregate,
             tally_sheet_id.clone(),
             enable_pdfs,
@@ -519,7 +646,7 @@ impl Pipe for GenerateReports {
                                                 &election_input.id,
                                                 &election_input.name,
                                                 Some(&contest_input.id),
-                                                Some(&area_input.id),
+                                                Some(area_input.area.clone().into()),
                                                 contest_input.contest.clone(),
                                                 false,
                                                 Some(tally_sheet_id),
@@ -539,7 +666,7 @@ impl Pipe for GenerateReports {
                                             &election_input.id,
                                             &election_input.name,
                                             Some(&contest_input.id),
-                                            Some(&area_input.id),
+                                            Some(area_input.area.clone().into()),
                                             contest_input.contest.clone(),
                                             true,
                                             None,
@@ -550,7 +677,7 @@ impl Pipe for GenerateReports {
                                         &election_input.id,
                                         &election_input.name,
                                         Some(&contest_input.id),
-                                        Some(&area_input.id),
+                                        Some(area_input.area.clone().into()),
                                         contest_input.contest.clone(),
                                         false,
                                         None,
@@ -591,19 +718,35 @@ impl Pipe for GenerateReports {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BasicArea {
+    pub id: String,
+    pub name: String,
+}
+
+impl From<AreaConfig> for BasicArea {
+    fn from(item: AreaConfig) -> Self {
+        BasicArea {
+            id: item.id.to_string(),
+            name: item.name.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ReportData {
     pub election_name: String,
     pub contest: Contest,
-    pub area_id: Option<String>,
+    pub area: Option<BasicArea>,
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
+    pub channel_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct ElectionReportDataComputed {
     pub election_id: String,
-    pub area_id: Option<String>,
+    pub area: Option<BasicArea>,
     pub census: u64,
     pub total_votes: u64,
     pub reports: Vec<ReportDataComputed>,
@@ -613,11 +756,12 @@ pub struct ElectionReportDataComputed {
 pub struct ReportDataComputed {
     pub election_name: String,
     pub contest: Contest,
-    pub area_id: Option<String>,
+    pub area: Option<BasicArea>,
     pub is_aggregate: bool,
     pub tally_sheet_id: Option<String>,
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
+    pub channel_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

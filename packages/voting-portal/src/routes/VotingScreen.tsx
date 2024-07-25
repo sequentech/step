@@ -28,6 +28,7 @@ import {
     setBallotSelection,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
@@ -100,7 +101,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     force: true,
                 })
             )
+            dispatch(clearIsVoted())
         }
+    }
+
+    function handlePrev() {
+        dispatch(clearIsVoted())
     }
 
     return (
@@ -117,7 +123,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
             </StyledButton>
 
             <ActionsContainer>
-                <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
+                <StyledLink
+                    to={backLink}
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    onClick={() => handlePrev()}
+                >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Icon icon={faAngleLeft} size="sm" />
                         <Box>{t("votingScreen.backButton")}</Box>
@@ -205,6 +215,7 @@ const VotingScreen: React.FC = () => {
         } else {
             finallyEncryptAndReview()
         }
+        dispatch(setIsVoted(electionId))
     }
 
     const finallyEncryptAndReview = () => {

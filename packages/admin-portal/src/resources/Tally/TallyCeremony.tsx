@@ -13,7 +13,14 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionSummary, Button} from "@mui/material"
+import {
+    Accordion,
+    AccordionSummary,
+    SelectChangeEvent,
+    MenuItem,
+    Select,
+    FormControl,
+} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -31,21 +38,24 @@ import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
+    CreateTallyCeremonyMutation,
+    Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Results_Election,
     Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
+    UpdateTallyCeremonyMutation,
 } from "@/gql/graphql"
-import {CancelButton, NextButton} from "./styles"
+import {CancelButton, NextButton, StyledTitle} from "./styles"
 import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import DownloadIcon from "@mui/icons-material/Download"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
+import {ICommunicationType} from "@/types/communications"
 
 const WizardSteps = {
     Start: 0,
@@ -71,6 +81,7 @@ export const TallyCeremony: React.FC = () => {
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+    const [templateId, setTemplateId] = useState<string | undefined>(undefined)
     const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
@@ -78,8 +89,10 @@ export const TallyCeremony: React.FC = () => {
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
 
-    const [CreateTallyCeremonyMutation] = useMutation(CREATE_TALLY_CEREMONY)
-    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
+    const [CreateTallyCeremonyMutation] =
+        useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+    const [UpdateTallyCeremonyMutation] =
+        useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -143,7 +156,7 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
-    const {data: resultsEvent} = useGetList<Sequent_Backend_Results_Event>(
+    const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
             pagination: {page: 1, perPage: 1},
@@ -157,6 +170,16 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+        }
+    )
+
+    const {data: tallyTemplates} = useGetList<Sequent_Backend_Communication_Template>(
+        "sequent_backend_communication_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                communication_type: ICommunicationType.TALLY_REPORT,
+            },
         }
     )
 
@@ -219,11 +242,15 @@ export const TallyCeremony: React.FC = () => {
                     election_event_id: record?.id,
                     keys_ceremony_id: keyCeremony?.[0]?.id,
                     election_ids: selectedElections,
+                    configuration: {
+                        report_content_template_id: templateId,
+                    },
                 },
             })
 
-            if (errors) {
+            if (errors || !data?.create_tally_ceremony) {
                 notify(t("tally.createTallyError"), {type: "error"})
+                return
             }
 
             if (data) {
@@ -234,6 +261,7 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         } finally {
+            refetch()
             setIsButtonDisabled(false)
         }
     }
@@ -250,6 +278,7 @@ export const TallyCeremony: React.FC = () => {
 
             if (errors) {
                 notify(t("tally.startTallyError"), {type: "error"})
+                return
             }
 
             if (nextStatus) {
@@ -270,6 +299,7 @@ export const TallyCeremony: React.FC = () => {
             null,
         [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
     )
+    const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
     return (
         <>
@@ -306,6 +336,26 @@ export const TallyCeremony: React.FC = () => {
                             disabled={isTallyElectionListDisabled}
                             electionEventId={record?.id}
                         />
+                        <FormControl fullWidth>
+                            <ElectionHeader
+                                title={"tally.templateTitle"}
+                                subtitle={"tally.templateSubTitle"}
+                            />
+
+                            <Select
+                                id="tally-results-template"
+                                value={templateId}
+                                label={t("tally.templateTitle")}
+                                placeholder={t("tally.templateTitle")}
+                                onChange={handleSetTemplate}
+                            >
+                                {(tallyTemplates ?? []).map((tallyTemplate) => (
+                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
+                                        {tallyTemplate.template?.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </>
                 )}
 
