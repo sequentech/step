@@ -338,7 +338,7 @@ export const ReviewScreen: React.FC = () => {
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
+                    hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (
