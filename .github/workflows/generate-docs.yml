@@ -34,6 +34,12 @@ jobs:
     - name: Commit changes
       uses: stefanzweifel/git-auto-commit-action@v4
 
+    - name: Upload pages artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: ./packages/api-docs/graphql/docs
+        retention-days: 365
+
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
