@@ -154,6 +154,7 @@ type Mutation {
   get_ballot_publication_changes (
     election_event_id: uuid!
     ballot_publication_id: uuid!
+    limit: Int
   ): GetBallotPublicationChangesOutput
 }
 
