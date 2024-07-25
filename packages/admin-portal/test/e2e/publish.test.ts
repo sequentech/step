@@ -6,6 +6,7 @@ import {NightwatchAPI} from "nightwatch"
 
 import {createElectionEvent} from "../commands/election-event/create"
 import {deleteElectionEvent} from "../commands/election-event/delete"
+import {pause} from ".."
 
 // eslint-disable-next-line jest/valid-describe-callback
 describe("publish tests", function () {
@@ -51,11 +52,11 @@ describe("publish tests", function () {
                         .visible("button.publish-add-button")
                         .click("button.publish-add-button")
                 }
-                browser.pause(5000)
+                browser.pause(pause.long)
                 browser.assert
                     .enabled("button.publish-publish-button")
                     .click("button.publish-publish-button")
-                    .pause(200)
+                    .pause(pause.short)
                     .assert.not.enabled("button.publish-action-pause-button")
                     .assert.not.enabled("button.publish-action-stop-button")
             }
@@ -88,7 +89,7 @@ describe("publish tests", function () {
                 browser.assert
                     .enabled("button.publish-back-button")
                     .click("button.publish-back-button")
-                    .pause(200)
+                    .pause(pause.short)
                     .assert.not.enabled("button.publish-action-pause-button")
                     .assert.not.enabled("button.publish-action-stop-button")
             }
@@ -118,7 +119,7 @@ describe("publish tests", function () {
                     browser.assert
                         .enabled("button.publish-action-start-button")
                         .click("button.publish-action-start-button")
-                        .pause(200)
+                        .pause(pause.short)
                     browser.assert.enabled("button.ok-button").click("button.ok-button")
                 }
                 browser.assert.not

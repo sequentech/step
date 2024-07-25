@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NightwatchAPI} from "nightwatch"
-import {voterDetails} from ".."
+import {pause, voterDetails} from ".."
 import {createElectionEvent} from "../commands/election-event/create"
 import {deleteElectionEvent} from "../commands/election-event/delete"
 
@@ -60,7 +60,7 @@ describe("voters tests", function () {
                     .sendKeys("input[name=username]", voterDetails.username)
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
-                    .pause(1000)
+                    .pause(pause.short)
                 // .debug()
 
                 browser.useXpath()
@@ -109,7 +109,7 @@ describe("voters tests", function () {
                         .sendKeys("input[name=repeat_password]", "secretepassword")
                         .assert.enabled("button[type=submit]")
                         .click("button[type=submit]")
-                        .pause(200)
+                        .pause(pause.short)
 
                     browser
                         .useXpath()
@@ -142,7 +142,7 @@ describe("voters tests", function () {
                     .sendKeys("input[name=name]", "this is an area name")
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
-                    .pause(200)
+                    .pause(pause.short)
 
                 browser
                     .useXpath()
@@ -178,7 +178,7 @@ describe("voters tests", function () {
                     browser.assert
                         .enabled("button[type=submit]")
                         .click("button[type=submit]")
-                        .pause(200)
+                        .pause(pause.short)
 
                     browser
                         .useXpath()
@@ -207,7 +207,7 @@ describe("voters tests", function () {
                     browser.assert
                         .enabled(`button.ok-button`)
                         .click("button.ok-button")
-                        .pause(1000)
+                        .pause(pause.short)
                         .assert.not.elementPresent("span.area-description")
                 }
             }
@@ -244,7 +244,7 @@ describe("voters tests", function () {
                     browser.assert
                         .enabled(`button.ok-button`)
                         .click("button.ok-button")
-                        .pause(1000)
+                        .pause(pause.short)
                         .useXpath()
                         .assert.not.elementPresent(
                             `//span[contains(@class, 'first_name') and text()='${voterDetails.firstName}']`

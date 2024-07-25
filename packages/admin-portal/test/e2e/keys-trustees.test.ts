@@ -4,6 +4,7 @@
 
 import {NightwatchAPI} from "nightwatch"
 import {createElectionEvent} from "../commands/election-event/create"
+import {pause} from ".."
 
 // eslint-disable-next-line jest/valid-describe-callback
 describe("keys trustee 1 tests", function () {
@@ -145,7 +146,7 @@ describe("keys trustee 1 tests", function () {
                         .visible("button.ok-button")
                         .click("button.ok-button")
 
-                        .pause(2000)
+                        .pause(pause.medium)
                 }
             }
         )
@@ -191,7 +192,7 @@ describe("keys trustee 1 tests", function () {
                     browser.assert
                         .visible("button.keys-check-next-button")
 
-                        .pause(2000)
+                        .pause(pause.medium)
                 }
             }
         )
@@ -238,7 +239,7 @@ describe("keys trustee 1 tests", function () {
                         .visible("button.keys-check-next-button")
                         // .click("button.keys-check-next-button")
 
-                        .pause(2000)
+                        .pause(pause.medium)
                 }
             }
         )

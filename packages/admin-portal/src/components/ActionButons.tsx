@@ -46,7 +46,11 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
         <>
             {filteredActions && filteredActions.length > 0
                 ? filteredActions.map((action, index) => (
-                      <StyledIconButton className={action.className ?? ""} key={index} onClick={() => action.action(record.id)}>
+                      <StyledIconButton
+                          className={action.className ?? ""}
+                          key={index}
+                          onClick={() => action.action(record.id)}
+                      >
                           {action.icon}
                       </StyledIconButton>
                   ))

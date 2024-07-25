@@ -3,20 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NightwatchAPI} from "nightwatch"
-import { loginUrl, password, username } from ".."
+import {loginUrl, password, pause, username} from ".."
 
 describe("login", function () {
     before(function (browser) {
-			browser.pause(2000).login({
-				loginUrl,
-				username,
-				password
-			})
+        browser.pause(pause.medium).login({
+            loginUrl,
+            username,
+            password,
+        })
     })
 
     after(function (browser) {
-        browser.logout()
-        .end()
+        browser.logout().end()
     })
 
     it("should be able to login", async (browser: NightwatchAPI) => {

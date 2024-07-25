@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NightwatchAPI} from "nightwatch"
-import {candidateLink, contestLink, electionEventLink, electionLink} from "../.."
+import {candidateLink, contestLink, electionEventLink, electionLink, pause} from "../.."
 
 interface ConfigItem {
     name: string
@@ -115,7 +115,7 @@ export const createElectionEvent: Election = {
             .click()
 
         // create a candidate two"
-        browser.pause(500)
+        browser.pause(pause.short)
         browser.assert.visible(`a.${candidateLink!}`).element(`a.${candidateLink!}`).click()
         browser.assert
             .visible("input[name=name]")

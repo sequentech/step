@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {admin_portal_password, admin_portal_username, NightWatchLogin, testUrl} from ".."
+import {admin_portal_password, admin_portal_username, NightWatchLogin, pause, testUrl} from ".."
 
 exports.command = function (
     username = admin_portal_username,
@@ -21,10 +21,10 @@ exports.command = function (
         .sendKeys(this.username, username)
         .assert.visible("input[name=password]")
         .sendKeys(this.password, password)
-        .pause(2000)
+        .pause(pause.medium)
         .assert.visible(this.submitButton)
         .click(this.submitButton)
-        .pause(2000)
+        .pause(pause.medium)
 
     return this
 }

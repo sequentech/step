@@ -16,6 +16,13 @@ export const voterDetails = {
     username: "voterusername",
 }
 
+export const pause = {
+    short: 1000,
+    medium: 2000,
+    long: 5000,
+    xLong: 10000,
+}
+
 export type NightWatchLogin = {
     password: string
     username: string

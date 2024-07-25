@@ -6,6 +6,7 @@ import {NightwatchAPI} from "nightwatch"
 
 import {createElectionEvent} from "../commands/election-event/create"
 import {deleteElectionEvent} from "../commands/election-event/delete"
+import {pause} from ".."
 
 describe("areas tests", function () {
     before(function (browser) {
@@ -54,7 +55,7 @@ describe("areas tests", function () {
                     .sendKeys("input[name=name]", "this is an area name")
                     .assert.enabled("button[type=submit]")
                     .click("button[type=submit]")
-                    .pause(200)
+                    .pause(pause.short)
                     .assert.textContains("span.area-name", "this is an area name")
             }
         )
@@ -83,7 +84,7 @@ describe("areas tests", function () {
                         .sendKeys("input[name=description]", "this is an area description")
                         .assert.enabled("button[type=submit]")
                         .click("button[type=submit]")
-                        .pause(200)
+                        .pause(pause.short)
                         .assert.textContains("span.area-description", "this is an area description")
                 }
             }
@@ -117,7 +118,7 @@ describe("areas tests", function () {
                     browser.assert
                         .enabled("button[type=submit]")
                         .click("button[type=submit]")
-                        .pause(200)
+                        .pause(pause.short)
                 }
             }
         )
@@ -150,7 +151,7 @@ describe("areas tests", function () {
                         .useCss()
                         .assert.enabled("button[type=submit]")
                         .click("button[type=submit]")
-                        .pause(200)
+                        .pause(pause.short)
                 }
             }
         )
@@ -173,7 +174,7 @@ describe("areas tests", function () {
                     browser.assert
                         .enabled(`button.ok-button`)
                         .click("button.ok-button")
-                        .pause(200)
+                        .pause(pause.short)
                         .assert.not.elementPresent("span.area-description")
                 }
             }

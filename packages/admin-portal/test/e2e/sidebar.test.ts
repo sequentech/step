@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NightwatchAPI} from "nightwatch"
-import {contestLink, electionEventLink, electionLink} from ".."
+import {contestLink, electionEventLink, electionLink, pause} from ".."
 
 describe("sidebar tests", function () {
     before(function (browser) {
@@ -83,7 +83,7 @@ describe("sidebar tests", function () {
             }
         )
 
-        browser.pause(2000)
+        browser.pause(pause.medium)
         // .visible(`a.${electionLink!}`)
         // .click(`a.${electionLink!}`)
 
@@ -101,7 +101,7 @@ describe("sidebar tests", function () {
     //         .sendKeys("input[name=description]", "this is a test election description")
     //         .assert.enabled(`button.election-save-button`)
     //         .click("button.election-save-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.visible(`a[title='this is a test election name']`)
     // })
     //
@@ -116,7 +116,7 @@ describe("sidebar tests", function () {
     //         .sendKeys("input[name=description]", "this is a test contest description")
     //         .assert.enabled(`button.contest-save-button`)
     //         .click("button.contest-save-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.visible(`a[title='this is a test contest name']`)
     // })
     //
@@ -131,7 +131,7 @@ describe("sidebar tests", function () {
     //         .sendKeys("input[name=description]", "this is candidate one description")
     //         .assert.enabled(`button.candidate-save-button`)
     //         .click("button.candidate-save-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.visible(`a[title='this is candidate one name']`)
     // })
     //
@@ -146,7 +146,7 @@ describe("sidebar tests", function () {
     //         .sendKeys("input[name=description]", "this is candidate two description")
     //         .assert.enabled(`button.candidate-save-button`)
     //         .click("button.candidate-save-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.visible(`a[title='this is candidate two name']`)
     // })
     //
@@ -161,7 +161,7 @@ describe("sidebar tests", function () {
     //         .sendKeys("input[name=description]", "this is candidate two description")
     //         .assert.enabled(`button.candidate-save-button`)
     //         .click("button.candidate-save-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.visible(`a[title='this is candidate two name']`)
     // })
     //
@@ -178,7 +178,7 @@ describe("sidebar tests", function () {
     //         .click(`li.menu-action-delete-${candidateLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.not.elementPresent(`a[title='this is candidate one name']`)
     // })
     // it("delete candidate two", async (browser: NightwatchAPI) => {
@@ -194,7 +194,7 @@ describe("sidebar tests", function () {
     //         .click(`li.menu-action-delete-${candidateLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.not.elementPresent(`a[title='this is candidate two name']`)
     // })
     // it("delete contest", async (browser: NightwatchAPI) => {
@@ -210,7 +210,7 @@ describe("sidebar tests", function () {
     //         .click(`li.menu-action-delete-${contestLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.not.elementPresent(`a[title='this is a test contest name`)
     // })
     // it("delete an election", async (browser: NightwatchAPI) => {
@@ -226,7 +226,7 @@ describe("sidebar tests", function () {
     //         .click(`li.menu-action-delete-${electionLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.not.elementPresent(`a[title='this is a test election name']`)
     // })
     // it("delete an election event", async (browser: NightwatchAPI) => {
@@ -243,7 +243,7 @@ describe("sidebar tests", function () {
     //         .click(`li.menu-action-delete-${electionEventLink!}`)
     //         .assert.enabled(`button.ok-button`)
     //         .click("button.ok-button")
-    //         .pause(1000)
+    //         .pause(pause.short)
     //         .assert.not.elementPresent(`a[title='this is a test election event name']`)
     // })
 })

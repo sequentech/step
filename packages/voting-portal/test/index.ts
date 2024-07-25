@@ -14,8 +14,8 @@ export const contestLink = "sequent_backend_contest"
 export const candidateLink = "sequent_backend_candidate"
 
 export const pause = {
-	short: 1000,
-	medium: 2000,
+    short: 1000,
+    medium: 2000,
     long: 5000,
     xLong: 10000,
 }
