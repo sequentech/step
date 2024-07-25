@@ -1,24 +1,26 @@
 const fs = require('fs');
 const path = require('path');
-const { parse, print, visit } = require('graphql');
+const { buildClientSchema, printSchema, visit, parse, print } = require('graphql');
 
-// Read the SDL schema file
-const schemaFile = path.resolve(__dirname, 'docs/schema.graphql');
-const outputSchemaFile = path.resolve(__dirname, 'docs/schema-no-schema-names.graphql');
+const schemaFile = path.resolve(__dirname, '../../../graphql.schema.json');
+const outputSchemaFile = path.resolve(__dirname, './docs/processed-schema.graphql');
 
-// Load the schema as a string
-const schemaSDL = fs.readFileSync(schemaFile, 'utf-8');
+const docsDirectory = path.dirname(outputSchemaFile);
+if (!fs.existsSync(docsDirectory)) {
+  fs.mkdirSync(docsDirectory, { recursive: true });
+}
+const schemaJSON = JSON.parse(fs.readFileSync(schemaFile, 'utf-8'));
 
-// Parse the schema to AST
+const schema = buildClientSchema(schemaJSON);
+
+const schemaSDL = printSchema(schema);
+
 const schemaAST = parse(schemaSDL);
 
-// Helper function to remove prefix from names
 const removePrefix = (name, prefix) => name.startsWith(prefix) ? name.replace(prefix, '') : name;
 
-// Prefix to remove
 const prefix = 'sequent_backend_';
 
-// Function to remove schema names from types
 const removeSchemaNames = (ast) => {
   return visit(ast, {
     ObjectTypeDefinition(node) {
@@ -102,11 +104,8 @@ const removeSchemaNames = (ast) => {
   });
 };
 
-// Process the schema AST
 const processedAST = removeSchemaNames(schemaAST);
 
-// Convert the modified AST back to SDL
 const processedSDL = print(processedAST);
 
-// Write the processed SDL to a new file
 fs.writeFileSync(outputSchemaFile, processedSDL);

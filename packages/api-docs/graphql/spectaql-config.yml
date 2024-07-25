@@ -1,11 +1,11 @@
 spectaql:
-  targetDir: './graphql/docs'
+  targetDir: './docs'
   faviconFile: '/workspaces/step/packages/admin-portal/public/sequent.png'
   logoFile: '/workspaces/step/packages/admin-portal/public/Sequent_logo_small.png'
 
 introspection:
-  # schemaFile: "./graphql/docs/schema-no-schema-names.graphql"
-  url: "http://graphql-engine:8080/v1/graphql"
+  schemaFile: "./docs/processed-schema.graphql"
+  # url: "http://graphql-engine:8080/v1/graphql"
   headers:
     x-hasura-admin-secret: "admin"
 
@@ -16,3 +16,4 @@ info:
   title: "Your API Documentation"
   description: "Detailed description of your API"
   version: "1.0.0"
+  x-url: "https://sequent.io"
