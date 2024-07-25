@@ -6,10 +6,10 @@ schema {
 
 """whether this query should be cached (Hasura Cloud only)"""
 directive @cached(
-  """refresh the cache entry"""
-  refresh: Boolean! = false
   """measured in seconds"""
   ttl: Int! = 60
+  """refresh the cache entry"""
+  refresh: Boolean! = false
 ) on QUERY
 
 type Aggregate {
@@ -3261,11 +3261,11 @@ enum order_by {
 
 type query_root {
   """fetch document"""
-  fetchDocument(document_id: String!, election_event_id: String!): ElectionEventStatsOutput
-  """get election event stats"""
-  getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
+  fetchDocument(document_id: String!, election_event_id: String!): FetchDocumentOutput
   """get election event stats"""
   getElectionEventStats(object: ElectionEventStatsInput!): ElectionEventStatsOutput
+  """get election event stats"""
+  getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
   """list permissions"""
   get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
   get_roles(body: GetRolesInput!): GetRolesOutput!
@@ -13125,6 +13125,7 @@ Ordering options when selecting data from "sequent_backend.results_election".
 """
 input results_election_order_by {
   annotations: order_by
+  created_at: order_by
   documents: order_by
   election_event_id: order_by
   election_id: order_by
