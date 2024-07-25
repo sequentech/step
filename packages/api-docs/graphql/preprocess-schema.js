@@ -7,6 +7,7 @@ const outputSchemaFile = path.resolve(__dirname, './docs/processed-schema.graphq
 
 const docsDirectory = path.dirname(outputSchemaFile);
 if (!fs.existsSync(docsDirectory)) {
+  console.log("Creating directory");
   fs.mkdirSync(docsDirectory, { recursive: true });
 }
 const schemaJSON = JSON.parse(fs.readFileSync(schemaFile, 'utf-8'));
