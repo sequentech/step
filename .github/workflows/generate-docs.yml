@@ -21,5 +21,5 @@ jobs:
         node-version: 20.x
 
     - name: Generate GraphQL documentation
-      run: yarn run generate-docs-graphql
+      run: yarn run generate-full-docs
       working-directory: ./packages/api-docs/graphql
