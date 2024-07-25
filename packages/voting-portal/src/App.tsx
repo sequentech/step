@@ -80,6 +80,7 @@ const App = () => {
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(

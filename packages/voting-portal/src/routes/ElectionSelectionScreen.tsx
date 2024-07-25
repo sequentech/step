@@ -340,7 +340,6 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        console.log("openDemoModal", openDemoModal)
         if (isDemo && openDemoModal === undefined) {
             setOpenDemoModal(true)
         }
