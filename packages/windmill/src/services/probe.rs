@@ -101,7 +101,7 @@ pub async fn setup_probe(app_name: AppName) {
     if let Ok(addr) = addr {
         let ph = ProbeHandler::new(&live_path, &ready_path, addr);
         let f = ph.future();
-        ph.set_live(move || true).await;
+        ph.set_live(move || Box::pin(async move { true })).await;
 
         let app_name_clone = app_name.clone();
         ph.set_ready(move || {
