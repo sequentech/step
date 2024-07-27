@@ -20,6 +20,7 @@ import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
 import {EPublishType} from "../Publish/EPublishType"
 import {ElectoralLog} from "./ElectoralLog"
+import EditElectionEventTextData from "./EditElectionEventTextData"
 import {v4 as uuidv4} from "uuid"
 
 export const ElectionEventTabs: React.FC = () => {
@@ -39,6 +40,11 @@ export const ElectionEventTabs: React.FC = () => {
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
     const showData = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_WRITE
+    )
+    const showTextData = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
@@ -99,6 +105,11 @@ export const ElectionEventTabs: React.FC = () => {
                 {showData ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.data")}>
                         <EditElectionEventData />
+                    </TabbedShowLayout.Tab>
+                ) : null}
+                {showTextData ? (
+                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.localization")}>
+                        <EditElectionEventTextData />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showVoters ? (

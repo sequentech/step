@@ -241,6 +241,22 @@ const spanishTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
             },
+            localization: {
+                emptyHeader: "No se han establecido idiomas para el evento",
+                selectLanguage: "Seleccionar idioma",
+                notify: {
+                    success: "Localización actualizada con éxito",
+                    error: "La actualización de la localización ha fallado",
+                },
+                common: {
+                    title: "Localización",
+                    subTitle: "Configuración de la localización",
+                },
+                labels: {
+                    key: "Clave",
+                    value: "Valor",
+                },
+            },
             field: {
                 name: "Nombre",
                 alias: "Alias",
@@ -317,6 +333,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 dashboard: "Panel de Control",
                 data: "Datos",
+                localization: "Localización",
                 voters: "Votantes",
                 areas: "Áreas",
                 keys: "Claves",
