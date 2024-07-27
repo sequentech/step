@@ -241,6 +241,22 @@ const frenchTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
             },
+            localization: {
+                emptyHeader: "Aucune langue n'a été définie pour l'événement",
+                selectLanguage: "Sélectionnez la langue",
+                notify: {
+                    success: "Localisation mise à jour avec succès",
+                    error: "Échec de la mise à jour de la localisation",
+                },
+                common: {
+                    title: "Localisation",
+                    subTitle: "Configuration de la localisation",
+                },
+                labels: {
+                    key: "Clé",
+                    value: "Valeur",
+                },
+            },
             field: {
                 name: "Nom",
                 alias: "Alias",
@@ -273,6 +289,7 @@ const frenchTranslation: TranslationType = {
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 noResult: "Pas encore d'Événement Électoral",
+                startDate: "La date de début doit être dans le futur",
             },
             voters: {
                 title: "Électeurs",
@@ -316,6 +333,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tableau de Bord",
                 data: "Données",
+                localization: "Localisation",
                 voters: "Électeurs",
                 areas: "Zones",
                 keys: "Clés",
@@ -403,6 +421,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {
                 name: "Nom",

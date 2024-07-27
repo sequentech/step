@@ -86,7 +86,7 @@ pub async fn update_election_status(
     input: UpdateElectionVotingStatusInput,
     tenant_id: String,
 ) -> Result<UpdateElectionVotingStatusOutput> {
-    election_event_status::update_election_voting_status(
+    election_event_status::update_election_voting_status_impl(
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.election_id.clone(),

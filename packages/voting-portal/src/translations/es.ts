@@ -77,6 +77,12 @@ const spanishTranslation: TranslationType = {
                 ok: "Si, quiero INVALIDAR mi papeleta para AUDITARLA",
                 cancel: "Cancelar",
             },
+            confirmCastVoteDialog: {
+                title: "¿Está seguro de que quiere emitir su voto?",
+                content: "Su voto no se podrá editar una vez confirmado.",
+                ok: "Sí, quiero EMITIR mi voto",
+                cancel: "Cancelar",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
@@ -94,17 +100,34 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra que su voto se ha emitido correctamente. La información proporcionada en esta página le permite verificar que la papeleta ha sido almacenada en la urna , este proceso puede ser ejecutado en cualquier momento durante el periodo de votación y después de que la elección haya sido cerrada.",
                 ok: "OK",
             },
+            demoPrintDialog: {
+                title: "Impresión de la papeleta de votación",
+                content: "La impresión está desactivada en modo de demostración",
+                ok: "Aceptar",
+            },
+            demoBallotUrlDialog: {
+                title: "Rastreador de Boletas",
+                content: "No se puede usar el código, deshabilitado en modo de demostración.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Información: Localizador del Voto",
                 content:
                     "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
                 ok: "OK",
             },
+            ballotIdDemoHelpDialog: {
+                title: "Información: Identificación de la papeleta",
+                content:
+                    "<p>La identificación de la papeleta es un código que te permite encontrar tu papeleta en la urna. Este identificador es único y no contiene información sobre tus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Tu voto NO ha sido emitido.</p>",
+                ok: "Aceptar",
+            },
             errorDialogPrintVoteReceipt: {
                 title: "Error",
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",
             },
+            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
             printButton: "Imprimir",

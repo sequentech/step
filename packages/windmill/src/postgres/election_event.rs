@@ -1,12 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::{
+    services::import_election_event::ImportElectionEventSchema,
+    types::scheduled_event::EventProcessors,
+};
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
+use sequent_core::ballot::VotingStatus;
 use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
+use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 pub struct ElectionEventWrapper(pub ElectionEventData);
@@ -137,4 +142,99 @@ pub async fn get_election_event_by_id(
         .get(0)
         .map(|election_event| election_event.clone())
         .ok_or(anyhow!("Election event {election_event_id} not found"))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_election_event_dates(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    dates: Value,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.election_event
+                SET dates = $1
+                WHERE tenant_id = $2 AND id = $3;
+            "#,
+        )
+        .await?;
+    let _row: Vec<Row> = hasura_transaction
+        .query(&statement, &[&dates, &tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_dates query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_elections_status_by_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    status: Value,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.election
+                SET
+                status = $1
+                WHERE tenant_id = $2 AND election_event_id = $3;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &status,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| {
+            anyhow!("Error running the update_elections_status_by_election_event query: {err}")
+        })?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_election_event_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    status: Value,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.election_event
+                SET status = $1
+                WHERE tenant_id = $2 AND id = $3;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &status,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_event_staut query: {err}"))?;
+
+    Ok(())
 }
