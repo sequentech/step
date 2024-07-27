@@ -788,6 +788,7 @@ const frenchTranslation: TranslationType = {
                 system: "Système de vote de bulletins",
                 design: "Design du bulletin",
                 reorder: "Réorganiser les candidats",
+                policies: "Politiques",
             },
             field: {
                 name: "Nom",
@@ -814,10 +815,10 @@ const frenchTranslation: TranslationType = {
                 "disabled": "Désactivé",
             },
             blankVotePolicy: {
-                label: "Politique de vote blanc",
-                ALLOWED: "Autorisé",
-                MODAL_AND_ALLOWED: "Afficher la fenêtre modale et permettre la suite",
-                NOT_ALLOWED: "Non autorisé",
+                "label": "Politique de vote blanc",
+                "allowed": "Autorisé",
+                "warn": "Avertir",
+                "not-allowed": "Non autorisé",
             },
             error: {},
             createContestSuccess: "Question créée",

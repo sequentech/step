@@ -28,9 +28,9 @@ export enum EEnableCheckableLists {
 }
 
 export enum EBlankVotePolicy {
-    ALLOWED = "ALLOWED",
-    MODAL_AND_ALLOWED = "MODAL_AND_ALLOWED",
-    NOT_ALLOWED = "NOT_ALLOWED",
+    ALLOWED = "allowed",
+    WARN = "warn",
+    NOT_ALLOWED = "not-allowed",
 }
 
 export interface ITypePresentation {

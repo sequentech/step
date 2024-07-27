@@ -10,7 +10,6 @@ use crate::ballot::{
 };
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
-use tracing::instrument;
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct VotingChannels {
     pub online: Option<bool>,
@@ -27,7 +26,6 @@ pub struct BulletinBoardReference {
 }
 
 impl ElectionEvent {
-    #[instrument(err, skip_all)]
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionEventPresentation>(
@@ -64,7 +62,6 @@ impl ElectionEvent {
 }
 
 impl Election {
-    #[instrument(err, skip_all)]
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionPresentation>(
@@ -93,7 +90,6 @@ impl Election {
 }
 
 impl Contest {
-    #[instrument(err, skip_all)]
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ContestPresentation>(

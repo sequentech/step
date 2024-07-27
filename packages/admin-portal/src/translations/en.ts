@@ -781,6 +781,7 @@ const englishTranslation = {
                 system: "Ballot Voting System",
                 design: "Ballot Design",
                 reorder: "Reorder candidates",
+                policies: "Policies",
             },
             field: {
                 name: "Name",
@@ -807,10 +808,10 @@ const englishTranslation = {
                 "disabled": "Disabled",
             },
             blankVotePolicy: {
-                label: "Blank Vote Policy",
-                ALLOWED: "Allowed",
-                MODAL_AND_ALLOWED: "Show modal and allow next",
-                NOT_ALLOWED: "Not allowed",
+                "label": "Blank Vote Policy",
+                "allowed": "Allowed",
+                "warn": "Warn",
+                "not-allowed": "Not Allowed",
             },
             error: {},
             createContestSuccess: "Contest created",

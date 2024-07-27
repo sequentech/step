@@ -461,7 +461,7 @@ pub fn check_voting_error_dialog(
                 || (*vote_policy
                     == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
                     && explicit_invalid)
-                || (*blank_policy == EBlankVotePolicy::MODAL_AND_ALLOWED
+                || (*blank_policy == EBlankVotePolicy::WARN
                     && !choices_selected)
         } else {
             false

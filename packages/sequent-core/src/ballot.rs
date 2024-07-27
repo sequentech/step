@@ -567,8 +567,14 @@ pub enum ECountdownPolicy {
     Display,
 )]
 pub enum EBlankVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
     ALLOWED,
-    MODAL_AND_ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
 }
 

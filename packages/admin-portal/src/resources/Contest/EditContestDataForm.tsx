@@ -635,10 +635,6 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
-                                <BooleanInput
-                                    source="presentation.under_vote_alert"
-                                    label={"Under-Vote Alert"}
-                                />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
@@ -684,12 +680,6 @@ export const ContestDataForm: React.FC = () => {
                                 </FormDataConsumer>
 
                                 <SelectInput
-                                    source="presentation.invalid_vote_policy"
-                                    choices={invalidVotePolicyChoices()}
-                                    validate={required()}
-                                />
-
-                                <SelectInput
                                     source="presentation.enable_checkable_lists"
                                     choices={checkableListChoices()}
                                     validate={required()}
@@ -711,8 +701,19 @@ export const ContestDataForm: React.FC = () => {
                                         display: {xs: "none", sm: "block"},
                                     }}
                                 >
-                                    Policies
+                                    {t("contestScreen.edit.policies")}
                                 </Typography>
+                                <BooleanInput
+                                    source="presentation.under_vote_alert"
+                                    label={"Under-Vote Alert"}
+                                />
+
+                                <SelectInput
+                                    source="presentation.invalid_vote_policy"
+                                    choices={invalidVotePolicyChoices()}
+                                    validate={required()}
+                                />
+
                                 <SelectInput
                                     source={`presentation.blank_vote_policy`}
                                     choices={blankVotePolicyChoices()}
