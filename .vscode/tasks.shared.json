@@ -547,7 +547,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix",
+                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix && cd ./keycloak-extensions && mvn clean install && mvn invoker:run@run-spotless-apply",
             ],
             "presentation": {
                 "echo": true,
