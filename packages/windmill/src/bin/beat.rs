@@ -6,9 +6,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use celery::beat::{CronSchedule, DeltaSchedule};
+use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
-use sequent_core::services::probe::ProbeHandler;
+use sequent_core::util::init_log::init_log;
 use structopt::StructOpt;
 use tokio::time::Duration;
 use windmill::services::probe::{setup_probe, AppName};
@@ -29,6 +29,7 @@ struct CeleryOpt {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
+    init_log(true);
 
     setup_probe(AppName::BEAT).await;
 

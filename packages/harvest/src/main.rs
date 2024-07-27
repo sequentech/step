@@ -7,8 +7,6 @@
 extern crate rocket;
 
 use dotenv::dotenv;
-use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::services::probe::ProbeHandler;
 use sequent_core::util::init_log::init_log;
 use windmill::services::probe::{setup_probe, AppName};
 

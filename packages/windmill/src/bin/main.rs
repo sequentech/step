@@ -12,7 +12,6 @@ use anyhow::Result;
 use sequent_core::util::init_log::init_log;
 
 use dotenv::dotenv;
-use sequent_core::services::probe::ProbeHandler;
 use structopt::StructOpt;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;

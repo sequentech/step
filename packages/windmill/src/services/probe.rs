@@ -22,39 +22,39 @@ pub enum AppName {
 const BROKER_CONNECTION_TIMEOUT: u32 = 2;
 
 #[instrument]
-async fn check_celery(_app_name: &AppName) -> bool {
+async fn check_celery(_app_name: &AppName) -> Option<bool> {
     let celery_app = get_celery_app().await;
 
     let celery_result = celery_app.broker.reconnect(BROKER_CONNECTION_TIMEOUT).await;
 
-    celery_result.is_ok()
+    Some(celery_result.is_ok())
 }
 
 #[instrument]
-async fn check_hasura_db(app_name: &AppName) -> bool {
+async fn check_hasura_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
-        return true;
+        return None;
     }
     let hasura_db_result = get_hasura_pool().await;
 
-    hasura_db_result.get().await.is_ok()
+    Some(hasura_db_result.get().await.is_ok())
 }
 
 #[instrument]
-async fn check_keycloak_db(app_name: &AppName) -> bool {
+async fn check_keycloak_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
-        return true;
+        return None;
     }
 
     let keycloak_db_result = get_keycloak_pool().await;
 
-    keycloak_db_result.get().await.is_ok()
+    Some(keycloak_db_result.get().await.is_ok())
 }
 
 #[instrument]
-async fn check_hasura_graphql(app_name: &AppName) -> bool {
+async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
-        return true;
+        return None;
     }
 
     let keycloak_hasura_result = get_client_credentials().await;
@@ -65,10 +65,10 @@ async fn check_hasura_graphql(app_name: &AppName) -> bool {
             .is_ok()
     } else {
         info!("Can't connect to hasura graphql because can't authenticate to keycloak");
-        false
+        return Some(false);
     };
 
-    hasura_query_ok
+    Some(hasura_query_ok)
 }
 
 #[instrument]
@@ -82,11 +82,13 @@ async fn readiness_test(app_name: &AppName) -> bool {
     );
 
     info!(
-        "celery: {}, hasura_db: {} , keycloak db: {}, hasura_graphql {}",
+        "celery: {:?}, hasura_db: {:?} , keycloak db: {:?}, hasura_graphql {:?}",
         celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok
     );
 
-    celery_ok && hasura_db_ok && keycloak_db_ok && hasura_graphql_ok
+    let data = vec![celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok];
+
+    data.iter().all(|&x| x.is_none() || x == Some(true))
 }
 
 pub async fn setup_probe(app_name: AppName) {
