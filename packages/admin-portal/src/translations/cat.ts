@@ -420,6 +420,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                castVoteConfirm: "Modal de Confirmació de Vot",
             },
             field: {
                 name: "Nom",

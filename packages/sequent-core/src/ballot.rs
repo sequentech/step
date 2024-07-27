@@ -567,6 +567,7 @@ pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
+    pub cast_vote_confirm: Option<bool>,
 }
 
 #[derive(
