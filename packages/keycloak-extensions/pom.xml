@@ -150,6 +150,22 @@ SPDX-License-Identifier: AGPL-3.0-only
               </goals>
             </configuration>
           </execution>
+          <execution>
+            <id>run-spotless-apply</id>
+            <configuration>
+              <projectsDirectory>${basedir}</projectsDirectory>
+              <includes>
+                <include>aws-ses-email-sender-provider/pom.xml</include>
+                <include>conditional-authenticators/pom.xml</include>
+				<include>dummy-email-sender-provider/pom.xml</include>
+				<include>inetum-authenticator/pom.xml</include>
+				<include>message-otp-authenticator/pom.xml</include>
+              </includes>
+              <goals>
+                <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>
+              </goals>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
 		</plugins>
