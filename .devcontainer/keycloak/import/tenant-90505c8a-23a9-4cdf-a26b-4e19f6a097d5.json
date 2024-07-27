@@ -2215,7 +2215,7 @@
   },
   "smtpServer" : { },
   "loginTheme" : "sequent.admin-portal",
-  "accountTheme" : "",
+  "accountTheme" : "sequent.admin-portal",
   "adminTheme" : "",
   "emailTheme" : "",
   "eventsEnabled" : true,
