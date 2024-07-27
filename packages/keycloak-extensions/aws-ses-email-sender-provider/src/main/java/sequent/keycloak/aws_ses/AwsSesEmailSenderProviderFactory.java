@@ -21,11 +21,6 @@ public class AwsSesEmailSenderProviderFactory implements EmailSenderProviderFact
 
   @Override
   public EmailSenderProvider create(KeycloakSession session) {
-    /*
-    // Uncomment for emailing directly using AWS
-    return new AwsSesEmailSenderProvider();
-    */
-    // For Mock Ses email sending test, Comment if to send email directly using AWS
     SesClient sesClient = SesClient.builder().build();
     return new AwsSesEmailSenderProvider(sesClient);
   }

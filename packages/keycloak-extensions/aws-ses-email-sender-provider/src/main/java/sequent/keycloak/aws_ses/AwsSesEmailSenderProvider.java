@@ -23,24 +23,11 @@ import software.amazon.awssdk.services.ses.model.SesException;
  * AwsSes email sender provider that uses AWS Simple Email Service to send emails.
  */
 
-/* Testing Notes
-   line 38 - 47
-      public AwsSesEmailSenderProvider() - from AWS.
-      public AwsSesEmailSenderProvider(SesClient sesClient) - from testing.
-*/
-
 @JBossLog
 public class AwsSesEmailSenderProvider implements EmailSenderProvider {
 
   private final SesClient sesClient;
 
-  // Uncomment if to send email directly using AWS
-  // public AwsSesEmailSenderProvider()
-  // {
-  // Initialize the SES Client with a specific AWS region
-  //    this.sesClient = SesClient.create();
-  // }
-  // Uncomment to send email using Mock SesClient
   public AwsSesEmailSenderProvider(SesClient sesClient) {
     this.sesClient = sesClient;
   }
