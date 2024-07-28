@@ -562,6 +562,7 @@ pub enum ECountdownPolicy {
     PartialEq,
     Eq,
     JsonSchema,
+    Copy,
     Clone,
     EnumString,
     Display,
