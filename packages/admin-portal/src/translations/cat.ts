@@ -786,6 +786,7 @@ const catalanTranslation: TranslationType = {
                 system: "Sistema de votació de paperetes",
                 design: "Disseny de la papereta",
                 reorder: "Reordenar candidats",
+                policies: "Polítiques",
             },
             field: {
                 name: "Nom",
@@ -810,6 +811,12 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            blankVotePolicy: {
+                "label": "Política de vot en blanc",
+                "allowed": "Permès",
+                "warn": "Advertir",
+                "not-allowed": "No permès",
             },
             error: {},
             createContestSuccess: "Pregunta creada",

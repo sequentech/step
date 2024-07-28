@@ -195,6 +195,7 @@ const catalanTranslation: TranslationType = {
                     "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
                 underVote:
                     "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
+                blankVote: "Vot en Blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",

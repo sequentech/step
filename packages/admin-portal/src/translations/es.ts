@@ -785,6 +785,7 @@ const spanishTranslation: TranslationType = {
                 system: "Sistema de votación de papeletas",
                 design: "Diseño de la papeleta",
                 reorder: "Reordernar candidatos",
+                policies: "Políticas",
             },
             field: {
                 name: "Nombre",
@@ -809,6 +810,12 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-candidates": "Sólo Candidatos",
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
+            },
+            blankVotePolicy: {
+                "label": "Política de voto en blanco",
+                "allowed": "Permitido",
+                "warn": "Advertir",
+                "not-allowed": "No permitido",
             },
             error: {},
             createContestSuccess: "Pregunta creado",
