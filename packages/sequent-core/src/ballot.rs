@@ -361,6 +361,7 @@ pub enum CandidatesOrder {
     Alphabetical,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     Debug,
     BorshSerialize,
@@ -551,6 +552,39 @@ pub enum ECountdownPolicy {
     COUNTDOWN_WITH_ALERT,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EBlankVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
+impl Default for EBlankVotePolicy {
+    fn default() -> Self {
+        EBlankVotePolicy::ALLOWED
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -624,6 +658,7 @@ pub struct ContestPresentation {
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -643,6 +678,7 @@ impl ContestPresentation {
             allow_writeins: Some(true),
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+            blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,

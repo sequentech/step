@@ -195,6 +195,7 @@ const spanishTranslation: TranslationType = {
                     "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
                 underVote:
                     "Subvoto: El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
+                blankVote: "Voto en Blanco: 0 opciones seleccionadas",
             },
             explicit: {
                 notAllowed:

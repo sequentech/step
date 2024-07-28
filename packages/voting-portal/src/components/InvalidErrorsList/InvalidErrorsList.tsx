@@ -82,11 +82,15 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     ...prev,
                     invalid_errors:
                         prev?.invalid_errors.filter(
-                            (error) => error.message !== "errors.implicit.selectedMin"
+                            (error) =>
+                                error.message !== "errors.implicit.selectedMin" &&
+                                error.message !== "errors.implicit.blankVote"
                         ) || [],
                     invalid_alerts:
                         prev?.invalid_alerts.filter(
-                            (error) => error.message !== "errors.implicit.underVote"
+                            (error) =>
+                                error.message !== "errors.implicit.underVote" &&
+                                error.message !== "errors.implicit.blankVote"
                         ) || [],
                 }
             })
