@@ -15,7 +15,6 @@ export const EditElectionEventData: React.FC = () => {
 
         // save presentation object
         // language_conf
-        console.log("data before :: ", data)
         const enabled_language_codes = []
         for (const key in data.enabled_languages) {
             if (typeof data.enabled_languages[key] === "boolean" && data.enabled_languages[key]) {

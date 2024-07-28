@@ -18,7 +18,8 @@ use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
-use crate::tasks::manage_election_date::manage_election_date;
+use crate::tasks::manage_election_dates::manage_election_date;
+use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manual_verification_pdf::get_manual_verification_pdf;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
@@ -85,6 +86,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             import_election_event,
             get_manual_verification_pdf,
             scheduled_events,
+            manage_election_event_date,
             manage_election_date,
             export_election_event,
             export_election_event_logs,
@@ -110,7 +112,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "export_election_event_logs" => "import_export_queue",
             "import_election_event" => "import_export_queue",
             "scheduled_events" => "beat",
-            "manage_election_date" => "beat"
+            "manage_election_date" => "beat",
+            "manage_election_event_date" => "beat"
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

@@ -6,12 +6,13 @@ use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use immu_board::util::get_event_board;
+use sequent_core::ballot::ElectionDates;
+use sequent_core::ballot::ElectionEventDates;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
@@ -27,7 +28,9 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use super::database::get_hasura_pool;
+use super::date::ISO8601;
 use super::documents;
+use super::election_event_dates::generate_manage_date_task_name;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -39,10 +42,14 @@ use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::insert_election_event;
+use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::{create_protocol_manager_keys, get_board_client};
 use crate::tasks::import_election_event::ImportElectionEventBody;
+use crate::tasks::manage_election_event_date::ManageElectionDatePayload;
+use crate::types::scheduled_event::CronConfig;
+use crate::types::scheduled_event::EventProcessors;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -83,6 +90,7 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
     Ok(board_value)
 }
 
+#[instrument(err)]
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
         "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
@@ -170,14 +178,27 @@ pub fn replace_ids(
     id_opt: Option<String>,
     tenant_id: String,
 ) -> Result<ImportElectionEventSchema> {
-    let keep: Vec<String> = if id_opt.is_some() {
-        vec![
-            original_data.election_event.id.clone(),
-            original_data.tenant_id.clone().to_string(),
-        ]
-    } else {
-        vec![original_data.tenant_id.clone().to_string()]
-    };
+    let mut keep: Vec<String> = vec![];
+    keep.push(original_data.tenant_id.clone().to_string());
+    if id_opt.is_some() {
+        keep.push(original_data.election_event.id.clone());
+    }
+    // find other ids to maintain
+    if let Some(realm) = original_data.keycloak_event_realm.clone() {
+        if let Some(authenticator_configs) = realm.authenticator_config.clone() {
+            for authenticator_config in authenticator_configs {
+                let Some(config) = authenticator_config.config.clone() else {
+                    continue;
+                };
+                for (_key, value) in config {
+                    if Uuid::parse_str(&value).is_ok() {
+                        keep.push(value.clone());
+                    }
+                }
+            }
+        }
+    }
+
     let mut new_data = replace_uuids(data_str, keep);
 
     if let Some(id) = id_opt {
@@ -191,7 +212,7 @@ pub fn replace_ids(
     Ok(data.clone())
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
@@ -259,6 +280,7 @@ pub async fn process(
     data.election_event.statistics =
         Some(serde_json::to_value(ElectionEventStatistics::default())?);
     data.election_event.status = Some(serde_json::to_value(ElectionEventStatus::default())?);
+
     data.elections = data
         .elections
         .into_iter()
@@ -276,8 +298,8 @@ pub async fn process(
         data.keycloak_event_realm.clone(),
     )
     .await?;
-
     insert_election_event(&hasura_transaction, &data).await?;
+    manage_dates(&data, &hasura_transaction).await?;
     insert_election(&hasura_transaction, &data).await?;
     insert_contest(&hasura_transaction, &data).await?;
     insert_candidates(
@@ -300,6 +322,113 @@ pub async fn process(
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed: {}", e));
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn manage_dates(
+    data: &ImportElectionEventSchema,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<()> {
+    //Manage election event
+    match &data.election_event.dates {
+        Some(dates) => {
+            let election_event_dates: ElectionEventDates = serde_json::from_value(dates.clone())?;
+            if let Some(start_date) = election_event_dates.start_date {
+                maybe_create_scheduled_event(
+                    hasura_transaction,
+                    data.tenant_id.to_string().as_str(),
+                    &data.election_event.id,
+                    EventProcessors::START_ELECTION,
+                    start_date,
+                    None,
+                )
+                .await?;
+            }
+            if let Some(end_date) = election_event_dates.end_date {
+                maybe_create_scheduled_event(
+                    hasura_transaction,
+                    data.tenant_id.to_string().as_str(),
+                    &data.election_event.id,
+                    EventProcessors::END_ELECTION,
+                    end_date,
+                    None,
+                )
+                .await?;
+            }
+        }
+
+        None => {}
+    }
+    //Manage elections
+    let elections = &data.elections;
+    for election in elections {
+        if let Some(dates_js) = election.dates.clone() {
+            let dates: ElectionDates = serde_json::from_value(dates_js)?;
+            if let Some(start_date) = dates.start_date {
+                maybe_create_scheduled_event(
+                    hasura_transaction,
+                    data.tenant_id.to_string().as_str(),
+                    &data.election_event.id,
+                    EventProcessors::START_ELECTION,
+                    start_date,
+                    Some(&election.id),
+                )
+                .await?;
+            }
+            if let Some(end_date) = dates.end_date {
+                maybe_create_scheduled_event(
+                    hasura_transaction,
+                    data.tenant_id.to_string().as_str(),
+                    &data.election_event.id,
+                    EventProcessors::END_ELECTION,
+                    end_date,
+                    Some(&election.id),
+                )
+                .await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn maybe_create_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    event_processor: EventProcessors,
+    start_date: String,
+    election_id: Option<&str>,
+) -> Result<()> {
+    let now = ISO8601::now();
+    let date = ISO8601::to_date(&start_date).ok();
+    let is_start = event_processor == EventProcessors::START_ELECTION;
+    if date > Some(now) {
+        let start_task_id =
+            generate_manage_date_task_name(tenant_id, election_event_id, election_id, is_start);
+        let payload = ManageElectionDatePayload {
+            election_id: match election_id {
+                Some(id) => Some(id.to_string()),
+                None => None,
+            },
+        };
+        let cron_config = CronConfig {
+            cron: None,
+            scheduled_date: Some(start_date.to_string()),
+        };
+        insert_scheduled_event(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            event_processor,
+            &start_task_id,
+            cron_config,
+            serde_json::to_value(payload)?,
+        )
+        .await?;
+    }
 
     Ok(())
 }

@@ -30,8 +30,8 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
         new_dir_name = sanitize_filename(&new_dir_name);
         if new_dir_name != dir_name {
             let new_path = old_path.with_file_name(new_dir_name);
+            println!("Renaming {:?} to {:?}", old_path, new_path);
             fs::rename(&old_path, &new_path)?;
-            println!("Renamed {:?} to {:?}", old_path, new_path);
         }
     }
 
