@@ -156,8 +156,6 @@ impl TestFixture {
         fs::create_dir_all(&dir_configs)?;
         fs::create_dir_all(dir_ballots)?;
 
-        //TODO: Create more folders to support hierarchical area structure
-
         let mut file = fs::File::create(dir_configs.join("area-config.json"))?;
         writeln!(file, "{}", serde_json::to_string(&area_config)?)?;
 

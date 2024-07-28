@@ -1312,8 +1312,8 @@ mod tests {
                 };
 
                 // For each contest: assigns selections to the choices
-                // TODO: make the votes different for each contest using i
-                // TODO: decide if i need to vote every contest or just the grandpa one
+                // TODO: make the votes different for each contest 
+                // TODO: decide if i need to vote for every contest or just the grandpa one
                 match j {
                     1 => choices[0].selected = 0,
                     2 => choices[1].selected = 0,
@@ -1376,6 +1376,7 @@ mod tests {
             path.push("velvet-generate-reports");
             path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
             path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
+            path.push("aggregate");
             path.push("report.json");
 
             let f = fs::File::open(&path)?;
