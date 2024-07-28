@@ -421,6 +421,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {
                 name: "Nom",

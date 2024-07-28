@@ -12,5 +12,6 @@ export interface IElectionDates {
 export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
     language_conf?: ILanguageConf
+    cast_vote_confirm?: boolean
     // more missing
 }

@@ -77,6 +77,12 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull INVALIDAR la meva papereta per AUDITAR-LA",
                 cancel: "Cancel·lar",
             },
+            confirmCastVoteDialog: {
+                title: "Esteu segur que voleu emetre el vostre vot?",
+                content: "El vostre vot ja no es podrà editar un cop confirmat.",
+                ok: "Sí, vull EMETRE el meu vot",
+                cancel: "Cancel·lar",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",

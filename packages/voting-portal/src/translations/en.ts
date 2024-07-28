@@ -75,6 +75,12 @@ const englishTranslation = {
                 ok: "Yes, I want to DISCARD my ballot to audit it",
                 cancel: "Cancel",
             },
+            confirmCastVoteDialog: {
+                title: "Are you sure you want to cast your vote?",
+                content: "Your vote will no longer be editable once confirmed.",
+                ok: "Yes, I want to CAST my vote",
+                cancel: "Cancel",
+            },
         },
         confirmationScreen: {
             title: "Your vote has been cast",

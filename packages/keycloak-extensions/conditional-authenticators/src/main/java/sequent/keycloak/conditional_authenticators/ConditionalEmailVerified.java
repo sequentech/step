@@ -4,13 +4,14 @@
 
 package sequent.keycloak.conditional_authenticators;
 
-import lombok.extern.jbosslog.JBossLog;
-
+import com.google.auto.service.AutoService;
 import java.util.List;
-
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config.Scope;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.authentication.authenticators.conditional.ConditionalAuthenticator;
+import org.keycloak.authentication.authenticators.conditional.ConditionalAuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -19,160 +20,130 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
-import com.google.auto.service.AutoService;
-
-import org.keycloak.authentication.authenticators.conditional.ConditionalAuthenticator;
-import org.keycloak.authentication.authenticators.conditional.ConditionalAuthenticatorFactory;
-
-/**
- * Conditional Client Authenticator that checks if the email is verified.
- */
+/** Conditional Client Authenticator that checks if the email is verified. */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class ConditionalEmailVerified
-    implements ConditionalAuthenticator, ConditionalAuthenticatorFactory
-{
-    public static final String PROVIDER_ID = "conditional-email-verified";
-    public static final String CONF_NEGATE = "negate";
+    implements ConditionalAuthenticator, ConditionalAuthenticatorFactory {
+  public static final String PROVIDER_ID = "conditional-email-verified";
+  public static final String CONF_NEGATE = "negate";
 
-    public static final ConditionalEmailVerified SINGLETON = 
-        new ConditionalEmailVerified();
+  public static final ConditionalEmailVerified SINGLETON = new ConditionalEmailVerified();
 
-    private static final Requirement[] REQUIREMENT_CHOICES = {
-        Requirement.REQUIRED,
-        Requirement.DISABLED
-    };
+  private static final Requirement[] REQUIREMENT_CHOICES = {
+    Requirement.REQUIRED, Requirement.DISABLED
+  };
 
-    @Override
-    public boolean matchCondition(AuthenticationFlowContext context)
-    {
-        log.info("matchCondition()");
-        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
-        if (authConfig == null) {
-            log.infov(
-                "matchCondition(): NULL found authConfig={0}",
-                authConfig
-            );
-            return false;
-        }
-        log.infov("matchCondition(): alias={0}", authConfig.getAlias());
-        if (authConfig.getConfig() == null) {
-            log.infov(
-                "matchCondition(): NULL found authConfig.getConfig()={0}",
-                authConfig.getConfig()
-            );
-            return false;
-        }
-
-        boolean negateOutput = Boolean.parseBoolean(
-            authConfig
-                .getConfig()
-                .get(CONF_NEGATE)
-        );
-        log.infov("matchCondition(): negateOutput={0}",negateOutput);
-
-        UserModel user = context.getUser();
-        if (user == null) {
-            log.infov(
-                "matchCondition(): NULL found user={0}",
-                user
-            );
-            return false;
-        }
-        boolean emailVerified = user.isEmailVerified();
-        boolean result = (emailVerified != negateOutput);
-        log.infov(
-            "matchCondition(): emailVerified={0}, negateOutput[{1}], result={1}",
-            emailVerified,
-            negateOutput,
-            result
-
-        );
-        return result;
+  @Override
+  public boolean matchCondition(AuthenticationFlowContext context) {
+    log.info("matchCondition()");
+    AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+    if (authConfig == null) {
+      log.infov("matchCondition(): NULL found authConfig={0}", authConfig);
+      return false;
+    }
+    log.infov("matchCondition(): alias={0}", authConfig.getAlias());
+    if (authConfig.getConfig() == null) {
+      log.infov("matchCondition(): NULL found authConfig.getConfig()={0}", authConfig.getConfig());
+      return false;
     }
 
-    @Override
-    public void action(AuthenticationFlowContext context) {
-        log.info("action()");
-        // Not used
-    }
+    boolean negateOutput = Boolean.parseBoolean(authConfig.getConfig().get(CONF_NEGATE));
+    log.infov("matchCondition(): negateOutput={0}", negateOutput);
 
-    @Override
-    public boolean requiresUser() {
-        log.info("requiresUser()");
-        return true;
+    UserModel user = context.getUser();
+    if (user == null) {
+      log.infov("matchCondition(): NULL found user={0}", user);
+      return false;
     }
+    boolean emailVerified = user.isEmailVerified();
+    boolean result = (emailVerified != negateOutput);
 
-    @Override
-    public void setRequiredActions(
-        KeycloakSession session,
-        RealmModel realm,
-        UserModel user
-    ) {
-        // Not used
-    }
+    log.info("matchCondition(): emailVerified = " + emailVerified);
+    log.info("matchCondition(): negateOutput = " + negateOutput);
+    log.info("matchCondition(): result = " + result);
 
-    @Override
-    public void init(Scope config) {
-        // no-op
-    }
+    log.infov(
+        "matchCondition(): emailVerified={0}, negateOutput[{1}], result={1}",
+        emailVerified, negateOutput, result);
+    return result;
+  }
 
-    @Override
-    public void postInit(KeycloakSessionFactory factory) {
-        // no-op
-    }
+  @Override
+  public void action(AuthenticationFlowContext context) {
+    log.info("action()");
+    // Not used
+  }
 
-    @Override
-    public void close() {
-        // no-op
-    }
+  @Override
+  public boolean requiresUser() {
+    log.info("requiresUser()");
+    return true;
+  }
 
-    @Override
-    public String getId() {
-        return PROVIDER_ID;
-    }
+  @Override
+  public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
+    // Not used
+  }
 
-    @Override
-    public String getDisplayType() {
-        return "Condition - User Email Verified";
-    }
+  @Override
+  public void init(Scope config) {
+    // no-op
+  }
 
-    @Override
-    public boolean isConfigurable() {
-        return true;
-    }
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {
+    // no-op
+  }
 
-    @Override
-    public Requirement[] getRequirementChoices() {
-        return REQUIREMENT_CHOICES;
-    }
+  @Override
+  public void close() {
+    // no-op
+  }
 
-    @Override
-    public boolean isUserSetupAllowed() {
-        return false;
-    }
+  @Override
+  public String getId() {
+    return PROVIDER_ID;
+  }
 
-    @Override
-    public String getHelpText() {
-        return "";
-    }
+  @Override
+  public String getDisplayType() {
+    return "Condition - User Email Verified";
+  }
 
-    @Override
-    public List<ProviderConfigProperty> getConfigProperties()
-    {
-        return List.of(
-			new ProviderConfigProperty(
-				CONF_NEGATE,
-				"Negate output",
-				"Apply a NOT to the check result.",
-				ProviderConfigProperty.BOOLEAN_TYPE,
-				false
-			)
-        );
-    }
+  @Override
+  public boolean isConfigurable() {
+    return true;
+  }
 
-    @Override
-    public ConditionalAuthenticator getSingleton() {
-        return SINGLETON;
-    }
+  @Override
+  public Requirement[] getRequirementChoices() {
+    return REQUIREMENT_CHOICES;
+  }
+
+  @Override
+  public boolean isUserSetupAllowed() {
+    return false;
+  }
+
+  @Override
+  public String getHelpText() {
+    return "";
+  }
+
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    return List.of(
+        new ProviderConfigProperty(
+            CONF_NEGATE,
+            "Negate output",
+            "Apply a NOT to the check result.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false));
+  }
+
+  @Override
+  public ConditionalAuthenticator getSingleton() {
+    return SINGLETON;
+  }
 }

@@ -419,6 +419,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
+                castVoteConfirm: "Modal de Confirmación de Voto",
             },
             field: {
                 name: "Nombre",

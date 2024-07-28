@@ -415,6 +415,7 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             field: {
                 name: "Name",

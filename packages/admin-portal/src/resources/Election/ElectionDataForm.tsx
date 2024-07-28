@@ -673,6 +673,10 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <BooleanInput
+                                    source={"presentation.cast_vote_confirm"}
+                                    label={t(`electionScreen.edit.castVoteConfirm`)}
+                                />
                                 <NumberInput
                                     source="num_allowed_revotes"
                                     label={t("electionScreen.edit.numAllowedVotes")}
