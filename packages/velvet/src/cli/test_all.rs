@@ -1238,10 +1238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hierarchical_area_aggregation() -> Result<()> {
-        use std::str::FromStr; // TODO: delete later
-        use std::fs; // TODO: delete later
-        
+    fn test_hierarchical_area_aggregation() -> Result<()> {        
         let fixture = TestFixture::new()?;
 
         let election_event_id = Uuid::new_v4();
@@ -1283,10 +1280,8 @@ mod tests {
         }
 
         // Generate ballots for the voter associated with area 3 for all contests
-        for i in 0..2 {
-            println!(" ----- i {} Area {}", i, areas_config[i].id);
-            println!(" ----- i {} Contest {}", i, contests[i].id);
-
+        for i in 0..3 {
+            println!(" ----- i {} Area {} Contest {}", i, areas_config[i].id, contests[i].id);
             let ballot_file = fixture
                 .input_dir_ballots
                 .join(format!("election__{}", &election.id))
@@ -1316,12 +1311,17 @@ mod tests {
                     choices: vec![],
                 };
 
-                // TODO: Change and write a comment
-                // TODO: Ensure that a voter from the child area can vote in all areas
-                if j % 2 == 0 { 
-                    choices[0].selected = 0;
-                } else {
-                    choices[1].selected = 0;
+                // For each contest: assigns selections to the choices
+                // TODO: make the votes different for each contest using i
+                // TODO: decide if i need to vote every contest or just the grandpa one
+                match j {
+                    1 => choices[0].selected = 0,
+                    2 => choices[1].selected = 0,
+                    3 => choices[2].selected = 0,
+                    4 => choices[3].selected = 0,
+                    5 => choices[4].selected = 0,
+                    6 => (),
+                    _ => choices[1].selected = 0,
                 }
 
                 plaintext_prepare.choices = choices;
@@ -1331,8 +1331,6 @@ mod tests {
 
                 Ok::<(), Error>(())
             })?;
-            println!("*******************AFTER OK**************");
-
         }
 
         // Set up CLI configuration
@@ -1354,14 +1352,9 @@ mod tests {
         state.exec_next()?; // MarkWinners
         state.exec_next()?; // Generate reports
 
-        // Verify results for the contests
-        for i in 0..2 {
-            /* 
-            TODO: TESTS
-                1. Verify that the parent area contest has received votes from child area contest voters.
-                2. Ensure that the results in the following path are only from parent area voters:
-                   output/velvet-generate-reports/election__5048fb45-ecc9-4154-91f0-c205b58fb5ae/contest__cecf10d8-06e0-4b98-93dc-0a8f9bb4f9d9/area__17d4f7dd-1fd7-445b-94ff-801e13aac1f0/report.html
-            */ 
+        // Verify results for the contests themselves
+        // Results would be just of voters that were directly assigned the area
+        for i in 0..3 {
             let mut path = cli.output_dir.clone();
             path.push("velvet-generate-reports");
             path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
@@ -1373,14 +1366,11 @@ mod tests {
             let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
             let report = &reports[0];
 
-            if i == 2 { // Voter associated with area 3
-                assert_eq!(report.contest_result.total_votes, 10);
-            } else {
-                assert_eq!(report.contest_result.total_votes, 0);
-            }
+            assert_eq!(report.contest_result.total_votes, 10);
         }
 
         // Verify aggregated results
+        // TODO: find "aggregate" folder
         for contest in &contests {
             let mut path = cli.output_dir.clone();
             path.push("velvet-generate-reports");
