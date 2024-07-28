@@ -47,4 +47,27 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
 
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)
 
+export const overwriteTranslations = (electionEventObj: any) => {
+    if (!electionEventObj || !electionEventObj?.["presentation"]?.["i18n"]) return // Check object has translations to overwrite
+    const i18nObj = electionEventObj.presentation.i18n
+
+    Object.keys(i18nObj).forEach((lang) => {
+        const translations = i18nObj[lang]
+        const currentResources = i18n.getResourceBundle(lang, "translations") || {}
+
+        // Convert dot notation to nested objects
+        const nestedTranslations = {}
+        Object.keys(translations).forEach((key) => {
+            const keys = key.split(".")
+            keys.reduce((acc, k, i) => {
+                return (acc[k] = i === keys.length - 1 ? translations[key] : acc[k] || {})
+            }, nestedTranslations)
+        })
+
+        const mergedResources = deepmerge(currentResources, nestedTranslations)
+
+        i18n.addResourceBundle(lang, "translations", mergedResources, true, true) // Overwriting existing resource for language
+    })
+}
+
 export default i18n
