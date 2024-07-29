@@ -90,6 +90,7 @@ interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot: IAuditableBallot
     hideAudit: boolean
+    castVoteConfirmModal: boolean
     ballotId: string
 }
 
@@ -97,6 +98,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
     hideAudit,
+    castVoteConfirmModal,
     ballotId,
 }) => {
     const dispatch = useAppDispatch()
@@ -106,6 +108,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
+    const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
     const submit = useSubmit()
@@ -124,6 +127,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             navigate(
                 `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit${location.search}`
             )
+        }
+    }
+
+    const handleCloseCastVoteDialog = (value: boolean) => {
+        setConfirmCastVoteModal(false)
+        if (value) {
+            castBallotAction()
         }
     }
 
@@ -239,12 +249,24 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     className="cast-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     disabled={isCastingBallot}
-                    onClick={castBallotAction}
+                    onClick={() =>
+                        castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
+                    }
                 >
                     <Box>{t("reviewScreen.castBallotButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
+            <Dialog
+                handleClose={handleCloseCastVoteDialog}
+                open={isConfirmCastVoteModal}
+                title={t("reviewScreen.confirmCastVoteDialog.title")}
+                ok={t("reviewScreen.confirmCastVoteDialog.ok")}
+                cancel={t("reviewScreen.confirmCastVoteDialog.cancel")}
+                variant="info"
+            >
+                {stringToHtml(t("reviewScreen.confirmCastVoteDialog.content"))}
+            </Dialog>
         </Box>
     )
 }
@@ -261,6 +283,8 @@ export const ReviewScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
+    const castVoteConfirmModal =
+        ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
     const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
@@ -338,7 +362,7 @@ export const ReviewScreen: React.FC = () => {
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    t(hideAudit ? "reviewScreen.descriptionNoAudit" : "reviewScreen.description")
+                    hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (
@@ -354,6 +378,7 @@ export const ReviewScreen: React.FC = () => {
                 ballotStyle={ballotStyle}
                 auditableBallot={auditableBallot}
                 hideAudit={hideAudit}
+                castVoteConfirmModal={castVoteConfirmModal}
                 ballotId={ballotId ?? ""}
             />
         </PageLimit>

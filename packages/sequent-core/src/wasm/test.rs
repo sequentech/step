@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2022-2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
@@ -23,13 +23,20 @@ use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
 
-trait IntoResult<T> {
+pub trait IntoResult<T> {
     fn into_json(self) -> Result<T, JsValue>;
 }
 
 impl<T> IntoResult<T> for Result<T, String> {
     fn into_json(self) -> Result<T, JsValue> {
-        self.map_err(|err| serde_wasm_bindgen::to_value(&err).unwrap())
+        self.map_err(|err| {
+            serde_wasm_bindgen::to_value(&err).unwrap_or_else(|serde_err| {
+                JsValue::from_str(&format!(
+                    "Error converting error to JSON: {}",
+                    serde_err
+                ))
+            })
+        })
     }
 }
 
@@ -370,13 +377,25 @@ pub fn check_voting_not_allowed_next(
         })?;
 
     let voting_not_allowed = all_contests.iter().any(|contest| {
-        let default_policy = InvalidVotePolicy::default();
-        let policy = contest
+        let default_vote_policy = InvalidVotePolicy::default();
+        let vote_policy = contest
             .presentation
             .as_ref()
             .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_policy);
+            .unwrap_or(&default_vote_policy);
+
+        let default_blank_policy = EBlankVotePolicy::default();
+        let blank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.blank_vote_policy.as_ref())
+            .unwrap_or(&default_blank_policy);
+
         if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
+            let choices_selected = decoded_contest
+                .choices
+                .iter()
+                .any(|choice| choice.selected == 0);
             let invalid_errors: Vec<InvalidPlaintextError> =
                 decoded_contest.invalid_errors.clone();
             invalid_errors.iter().any(|error| {
@@ -386,7 +405,9 @@ pub fn check_voting_not_allowed_next(
                         | InvalidPlaintextErrorType::EncodingError
                 )
             }) || (invalid_errors.len() > 0
-                && *policy == InvalidVotePolicy::NOT_ALLOWED)
+                && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
+                || (!choices_selected
+                    && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
         } else {
             false
         }
@@ -413,20 +434,35 @@ pub fn check_voting_error_dialog(
         })?;
 
     let show_voting_alert = all_contests.iter().any(|contest| {
-        let default_policy = InvalidVotePolicy::default();
-        let policy = contest
+        let default_vote_policy = InvalidVotePolicy::default();
+        let vote_policy = contest
             .presentation
             .as_ref()
             .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_policy);
+            .unwrap_or(&default_vote_policy);
+
+        let default_blank_policy = EBlankVotePolicy::default();
+        let blank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.blank_vote_policy.as_ref())
+            .unwrap_or(&default_blank_policy);
+
         if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
+            let choices_selected = decoded_contest
+                .choices
+                .iter()
+                .any(|choice| choice.selected == 0);
             let invalid_errors: Vec<InvalidPlaintextError> =
                 decoded_contest.invalid_errors.clone();
             let explicit_invalid = decoded_contest.is_explicit_invalid;
-            (invalid_errors.len() > 0 && *policy != InvalidVotePolicy::ALLOWED)
-                || (*policy
+            (invalid_errors.len() > 0
+                && *vote_policy != InvalidVotePolicy::ALLOWED)
+                || (*vote_policy
                     == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
                     && explicit_invalid)
+                || (*blank_policy == EBlankVotePolicy::WARN
+                    && !choices_selected)
         } else {
             false
         }
