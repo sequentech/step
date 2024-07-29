@@ -4,6 +4,7 @@
 
 pub mod ceremonies;
 pub mod communications;
+pub mod date_time;
 pub mod hasura;
 pub mod keycloak;
 pub mod permissions;

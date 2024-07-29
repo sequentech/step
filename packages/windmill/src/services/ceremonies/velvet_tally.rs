@@ -414,6 +414,8 @@ pub async fn create_config_file(
     let gen_report_pipe_config = PipeConfigGenerateReports {
         enable_pdfs: false,
         report_content_template,
+        time_zone: None,
+        date_format: None,
     };
 
     let stages_def = {

@@ -161,7 +161,7 @@ export default function ElectionEvents() {
             {enabled: !!election_event_id || !!electionEventId}
         )
 
-    const {isLoading: isElectionLoading} = useGetOne<Sequent_Backend_Election>(
+    useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: election_id},
         {
@@ -171,7 +171,7 @@ export default function ElectionEvents() {
             },
         }
     )
-    const {isLoading: isContestLoading} = useGetOne<Sequent_Backend_Contest>(
+    useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
         {id: contest_id},
         {
@@ -181,7 +181,7 @@ export default function ElectionEvents() {
             },
         }
     )
-    const {isLoading: isCandidateLoading} = useGetOne<Sequent_Backend_Candidate>(
+    useGetOne<Sequent_Backend_Candidate>(
         "sequent_backend_candidate",
         {id: candidate_id},
         {
@@ -240,21 +240,16 @@ export default function ElectionEvents() {
         ),
     }
 
-    const treeMenu =
-        loading ||
-        isElectionLoading ||
-        isContestLoading ||
-        isCandidateLoading ||
-        isElectionEventLoading ? (
-            <CircularProgress />
-        ) : (
-            <TreeMenu
-                data={resultData}
-                treeResourceNames={TREE_RESOURCE_NAMES}
-                isArchivedElectionEvents={isArchivedElectionEvents}
-                onArchiveElectionEventsSelect={changeArchiveSelection}
-            />
-        )
+    const treeMenu = loading ? (
+        <CircularProgress />
+    ) : (
+        <TreeMenu
+            data={resultData}
+            treeResourceNames={TREE_RESOURCE_NAMES}
+            isArchivedElectionEvents={isArchivedElectionEvents}
+            onArchiveElectionEventsSelect={changeArchiveSelection}
+        />
+    )
 
     return (
         <>
