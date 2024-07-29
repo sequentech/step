@@ -104,21 +104,39 @@ pub async fn add_config_to_board<C: Ctx>(
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let mut board = get_board_client().await?;
 
-    let messages = board.get_messages(board_name, -1).await?;
-    let pks_message = messages
+    let board_messages = board.get_messages(board_name, -1).await?;
+
+    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
+    let messages: Vec<Message> = board_messages
         .into_iter()
-        .map(|message| Message::strand_deserialize(&message.message))
-        .find(|message| {
-            if let Ok(m) = message {
-                match m.statement.get_kind() {
-                    StatementType::PublicKey => true,
-                    _ => false,
-                }
+        .filter_map(|board_message| Message::strand_deserialize(&board_message.message).ok())
+        .collect();
+
+    let config = get_configuration::<C>(&messages)?;
+
+    config
+        .trustees
+        .into_iter()
+        .map(|trustee_signature| {
+            let trustee_pk = messages.iter().any(|message| {
+                message.sender.pk == trustee_signature
+                    && valid_statements.contains(&message.statement.get_kind())
+            });
+            if trustee_pk {
+                Ok(())
             } else {
-                false
+                Err(anyhow!(
+                    "Missing public key for trustee {:?}",
+                    trustee_signature
+                ))
             }
         })
-        .with_context(|| format!("Public Key not found on board {}", board_name))??;
+        .collect::<Result<()>>()?;
+
+    let pks_message = messages
+        .into_iter()
+        .find(|message| StatementType::PublicKey == message.statement.get_kind())
+        .with_context(|| format!("Public Key not found on board {}", board_name))?;
 
     let bytes = pks_message.artifact.with_context(|| {
         format!(
