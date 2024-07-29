@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: 'Release Type (major, minor, patch)'
+        description: 'Release Type (major, minor, patch). For example, if last version was 1.9.0 and release type is minor, the new release will be 1.10.0'
         required: true
         type: choice
         default: 'patch'
@@ -16,6 +16,16 @@ on:
           - patch
           - minor
           - major
+      preRelease:
+        description: 'Pre-release - If true, the release will be marked as pre-release'
+        required: false
+        type: boolean
+        default: false
+      incrementPreRelease:
+        description: 'Increment Pre-release. Only applicable if Pre-release is true. If true, the pre-release version type will be incremented. For example, if last version was 1.9.0, releaseType is minor, preRelease is true and increment pre-release is true, the new release will be 1.10.0-rc.0. If Increment Pre-release is false, the new release will be 1.9.0-rc.0'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -50,7 +60,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        release-it --ci --increment=${{ github.event.inputs.releaseType }}
+        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          if [ "${{ github.event.inputs.incrementPreRelease }}" = "true" ]; then
+            release-it --ci --increment=${{ github.event.inputs.releaseType }} --preRelease=rc
+          else
+            release-it --ci --preRelease
+          fi
+        else
+          release-it --ci --increment=${{ github.event.inputs.releaseType }}
+        fi
         # Capture the Release Version
         echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 

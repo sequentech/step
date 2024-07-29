@@ -27,6 +27,12 @@ export enum EEnableCheckableLists {
     DISABLED = "disabled",
 }
 
+export enum EBlankVotePolicy {
+    ALLOWED = "allowed",
+    WARN = "warn",
+    NOT_ALLOWED = "not-allowed",
+}
+
 export interface ITypePresentation {
     name?: string
     name_i18n?: Record<string, string>
@@ -39,6 +45,7 @@ export interface IContestPresentation {
     allow_writeins?: boolean
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
+    blank_vote_policy?: EBlankVotePolicy
     cumulative_number_of_checkboxes?: number
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>

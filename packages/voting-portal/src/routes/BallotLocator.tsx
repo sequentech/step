@@ -25,7 +25,6 @@ import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {getLanguageFromURL} from "../utils/queryParams"
 import useLanguage from "../hooks/useLanguage"
 
 const StyledLink = styled(Link)`
@@ -90,8 +89,7 @@ const BallotLocator: React.FC = () => {
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
     const location = useLocation()
-    const {t, i18n} = useTranslation()
-
+    const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
 
     const hasBallotId = !!ballotId

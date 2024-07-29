@@ -52,8 +52,12 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_election_config(&self, election_event_id: &Uuid) -> Result<ElectionConfig> {
-        let election = super::elections::get_election_config_1(election_event_id);
+    pub fn create_election_config(
+        &self,
+        election_event_id: &Uuid,
+        areas: Vec<Uuid>,
+    ) -> Result<ElectionConfig> {
+        let election = super::elections::get_election_config_1(election_event_id, areas);
 
         let mut path = self
             .input_dir_configs
@@ -127,6 +131,7 @@ impl TestFixture {
         census: u64,
         auditable_votes: u64,
         parent_id: Option<Uuid>,
+        area_id: Option<String>,
     ) -> Result<AreaConfig> {
         let area_config = super::areas::get_area_config(
             tenant_id,
@@ -135,6 +140,7 @@ impl TestFixture {
             census,
             auditable_votes,
             parent_id,
+            area_id,
         );
 
         let dir_configs = self

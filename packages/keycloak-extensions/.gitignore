@@ -8,3 +8,4 @@ config
 target
 deploy.sh
 dependency-reduced-pom.xml
+build.log

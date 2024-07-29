@@ -12,14 +12,13 @@ export enum ContestsOrder {
 export interface IElectionDates {
     start_date?: string
     end_date?: string
-    scheduled_opening?: boolean
-    scheduled_closing?: boolean
 }
 
 export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
-    dates?: IElectionDates
     language_conf?: ILanguageConf
     contests_order?: ContestsOrder
     sort_order?: number
+    cast_vote_confirm?: boolean
+    // more missing
 }

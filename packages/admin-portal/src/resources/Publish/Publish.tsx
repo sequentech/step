@@ -42,16 +42,16 @@ import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
 
-export type TPublish = {
-    electionId?: string
-    electionEventId: string
-    type: EPublishType.Election | EPublishType.Event
-}
-
 enum ViewMode {
     Edit,
     View,
     List,
+}
+
+type TPublish = {
+    electionId?: string
+    electionEventId: string
+    type: EPublishType.Election | EPublishType.Event
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(

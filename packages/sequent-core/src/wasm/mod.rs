@@ -10,4 +10,7 @@ pub mod wasm_permissions;
 pub mod wasm_plaintext;
 
 #[cfg(feature = "wasmtest")]
+pub mod areas;
+
+#[cfg(feature = "wasmtest")]
 pub mod test;

@@ -51,7 +51,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
-import {getLanguageFromURL} from "../utils/queryParams"
+import useUpdateTranslation from "../hooks/useUpdateTranslation"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -88,18 +88,18 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const {i18n} = useTranslation()
 
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
 
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
-    const eventStatus = electionEvent?.status as IElectionEventStatus | null
-    const isVotingOpen = eventStatus?.voting_status === EVotingStatus.OPEN
+    const electionStatus = election?.status as IElectionEventStatus | null
+    const isVotingOpen = electionStatus?.voting_status === EVotingStatus.OPEN
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false
@@ -144,7 +144,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
-    const dates = ballotStyle?.ballot_eml?.election_presentation?.dates
+    const dates = ballotStyle?.ballot_eml?.election_dates
 
     return (
         <SelectElection
@@ -199,10 +199,10 @@ const ElectionSelectionScreen: React.FC = () => {
 
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
-
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    useUpdateTranslation({electionEvent}) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
@@ -210,7 +210,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const castVotesTestElection = useAppSelector(
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
-
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
     const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
@@ -342,7 +341,6 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        console.log("openDemoModal", openDemoModal)
         if (isDemo && openDemoModal === undefined) {
             setOpenDemoModal(true)
         }

@@ -19,7 +19,10 @@ import {selectElectionEventById} from "../store/electionEvents/electionEventsSli
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectFirstBallotStyle,
+} from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useLazyQuery, useMutation} from "@apollo/client"
 import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
@@ -130,6 +133,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
+    const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
 
@@ -148,6 +154,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }, [ballotStyle, dispatch])
 
     async function printVoteReceipt() {
+        if (isDemo) {
+            setOpenPrintDemoModal(true)
+            return
+        }
+
         if (documentUrl) {
             return window.open(documentUrl, "_blank")
         }
@@ -276,6 +287,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             </ActionsContainer>
 
             <Dialog
+                handleClose={() => setOpenPrintDemoModal(false)}
+                open={openPrintDemoModal}
+                title={t("confirmationScreen.demoPrintDialog.title")}
+                ok={t("confirmationScreen.demoPrintDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("confirmationScreen.demoPrintDialog.content"))}
+            </Dialog>
+            <Dialog
                 handleClose={() => setErrorDialog(false)}
                 open={errorDialog}
                 title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
@@ -295,6 +315,7 @@ const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
+    const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot} = provideBallotService()
     const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
 
@@ -302,6 +323,9 @@ const ConfirmationScreen: React.FC = () => {
 
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         console.log(
@@ -309,12 +333,19 @@ const ConfirmationScreen: React.FC = () => {
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
-    console.log({backLink})
+
     useEffect(() => {
         if (!ballotId) {
             navigate(backLink)
         }
     })
+
+    const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+        if (isDemo) {
+            event.preventDefault()
+            setDemoBallotUrlHelp(true)
+        }
+    }
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
@@ -360,16 +391,18 @@ const ConfirmationScreen: React.FC = () => {
                         color={theme.palette.customGrey.contrastText}
                     />
                     <BallotIdLink
-                        href={ballotTrackerUrl}
-                        target="_blank"
+                        href={!isDemo ? ballotTrackerUrl : undefined}
+                        target={!isDemo ? "_blank" : undefined}
                         sx={{display: {xs: "none", sm: "block"}}}
+                        onClick={handleBallotIdLinkClick}
                     >
                         {ballotId}
                     </BallotIdLink>
                     <BallotIdLink
-                        href={ballotTrackerUrl}
-                        target="_blank"
+                        href={!isDemo ? ballotTrackerUrl : undefined}
+                        target={!isDemo ? "_blank" : undefined}
                         sx={{display: {xs: "block", sm: "none"}}}
+                        onClick={handleBallotIdLinkClick}
                     >
                         {t("ballotHash", {ballotId: ballotId})}
                     </BallotIdLink>
@@ -378,11 +411,12 @@ const ConfirmationScreen: React.FC = () => {
                         sx={{
                             fontSize: "unset",
                             lineHeight: "unset",
-                            paddingBottom: "2px",
                             marginLeft: "16px",
                         }}
                         fontSize="18px"
-                        onClick={() => setOpenBallotIdHelp(true)}
+                        onClick={() =>
+                            isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
+                        }
                     />
                     <Dialog
                         handleClose={() => setOpenBallotIdHelp(false)}
@@ -393,6 +427,24 @@ const ConfirmationScreen: React.FC = () => {
                     >
                         {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
                     </Dialog>
+                    <Dialog
+                        handleClose={() => setDemoBallotUrlHelp(false)}
+                        open={openDemoBallotUrlHelp}
+                        title={t("confirmationScreen.demoBallotUrlDialog.title")}
+                        ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
+                    </Dialog>
+                    <Dialog
+                        handleClose={() => setDemoBallotIdHelp(false)}
+                        open={demoBallotIdHelp}
+                        title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
+                        ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("confirmationScreen.ballotIdDemoHelpDialog.content"))}
+                    </Dialog>
                 </BallotIdBorder>
             </BallotIdContainer>
             <Typography variant="h5" fontSize="18px" fontWeight="bold">
@@ -402,7 +454,7 @@ const ConfirmationScreen: React.FC = () => {
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer>
-                <QRCode value={ballotTrackerUrl} />
+                <QRCode value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl} />
             </QRContainer>
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}

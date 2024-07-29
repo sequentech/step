@@ -2,12 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import styled from "@emotion/styled"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Election,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Candidate,
+} from "@/gql/graphql"
 import {
     ICandidatePresentation,
     IContestPresentation,
@@ -18,7 +24,7 @@ import {
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
-import {Menu, useSidebarState} from "react-admin"
+import {Menu, useGetOne, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
@@ -31,6 +37,7 @@ import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {useUrlParams} from "@/hooks/useUrlParams"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -133,6 +140,8 @@ export default function ElectionEvents() {
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
+    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
         true,
@@ -141,7 +150,51 @@ export default function ElectionEvents() {
     )
     const {t, i18n} = useTranslation()
 
-    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+    const [electionEventId, setElectionEventId] = useState("")
+    const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
+
+    const {data: electionEventData, isLoading: isElectionEventLoading} =
+        useGetOne<Sequent_Backend_Election_Event>(
+            "sequent_backend_election_event",
+            {id: election_event_id || electionEventId},
+            {enabled: !!election_event_id || !!electionEventId}
+        )
+
+    useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {id: election_id},
+        {
+            enabled: !!election_id,
+            onSuccess: (data) => {
+                setElectionEventId(data.election_event_id)
+            },
+        }
+    )
+    useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {id: contest_id},
+        {
+            enabled: !!contest_id,
+            onSuccess: (data) => {
+                setElectionEventId(data.election_event_id)
+            },
+        }
+    )
+    useGetOne<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {id: candidate_id},
+        {
+            enabled: !!candidate_id,
+            onSuccess: (data) => {
+                setElectionEventId(data.election_event_id)
+            },
+        }
+    )
+
+    useEffect(() => {
+        if (!electionEventData) return
+        setArchivedElectionEvents(electionEventData?.is_archived ?? false)
+    }, [electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)

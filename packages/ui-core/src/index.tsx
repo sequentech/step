@@ -4,7 +4,12 @@
 
 import React from "react"
 
-export {default as i18n, getLanguages, initializeLanguages} from "./services/i18n"
+export {
+    default as i18n,
+    getLanguages,
+    initializeLanguages,
+    overwriteTranslations,
+} from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
 export {stringToHtml} from "./services/stringToHtml"

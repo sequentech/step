@@ -104,18 +104,6 @@ export const MenuStyles = {
         visibility: hidden;
     `,
 
-    TreeMenuItemContainer: styled("div")`
-        display: flex;
-        text-align: left;
-        align-items: center;
-        & > *:not(:last-child) {
-            margin-right: 0.5rem;
-        }
-        &:hover :last-child {
-            visibility: visible;
-        }
-    `,
-
     ItemContainer: styled("p")`
         display: flex;
         align-items: center;
@@ -142,10 +130,6 @@ export const MenuStyles = {
         overflow: hidden;
         text-overflow: ellipsis;
 
-        &:hover {
-            border-bottom-color: ${adminTheme.palette.brandColor};
-        }
-
         &.active {
             border-bottom-color: ${adminTheme.palette.brandColor};
         }
@@ -168,3 +152,28 @@ export const MenuStyles = {
         width: ${({isWidth}) => (isWidth ? "1.5rem" : "auto")};
     `,
 }
+
+const highlightedItem = css`
+    #StyledSideBarNavLink {
+        border-bottom-color: ${adminTheme.palette.brandColor};
+    }
+    #MoreHorizIcon {
+        visibility: visible;
+    }
+`
+
+export const TreeMenuItemContainer = styled.div<{isClicked: boolean}>`
+    display: flex;
+    text-align: left;
+    align-items: center;
+
+    & > *:not(:last-child) {
+        margin-right: 0.5rem;
+    }
+
+    &:hover {
+        ${highlightedItem}
+    }
+
+    ${({isClicked}) => isClicked && highlightedItem}
+`

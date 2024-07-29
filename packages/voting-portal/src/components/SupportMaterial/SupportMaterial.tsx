@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, Typography} from "@mui/material"
-import React, {useContext} from "react"
+import React from "react"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import {Dialog, theme} from "@sequentech/ui-essentials"
@@ -92,7 +92,6 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
     const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
