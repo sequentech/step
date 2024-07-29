@@ -6,6 +6,7 @@ use crate::services::vote_receipt;
 use crate::{services::database::get_hasura_pool, types::error::Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use sequent_core::types::date_time::{DateFormat, TimeZone};
 use tracing::instrument;
 
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -22,6 +23,8 @@ pub async fn create_vote_receipt(
     election_id: String,
     area_id: String,
     voter_id: String,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -44,6 +47,8 @@ pub async fn create_vote_receipt(
         &voter_id,
         &ballot_id,
         &ballot_tracker_url,
+        time_zone,
+        date_format,
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;
