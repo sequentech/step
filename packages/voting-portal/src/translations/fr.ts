@@ -76,6 +76,12 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
                 cancel: "Annuler",
             },
+            confirmCastVoteDialog: {
+                title: "Êtes-vous sûr de vouloir voter?",
+                content: "Votre vote ne sera plus modifiable une fois confirmé.",
+                ok: "Oui, je veux VOTER",
+                cancel: "Annuler",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",
@@ -93,10 +99,26 @@ const frenchTranslation: TranslationType = {
                     "Cet écran montre que votre vote a été émis correctement. Les informations fournies sur cette page vous permettent de vérifier que le bulletin a été stocké dans l'urne, ce processus peut être exécuté à tout moment pendant la période de vote et après que l'élection a été clôturée.",
                 ok: "OK",
             },
+            demoPrintDialog: {
+                title: "Impression du bulletin de vote",
+                content: "L'impression est désactivée en mode démo",
+                ok: "OK",
+            },
+            demoBallotUrlDialog: {
+                title: "Suivi du Bulletin",
+                content: "Impossible d'utiliser le code, désactivé en mode démo.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Information : Localisateur de votre Bulletin",
                 content:
                     "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos sélections.",
+                ok: "OK",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Information : Identifiant de bulletin de vote",
+                content:
+                    "<p>L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.</p><p><b>Avis :</b> Ce bureau de vote est uniquement à des fins de démonstration. Votre vote n'a PAS été émis.</p>",
                 ok: "OK",
             },
             errorDialogPrintVoteReceipt: {
@@ -104,6 +126,7 @@ const frenchTranslation: TranslationType = {
                 content: "Une erreur s'est produite, veuillez réessayer",
                 ok: "Accepter",
             },
+            demoQRText: "Le suivi des bulletins est désactivé en mode démo",
         },
         auditScreen: {
             printButton: "Imprimer",
@@ -171,6 +194,7 @@ const frenchTranslation: TranslationType = {
                     "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
                 underVote:
                     "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
+                blankVote: "Vote Blanc: 0 options sélectionnées",
             },
             explicit: {
                 notAllowed:

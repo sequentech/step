@@ -60,9 +60,25 @@ body {
 }
 
 .dob-container {
-  height: calc(100% - 8vh);
-  width: 100%;
-  position: absolute;
+  height: 700px;
+  width: 1170px;
+  position: relative;
+  margin: 0 auto;
+  margin-bottom: auto;
+  border: 2px solid rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 1200px) {
+  .dob-container {
+    height: calc(100vh - 25vh);
+    max-height: 500px;
+    width: 100%;
+    position: relative;
+    max-width: 1170px;
+    margin: 0 auto;
+    margin-bottom: auto;
+    border: 0;
+  }
 }
 
 .dob-attach-messages {
@@ -77,6 +93,12 @@ body {
 .dob-attach-messages h3 {
   font-size: 0.8em;
   margin: 0.5;
+}
+
+@media (min-width: 1200px) {
+  #dob-help-orientation {
+    visibility: hidden;
+  }
 }
 
 /*
@@ -212,7 +234,7 @@ body {
  * OTP STEP
  * ----------------------
  */
- #dob-otp-step .dob-title-text {
+#dob-otp-step .dob-title-text {
   font-family: "Dob-Font-Regular";
 }
 
@@ -454,11 +476,8 @@ body {
  * ----------------------
  */
 
-@media (min-width: 768px) {
-}
+@media (min-width: 768px) {}
 
-@media (min-width: 992px) {
-}
+@media (min-width: 992px) {}
 
-@media (min-width: 1200px) {
-}
+@media (min-width: 1200px) {}

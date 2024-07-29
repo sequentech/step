@@ -77,6 +77,12 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull INVALIDAR la meva papereta per AUDITAR-LA",
                 cancel: "Cancel·lar",
             },
+            confirmCastVoteDialog: {
+                title: "Esteu segur que voleu emetre el vostre vot?",
+                content: "El vostre vot ja no es podrà editar un cop confirmat.",
+                ok: "Sí, vull EMETRE el meu vot",
+                cancel: "Cancel·lar",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
@@ -94,10 +100,26 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla mostra que el seu vot s'ha emès correctament. La informació proporcionada en aquesta pàgina li permet verificar que la papereta ha estat emmagatzemada en l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
                 ok: "D'acord",
             },
+            demoPrintDialog: {
+                title: "Impressió de la papereta de vot",
+                content: "Impressió desactivada en mode de demostració",
+                ok: "D'acord",
+            },
+            demoBallotUrlDialog: {
+                title: "Seguiment de la Butlleta",
+                content: "No es pot utilitzar el codi, desactivat en mode de demostració.",
+                ok: "D'acord",
+            },
             ballotIdHelpDialog: {
                 title: "Informació: Localitzador del Vot",
                 content:
                     "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta en l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
+                ok: "D'acord",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Informació: Identificador de papereta de vot",
+                content:
+                    "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
                 ok: "D'acord",
             },
             errorDialogPrintVoteReceipt: {
@@ -105,6 +127,7 @@ const catalanTranslation: TranslationType = {
                 content: "Ha ocorregut un error, si us plau intenti de nou",
                 ok: "Acceptar",
             },
+            demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",
         },
         auditScreen: {
             printButton: "Imprimir",
@@ -172,6 +195,7 @@ const catalanTranslation: TranslationType = {
                     "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
                 underVote:
                     "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
+                blankVote: "Vot en Blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
