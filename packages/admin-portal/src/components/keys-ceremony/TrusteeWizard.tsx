@@ -44,11 +44,12 @@ const hasTrusteeCheckedKeys = (
 interface TrusteeWizardProps {
     electionEvent: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony
-
+    setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     goBack: () => void
 }
 
 enum WizardStep {
+    Not_Generated = -1,
     Start = 0,
     Download = 1,
     Check = 2,
@@ -59,6 +60,7 @@ enum WizardStep {
 export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     electionEvent,
     currentCeremony,
+    setCurrentCeremony,
     goBack,
 }) => {
     const {t} = useTranslation()
@@ -68,7 +70,9 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const trusteeCheckedKeys = hasTrusteeCheckedKeys(currentCeremony, authContext)
     const status: IExecutionStatus = currentCeremony.status
     const keysGenerated =
-        status.public_key !== undefined && currentCeremony.execution_status === EStatus.IN_PROCESS
+        status.public_key !== undefined &&
+        currentCeremony.execution_status === EStatus.IN_PROCESS &&
+        !status.trustees.find((trustee) => trustee.status === TStatus.WAITING)
 
     const calculateCurrentStep: () => WizardStep = () => {
         // If trustee is not participating, show status step
@@ -96,10 +100,16 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     useEffect(() => {
         if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
             setCurrentStep(WizardStep.Start)
+        } else if (!keysGenerated) {
+            setCurrentStep(WizardStep.Not_Generated)
         } else {
             setCurrentStep(WizardStep.Status)
         }
-    }, [currentCeremony])
+    }, [])
+
+    const checkKeysGenerated = () => {
+        return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
+    }
 
     return (
         <WizardStyles.WizardWrapper>
@@ -140,23 +150,25 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             )}
             {currentStep === WizardStep.Success && (
                 <CeremonyStep
-                    currentCeremony={currentCeremony}
+                    currentCeremonyId={currentCeremony?.id}
                     electionEvent={electionEvent}
                     goBack={goBack}
                 />
             )}
-            {currentStep === WizardStep.Status && (
+            {(currentStep === WizardStep.Status || currentStep === WizardStep.Not_Generated) && (
                 <CeremonyStep
-                    currentCeremony={currentCeremony}
+                    currentCeremonyId={currentCeremony?.id}
+                    setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
                     goNext={
-                        !trusteeCheckedKeys && trusteeParticipating && keysGenerated
+                        currentStep === WizardStep.Not_Generated
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
+                    isNextDisabled={checkKeysGenerated()}
                     message={
-                        !trusteeCheckedKeys && trusteeParticipating && !keysGenerated ? (
+                        checkKeysGenerated() ? (
                             <>
                                 <Alert severity="warning">
                                     {t("electionEventScreen.keys.waitingKeys")}
