@@ -70,7 +70,9 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const trusteeCheckedKeys = hasTrusteeCheckedKeys(currentCeremony, authContext)
     const status: IExecutionStatus = currentCeremony.status
     const keysGenerated =
-        status.public_key !== undefined && currentCeremony.execution_status === EStatus.IN_PROCESS
+        status.public_key !== undefined &&
+        currentCeremony.execution_status === EStatus.IN_PROCESS &&
+        !status.trustees.find((trustee) => trustee.status === TStatus.WAITING)
 
     const calculateCurrentStep: () => WizardStep = () => {
         // If trustee is not participating, show status step
