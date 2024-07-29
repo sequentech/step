@@ -236,6 +236,7 @@ const englishTranslation = {
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
             },
@@ -415,6 +416,7 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             field: {

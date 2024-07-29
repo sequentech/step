@@ -27,7 +27,7 @@ import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
-import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-essentials"
+import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-core"
 
 const Hidden = styled(Box)`
     display: none;

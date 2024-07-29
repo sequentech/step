@@ -14,19 +14,13 @@ import {
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
+import {PageLimit, Icon, IconButton, theme, BallotHash, Dialog} from "@sequentech/ui-essentials"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
     stringToHtml,
-    BallotHash,
-    Dialog,
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
-    sortContestList,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {
@@ -43,7 +37,7 @@ import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
-import {hashBallot, provideBallotService} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -52,6 +46,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {sortContestList, hashBallot} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -282,6 +277,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
@@ -322,7 +318,8 @@ export const ReviewScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = sortContestList(ballotStyle.ballot_eml.contests)
+    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
+    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">

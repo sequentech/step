@@ -4,7 +4,7 @@
 
 import React, {useEffect} from "react"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
-import {overwriteTranslations} from "@sequentech/ui-essentials"
+import {overwriteTranslations} from "@sequentech/ui-core"
 
 type props = {
     electionEvent: IElectionEvent | undefined

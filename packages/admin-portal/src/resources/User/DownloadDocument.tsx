@@ -7,7 +7,7 @@ import React, {useContext, useEffect} from "react"
 import {FetchDocumentQuery} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
-import {downloadUrl} from "@sequentech/ui-essentials"
+import {downloadUrl} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export interface DownloadDocumentProps {

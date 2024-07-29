@@ -28,6 +28,12 @@ jobs:
           cmd: install # will run `yarn install` command
           dir: packages/
 
+      - name: Build ui-core
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: build:ui-core
+          dir: packages/
+      
       - name: Build ui-essentials
         uses: borales/actions-yarn@v4
         with:

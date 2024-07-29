@@ -238,6 +238,7 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
             },
@@ -421,6 +422,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {

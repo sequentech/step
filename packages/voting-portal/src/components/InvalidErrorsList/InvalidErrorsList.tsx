@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {WarnBox, IContest} from "@sequentech/ui-essentials"
+import {WarnBox} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest} from "sequent-core"
+import {IDecodedVoteContest, IInvalidPlaintextError, IContest} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {isVotedByElectionId} from "../../store/extra/extraSlice"

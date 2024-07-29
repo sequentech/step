@@ -238,6 +238,7 @@ const catalanTranslation: TranslationType = {
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
             },
@@ -420,6 +421,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
             },
             field: {
