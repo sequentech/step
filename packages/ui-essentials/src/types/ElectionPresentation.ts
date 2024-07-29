@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {EBallotPagination} from "./CoreTypes"
 import {ILanguageConf} from "./LanguageConf"
 
 export interface IElectionDates {
@@ -14,6 +13,5 @@ export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
     language_conf?: ILanguageConf
     cast_vote_confirm?: boolean
-    ballot_pagination: EBallotPagination
     // more missing
 }

@@ -586,6 +586,30 @@ impl Default for EBlankVotePolicy {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+#[serde(tag = "type", content = "page")] 
+pub enum EPaginationPolicy {
+    NO_PAGE_BREAK,
+    PAGE_NAME(String),
+}
+impl Default for EPaginationPolicy {
+    fn default() -> Self {
+        EPaginationPolicy::NO_PAGE_BREAK
+    }
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -602,25 +626,6 @@ pub struct ElectionPresentation {
     pub dates: Option<ElectionDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub cast_vote_confirm: Option<bool>,
-    pub ballot_pagination: Option<EBallotPagination>,
-}
-
-#[derive(
-    Debug,
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    JsonSchema,
-    Clone,
-    EnumString,
-    Display,
-)]
-pub enum EBallotPagination {
-    ONE_PAGE,
-    SEPERATE_PAGES,
 }
 
 #[derive(
@@ -678,6 +683,7 @@ pub struct ContestPresentation {
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub blank_vote_policy: Option<EBlankVotePolicy>,
+    pub pagination_policy: Option<EPaginationPolicy>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -698,6 +704,7 @@ impl ContestPresentation {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+            pagination_policy: Some(EPaginationPolicy::NO_PAGE_BREAK),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,

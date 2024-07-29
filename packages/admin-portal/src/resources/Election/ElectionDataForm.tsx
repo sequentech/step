@@ -22,7 +22,6 @@ import {
     RecordContext,
     NumberInput,
     useGetList,
-    required,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} from "@mui/material"
 import {
@@ -46,7 +45,6 @@ import {
     IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
-    EBallotPagination,
 } from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -256,13 +254,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.template = template
             }
 
-            // ballots pagination
-            if (!temp.presentation || !temp.presentation.ballots_pagination) {
-                temp.presentation.ballots_pagination = {
-                    pages: EBallotPagination.ONE_PAGE,
-                }
-            }
-
             // defaults
             temp.num_allowed_revotes = temp.num_allowed_revotes || 1
 
@@ -416,13 +407,6 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
-    const ballotPaginationsChoices = () => {
-        return Object.values(EBallotPagination).map((value) => ({
-            id: value,
-            name: t(`electionScreen.edit.ballotsPagination.${value}`),
-        }))
-    }
-    
     const formValidator = (values: any): any => {
         const errors: any = {presentation: {dates: {}}}
         /*if (
@@ -702,13 +686,6 @@ export const ElectionDataForm: React.FC = () => {
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
-                                />
-                                <SelectInput
-                                    source={`presentation.ballot_pagination`}
-                                    choices={ballotPaginationsChoices()}
-                                    label={t(`electionScreen.edit.ballotsPagination.label`)}
-                                    defaultValue={EBallotPagination.ONE_PAGE}
-                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>

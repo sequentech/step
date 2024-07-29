@@ -421,11 +421,6 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
-                ballotsPagination: {
-                    ONE_PAGE: "Une page",
-                    SEPERATE_PAGES: "Pages séparées",
-                    label: "Pagination des Bulletins",
-                },
                 castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {
@@ -824,6 +819,11 @@ const frenchTranslation: TranslationType = {
                 "allowed": "Autorisé",
                 "warn": "Avertir",
                 "not-allowed": "Non autorisé",
+            },
+            paginationPolicy: {
+                "label": "Politique de Pagination",
+                "no-page-break": "Pas de saut de page",
+                "page-name": "Nom de la page{page: string}}",
             },
             error: {},
             createContestSuccess: "Question créée",

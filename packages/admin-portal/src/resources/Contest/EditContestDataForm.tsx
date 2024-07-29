@@ -57,6 +57,7 @@ import {
     ICandidatePresentation,
     IElectionPresentation,
     EBlankVotePolicy,
+    EPaginationPolicy,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -384,6 +385,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const ballotPaginationsChoices = () => {
+        return Object.values(EPaginationPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.paginationPolicy.${value}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -441,6 +449,9 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.blank_vote_policy =
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
+
+            newContest.presentation.pagination_policy =
+                newContest.presentation.pagination_policy || EPaginationPolicy.NO_PAGE_BREAK
 
             return newContest
         },
@@ -719,6 +730,14 @@ export const ContestDataForm: React.FC = () => {
                                     choices={blankVotePolicyChoices()}
                                     label={t(`contestScreen.blankVotePolicy.label`)}
                                     defaultValue={EBlankVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.pagination_policy`}
+                                    choices={ballotPaginationsChoices()}
+                                    label={t(`contestScreen.paginationPolicy.label`)}
+                                    defaultValue={EPaginationPolicy.NO_PAGE_BREAK}
                                     validate={required()}
                                 />
                             </AccordionDetails>

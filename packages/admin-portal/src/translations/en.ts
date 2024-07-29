@@ -415,11 +415,6 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
-                ballotsPagination: {
-                    ONE_PAGE: "One page",
-                    SEPERATE_PAGES: "Seperate pages",
-                    label: "Ballots Pagination",
-                },
                 castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             field: {
@@ -817,6 +812,11 @@ const englishTranslation = {
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
+            },
+            paginationPolicy: {
+                "label": "Pagination Policy",
+                "no-page-break": "No Page Break",
+                "page-name": "Page Name{page: string}}",
             },
             error: {},
             createContestSuccess: "Contest created",

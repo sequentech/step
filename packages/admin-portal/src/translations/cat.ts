@@ -420,11 +420,6 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
-                ballotsPagination: {
-                    ONE_PAGE: "Una pàgina",
-                    SEPERATE_PAGES: "Pàgines separades",
-                    label: "Paginació de Butlletes",
-                },
                 castVoteConfirm: "Modal de Confirmació de Vot",
             },
             field: {
@@ -822,6 +817,11 @@ const catalanTranslation: TranslationType = {
                 "allowed": "Permès",
                 "warn": "Advertir",
                 "not-allowed": "No permès",
+            },
+            paginationPolicy: {
+                "label": "Política de Paginació",
+                "no-page-break": "Sense Salt de Pàgina",
+                "page-name": "Nom de la Pàgina{page: string}}",
             },
             error: {},
             createContestSuccess: "Pregunta creada",
