@@ -75,6 +75,12 @@ const englishTranslation = {
                 ok: "Yes, I want to DISCARD my ballot to audit it",
                 cancel: "Cancel",
             },
+            confirmCastVoteDialog: {
+                title: "Are you sure you want to cast your vote?",
+                content: "Your vote will no longer be editable once confirmed.",
+                ok: "Yes, I want to CAST my vote",
+                cancel: "Cancel",
+            },
         },
         confirmationScreen: {
             title: "Your vote has been cast",
@@ -92,10 +98,26 @@ const englishTranslation = {
                     "This screen shows that your vote was successfully cast. The information provided on this page allows you to verify that the ballot has been stored in ballot box , this process can be executed at any time during voting period and after the Ballot has been closed.",
                 ok: "OK",
             },
+            demoPrintDialog: {
+                title: "Printing ballot",
+                content: "Printing disabled in demo mode",
+                ok: "OK",
+            },
+            demoBallotUrlDialog: {
+                title: "Ballot Id",
+                content: "Cannot use code, disabled in demo mode.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Information: Ballot ID",
                 content:
                     "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
+                ok: "OK",
+            },
+            ballotIdDemoHelpDialog: {
+                title: "Information: Ballot ID",
+                content:
+                    "<p>The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.</p><p><b>Notice:</b> This voting booth is for demonstration purposes only. Your vote has NOT been cast.</p>",
                 ok: "OK",
             },
             errorDialogPrintVoteReceipt: {
@@ -103,6 +125,7 @@ const englishTranslation = {
                 content: "An error has occured, please try again",
                 ok: "OK",
             },
+            demoQRText: "Ballot tracker is disabled in demo mode",
         },
         auditScreen: {
             printButton: "Print",
@@ -170,6 +193,7 @@ const englishTranslation = {
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
                 underVote:
                     "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                blankVote: "Blank Vote: 0 choices selected",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

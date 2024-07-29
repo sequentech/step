@@ -8,7 +8,7 @@ import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest} from "sequent-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {isVotedByElectionId} from "../../store/extra/extraSlice"
@@ -82,11 +82,15 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     ...prev,
                     invalid_errors:
                         prev?.invalid_errors.filter(
-                            (error) => error.message !== "errors.implicit.selectedMin"
+                            (error) =>
+                                error.message !== "errors.implicit.selectedMin" &&
+                                error.message !== "errors.implicit.blankVote"
                         ) || [],
                     invalid_alerts:
                         prev?.invalid_alerts.filter(
-                            (error) => error.message !== "errors.implicit.underVote"
+                            (error) =>
+                                error.message !== "errors.implicit.underVote" &&
+                                error.message !== "errors.implicit.blankVote"
                         ) || [],
                 }
             })

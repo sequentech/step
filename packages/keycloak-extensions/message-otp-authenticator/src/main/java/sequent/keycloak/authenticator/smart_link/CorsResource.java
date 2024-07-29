@@ -32,19 +32,13 @@ public class CorsResource {
   @Path("{any:.*}")
   public Response preflight() {
     log.debug("CORS OPTIONS preflight request");
-    return Cors
-        .add(request, Response.ok())
-        .auth()
-        .allowedMethods(METHODS)
-        .preflight()
-        .build();
+    return Cors.add(request, Response.ok()).auth().allowedMethods(METHODS).preflight().build();
   }
 
   public static void setupCors(KeycloakSession session, AdminAuth auth) {
     HttpRequest request = session.getContext().getHttpRequest();
     HttpResponse response = session.getContext().getHttpResponse();
-    Cors
-        .add(request)
+    Cors.add(request)
         .allowedOrigins(auth.getToken())
         .allowedMethods(METHODS)
         .exposedHeaders("Location")

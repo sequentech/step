@@ -320,6 +320,7 @@ impl RawBallotCodec for Contest {
             Ok(val) => Some(val),
             Err(_) => None,
         };
+        let mut has_undervote = false;
         if let (Some(max_votes), Some(min_votes)) = (max_votes, min_votes) {
             if num_selected_candidates > max_votes {
                 invalid_errors.push(InvalidPlaintextError {
@@ -335,6 +336,7 @@ impl RawBallotCodec for Contest {
                     ]),
                 });
             } else if num_selected_candidates < min_votes {
+                has_undervote = true;
                 invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::Implicit,
                     candidate_id: None,
@@ -362,6 +364,7 @@ impl RawBallotCodec for Contest {
                         if num_selected_candidates < max_votes
                             && num_selected_candidates >= min_votes
                         {
+                            has_undervote = true;
                             invalid_alerts.push(InvalidPlaintextError {
                                 error_type: InvalidPlaintextErrorType::Implicit,
                                 candidate_id: None,
@@ -389,6 +392,33 @@ impl RawBallotCodec for Contest {
                             });
                         }
                     }
+                }
+            }
+            if let Some(blank_vote_policy) = presentation.blank_vote_policy {
+                if !has_undervote
+                    && num_selected_candidates == 0
+                    && blank_vote_policy != EBlankVotePolicy::ALLOWED
+                {
+                    (match blank_vote_policy {
+                        EBlankVotePolicy::NOT_ALLOWED => &mut invalid_errors,
+                        EBlankVotePolicy::WARN => &mut invalid_alerts,
+                        EBlankVotePolicy::ALLOWED => unreachable!(),
+                    })
+                    .push(InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.blankVote".to_string()),
+                        message_map: [
+                            ("type".to_string(), "alert".to_string()),
+                            (
+                                "numSelected".to_string(),
+                                num_selected_candidates.to_string(),
+                            ),
+                        ]
+                        .iter()
+                        .cloned()
+                        .collect(),
+                    });
                 }
             }
         }

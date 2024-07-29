@@ -56,6 +56,7 @@ import {
     isArray,
     ICandidatePresentation,
     IElectionPresentation,
+    EBlankVotePolicy,
 } from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
@@ -376,6 +377,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const blankVotePolicyChoices = () => {
+        return Object.values(EBlankVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.blankVotePolicy.${value}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -430,6 +438,9 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.under_vote_alert =
                 newContest.presentation.under_vote_alert ?? false
+
+            newContest.presentation.blank_vote_policy =
+                newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
 
             return newContest
         },
@@ -624,10 +635,6 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
-                                <BooleanInput
-                                    source="presentation.under_vote_alert"
-                                    label={"Under-Vote Alert"}
-                                />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
@@ -673,12 +680,6 @@ export const ContestDataForm: React.FC = () => {
                                 </FormDataConsumer>
 
                                 <SelectInput
-                                    source="presentation.invalid_vote_policy"
-                                    choices={invalidVotePolicyChoices()}
-                                    validate={required()}
-                                />
-
-                                <SelectInput
                                     source="presentation.enable_checkable_lists"
                                     choices={checkableListChoices()}
                                     validate={required()}
@@ -688,6 +689,37 @@ export const ContestDataForm: React.FC = () => {
                                     source="presentation.max_selections_per_type"
                                     min={0}
                                     isRequired={false}
+                                />
+
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "0.5rem 1rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("contestScreen.edit.policies")}
+                                </Typography>
+                                <BooleanInput
+                                    source="presentation.under_vote_alert"
+                                    label={"Under-Vote Alert"}
+                                />
+
+                                <SelectInput
+                                    source="presentation.invalid_vote_policy"
+                                    choices={invalidVotePolicyChoices()}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.blank_vote_policy`}
+                                    choices={blankVotePolicyChoices()}
+                                    label={t(`contestScreen.blankVotePolicy.label`)}
+                                    defaultValue={EBlankVotePolicy.ALLOWED}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>

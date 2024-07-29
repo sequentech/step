@@ -239,6 +239,22 @@ const englishTranslation = {
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
             },
+            localization: {
+                emptyHeader: "No languages were set for the event",
+                selectLanguage: "Select Language",
+                notify: {
+                    success: "Localization updated Successfully",
+                    error: "Localization update failed",
+                },
+                common: {
+                    title: "Localization",
+                    subTitle: "Localization configuration",
+                },
+                labels: {
+                    key: "Key",
+                    value: "Value",
+                },
+            },
             field: {
                 name: "Name",
                 alias: "Alias",
@@ -269,6 +285,7 @@ const englishTranslation = {
             error: {
                 endDate: "End date must be after start date",
                 noResult: "No Election Event yet",
+                startDate: "Start date must be in the future",
             },
             voters: {
                 title: "Voters",
@@ -312,6 +329,7 @@ const englishTranslation = {
             tabs: {
                 dashboard: "Dashboard",
                 data: "Data",
+                localization: "Localization",
                 voters: "Voters",
                 areas: "Areas",
                 keys: "Keys",
@@ -402,6 +420,7 @@ const englishTranslation = {
                     SEPERATE_PAGES: "Seperate pages",
                     label: "Ballots Pagination",
                 },
+                castVoteConfirm: "Cast Vote Confirmation Modal",
             },
             field: {
                 name: "Name",
@@ -767,6 +786,7 @@ const englishTranslation = {
                 system: "Ballot Voting System",
                 design: "Ballot Design",
                 reorder: "Reorder candidates",
+                policies: "Policies",
             },
             field: {
                 name: "Name",
@@ -791,6 +811,12 @@ const englishTranslation = {
                 "allow-selecting-candidates": "Candidates Only",
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
+            },
+            blankVotePolicy: {
+                "label": "Blank Vote Policy",
+                "allowed": "Allowed",
+                "warn": "Warn",
+                "not-allowed": "Not Allowed",
             },
             error: {},
             createContestSuccess: "Contest created",

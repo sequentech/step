@@ -241,6 +241,22 @@ const catalanTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
             },
+            localization: {
+                emptyHeader: "No s'han establert idiomes per a l'esdeveniment",
+                selectLanguage: "Selecciona idioma",
+                notify: {
+                    success: "La localització s'ha actualitzat correctament",
+                    error: "La actualització de la localització ha fallat",
+                },
+                common: {
+                    title: "Localització",
+                    subTitle: "Configuració de la localització",
+                },
+                labels: {
+                    key: "Clau",
+                    value: "Valor",
+                },
+            },
             field: {
                 name: "Nom",
                 alias: "Àlies",
@@ -273,6 +289,7 @@ const catalanTranslation: TranslationType = {
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 noResult: "Encara no hi ha Esdeveniment Electoral",
+                startDate: "La data d'inici ha de ser en el futur",
             },
             voters: {
                 title: "Votants",
@@ -316,6 +333,7 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tauler de Control",
                 data: "Dades",
+                localization: "Localització",
                 voters: "Votants",
                 areas: "Àrees",
                 keys: "Claus",
@@ -407,6 +425,7 @@ const catalanTranslation: TranslationType = {
                     SEPERATE_PAGES: "Pàgines separades",
                     label: "Paginació de Butlletes",
                 },
+                castVoteConfirm: "Modal de Confirmació de Vot",
             },
             field: {
                 name: "Nom",
@@ -772,6 +791,7 @@ const catalanTranslation: TranslationType = {
                 system: "Sistema de votació de paperetes",
                 design: "Disseny de la papereta",
                 reorder: "Reordenar candidats",
+                policies: "Polítiques",
             },
             field: {
                 name: "Nom",
@@ -796,6 +816,12 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            blankVotePolicy: {
+                "label": "Política de vot en blanc",
+                "allowed": "Permès",
+                "warn": "Advertir",
+                "not-allowed": "No permès",
             },
             error: {},
             createContestSuccess: "Pregunta creada",

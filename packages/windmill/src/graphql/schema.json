@@ -8570,6 +8570,16 @@
                   }
                 },
                 "defaultValue": null
+              },
+              {
+                "name": "limit",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                },
+                "defaultValue": null
               }
             ],
             "type": {
@@ -11543,32 +11553,28 @@
                 "name": "election_id",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "is_start",
-                "description": null,
-                "type": {
                   "kind": "SCALAR",
-                  "name": "Boolean",
+                  "name": "String",
                   "ofType": null
                 },
                 "defaultValue": null
               },
               {
-                "name": "is_unset",
+                "name": "end_date",
                 "description": null,
                 "type": {
                   "kind": "SCALAR",
-                  "name": "Boolean",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "start_date",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
                   "ofType": null
                 },
                 "defaultValue": null

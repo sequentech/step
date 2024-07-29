@@ -12,32 +12,25 @@ import org.keycloak.models.KeycloakSessionFactory;
 
 @AutoService(ActionTokenHandlerFactory.class)
 public class SmartLinkActionTokenHandlerFactory
-    implements ActionTokenHandlerFactory<SmartLinkActionToken>
-{
-    public static final String PROVIDER_ID = "smart-link";
+    implements ActionTokenHandlerFactory<SmartLinkActionToken> {
+  public static final String PROVIDER_ID = "smart-link";
 
-    @Override
-    public void close() {
+  @Override
+  public void close() {}
 
-    }
+  @Override
+  public SmartLinkActionTokenHandler create(KeycloakSession session) {
+    return new SmartLinkActionTokenHandler();
+  }
 
-    @Override
-    public SmartLinkActionTokenHandler create(KeycloakSession session) {
-        return new SmartLinkActionTokenHandler();
-    }
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {}
 
-    @Override
-    public void postInit(KeycloakSessionFactory factory) {
+  @Override
+  public String getId() {
+    return PROVIDER_ID;
+  }
 
-    }
-
-    @Override
-    public String getId() {
-        return PROVIDER_ID;
-    }
-
-    @Override
-    public void init(Config.Scope config) {
-
-    }
+  @Override
+  public void init(Config.Scope config) {}
 }
