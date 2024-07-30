@@ -118,6 +118,9 @@ public class Utils {
 		RealmModel realm = authSession.getRealm();
 		String realmName = getRealmName(realm);
 
+		log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
+		log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
+
 		if (
 			mobileNumber != null &&
 			mobileNumber.trim().length() > 0 &&
@@ -197,7 +200,7 @@ public class Utils {
 				throw error;
 			}
 		} else {
-			log.infov("sendCode(): NOT Sending meail to=`{0}`", emailAddress);
+			log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
 		}
 	}
 

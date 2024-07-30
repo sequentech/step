@@ -116,11 +116,17 @@ SPDX-License-Identifier: AGPL-3.0-only
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
             listTelInputs.forEach(function (input) {
+                // Change id and name to use the correctly formatted phone number in the form
+                let id = input.id;
+                input.id = id + "-input";
+                input.name = id + "-input";
+
                 // Use intel-tel-input
                 window.intlTelInput(input, {
                     utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
                     initialCountry: "auto",
                     separateDialCode: true,
+                    hiddenInput: () => ({ phone: id, country: "country_code" }),
                     geoIpLookup: function(success, failure) {
                         const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -142,7 +148,15 @@ SPDX-License-Identifier: AGPL-3.0-only
                 e = e || window.event;
                 var target = e.target || e.srcElement;
 
-                document.getElementById(idToSetReadOnly).readOnly = !target.checked;
+                if (document.getElementById(idToSetReadOnly)) {
+                    document.getElementById(idToSetReadOnly).readOnly = !target.checked;
+                }
+
+                // In case of using hidden inputs for int-tel input
+                if (document.getElementById(idToSetReadOnly + "-input")) {
+                    document.getElementById(idToSetReadOnly + "-input").readOnly = !target.checked;
+                }
+
             }
         </script>
 
