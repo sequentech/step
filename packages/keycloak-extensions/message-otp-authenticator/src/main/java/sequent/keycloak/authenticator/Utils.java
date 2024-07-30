@@ -173,7 +173,6 @@ public class Utils {
 
 			try {
 				if (deferredUser) {
-					// TODO, doesn't work
 					sendEmail(
 						session,
 						realm,
@@ -299,7 +298,7 @@ public class Utils {
 		Map<String, Object> attributes
 	) throws EmailException {
 		try {
-			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+			Theme theme = session.theme().getTheme(Theme.Type.EMAIL);
 			Locale locale = session.getContext().resolveLocale(user);
 			attributes.put("locale", locale);
 
