@@ -4,11 +4,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.inetum_authenticator;
 
+import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
@@ -39,123 +43,108 @@ import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
 
-import com.google.auto.service.AutoService;
-
-import org.keycloak.userprofile.UserProfile;
-
-import jakarta.ws.rs.core.MultivaluedMap;
-import lombok.extern.jbosslog.JBossLog;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 @JBossLog
 @AutoService(FormActionFactory.class)
 public class DeferredRegistrationUserCreation implements FormAction, FormActionFactory {
 
-    public static final String PROVIDER_ID = "deferred-registration-user-creation";
-    public static final String SEARCH_ATTRIBUTES = "search-attributes";
-    public static final String UNSET_ATTRIBUTES = "unset-attributes";
-    public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
+  public static final String PROVIDER_ID = "deferred-registration-user-creation";
+  public static final String SEARCH_ATTRIBUTES = "search-attributes";
+  public static final String UNSET_ATTRIBUTES = "unset-attributes";
+  public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
 
   @Override
   public String getHelpText() {
     return "Sequent: This action must always be first! Validates the username and user profile of the user in validation phase.  In success phase, this will save the info necessary in auth notes to create the user - or attach to a pre-registered user.";
   }
 
-    @Override
-    public List<ProviderConfigProperty> getConfigProperties() {
-        // Define configuration properties
-        return List.of(
-                new ProviderConfigProperty(
-                        SEARCH_ATTRIBUTES,
-                        "Search Attributes",
-                        "Comma-separated list of attributes to use for searching the user in auth notes.",
-                        ProviderConfigProperty.STRING_TYPE,
-                        ""),
-                new ProviderConfigProperty(
-                        UNSET_ATTRIBUTES,
-                        "Unset Attributes",
-                        "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
-                        ProviderConfigProperty.STRING_TYPE,
-                        ""),
-                new ProviderConfigProperty(
-                        UNIQUE_ATTRIBUTES,
-                        "Unique Attributes",
-                        "Comma-separated list of attributes that should not be set to other users and otherwise the authenticator should fail.",
-                        ProviderConfigProperty.STRING_TYPE,
-                        ""));
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    // Define configuration properties
+    return List.of(
+        new ProviderConfigProperty(
+            SEARCH_ATTRIBUTES,
+            "Search Attributes",
+            "Comma-separated list of attributes to use for searching the user in auth notes.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            UNSET_ATTRIBUTES,
+            "Unset Attributes",
+            "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            UNIQUE_ATTRIBUTES,
+            "Unique Attributes",
+            "Comma-separated list of attributes that should not be set to other users and otherwise the authenticator should fail.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""));
+  }
+
+  @Override
+  public void validate(ValidationContext context) {
+    log.info("validate: start");
+
+    // Retrieve the configuration
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    // Extract the attributes to search and update from the configuration
+    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+    String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
+
+    // Parse attributes lists
+    List<String> searchAttributesList = parseAttributesList(searchAttributes);
+    List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
+    List<String> uniqueAttributesList = parseAttributesList(uniqueAttributes);
+
+    // Get the form data
+    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+    context.getEvent().detail(Details.REGISTER_METHOD, "form");
+
+    // Lookup user by attributes using form data
+    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+
+    if (user == null) {
+      log.error("validate(): user could not be found");
+      // TODO: Change error code
+      context.error(Errors.INVALID_REQUEST);
+      List<FormMessage> errors = new ArrayList<>();
+      // TODO Set a better form message
+      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      context.validationError(formData, errors);
+      return;
     }
 
-    @Override
-    public void validate(ValidationContext context) {
-        log.info("validate: start");
+    // Check that the user doesn't have set any of the unset attributes
+    boolean unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
 
-        // Retrieve the configuration
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        Map<String, String> configMap = config.getConfig();
+    if (!unsetAttributesChecked) {
+      log.error("validate(): some user unset attributes are set");
+      // TODO: Change error code
+      context.error(Errors.INVALID_REQUEST);
+      List<FormMessage> errors = new ArrayList<>();
+      // TODO Set a better form message
+      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      context.validationError(formData, errors);
+      return;
+    }
 
-        // Extract the attributes to search and update from the configuration
-        String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
-        String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
-        String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
+    // Verify the unique atrributes
+    boolean uniqueAttributesChecked =
+        checkUniqueAttributes(context, uniqueAttributesList, formData);
 
-        // Parse attributes lists
-        List<String> searchAttributesList = parseAttributesList(searchAttributes);
-        List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
-        List<String> uniqueAttributesList = parseAttributesList(uniqueAttributes);
-
-        // Get the form data
-        MultivaluedMap<String, String> formData = context
-                .getHttpRequest()
-                .getDecodedFormParameters();
-        context.getEvent().detail(Details.REGISTER_METHOD, "form");
-
-        // Lookup user by attributes using form data
-        UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
-
-        if (user == null) {
-            log.error("validate(): user could not be found");
-            // TODO: Change error code
-            context.error(Errors.INVALID_REQUEST);
-            List<FormMessage> errors = new ArrayList<>();
-            // TODO Set a better form message
-            errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
-            context.validationError(formData, errors);
-            return;
-        }
-
-        // Check that the user doesn't have set any of the unset attributes
-        boolean unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
-
-        if (!unsetAttributesChecked) {
-            log.error("validate(): some user unset attributes are set");
-            // TODO: Change error code
-            context.error(Errors.INVALID_REQUEST);
-            List<FormMessage> errors = new ArrayList<>();
-            // TODO Set a better form message
-            errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
-            context.validationError(formData, errors);
-            return;
-        }
-
-        // Verify the unique atrributes
-        boolean uniqueAttributesChecked = checkUniqueAttributes(context, uniqueAttributesList, formData);
-
-        if (!uniqueAttributesChecked) {
-            log.error("validate(): unique attributes present in other users");
-            // TODO: Change error code
-            context.error(Errors.INVALID_REQUEST);
-            List<FormMessage> errors = new ArrayList<>();
-            // TODO Set a better form message
-            errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
-            context.validationError(formData, errors);
-            return;
-        }
+    if (!uniqueAttributesChecked) {
+      log.error("validate(): unique attributes present in other users");
+      // TODO: Change error code
+      context.error(Errors.INVALID_REQUEST);
+      List<FormMessage> errors = new ArrayList<>();
+      // TODO Set a better form message
+      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      context.validationError(formData, errors);
+      return;
+    }
 
     UserProfile profile = getOrCreateUserProfile(context, formData);
     Attributes attributes = profile.getAttributes();
@@ -173,130 +162,117 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.getEvent().detail(Details.USERNAME, email);
     }
 
-        try {
-            profile.validate();
-            // If email validation exception was not raised and an email was
-            // provided, validation should have thrown an Messages.EMAIL_EXISTS
-            // exception, so show invalid email error here
-            if (email != null && !email.isBlank()) {
-                log.info("validate: validation exception was not raised and an email was provided");
-                context.error(Errors.INVALID_EMAIL);
-                List<FormMessage> errors = new ArrayList<>();
-                errors.add(new FormMessage(
-                    RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL
-                ));
-                context.validationError(formData, errors);
-                return;
-            }
-        } catch (ValidationException pve) {
-            log.info("validate: ValidationException pve = " + pve.toString());
+    try {
+      profile.validate();
+      // If email validation exception was not raised and an email was
+      // provided, validation should have thrown an Messages.EMAIL_EXISTS
+      // exception, so show invalid email error here
+      if (email != null && !email.isBlank()) {
+        log.info("validate: validation exception was not raised and an email was provided");
+        context.error(Errors.INVALID_EMAIL);
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
+        context.validationError(formData, errors);
+        return;
+      }
+    } catch (ValidationException pve) {
+      log.info("validate: ValidationException pve = " + pve.toString());
 
-            // Filter email exists and username exists - this is to be expected
-            List<ValidationException.Error> filteredErrors = pve.getErrors()
-                    .stream()
-                .filter(error ->  (
-                    (
-                        !context
-                            .getRealm()
-                            .isRegistrationEmailAsUsername() ||
-                        !Messages.USERNAME_EXISTS.equals(error.getMessage())
-                    ) &&
-                    !Messages.EMAIL_EXISTS.equals(error.getMessage())
-                ))
-                    .collect(Collectors.toList());
-            List<FormMessage> errors = Validation
-                    .getFormErrorsFromValidation(filteredErrors);
+      // Filter email exists and username exists - this is to be expected
+      List<ValidationException.Error> filteredErrors =
+          pve.getErrors().stream()
+              .filter(
+                  error ->
+                      ((!context.getRealm().isRegistrationEmailAsUsername()
+                              || !Messages.USERNAME_EXISTS.equals(error.getMessage()))
+                          && !Messages.EMAIL_EXISTS.equals(error.getMessage())))
+              .collect(Collectors.toList());
+      List<FormMessage> errors = Validation.getFormErrorsFromValidation(filteredErrors);
 
-            if (pve.hasError(Messages.INVALID_EMAIL)) {
-                context
-                        .getEvent()
-                        .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
-            }
+      if (pve.hasError(Messages.INVALID_EMAIL)) {
+        context.getEvent().detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
+      }
 
       // if error is empty but we are here, then the exception was related
       // to error to be ignored (username/email exists), so we ignore them
       // and continue
       if (errors.isEmpty()) {
 
-                // if errors is not empty, show them
-            } else {
-                if (!pve.hasError(Messages.EMAIL_EXISTS)) {
-                    context.error(Errors.INVALID_EMAIL);
-                } else {
-                    context.error(Errors.INVALID_REGISTRATION);
-                }
-                log.info(errors);
-                context.validationError(formData, errors);
-                return;
-            }
+        // if errors is not empty, show them
+      } else {
+        if (!pve.hasError(Messages.EMAIL_EXISTS)) {
+          context.error(Errors.INVALID_EMAIL);
+        } else {
+          context.error(Errors.INVALID_REGISTRATION);
         }
-
-        List<FormMessage> errors = new ArrayList<>();
-        context.getEvent().detail(Details.REGISTER_METHOD, "form");
-        if (Validation.isBlank(
-            formData.getFirst(RegistrationPage.FIELD_PASSWORD)
-        )) {
-            errors.add(new FormMessage(
-                RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD
-            ));
-        } else if (!formData
-                .getFirst(RegistrationPage.FIELD_PASSWORD)
-            .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))
-        ) {
-            errors.add(new FormMessage(
-                    RegistrationPage.FIELD_PASSWORD_CONFIRM,
-                Messages.INVALID_PASSWORD_CONFIRM
-            ));
-        }
-        if (formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
-            PolicyError err = context
-                    .getSession()
-                            .getProvider(PasswordPolicyManagerProvider.class)
-                    .validate(
-                            context.getRealm().isRegistrationEmailAsUsername()
-                                    ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
-                                    : formData.getFirst(RegistrationPage.FIELD_USERNAME),
-                    formData.getFirst(RegistrationPage.FIELD_PASSWORD)
-                );
-            if (err != null)
-                errors.add(new FormMessage(
-                        RegistrationPage.FIELD_PASSWORD,
-                                err.getMessage(),
-                    err.getParameters()
-                ));
-        }
-
-        if (errors.size() > 0) {
-            context.error(Errors.INVALID_REGISTRATION);
-            formData.remove(RegistrationPage.FIELD_PASSWORD);
-            formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-            context.validationError(formData, errors);
-            return;
-        }
-        log.info("validate: success");
-        context.success();
+        log.info(errors);
+        context.validationError(formData, errors);
+        return;
+      }
     }
 
-    private boolean checkUniqueAttributes(ValidationContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
-        log.info("lookupUserByFormData(): checkUniqueAttributes start");
-        KeycloakSession session = context.getSession();
-        RealmModel realm = context.getRealm();
-        for (String attribute : attributes) {
-            String value = formData.getFirst(attribute);
-            if (value != null) {
-                Stream<UserModel> currentStream = session
-                        .users()
-                        .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
-
-                if (currentStream.count() > 0) {
-                    log.infov("lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {0} present in other users", attribute, value);
-                    return false;
-                }
-            }
-        }
-
-        return true;
+    List<FormMessage> errors = new ArrayList<>();
+    context.getEvent().detail(Details.REGISTER_METHOD, "form");
+    if (Validation.isBlank(formData.getFirst(RegistrationPage.FIELD_PASSWORD))) {
+      errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
+    } else if (!formData
+        .getFirst(RegistrationPage.FIELD_PASSWORD)
+        .equals(formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM))) {
+      errors.add(
+          new FormMessage(
+              RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
     }
+    if (formData.getFirst(RegistrationPage.FIELD_PASSWORD) != null) {
+      PolicyError err =
+          context
+              .getSession()
+              .getProvider(PasswordPolicyManagerProvider.class)
+              .validate(
+                  context.getRealm().isRegistrationEmailAsUsername()
+                      ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
+                      : formData.getFirst(RegistrationPage.FIELD_USERNAME),
+                  formData.getFirst(RegistrationPage.FIELD_PASSWORD));
+      if (err != null)
+        errors.add(
+            new FormMessage(
+                RegistrationPage.FIELD_PASSWORD, err.getMessage(), err.getParameters()));
+    }
+
+    if (errors.size() > 0) {
+      context.error(Errors.INVALID_REGISTRATION);
+      formData.remove(RegistrationPage.FIELD_PASSWORD);
+      formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
+      context.validationError(formData, errors);
+      return;
+    }
+    log.info("validate: success");
+    context.success();
+  }
+
+  private boolean checkUniqueAttributes(
+      ValidationContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
+    log.info("lookupUserByFormData(): checkUniqueAttributes start");
+    KeycloakSession session = context.getSession();
+    RealmModel realm = context.getRealm();
+    for (String attribute : attributes) {
+      String value = formData.getFirst(attribute);
+      if (value != null) {
+        Stream<UserModel> currentStream =
+            session
+                .users()
+                .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
+
+        if (currentStream.count() > 0) {
+          log.infov(
+              "lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {0} present in other users",
+              attribute, value);
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
 
   @Override
   public void buildPage(FormContext context, LoginFormsProvider form) {
@@ -304,42 +280,39 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     checkNotOtherUserAuthenticating(context);
   }
 
-    @Override
-    public void success(FormContext context) {
-        log.info("DeferredRegistrationUserCreation: start");
-        checkNotOtherUserAuthenticating(context);
+  @Override
+  public void success(FormContext context) {
+    log.info("DeferredRegistrationUserCreation: start");
+    checkNotOtherUserAuthenticating(context);
 
-        // Retrieve the configuration
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        Map<String, String> configMap = config.getConfig();
+    // Retrieve the configuration
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
 
-        // Extract the attributes to search and update from the configuration
-        String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    // Extract the attributes to search and update from the configuration
+    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
 
-        // Parse attributes lists
-        List<String> searchAttributesList = parseAttributesList(searchAttributes);
+    // Parse attributes lists
+    List<String> searchAttributesList = parseAttributesList(searchAttributes);
 
-        // Following successful filling of the form, we store the required user
-        // information in the authentication session notes. This stored
-        // information is then retrieved at a later time to create the user
-        // account.
-        Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList);
+    // Following successful filling of the form, we store the required user
+    // information in the authentication session notes. This stored
+    // information is then retrieved at a later time to create the user
+    // account.
+    Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList);
+  }
+
+  private void checkNotOtherUserAuthenticating(FormContext context) {
+    if (context.getUser() != null) {
+      // the user probably did some back navigation in the browser,
+      // hitting this page in a strange state
+      context.getEvent().detail(Details.EXISTING_USER, context.getUser().getUsername());
+      throw new AuthenticationFlowException(
+          AuthenticationFlowError.GENERIC_AUTHENTICATION_ERROR,
+          Errors.DIFFERENT_USER_AUTHENTICATING,
+          Messages.EXPIRED_ACTION);
     }
-
-    private void checkNotOtherUserAuthenticating(FormContext context) {
-        if (context.getUser() != null) {
-            // the user probably did some back navigation in the browser,
-            // hitting this page in a strange state
-            context
-                    .getEvent()
-                    .detail(Details.EXISTING_USER, context.getUser().getUsername());
-            throw new AuthenticationFlowException(
-                    AuthenticationFlowError.GENERIC_AUTHENTICATION_ERROR,
-                            Errors.DIFFERENT_USER_AUTHENTICATING,
-                Messages.EXPIRED_ACTION
-            );
-        }
-    }
+  }
 
   @Override
   public boolean requiresUser() {
@@ -372,10 +345,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return null;
   }
 
-    @Override
-    public boolean isConfigurable() {
-        return true;
-    }
+  @Override
+  public boolean isConfigurable() {
+    return true;
+  }
 
   private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
     AuthenticationExecutionModel.Requirement.REQUIRED,
@@ -415,50 +388,47 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return copy;
   }
 
-    /**
-     * Get user profile instance for current HTTP request (KeycloakSession) and
-     * for given context. This assumes that there is single user registered
-     * within HTTP request, which is always the case in Keycloak
-     */
-    public UserProfile getOrCreateUserProfile(
-        FormContext formContext, MultivaluedMap<String, String> formData
-    ) {
-        KeycloakSession session = formContext.getSession();
-        UserProfile profile = (UserProfile) session.getAttribute("UP_REGISTER");
-        if (profile == null) {
-            formData = normalizeFormParameters(formData);
-            UserProfileProvider profileProvider = session
-                    .getProvider(UserProfileProvider.class);
-            profile = profileProvider
-                    .create(UserProfileContext.REGISTRATION, formData);
-            session.setAttribute("UP_REGISTER", profile);
-        }
-        return profile;
+  /**
+   * Get user profile instance for current HTTP request (KeycloakSession) and for given context.
+   * This assumes that there is single user registered within HTTP request, which is always the case
+   * in Keycloak
+   */
+  public UserProfile getOrCreateUserProfile(
+      FormContext formContext, MultivaluedMap<String, String> formData) {
+    KeycloakSession session = formContext.getSession();
+    UserProfile profile = (UserProfile) session.getAttribute("UP_REGISTER");
+    if (profile == null) {
+      formData = normalizeFormParameters(formData);
+      UserProfileProvider profileProvider = session.getProvider(UserProfileProvider.class);
+      profile = profileProvider.create(UserProfileContext.REGISTRATION, formData);
+      session.setAttribute("UP_REGISTER", profile);
     }
+    return profile;
+  }
 
-    private List<String> parseAttributesList(String attributes) {
-        if (attributes == null || attributes.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        return List.of(attributes.split(","));
+  private List<String> parseAttributesList(String attributes) {
+    if (attributes == null || attributes.trim().isEmpty()) {
+      return Collections.emptyList();
     }
+    return List.of(attributes.split(","));
+  }
 
-    private boolean checkUnsetAttributes(
-            UserModel user,
-            List<String> attributes) {
-        Map<String, List<String>> userAttributes = user.getAttributes();
-        for (String attributeName : attributes) {
-            if (userAttributes.containsKey(attributeName) &&
-                    userAttributes.get(attributeName) != null &&
-                    userAttributes.get(attributeName).size() > 0 &&
-                    userAttributes.get(attributeName).get(0) != null &&
-                    !userAttributes.get(attributeName).get(0).isBlank()) {
-                log.info("checkUnsetAttributes(): user has attribute " + attributeName + " with value="
-                        + userAttributes.get(attributeName));
-                return false;
-            }
-        }
-        return true;
+  private boolean checkUnsetAttributes(UserModel user, List<String> attributes) {
+    Map<String, List<String>> userAttributes = user.getAttributes();
+    for (String attributeName : attributes) {
+      if (userAttributes.containsKey(attributeName)
+          && userAttributes.get(attributeName) != null
+          && userAttributes.get(attributeName).size() > 0
+          && userAttributes.get(attributeName).get(0) != null
+          && !userAttributes.get(attributeName).get(0).isBlank()) {
+        log.info(
+            "checkUnsetAttributes(): user has attribute "
+                + attributeName
+                + " with value="
+                + userAttributes.get(attributeName));
+        return false;
+      }
     }
-
+    return true;
+  }
 }

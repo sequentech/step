@@ -93,20 +93,16 @@ public class Utils {
     int length = Integer.parseInt(config.getConfig().get(Utils.CODE_LENGTH));
     int ttl = Integer.parseInt(config.getConfig().get(Utils.CODE_TTL));
 
-		String code = SecretGenerator
-			.getInstance()
-			.randomString(length, SecretGenerator.DIGITS);
-		authSession.setAuthNote(Utils.CODE, code);
-		authSession.setAuthNote(
-			Utils.CODE_TTL,
-			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
-		);
-		RealmModel realm = authSession.getRealm();
-		String realmName = getRealmName(realm);
+    String code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
+    authSession.setAuthNote(Utils.CODE, code);
+    authSession.setAuthNote(
+        Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+    RealmModel realm = authSession.getRealm();
+    String realmName = getRealmName(realm);
 
-		log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
-		log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
-		log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
+    log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
+    log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
+    log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
@@ -137,38 +133,36 @@ public class Utils {
       List<Object> subjAttr = ImmutableList.of(realmName);
       log.infov("sendCode(): Sending email: prepared messageAttributes");
 
-			try {
-				if (deferredUser) {
-					sendEmail(
-						session,
-						realm,
-						user,
-						Utils.SEND_CODE_EMAIL_SUBJECT,
-						subjAttr,
-						Utils.SEND_CODE_EMAIL_FTL,
-						messageAttributes,
-						emailAddress.trim()
-					);
-				} else {
-					emailTemplateProvider
-							.setRealm(realm)
-							.setUser(user)
-							.setAttribute("realmName", realmName)
-							.send(
-									Utils.SEND_CODE_EMAIL_SUBJECT,
-									subjAttr,
-									Utils.SEND_CODE_EMAIL_FTL,
-									messageAttributes
-							);
-				}
-			} catch (EmailException error) {
-				log.debug("sendCode(): Exception sending email", error);
-				throw error;
-			}
-		} else {
-			log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
-		}
-	}
+      try {
+        if (deferredUser) {
+          sendEmail(
+              session,
+              realm,
+              user,
+              Utils.SEND_CODE_EMAIL_SUBJECT,
+              subjAttr,
+              Utils.SEND_CODE_EMAIL_FTL,
+              messageAttributes,
+              emailAddress.trim());
+        } else {
+          emailTemplateProvider
+              .setRealm(realm)
+              .setUser(user)
+              .setAttribute("realmName", realmName)
+              .send(
+                  Utils.SEND_CODE_EMAIL_SUBJECT,
+                  subjAttr,
+                  Utils.SEND_CODE_EMAIL_FTL,
+                  messageAttributes);
+        }
+      } catch (EmailException error) {
+        log.debug("sendCode(): Exception sending email", error);
+        throw error;
+      }
+    } else {
+      log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
+    }
+  }
 
   String getMobile(AuthenticatorConfigModel config, UserModel user) {
     log.infov("getMobile()");
@@ -229,19 +223,19 @@ public class Utils {
     return Strings.isNullOrEmpty(realm.getDisplayName()) ? realm.getName() : realm.getDisplayName();
   }
 
-    protected EmailTemplate processEmailTemplate(
-		KeycloakSession session,
-		RealmModel realm,
-		UserModel user,
-		String subjectKey,
-		List<Object> subjectAttributes,
-		String template,
-		Map<String, Object> attributes
-	) throws EmailException {
-		try {
-			Theme theme = session.theme().getTheme(Theme.Type.EMAIL);
-			Locale locale = session.getContext().resolveLocale(user);
-			attributes.put("locale", locale);
+  protected EmailTemplate processEmailTemplate(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      String subjectKey,
+      List<Object> subjectAttributes,
+      String template,
+      Map<String, Object> attributes)
+      throws EmailException {
+    try {
+      Theme theme = session.theme().getTheme(Theme.Type.EMAIL);
+      Locale locale = session.getContext().resolveLocale(user);
+      attributes.put("locale", locale);
 
       Properties messages = theme.getEnhancedMessages(realm, locale);
       attributes.put("msg", new MessageFormatterMethod(locale, messages));

@@ -37,50 +37,38 @@ public class MessageOTPAuthenticator
     // 	);
   }
 
-	@Override
-	public void authenticate(AuthenticationFlowContext context) {
-		log.info("authenticate() called");
-		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+  @Override
+  public void authenticate(AuthenticationFlowContext context) {
+    log.info("authenticate() called");
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 
-		log.infov("authenticate() Alias: {0}", config.getAlias() );
+    log.infov("authenticate() Alias: {0}", config.getAlias());
 
-		KeycloakSession session = context.getSession();
-		AuthenticationSessionModel authSession = context
-			.getAuthenticationSession();
+    KeycloakSession session = context.getSession();
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-		Utils.MessageCourier messageCourier = Utils.MessageCourier.fromString(
-			config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE)
-		);
-		boolean deferredUser = config
-			.getConfig()
-			.get(Utils.DEFERRED_USER_ATTRIBUTE)
-			.equals("true");
-		try {
-			UserModel user = context.getUser();
-			Utils.sendCode(
-				config,
-				session,
-				user,
-				authSession,
-				messageCourier,
-				deferredUser
-			);
-			context
-				.challenge(
-					context.form().setAttribute("realm", context.getRealm()
-				).setAttribute("courier", messageCourier)
-				.createForm(TPL_CODE));
-		} catch (Exception error) {
-			log.infov("there was an error {0}", error);
-			context.failureChallenge(
-				AuthenticationFlowError.INTERNAL_ERROR,
-				context
-					.form()
-					.setError("messageNotSent", error.getMessage())
-					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
-			);
-		}
-	}
+    Utils.MessageCourier messageCourier =
+        Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
+    boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+    try {
+      UserModel user = context.getUser();
+      Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
+      context.challenge(
+          context
+              .form()
+              .setAttribute("realm", context.getRealm())
+              .setAttribute("courier", messageCourier)
+              .createForm(TPL_CODE));
+    } catch (Exception error) {
+      log.infov("there was an error {0}", error);
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError("messageNotSent", error.getMessage())
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+  }
 
   @Override
   public void action(AuthenticationFlowContext context) {

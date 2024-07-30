@@ -16,6 +16,10 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -23,28 +27,13 @@ import org.keycloak.authentication.FormContext;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
-
-import freemarker.template.Template;
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
-import lombok.experimental.UtilityClass;
-import lombok.extern.jbosslog.JBossLog;
-
-import java.io.StringWriter;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.io.Writer;
 
 @UtilityClass
 @JBossLog
@@ -80,25 +69,24 @@ public class Utils {
   public final String FTL_ERROR_INTERNAL = "internalInetumError";
   public final String FTL_ERROR_AUTH_INVALID = "internalInetumError";
 
-    private static final String KEYS_USERDATA = "keyUserdata";
-    private static final String KEYS_USERDATA_SEPARATOR = ";";
-    private static final List<String> DEFAULT_KEYS_USERDATA = List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
-    private static final String USER_ID = "userId";
+  private static final String KEYS_USERDATA = "keyUserdata";
+  private static final String KEYS_USERDATA_SEPARATOR = ";";
+  private static final List<String> DEFAULT_KEYS_USERDATA =
+      List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
+  private static final String USER_ID = "userId";
 
-    /**
-     * We store the user data entered in the registration form in the session notes.
-     * This information will later be retrieved to create a user account.
-     */
-    static void storeUserDataInAuthSessionNotes(FormContext context, List<String> searchAttributesList)
-	{
-		log.info("storeUserDataInAuthSessionNotes: start");
-        MultivaluedMap<String, String> formData = context
-			.getHttpRequest()
-			.getDecodedFormParameters();
-        AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+  /**
+   * We store the user data entered in the registration form in the session notes. This information
+   * will later be retrieved to create a user account.
+   */
+  static void storeUserDataInAuthSessionNotes(
+      FormContext context, List<String> searchAttributesList) {
+    log.info("storeUserDataInAuthSessionNotes: start");
+    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+    AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
 
-        // Lookup user by attributes using form data
-        UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
+    // Lookup user by attributes using form data
+    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
     // We store each key
     String keys = Utils.serializeUserdataKeys(formData.keySet());
@@ -107,14 +95,15 @@ public class Utils {
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
-        formData.forEach((key, value) -> {
-            String values = Utils.serializeUserdataKeys(formData.get(key));
-			log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
-            sessionModel.setAuthNote(key, values);
+    formData.forEach(
+        (key, value) -> {
+          String values = Utils.serializeUserdataKeys(formData.get(key));
+          log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
+          sessionModel.setAuthNote(key, values);
         });
 
-        sessionModel.setAuthNote(USER_ID, user.getId());
-    }
+    sessionModel.setAuthNote(USER_ID, user.getId());
+  }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
   static void createUserFromAuthSessionNotes(AuthenticationFlowContext context) {
@@ -167,42 +156,37 @@ public class Utils {
 
     context.getAuthenticationSession().setClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM, username);
 
-        context.getEvent().user(user);
-        context.getEvent().success();
-        context.newEvent().event(EventType.LOGIN);
-        context
-            .getEvent()
-            .client(context.getAuthenticationSession().getClient().getClientId())
-            .detail(
-                Details.REDIRECT_URI,
-                context.getAuthenticationSession().getRedirectUri()
-            )
-            .detail(
-                Details.AUTH_METHOD,
-                context.getAuthenticationSession().getProtocol()
-            );
-        String authType = context
-            .getAuthenticationSession()
-            .getAuthNote(Details.AUTH_TYPE);
-        if (authType != null) {
-            context.getEvent().detail(Details.AUTH_TYPE, authType);
-        }
+    context.getEvent().user(user);
+    context.getEvent().success();
+    context.newEvent().event(EventType.LOGIN);
+    context
+        .getEvent()
+        .client(context.getAuthenticationSession().getClient().getClientId())
+        .detail(Details.REDIRECT_URI, context.getAuthenticationSession().getRedirectUri())
+        .detail(Details.AUTH_METHOD, context.getAuthenticationSession().getProtocol());
+    String authType = context.getAuthenticationSession().getAuthNote(Details.AUTH_TYPE);
+    if (authType != null) {
+      context.getEvent().detail(Details.AUTH_TYPE, authType);
     }
+  }
 
-    static UserModel lookupUserByFormData(
-            FormContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
-        log.info("lookupUserByFormData(): start");
-        KeycloakSession session = context.getSession();
-        RealmModel realm = context.getRealm();
+  static UserModel lookupUserByFormData(
+      FormContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
+    log.info("lookupUserByFormData(): start");
+    KeycloakSession session = context.getSession();
+    RealmModel realm = context.getRealm();
 
-        Map<String, String> firstValueFormData = formData.entrySet().stream().filter(e -> attributes.contains(e.getKey())).collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
+    Map<String, String> firstValueFormData =
+        formData.entrySet().stream()
+            .filter(e -> attributes.contains(e.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
 
-        Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
 
-        // Return the first user that matches all attributes, if any
-        Optional<UserModel> userOptional = userStream.findFirst();
-        return userOptional.orElse(null);
-    }
+    // Return the first user that matches all attributes, if any
+    Optional<UserModel> userOptional = userStream.findFirst();
+    return userOptional.orElse(null);
+  }
 
   /**
    * Processes a string template with FreeMarker library.
@@ -221,11 +205,11 @@ public class Utils {
     return out.toString();
   }
 
-    private static String serializeUserdataKeys(Collection<String> keys, String separator) {
-        final StringBuilder key = new StringBuilder();
-        keys.forEach((s -> key.append(separator).append(s)));
-        return key.deleteCharAt(0).toString();
-    }
+  private static String serializeUserdataKeys(Collection<String> keys, String separator) {
+    final StringBuilder key = new StringBuilder();
+    keys.forEach((s -> key.append(separator).append(s)));
+    return key.deleteCharAt(0).toString();
+  }
 
   private static String serializeUserdataKeys(Collection<String> keys) {
     return serializeUserdataKeys(keys, KEYS_USERDATA_SEPARATOR);
@@ -238,31 +222,26 @@ public class Utils {
     return List.of(key.split(separator));
   }
 
-    private static List<String> deserializeUserdataKeys(String key) {
-        return deserializeUserdataKeys(key, KEYS_USERDATA_SEPARATOR);
-    }
+  private static List<String> deserializeUserdataKeys(String key) {
+    return deserializeUserdataKeys(key, KEYS_USERDATA_SEPARATOR);
+  }
 
-    /**
-     * Recovers the values of an attribute stored in the auth notes.
-     * 
-     * @param context
-     * @param attribute attribute to recover the values from
-     * @return a collection of values in string format
-     */
-    public static List<String> getAttributeValuesFromAuthNote(AuthenticationFlowContext context, String attribute) {
-            return Utils.deserializeUserdataKeys(context
-            .getAuthenticationSession()
-            .getAuthNote(attribute));
+  /**
+   * Recovers the values of an attribute stored in the auth notes.
+   *
+   * @param context
+   * @param attribute attribute to recover the values from
+   * @return a collection of values in string format
+   */
+  public static List<String> getAttributeValuesFromAuthNote(
+      AuthenticationFlowContext context, String attribute) {
+    return Utils.deserializeUserdataKeys(context.getAuthenticationSession().getAuthNote(attribute));
+  }
 
-    }
+  /** Recovers the user stored in the auth notes. */
+  public static UserModel lookupUserByAuthNotes(AuthenticationFlowContext context) {
+    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
 
-    /**
-     * Recovers the user stored in the auth notes.
-     */
-    public static UserModel lookupUserByAuthNotes(AuthenticationFlowContext context) {
-        String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
-
-        return context.getSession().users().getUserById(context.getRealm(), userId);
-    }
-
+    return context.getSession().users().getUserById(context.getRealm(), userId);
+  }
 }

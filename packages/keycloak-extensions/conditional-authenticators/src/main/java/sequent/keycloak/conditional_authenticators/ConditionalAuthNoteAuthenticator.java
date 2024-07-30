@@ -47,34 +47,25 @@ public class ConditionalAuthNoteAuthenticator implements ConditionalAuthenticato
         Boolean.parseBoolean(
             authConfig.getConfig().get(ConditionalAuthNoteAuthenticatorFactory.CONF_NEGATE));
 
-        AuthenticationSessionModel authSession = context
-            .getAuthenticationSession();
-        if (authSession == null) {
-            log.infov(
-                "matchCondition(): NULL found authSession={0}",
-                authSession
-            );
-            return false;
-        }
-        String authNoteValue = authSession.getAuthNote(requiredAuthNoteKey);
-        if (authNoteValue == null) {
-            log.infov(
-                "matchCondition(): requiredAuthNoteKey={0} not present",
-                requiredAuthNoteKey
-            );
-            return false;
-        }
-        boolean authNoteMatch = requiredAuthNoteValue == null ? authNoteValue.isBlank() || authNoteValue.isEmpty() : requiredAuthNoteValue.equals(authNoteValue);
-        log.infov(
-            "matchCondition(): requiredAuthNoteKey={0}, requiredAuthNoteValue={1}, authNoteValue={2}, negateOutput[{3}] != authNoteMatch[{4}]",
-            requiredAuthNoteKey,
-            requiredAuthNoteValue,
-            authNoteValue,
-            negateOutput,
-            authNoteMatch
-        );
-        return negateOutput != authNoteMatch;
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (authSession == null) {
+      log.infov("matchCondition(): NULL found authSession={0}", authSession);
+      return false;
     }
+    String authNoteValue = authSession.getAuthNote(requiredAuthNoteKey);
+    if (authNoteValue == null) {
+      log.infov("matchCondition(): requiredAuthNoteKey={0} not present", requiredAuthNoteKey);
+      return false;
+    }
+    boolean authNoteMatch =
+        requiredAuthNoteValue == null
+            ? authNoteValue.isBlank() || authNoteValue.isEmpty()
+            : requiredAuthNoteValue.equals(authNoteValue);
+    log.infov(
+        "matchCondition(): requiredAuthNoteKey={0}, requiredAuthNoteValue={1}, authNoteValue={2}, negateOutput[{3}] != authNoteMatch[{4}]",
+        requiredAuthNoteKey, requiredAuthNoteValue, authNoteValue, negateOutput, authNoteMatch);
+    return negateOutput != authNoteMatch;
+  }
 
   @Override
   public void action(AuthenticationFlowContext context) {

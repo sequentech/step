@@ -5,13 +5,10 @@
 package sequent.keycloak.inetum_authenticator;
 
 import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -26,38 +23,22 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.userprofile.UserProfile;
-
-import com.google.auto.service.AutoService;
-
-import jakarta.ws.rs.core.MultivaluedMap;
-import jakarta.ws.rs.core.Response;
-import lombok.extern.jbosslog.JBossLog;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /** Lookups an user using a field */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory {
 
-    public static final String PROVIDER_ID = "lookup-and-update-user";
-    public static final String SEARCH_ATTRIBUTES = "search-attributes";
-    public static final String UNSET_ATTRIBUTES = "unset-attributes";
-    public static final String UPDATE_ATTRIBUTES = "update-attributes";
-    public static final String AUTO_LOGIN = "auto-login";
+  public static final String PROVIDER_ID = "lookup-and-update-user";
+  public static final String SEARCH_ATTRIBUTES = "search-attributes";
+  public static final String UNSET_ATTRIBUTES = "unset-attributes";
+  public static final String UPDATE_ATTRIBUTES = "update-attributes";
+  public static final String AUTO_LOGIN = "auto-login";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -66,11 +47,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
 
-        // Extract the attributes to search and update from the configuration
-        String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
-        String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
-        String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
-        boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+    // Extract the attributes to search and update from the configuration
+    String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
+    String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
+    String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -154,37 +135,34 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     context.getAuthenticationSession().setClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM, username);
 
-        context.getEvent().user(user);
-        context.getEvent().success();
-        context.newEvent().event(EventType.LOGIN);
-        context
-            .getEvent()
-            .client(context.getAuthenticationSession().getClient().getClientId())
-            .detail(Details.REDIRECT_URI, context.getAuthenticationSession().getRedirectUri())
-            .detail(Details.AUTH_METHOD, context.getAuthenticationSession().getProtocol());
-        String authType = context
-            .getAuthenticationSession()
-            .getAuthNote(Details.AUTH_TYPE);
-        if (authType != null) {
-            context.getEvent().detail(Details.AUTH_TYPE, authType);
-        }
-        log.info("authenticate(): success");
-      
-        if (autoLogin) {
-            context.success();
-        } else {
-            Response form = context.form().createForm("registration-finish.ftl");
-            context.challenge(form);
-        }
+    context.getEvent().user(user);
+    context.getEvent().success();
+    context.newEvent().event(EventType.LOGIN);
+    context
+        .getEvent()
+        .client(context.getAuthenticationSession().getClient().getClientId())
+        .detail(Details.REDIRECT_URI, context.getAuthenticationSession().getRedirectUri())
+        .detail(Details.AUTH_METHOD, context.getAuthenticationSession().getProtocol());
+    String authType = context.getAuthenticationSession().getAuthNote(Details.AUTH_TYPE);
+    if (authType != null) {
+      context.getEvent().detail(Details.AUTH_TYPE, authType);
     }
+    log.info("authenticate(): success");
 
-    private UserModel lookupUserByAuthNotes(
-        AuthenticationFlowContext context, List<String> attributes
-    ) {
-        log.info("lookupUserByAuthNotes(): start");
-
-        return Utils.lookupUserByAuthNotes(context);
+    if (autoLogin) {
+      context.success();
+    } else {
+      Response form = context.form().createForm("registration-finish.ftl");
+      context.challenge(form);
     }
+  }
+
+  private UserModel lookupUserByAuthNotes(
+      AuthenticationFlowContext context, List<String> attributes) {
+    log.info("lookupUserByAuthNotes(): start");
+
+    return Utils.lookupUserByAuthNotes(context);
+  }
 
   private boolean checkUnsetAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
@@ -214,23 +192,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return true;
   }
 
-    private void updateUserAttributes(
-        UserModel user,
-        AuthenticationFlowContext context,
-        List<String> attributes
-    ) {
-        for (String attribute : attributes) {
-            List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
-            if (values != null && !values.isEmpty()) {
-                if (attribute.equals("username")) {
-                    user.setUsername(values.get(0));
-                } else if(attribute.equals("email")) {
-                    user.setEmail(values.get(0));
-                }
-                user.setAttribute(attribute, values);
-            }
+  private void updateUserAttributes(
+      UserModel user, AuthenticationFlowContext context, List<String> attributes) {
+    for (String attribute : attributes) {
+      List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
+      if (values != null && !values.isEmpty()) {
+        if (attribute.equals("username")) {
+          user.setUsername(values.get(0));
+        } else if (attribute.equals("email")) {
+          user.setEmail(values.get(0));
         }
+        user.setAttribute(attribute, values);
+      }
     }
+  }
 
   private List<String> parseAttributesList(String attributes) {
     if (attributes == null || attributes.trim().isEmpty()) {
@@ -239,19 +214,19 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return List.of(attributes.split(","));
   }
 
-    @Override
-    public void action(AuthenticationFlowContext context) {
-        log.info("action(): start");
+  @Override
+  public void action(AuthenticationFlowContext context) {
+    log.info("action(): start");
 
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        Map<String, String> configMap = config.getConfig();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
 
-        boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
 
-        if (autoLogin) {
-            context.success();
-        }
+    if (autoLogin) {
+      context.success();
     }
+  }
 
   @Override
   public boolean requiresUser() {
@@ -303,40 +278,35 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return "Looks up and optionally updates a user based on attributes stored in authentication notes.";
   }
 
-    @Override
-    public List<ProviderConfigProperty> getConfigProperties() {
-        // Define configuration properties
-        return List.of(
-            new ProviderConfigProperty(
-                SEARCH_ATTRIBUTES,
-                "Search Attributes",
-                "Comma-separated list of attributes to use for searching the user in auth notes.", 
-                ProviderConfigProperty.STRING_TYPE,
-                ""
-            ),
-            new ProviderConfigProperty(
-                UNSET_ATTRIBUTES,
-                "Unset Attributes",
-                "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
-                ProviderConfigProperty.STRING_TYPE,
-                ""
-            ),
-            new ProviderConfigProperty(
-                UPDATE_ATTRIBUTES,
-                "Update Attributes",
-                "Comma-separated list of attributes to update for the user from auth notes.",
-                ProviderConfigProperty.STRING_TYPE,
-                ""
-            ),
-            new ProviderConfigProperty(
-                AUTO_LOGIN,
-                "Login after registration",
-                "If enabled the user will automatically login after registration.",
-                ProviderConfigProperty.BOOLEAN_TYPE,
-                true
-            )
-        );
-    }
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    // Define configuration properties
+    return List.of(
+        new ProviderConfigProperty(
+            SEARCH_ATTRIBUTES,
+            "Search Attributes",
+            "Comma-separated list of attributes to use for searching the user in auth notes.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            UNSET_ATTRIBUTES,
+            "Unset Attributes",
+            "Comma-separated list of attributes that the user needs to have unset and otherwise the authenticator should fail.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            UPDATE_ATTRIBUTES,
+            "Update Attributes",
+            "Comma-separated list of attributes to update for the user from auth notes.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        new ProviderConfigProperty(
+            AUTO_LOGIN,
+            "Login after registration",
+            "If enabled the user will automatically login after registration.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            true));
+  }
 
   @Override
   public boolean isConfigurable() {
