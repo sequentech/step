@@ -50,8 +50,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</form>
 	<#elseif section = "info" >
-		<#--  ${msg("messageOtpAuthInstruction")}  -->
-		${courier}
 		<#if courier = "SMS">
 			${msg("messageOtpAuthInstructionSms")}
 		<#elseif courier = "EMAIL" >
