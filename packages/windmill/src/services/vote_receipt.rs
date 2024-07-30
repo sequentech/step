@@ -13,6 +13,8 @@ use crate::services::{
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::date_time::{DateFormat, TimeZone};
+use sequent_core::util::date_time::generate_timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
@@ -184,6 +186,7 @@ pub struct VoteReceiptDataTemplate {
     pub file_logo: String,
     pub file_qrcode_lib: String,
     pub ballot_tracker_url: String,
+    pub timestamp: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -231,6 +234,8 @@ pub async fn create_vote_receipt(
     voter_id: &str,
     ballot_id: &str,
     ballot_tracker_url: &str,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
 ) -> Result<()> {
     verify_ballot_id(
         hasura_transaction,
@@ -289,6 +294,7 @@ pub async fn create_vote_receipt(
             ),
             title: vote_receipt_title.to_string(),
             ballot_tracker_url: ballot_tracker_url.to_string(),
+            timestamp: generate_timestamp(time_zone, date_format),
         },
     }
     .to_map()?;

@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Header, ITenantSettings} from "@sequentech/ui-essentials"
+import {Header, adminTheme} from "@sequentech/ui-essentials"
 import React, {useContext, useEffect} from "react"
 import {AppBar, useGetOne} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {adminTheme} from "@sequentech/ui-essentials"
+import {ITenantSettings} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"

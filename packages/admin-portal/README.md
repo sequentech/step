@@ -40,6 +40,16 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 ```bash
 yarn generate
 ```
+## Compile the Ui Core library
+
+This package uses the common UI librarry [ui-core] as a github submodule.
+You need to compile ui-essentials:
+
+```bash
+cd packages/ui-core
+yarn
+yarn build
+```
 
 ## Compile the Ui library
 

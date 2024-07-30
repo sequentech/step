@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import {EEnableCheckableLists, ICandidatePresentation} from "@sequentech/ui-essentials"
+import {EEnableCheckableLists, ICandidatePresentation} from "@sequentech/ui-core"
 
 export const isCandidateACheckableList = (candidate: Sequent_Backend_Candidate): boolean => {
     let candidatePresentation = candidate.presentation as ICandidatePresentation | undefined

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Dialog, isString} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
+import {isString} from "@sequentech/ui-core"
 import React, {useMemo, useState} from "react"
 import {
     Button,

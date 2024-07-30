@@ -7,6 +7,7 @@ import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import styled from "@emotion/styled"
+import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Election,
@@ -14,16 +15,13 @@ import {
     Sequent_Backend_Candidate,
 } from "@/gql/graphql"
 import {
-    IconButton,
-    adminTheme,
     ICandidatePresentation,
     IContestPresentation,
     IElectionEventPresentation,
-    sortCandidatesInContest,
-    sortContestList,
-    sortElectionList,
     IContest,
-} from "@sequentech/ui-essentials"
+    IElection,
+    ICandidate,
+} from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useGetOne, useSidebarState} from "react-admin"
@@ -38,6 +36,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
+import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
 
 export type ResourceName =
@@ -215,24 +214,67 @@ export default function ElectionEvents() {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 
+    const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
+        return elections.map((election) => {
+            return {
+                ...election,
+                tenant_id: tenantId || "",
+                image_document_id: election.image_document_id ?? "",
+                contests: transformContestsForSort(election.contests),
+            }
+        })
+    }
+
+    const transformContestsForSort = (contests: ContestType[]): IContest[] => {
+        return contests.map((contest): IContest => {
+            return {
+                ...contest,
+                tenant_id: tenantId || "",
+                candidates: transformCandidatesForSort(contest),
+                max_votes: 0,
+                min_votes: 0,
+                winning_candidates_num: 0,
+                is_encrypted: false,
+            }
+        })
+    }
+
+    const transformCandidatesForSort = (contest: IContest): ICandidate[] => {
+        return contest.candidates.map((candidate, index) => {
+            return {
+                ...candidate,
+                id: String(index),
+                election_id: contest.election_id,
+                tenant_id: tenantId || "",
+            }
+        })
+    }
+
     resultData = {
         electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
             (electionEvent: ElectionEventType) => {
+                const electionOrderType = electionEvent?.presentation?.elections_order
                 return {
                     ...electionEvent,
-                    elections: sortElectionList(electionEvent.elections).map((election: any) => {
+                    elections: sortElectionList(
+                        transformElectionsForSort(electionEvent.elections),
+                        electionOrderType
+                    ).map((election: any) => {
+                        const contestOrderType = election?.presentation?.contests_order
                         return {
                             ...election,
-                            contests: sortContestList(election.contests).map((contest: any) => {
-                                let orderType = contest.presentation?.candidates_order
+                            contests: sortContestList(election.contests, contestOrderType).map(
+                                (contest: any) => {
+                                    let orderType = contest.presentation?.candidates_order
 
-                                contest.candidates = sortCandidatesInContest(
-                                    contest.candidates,
-                                    orderType
-                                ) as any
+                                    contest.candidates = sortCandidatesInContest(
+                                        contest.candidates,
+                                        orderType
+                                    ) as any
 
-                                return contest
-                            }),
+                                    return contest
+                                }
+                            ),
                         }
                     }),
                 }

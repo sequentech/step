@@ -5,20 +5,15 @@
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
-    Dialog,
-    IconButton,
-    PageLimit,
-    SelectElection,
     isString,
     stringToHtml,
-    theme,
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
-    IBallotStyle as IElectionDTO,
     isUndefined,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -182,7 +177,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 labels: null,
                 last_updated_at: "",
             }
-            dispatch(setElection(election))
+            dispatch(setElection({...election, image_document_id: ""}))
             dispatch(setBallotStyle(formattedBallotStyle))
             dispatch(clearIsVoted())
             dispatch(
@@ -276,7 +271,14 @@ const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (dataElections && dataElections.sequent_backend_election.length > 0) {
             for (let election of dataElections.sequent_backend_election) {
-                dispatch(setElection(election))
+                dispatch(
+                    setElection({
+                        ...election,
+                        image_document_id: "",
+                        contests: [],
+                        description: election.description ?? undefined,
+                    })
+                )
             }
 
             setHasLoadElections(true)

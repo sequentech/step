@@ -46,18 +46,22 @@ export const statusColor: (status: EStatus) => string = (status) => {
 
 export interface CeremonyStepProps {
     message?: React.ReactNode
-    currentCeremony: Sequent_Backend_Keys_Ceremony | null
+    currentCeremonyId: string
+    setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     electionEvent: Sequent_Backend_Election_Event
     goNext?: () => void
+    isNextDisabled?: boolean
     goBack: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     message,
-    currentCeremony,
+    currentCeremonyId,
+    setCurrentCeremony,
     electionEvent,
     goBack,
     goNext,
+    isNextDisabled = false,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -67,10 +71,13 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
-            id: currentCeremony?.id ?? null,
+            id: currentCeremonyId ?? null,
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            onSuccess: (data) => {
+                setCurrentCeremony && setCurrentCeremony(data)
+            },
         }
     )
 
@@ -81,7 +88,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     return (
         <>
             <WizardStyles.ContentBox>
-                {message}
+                {!status?.public_key && message}
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={progressExpanded}
@@ -178,7 +185,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
                 {!!goNext && (
-                    <WizardStyles.NextButton color="info" onClick={goNext}>
+                    <WizardStyles.NextButton
+                        color="info"
+                        onClick={goNext}
+                        disabled={isNextDisabled && !status.public_key}
+                    >
                         <ArrowForwardIosIcon />
                         {t("common.label.next")}
                     </WizardStyles.NextButton>

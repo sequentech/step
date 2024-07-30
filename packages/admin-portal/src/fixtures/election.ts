@@ -8,6 +8,7 @@ import {
     EEnableCheckableLists,
     EPaginationPolicy,
 } from "@sequentech/ui-essentials"
+import {IBallotStyle, EInvalidVotePolicy, EEnableCheckableLists} from "@sequentech/ui-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",

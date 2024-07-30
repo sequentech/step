@@ -16,7 +16,7 @@ import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
-import {EVotingPortalCountdownPolicy} from "../../types/CoreTypes"
+import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};

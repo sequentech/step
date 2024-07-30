@@ -11,14 +11,14 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import AuthContextProvider from "./providers/AuthContextProvider"
-import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import {initCore} from "@sequentech/ui-core"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
-SequentCoreLibInit().then(set_hooks)
+initCore()
 
 interface TenantEventContextValues {
     tenantId: string | null

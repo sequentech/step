@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import {AuthContext} from "@/providers/AuthContextProvider"
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
-import React, {useContext, useState} from "react"
+import React, {useState} from "react"
 import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
@@ -69,7 +68,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
             )}
             {currentStep > 0 && (
                 <CeremonyStep
-                    currentCeremony={currentCeremony}
+                    currentCeremonyId={currentCeremony?.id}
                     electionEvent={electionEvent}
                     goBack={goBack}
                 />

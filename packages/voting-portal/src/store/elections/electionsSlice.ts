@@ -3,30 +3,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IElection as UIIElection, sortElectionList} from "@sequentech/ui-essentials"
+import {IElection, sortElectionList} from "@sequentech/ui-core"
 
-export interface IElection {
-    id: string
+export interface IElectionExtended extends IElection {
     annotations?: string | null
     created_at?: string | null
     dates?: string | null
-    description?: string | null
-    election_event_id: string
     eml?: string | null
     is_consolidated_ballot_encoding?: boolean | null
     labels?: string | null
     last_updated_at?: string | null
-    name?: string | null
-    alias?: string | null
     num_allowed_revotes?: number | null
-    presentation?: string | null
     spoil_ballot_option?: boolean | null
     status?: string | null
-    tenant_id: string
 }
 
 export interface ElectionState {
-    [electionId: string]: IElection | undefined
+    [electionId: string]: IElectionExtended | undefined
 }
 
 const initialState: ElectionState = {}
@@ -35,7 +28,10 @@ export const electionsSlice = createSlice({
     name: "elections",
     initialState,
     reducers: {
-        setElection: (state: ElectionState, action: PayloadAction<IElection>): ElectionState => {
+        setElection: (
+            state: ElectionState,
+            action: PayloadAction<IElectionExtended>
+        ): ElectionState => {
             state[action.payload.id] = action.payload
             return state
         },
@@ -45,9 +41,10 @@ export const electionsSlice = createSlice({
 export const {setElection} = electionsSlice.actions
 
 export const selectElectionIds = (state: RootState) => {
-    return sortElectionList(Object.values(state.elections) as unknown as UIIElection[]).map(
-        (election: UIIElection) => election.id
-    )
+    return sortElectionList(
+        Object.values(state.elections) as unknown as IElection[],
+        Object.values(state.electionEvent)[0]?.presentation?.elections_order
+    ).map((election) => election.id)
 }
 
 export const selectElectionById = (electionId: string) => (state: RootState) =>
