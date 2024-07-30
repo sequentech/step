@@ -823,9 +823,7 @@ const frenchTranslation: TranslationType = {
                 "not-allowed": "Non autorisé",
             },
             paginationPolicy: {
-                "label": "Politique de Pagination",
-                "no-page-break": "Pas de saut de page",
-                "page-name": "Nom de la page{page: string}}",
+                label: "Nom de la page",
             },
             error: {},
             createContestSuccess: "Question créée",

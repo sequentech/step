@@ -6,9 +6,7 @@ import {
     IBallotStyle,
     EInvalidVotePolicy,
     EEnableCheckableLists,
-    EPaginationPolicy,
-} from "@sequentech/ui-essentials"
-import {IBallotStyle, EInvalidVotePolicy, EEnableCheckableLists} from "@sequentech/ui-core"
+} from "@sequentech/ui-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
@@ -158,7 +156,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                 allow_writeins: true,
                 base32_writeins: true,
                 invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
-                pagination_policy: EPaginationPolicy.NO_PAGE_BREAK,
+                pagination_policy: "",
                 shuffle_categories: true,
                 shuffle_category_list: [],
                 show_points: false,
@@ -267,7 +265,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                 allow_writeins: true,
                 base32_writeins: true,
                 invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
-                pagination_policy: EPaginationPolicy.NO_PAGE_BREAK,
+                pagination_policy: "",
                 shuffle_categories: true,
                 shuffle_category_list: [],
                 show_points: false,
@@ -382,7 +380,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                 allow_writeins: true,
                 base32_writeins: true,
                 invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
-                pagination_policy: EPaginationPolicy.NO_PAGE_BREAK,
+                pagination_policy: "",
                 shuffle_categories: true,
                 show_points: false,
                 enable_checkable_lists: EEnableCheckableLists.CANDIDATES_AND_LISTS,
@@ -498,7 +496,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                 allow_writeins: true,
                 base32_writeins: true,
                 invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
-                pagination_policy: EPaginationPolicy.NO_PAGE_BREAK,
+                pagination_policy: "",
                 shuffle_categories: true,
                 show_points: false,
                 enable_checkable_lists: EEnableCheckableLists.CANDIDATES_AND_LISTS,

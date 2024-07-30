@@ -816,9 +816,7 @@ const englishTranslation = {
                 "not-allowed": "Not Allowed",
             },
             paginationPolicy: {
-                "label": "Pagination Policy",
-                "no-page-break": "No Page Break",
-                "page-name": "Page Name{page: string}}",
+                label: "Page Name",
             },
             error: {},
             createContestSuccess: "Contest created",

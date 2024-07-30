@@ -820,9 +820,7 @@ const spanishTranslation: TranslationType = {
                 "not-allowed": "No permitido",
             },
             paginationPolicy: {
-                "label": "Política de Paginación",
-                "no-page-break": "Sin salto de página",
-                "page-name": "Nombre de la página{page: string}}",
+                label: "Nombre de la página",
             },
             error: {},
             createContestSuccess: "Pregunta creado",

@@ -33,11 +33,6 @@ export enum EBlankVotePolicy {
     NOT_ALLOWED = "not-allowed",
 }
 
-export enum EPaginationPolicy {
-    NO_PAGE_BREAK = "no-page-break",
-    PAGE_NAME = "page-name",
-}
-
 export interface ITypePresentation {
     name?: string
     name_i18n?: Record<string, string>
@@ -51,7 +46,7 @@ export interface IContestPresentation {
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
     blank_vote_policy?: EBlankVotePolicy
-    pagination_policy: EPaginationPolicy
+    pagination_policy: String
     cumulative_number_of_checkboxes?: number
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>

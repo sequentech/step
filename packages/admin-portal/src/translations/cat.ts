@@ -821,9 +821,7 @@ const catalanTranslation: TranslationType = {
                 "not-allowed": "No permès",
             },
             paginationPolicy: {
-                "label": "Política de Paginació",
-                "no-page-break": "Sense Salt de Pàgina",
-                "page-name": "Nom de la Pàgina{page: string}}",
+                label: "Nom de la pàgina",
             },
             error: {},
             createContestSuccess: "Pregunta creada",

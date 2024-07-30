@@ -55,9 +55,8 @@ import {
     ICandidatePresentation,
     IElectionPresentation,
     EBlankVotePolicy,
-    EPaginationPolicy,
-    DropFile,
 } from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -383,13 +382,6 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
-    const ballotPaginationsChoices = () => {
-        return Object.values(EPaginationPolicy).map((value) => ({
-            id: value,
-            name: t(`contestScreen.paginationPolicy.${value}`),
-        }))
-    }
-
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -449,7 +441,7 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
 
             newContest.presentation.pagination_policy =
-                newContest.presentation.pagination_policy || EPaginationPolicy.NO_PAGE_BREAK
+                newContest.presentation.pagination_policy || ""
 
             return newContest
         },
@@ -731,12 +723,9 @@ export const ContestDataForm: React.FC = () => {
                                     validate={required()}
                                 />
 
-                                <SelectInput
+                                <TextInput
                                     source={`presentation.pagination_policy`}
-                                    choices={ballotPaginationsChoices()}
                                     label={t(`contestScreen.paginationPolicy.label`)}
-                                    defaultValue={EPaginationPolicy.NO_PAGE_BREAK}
-                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>
