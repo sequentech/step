@@ -4,5 +4,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 yarn --pure-lockfile --non-interactive
+yarn build:ui-core
 yarn build:ui-essentials
 yarn $1

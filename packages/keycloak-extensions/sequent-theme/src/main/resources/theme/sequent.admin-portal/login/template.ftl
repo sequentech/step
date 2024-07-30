@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayCard=true>
 <!DOCTYPE html>
 <html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if>>
 
@@ -20,6 +20,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     </#if>
     <title>${msg("loginTitle",(realm.displayName!''))}</title>
     <link rel="icon" href="${url.resourcesPath}/img/favicon.ico" />
+
+    <#nested "head">
 
     <style id="login-custom-css" type="text/css">
         <#outputformat "plainText">
@@ -98,6 +100,10 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div id="kc-title" class="${properties.kcTitleClass!}">
         ${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}
     </div>
+
+    <#nested "body">
+
+    <#if displayCard>
     <div class="${properties.kcFormCardClass!}">
         <header class="${properties.kcFormHeaderClass!}">
         <#if !(auth?has_content && auth.showUsername() && !auth.showResetCredentials())>
@@ -189,6 +195,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 
     </div>
+    </#if>
     <div class="footer">
         <p>${msg("loginFooter")}</p>
     </div>

@@ -10,7 +10,7 @@ import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
-import {isString} from "../../utils/typechecks"
+import {isString} from "@sequentech/ui-core"
 
 const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
     border: 2px solid

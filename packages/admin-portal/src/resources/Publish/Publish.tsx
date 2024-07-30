@@ -38,20 +38,20 @@ import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatu
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IElectionEventStatus} from "@sequentech/ui-essentials"
-import {convertToNumber} from "@/lib/helpers"
+import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-
-export type TPublish = {
-    electionId?: string
-    electionEventId: string
-    type: EPublishType.Election | EPublishType.Event
-}
+import {convertToNumber} from "@/lib/helpers"
 
 enum ViewMode {
     Edit,
     View,
     List,
+}
+
+type TPublish = {
+    electionId?: string
+    electionEventId: string
+    type: EPublishType.Election | EPublishType.Event
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(

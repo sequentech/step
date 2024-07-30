@@ -5,6 +5,11 @@
 package sequent.keycloak.inetum_authenticator;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.AuthenticationFlowException;
@@ -29,6 +34,7 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.userprofile.Attributes;
+import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
@@ -56,10 +62,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     public static final String UNSET_ATTRIBUTES = "unset-attributes";
     public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
 
-    @Override
-    public String getHelpText() {
-        return "Sequent: This action must always be first! Validates the username and user profile of the user in validation phase.  In success phase, this will save the info necessary in auth notes to create the user - or attach to a pre-registered user.";
-    }
+  @Override
+  public String getHelpText() {
+    return "Sequent: This action must always be first! Validates the username and user profile of the user in validation phase.  In success phase, this will save the info necessary in auth notes to create the user - or attach to a pre-registered user.";
+  }
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
@@ -151,21 +157,21 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             return;
         }
 
-        UserProfile profile = getOrCreateUserProfile(context, formData);
-        Attributes attributes = profile.getAttributes();
-        String email = attributes.getFirst(UserModel.EMAIL);
-        String username = attributes.getFirst(UserModel.USERNAME);
-        String firstName = attributes.getFirst(UserModel.FIRST_NAME);
-        String lastName = attributes.getFirst(UserModel.LAST_NAME);
-        context.getEvent().detail(Details.EMAIL, email);
+    UserProfile profile = getOrCreateUserProfile(context, formData);
+    Attributes attributes = profile.getAttributes();
+    String email = attributes.getFirst(UserModel.EMAIL);
+    String username = attributes.getFirst(UserModel.USERNAME);
+    String firstName = attributes.getFirst(UserModel.FIRST_NAME);
+    String lastName = attributes.getFirst(UserModel.LAST_NAME);
+    context.getEvent().detail(Details.EMAIL, email);
 
-        context.getEvent().detail(Details.USERNAME, username);
-        context.getEvent().detail(Details.FIRST_NAME, firstName);
-        context.getEvent().detail(Details.LAST_NAME, lastName);
+    context.getEvent().detail(Details.USERNAME, username);
+    context.getEvent().detail(Details.FIRST_NAME, firstName);
+    context.getEvent().detail(Details.LAST_NAME, lastName);
 
-        if (context.getRealm().isRegistrationEmailAsUsername()) {
-            context.getEvent().detail(Details.USERNAME, email);
-        }
+    if (context.getRealm().isRegistrationEmailAsUsername()) {
+      context.getEvent().detail(Details.USERNAME, email);
+    }
 
         try {
             profile.validate();
@@ -207,10 +213,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                         .detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
             }
 
-            // if error is empty but we are here, then the exception was related
-            // to error to be ignored (username/email exists), so we ignore them
-            // and continue
-            if (errors.isEmpty()) {
+      // if error is empty but we are here, then the exception was related
+      // to error to be ignored (username/email exists), so we ignore them
+      // and continue
+      if (errors.isEmpty()) {
 
                 // if errors is not empty, show them
             } else {
@@ -292,11 +298,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         return true;
     }
 
-    @Override
-    public void buildPage(FormContext context, LoginFormsProvider form) {
-        form.setAttribute("passwordRequired", true);
-        checkNotOtherUserAuthenticating(context);
-    }
+  @Override
+  public void buildPage(FormContext context, LoginFormsProvider form) {
+    form.setAttribute("passwordRequired", true);
+    checkNotOtherUserAuthenticating(context);
+  }
 
     @Override
     public void success(FormContext context) {
@@ -335,94 +341,79 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         }
     }
 
-    @Override
-    public boolean requiresUser() {
-        return false;
-    }
+  @Override
+  public boolean requiresUser() {
+    return false;
+  }
 
-    @Override
-    public boolean configuredFor(
-        KeycloakSession session, RealmModel realm, UserModel user
-    ) {
-        return true;
-    }
+  @Override
+  public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
+    return true;
+  }
 
-    @Override
-    public void setRequiredActions(
-        KeycloakSession session, RealmModel realm, UserModel user
-    ) {
+  @Override
+  public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {}
 
-    }
+  @Override
+  public boolean isUserSetupAllowed() {
+    return false;
+  }
 
-    @Override
-    public boolean isUserSetupAllowed() {
-        return false;
-    }
+  @Override
+  public void close() {}
 
+  @Override
+  public String getDisplayType() {
+    return "Deferred Registration User Profile Creation";
+  }
 
-    @Override
-    public void close() {
-
-    }
-
-    @Override
-    public String getDisplayType() {
-        return "Deferred Registration User Profile Creation";
-    }
-
-    @Override
-    public String getReferenceCategory() {
-        return null;
-    }
+  @Override
+  public String getReferenceCategory() {
+    return null;
+  }
 
     @Override
     public boolean isConfigurable() {
         return true;
     }
 
-    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
-            AuthenticationExecutionModel.Requirement.REQUIRED,
-            AuthenticationExecutionModel.Requirement.DISABLED
-    };
+  private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+    AuthenticationExecutionModel.Requirement.REQUIRED,
+    AuthenticationExecutionModel.Requirement.DISABLED
+  };
 
-    @Override
-    public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
-        return REQUIREMENT_CHOICES;
-    }
+  @Override
+  public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
+    return REQUIREMENT_CHOICES;
+  }
 
-    @Override
-    public FormAction create(KeycloakSession session) {
-        return this;
-    }
+  @Override
+  public FormAction create(KeycloakSession session) {
+    return this;
+  }
 
-    @Override
-    public void init(Config.Scope config) {
+  @Override
+  public void init(Config.Scope config) {}
 
-    }
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {}
 
-    @Override
-    public void postInit(KeycloakSessionFactory factory) {
+  @Override
+  public String getId() {
+    return PROVIDER_ID;
+  }
 
-    }
+  private MultivaluedMap<String, String> normalizeFormParameters(
+      MultivaluedMap<String, String> formParams) {
+    MultivaluedHashMap<String, String> copy = new MultivaluedHashMap<>(formParams);
 
-    @Override
-    public String getId() {
-        return PROVIDER_ID;
-    }
+    // Remove "password" and "password-confirm" to avoid leaking them in the
+    // user-profile data
+    copy.remove(RegistrationPage.FIELD_PASSWORD);
+    copy.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-    private MultivaluedMap<String, String> normalizeFormParameters(
-        MultivaluedMap<String, String> formParams
-    ) {
-        MultivaluedHashMap<String, String> copy = 
-            new MultivaluedHashMap<>(formParams);
-
-        // Remove "password" and "password-confirm" to avoid leaking them in the
-        // user-profile data
-        copy.remove(RegistrationPage.FIELD_PASSWORD);
-        copy.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-
-        return copy;
-    }
+    return copy;
+  }
 
     /**
      * Get user profile instance for current HTTP request (KeycloakSession) and

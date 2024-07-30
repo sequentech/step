@@ -4,108 +4,94 @@
 
 package sequent.keycloak.authenticator;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import lombok.experimental.UtilityClass;
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.email.EmailException;
+import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.email.freemarker.beans.ProfileBean;
 import org.keycloak.forms.login.freemarker.model.UrlBean;
-import org.keycloak.email.EmailException;
-import org.keycloak.email.EmailSenderProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.RealmModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.FreeMarkerException;
 import org.keycloak.theme.Theme;
 import org.keycloak.theme.beans.MessageFormatterMethod;
 import org.keycloak.theme.freemarker.FreeMarkerProvider;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-
-import lombok.extern.jbosslog.JBossLog;
-
-import lombok.experimental.UtilityClass;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
-
-import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Map;
-
 
 @UtilityClass
 @JBossLog
 public class Utils {
-	public final String CODE = "code";
-	public final String CODE_LENGTH = "length";
-	public final String CODE_TTL = "ttl";
-	public final String SENDER_ID = "senderId";
-	public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
-	public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
-	public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
-	public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
-	public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
-	public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
+  public final String CODE = "code";
+  public final String CODE_LENGTH = "length";
+  public final String CODE_TTL = "ttl";
+  public final String SENDER_ID = "senderId";
+  public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+  public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
+  public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
+  public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
+  public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
+  public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
 
-	public enum MessageCourier {
-		SMS, 
-		EMAIL, 
-		BOTH;
+  public enum MessageCourier {
+    SMS,
+    EMAIL,
+    BOTH;
 
-		// Method to convert a string value to a NotificationType
-		public static MessageCourier fromString(String type) {
-			if (type != null) {
-				for (MessageCourier messageCourier : MessageCourier.values()) {
-					if (type.equalsIgnoreCase(messageCourier.name())) {
-						return messageCourier;
-					}
-				}
-			}
-			throw new IllegalArgumentException("No constant with text " + type + " found");
-		}
-	}	
+    // Method to convert a string value to a NotificationType
+    public static MessageCourier fromString(String type) {
+      if (type != null) {
+        for (MessageCourier messageCourier : MessageCourier.values()) {
+          if (type.equalsIgnoreCase(messageCourier.name())) {
+            return messageCourier;
+          }
+        }
+      }
+      throw new IllegalArgumentException("No constant with text " + type + " found");
+    }
+  }
 
-	/**
-	 * Sends code and also sets the auth notes related to the code
-	 */
-	void sendCode(
-		AuthenticatorConfigModel config,
-		KeycloakSession session,
-		UserModel user,
-		AuthenticationSessionModel authSession,
-		MessageCourier messageCourier,
-		boolean deferredUser
-	) throws IOException, EmailException
-	{
-		log.info("sendCode(): start");
-		String mobileNumber = null;
-		String emailAddress = null;
+  /** Sends code and also sets the auth notes related to the code */
+  void sendCode(
+      AuthenticatorConfigModel config,
+      KeycloakSession session,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      MessageCourier messageCourier,
+      boolean deferredUser)
+      throws IOException, EmailException {
+    log.info("sendCode(): start");
+    String mobileNumber = null;
+    String emailAddress = null;
 
-		if (deferredUser) {
-			String mobileNumberAttribute = config
-				.getConfig()
-				.get(Utils.TEL_USER_ATTRIBUTE);
-			mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
-			emailAddress = authSession.getAuthNote("email");
-		} else {
-			mobileNumber = Utils.getMobile(config, user);
-			emailAddress = user.getEmail();
-		}
-		log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
-		log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+      emailAddress = authSession.getAuthNote("email");
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+      emailAddress = user.getEmail();
+    }
+    log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
+    log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
-		int length = Integer.parseInt(
-			config.getConfig().get(Utils.CODE_LENGTH)
-		);
-		int ttl = Integer.parseInt(
-			config.getConfig().get(Utils.CODE_TTL)
-		);
+    int length = Integer.parseInt(config.getConfig().get(Utils.CODE_LENGTH));
+    int ttl = Integer.parseInt(config.getConfig().get(Utils.CODE_TTL));
 
 		String code = SecretGenerator
 			.getInstance()
@@ -122,54 +108,34 @@ public class Utils {
 		log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
 		log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
-		if (
-			mobileNumber != null &&
-			mobileNumber.trim().length() > 0 &&
-			(
-				messageCourier == MessageCourier.SMS ||
-				messageCourier == MessageCourier.BOTH
-			)
-		) {
-			SmsSenderProvider smsSenderProvider = 
-				session.getProvider(SmsSenderProvider.class);
-			log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
-			List<String> smsAttributes = ImmutableList.of(
-				realmName,
-				code,
-				String.valueOf(Math.floorDiv(ttl, 60))
-			);
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (messageCourier == MessageCourier.SMS || messageCourier == MessageCourier.BOTH)) {
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes =
+          ImmutableList.of(realmName, code, String.valueOf(Math.floorDiv(ttl, 60)));
 
-			smsSenderProvider.send(
-				mobileNumber.trim(),
-				Utils.SEND_CODE_SMS_I18N_KEY,
-				smsAttributes,
-				realm,
-				user,
-				session
-			);
-		} else {
-			log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
-		}
+      smsSenderProvider.send(
+          mobileNumber.trim(), Utils.SEND_CODE_SMS_I18N_KEY, smsAttributes, realm, user, session);
+    } else {
+      log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
+    }
 
-		if (
-			emailAddress != null &&
-			emailAddress.trim().length() > 0 &&
-			(
-				messageCourier == MessageCourier.EMAIL ||
-				messageCourier == MessageCourier.BOTH
-			)
-		) {
-			log.infov("sendCode(): Sending email to=`{0}`", emailAddress.trim());
-			EmailTemplateProvider emailTemplateProvider =
-				session.getProvider(EmailTemplateProvider.class);
+    if (emailAddress != null
+        && emailAddress.trim().length() > 0
+        && (messageCourier == MessageCourier.EMAIL || messageCourier == MessageCourier.BOTH)) {
+      log.infov("sendCode(): Sending email to=`{0}`", emailAddress.trim());
+      EmailTemplateProvider emailTemplateProvider =
+          session.getProvider(EmailTemplateProvider.class);
 
-			Map<String, Object> messageAttributes = Maps.newHashMap();
-			messageAttributes.put("realmName", realmName);
-			messageAttributes.put("code", code);
-			messageAttributes.put("ttl", Math.floorDiv(ttl, 60));
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realmName);
+      messageAttributes.put("code", code);
+      messageAttributes.put("ttl", Math.floorDiv(ttl, 60));
 
-			List<Object> subjAttr = ImmutableList.of(realmName);
-			log.infov("sendCode(): Sending email: prepared messageAttributes");
+      List<Object> subjAttr = ImmutableList.of(realmName);
+      log.infov("sendCode(): Sending email: prepared messageAttributes");
 
 			try {
 				if (deferredUser) {
@@ -204,89 +170,64 @@ public class Utils {
 		}
 	}
 
-	String getMobile(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getMobile()");
-		if (config == null) {
-			log.infov("getMobile(): NULL config={0}", config);
-			return user.getFirstAttribute(
-				MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
-			);
-		}
-
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.TEL_USER_ATTRIBUTE))
-		{
-			log.infov("getEmail(): NullOrNotFound mapConfig={0}", mapConfig);
-			return user.getFirstAttribute(
-				MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
-			);
-		}
-		String telUserAttribute = mapConfig.get(Utils.TEL_USER_ATTRIBUTE);
-
-		String mobile = user.getFirstAttribute(telUserAttribute);
-		log.infov(
-			"getMobile(): telUserAttribute={0}, mobile={1}",
-			telUserAttribute,
-			mobile
-		);
-		return mobile;
-	}
-
-	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
-	{
-		// Using streams to find the first matching configuration
-		// TODO: We're assuming there's only one instance in this realm of this 
-		// authenticator
-		Optional<AuthenticatorConfigModel> configOptional = realm
-			.getAuthenticationFlowsStream()
-			.flatMap(flow ->
-				realm.getAuthenticationExecutionsStream(flow.getId())
-			)
-			.filter(model -> {
-				boolean ret = (
-					model.getAuthenticator() != null &&
-					model
-						.getAuthenticator()
-						.equals(MessageOTPAuthenticatorFactory.PROVIDER_ID)
-				);
-				return ret;
-			})
-			.map(model ->
-				realm.getAuthenticatorConfigById(model.getAuthenticatorConfig())
-			)
-			.findFirst();
-		return configOptional;
-	}
-
-	/**
-	 * We use constant time comparison for security reasons, to avoid timing
-	 * attacks
-	 */
-	boolean constantTimeIsEqual(byte[] digesta, byte[] digestb)
-	{
-		if (digesta.length != digestb.length) {
-			return false;
-		}
-	
-		int result = 0;
-		// time-constant comparison
-		for (int i = 0; i < digesta.length; i++) {
-			result |= digesta[i] ^ digestb[i];
-		}
-		return result == 0;
-	}
-
-
-    public static String getRealmName(RealmModel realm)
-    {
-        return Strings.isNullOrEmpty(realm.getDisplayName())
-            ? realm.getName()
-            : realm.getDisplayName();
+  String getMobile(AuthenticatorConfigModel config, UserModel user) {
+    log.infov("getMobile()");
+    if (config == null) {
+      log.infov("getMobile(): NULL config={0}", config);
+      return user.getFirstAttribute(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
     }
 
+    Map<String, String> mapConfig = config.getConfig();
+    if (mapConfig == null || !mapConfig.containsKey(Utils.TEL_USER_ATTRIBUTE)) {
+      log.infov("getEmail(): NullOrNotFound mapConfig={0}", mapConfig);
+      return user.getFirstAttribute(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    }
+    String telUserAttribute = mapConfig.get(Utils.TEL_USER_ATTRIBUTE);
+
+    String mobile = user.getFirstAttribute(telUserAttribute);
+    log.infov("getMobile(): telUserAttribute={0}, mobile={1}", telUserAttribute, mobile);
+    return mobile;
+  }
+
+  Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
+    // Using streams to find the first matching configuration
+    // TODO: We're assuming there's only one instance in this realm of this
+    // authenticator
+    Optional<AuthenticatorConfigModel> configOptional =
+        realm
+            .getAuthenticationFlowsStream()
+            .flatMap(flow -> realm.getAuthenticationExecutionsStream(flow.getId()))
+            .filter(
+                model -> {
+                  boolean ret =
+                      (model.getAuthenticator() != null
+                          && model
+                              .getAuthenticator()
+                              .equals(MessageOTPAuthenticatorFactory.PROVIDER_ID));
+                  return ret;
+                })
+            .map(model -> realm.getAuthenticatorConfigById(model.getAuthenticatorConfig()))
+            .findFirst();
+    return configOptional;
+  }
+
+  /** We use constant time comparison for security reasons, to avoid timing attacks */
+  boolean constantTimeIsEqual(byte[] digesta, byte[] digestb) {
+    if (digesta.length != digestb.length) {
+      return false;
+    }
+
+    int result = 0;
+    // time-constant comparison
+    for (int i = 0; i < digesta.length; i++) {
+      result |= digesta[i] ^ digestb[i];
+    }
+    return result == 0;
+  }
+
+  public static String getRealmName(RealmModel realm) {
+    return Strings.isNullOrEmpty(realm.getDisplayName()) ? realm.getName() : realm.getDisplayName();
+  }
 
     protected EmailTemplate processEmailTemplate(
 		KeycloakSession session,
@@ -302,98 +243,98 @@ public class Utils {
 			Locale locale = session.getContext().resolveLocale(user);
 			attributes.put("locale", locale);
 
-			Properties messages = theme.getEnhancedMessages(realm, locale);
-			attributes.put("msg", new MessageFormatterMethod(locale, messages));
+      Properties messages = theme.getEnhancedMessages(realm, locale);
+      attributes.put("msg", new MessageFormatterMethod(locale, messages));
 
-			attributes.put("properties", theme.getProperties());
-			attributes.put("realmName", realm.getName());
-			if (user != null) {
-				attributes.put("user", new ProfileBean(user));
-			}
-			KeycloakUriInfo uriInfo = session.getContext().getUri();
-			attributes.put("url", new UrlBean(realm, theme, uriInfo.getBaseUri(), null));
+      attributes.put("properties", theme.getProperties());
+      attributes.put("realmName", realm.getName());
+      if (user != null) {
+        attributes.put("user", new ProfileBean(user));
+      }
+      KeycloakUriInfo uriInfo = session.getContext().getUri();
+      attributes.put("url", new UrlBean(realm, theme, uriInfo.getBaseUri(), null));
 
-			String subject = new MessageFormat(messages.getProperty(subjectKey, subjectKey), locale).format(subjectAttributes.toArray());
-			String textTemplate = String.format("text/%s", template);
-			String textBody;
-			FreeMarkerProvider freeMarker = session.getProvider(FreeMarkerProvider.class);
-			try {
-				textBody = freeMarker.processTemplate(attributes, textTemplate, theme);
-			} catch (final FreeMarkerException e) {
-				throw new EmailException("Failed to template plain text email.", e);
-			}
-			String htmlTemplate = String.format("html/%s", template);
-			String htmlBody;
-			try {
-				htmlBody = freeMarker.processTemplate(attributes, htmlTemplate, theme);
-			} catch (final FreeMarkerException e) {
-				throw new EmailException("Failed to template html email.", e);
-			}
-            return new EmailTemplate(subject, textBody, htmlBody);
-		} catch (Exception e) {
-			throw new EmailException("Failed to template email", e);
-		}
+      String subject =
+          new MessageFormat(messages.getProperty(subjectKey, subjectKey), locale)
+              .format(subjectAttributes.toArray());
+      String textTemplate = String.format("text/%s", template);
+      String textBody;
+      FreeMarkerProvider freeMarker = session.getProvider(FreeMarkerProvider.class);
+      try {
+        textBody = freeMarker.processTemplate(attributes, textTemplate, theme);
+      } catch (final FreeMarkerException e) {
+        throw new EmailException("Failed to template plain text email.", e);
+      }
+      String htmlTemplate = String.format("html/%s", template);
+      String htmlBody;
+      try {
+        htmlBody = freeMarker.processTemplate(attributes, htmlTemplate, theme);
+      } catch (final FreeMarkerException e) {
+        throw new EmailException("Failed to template html email.", e);
+      }
+      return new EmailTemplate(subject, textBody, htmlBody);
+    } catch (Exception e) {
+      throw new EmailException("Failed to template email", e);
+    }
+  }
+
+  protected void sendEmail(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      String subjectFormatKey,
+      List<Object> subjectAttributes,
+      String bodyTemplate,
+      Map<String, Object> bodyAttributes,
+      String address)
+      throws EmailException {
+    try {
+      EmailTemplate emailTemplate =
+          processEmailTemplate(
+              session,
+              realm,
+              user,
+              subjectFormatKey,
+              subjectAttributes,
+              bodyTemplate,
+              bodyAttributes);
+      EmailSenderProvider emailSender = session.getProvider(EmailSenderProvider.class);
+
+      emailSender.send(
+          realm.getSmtpConfig(),
+          emailTemplate.getSubject(),
+          emailTemplate.getTextBody(),
+          emailTemplate.getHtmlBody(),
+          address);
+    } catch (EmailException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new EmailException("Failed to template email", e);
+    }
+  }
+
+  protected static class EmailTemplate {
+
+    private String subject;
+    private String textBody;
+    private String htmlBody;
+
+    public EmailTemplate(String subject, String textBody, String htmlBody) {
+      this.subject = subject;
+      this.textBody = textBody;
+      this.htmlBody = htmlBody;
     }
 
-    protected void sendEmail(
-		KeycloakSession session,
-		RealmModel realm,
-		UserModel user,
-		String subjectFormatKey,
-		List<Object> subjectAttributes,
-		String bodyTemplate,
-		Map<String, Object> bodyAttributes,
-		String address
-	) throws EmailException {
-        try {
-            EmailTemplate emailTemplate = processEmailTemplate(
-				session,
-				realm,
-				user,
-				subjectFormatKey,
-				subjectAttributes,
-				bodyTemplate,
-				bodyAttributes
-			);
-			EmailSenderProvider emailSender =
-				session.getProvider(EmailSenderProvider.class);
-			
-			emailSender.send(
-				realm.getSmtpConfig(),
-				emailTemplate.getSubject(),
-				emailTemplate.getTextBody(),
-				emailTemplate.getHtmlBody(),
-				address
-			);
-        } catch (EmailException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new EmailException("Failed to template email", e);
-        }
+    public String getSubject() {
+      return subject;
     }
 
-    protected static class EmailTemplate {
-
-        private String subject;
-        private String textBody;
-        private String htmlBody;
-
-        public EmailTemplate(String subject, String textBody, String htmlBody) {
-            this.subject = subject;
-            this.textBody = textBody;
-            this.htmlBody = htmlBody;
-        }
-
-        public String getSubject() {
-            return subject;
-        }
-
-        public String getTextBody() {
-            return textBody;
-        }
-
-        public String getHtmlBody() {
-            return htmlBody;
-        }
+    public String getTextBody() {
+      return textBody;
     }
+
+    public String getHtmlBody() {
+      return htmlBody;
+    }
+  }
 }

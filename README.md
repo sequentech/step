@@ -68,7 +68,7 @@ To launch the `admin-portal` in development mode, execute (the first time):
 
 ```bash
 cd /workspaces/step/packages/
-yarn && yarn build:ui-essentials # only needed the first time
+yarn && yarn build:ui-core && yarn build:ui-essentials # only needed the first time
 yarn start:admin-portal
 ```
 
@@ -479,14 +479,15 @@ Then you need to execute some further updates:
 
 ```bash
 cd /workspaces/step/packages/
-rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+rm ./ui-core/rust/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 
-rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
+rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
-yarn && yarn build:ui-essentials
+yarn && yarn build:ui-core && yarn build:ui-essentials
 ```
 
 And then everything should work and be updated.

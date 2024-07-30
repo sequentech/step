@@ -9,7 +9,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
+import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 

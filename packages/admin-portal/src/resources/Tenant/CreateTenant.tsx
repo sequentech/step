@@ -10,7 +10,7 @@ import {InsertTenantMutation} from "../../gql/graphql"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {useTranslation} from "react-i18next"
 import {useNavigate} from "react-router"
-import {isNull} from "@sequentech/ui-essentials"
+import {isNull} from "@sequentech/ui-core"
 
 export const CreateTenant: React.FC = () => {
     const [createTenant] = useMutation<InsertTenantMutation>(INSERT_TENANT)

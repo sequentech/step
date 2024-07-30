@@ -5,20 +5,15 @@
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
-    Dialog,
-    IconButton,
-    PageLimit,
-    SelectElection,
     isString,
     stringToHtml,
-    theme,
     translateElection,
     EVotingStatus,
     IElectionEventStatus,
-    IBallotStyle as IElectionDTO,
     isUndefined,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -56,7 +51,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
-import {getLanguageFromURL} from "../utils/queryParams"
+import useUpdateTranslation from "../hooks/useUpdateTranslation"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -93,10 +88,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const {i18n} = useTranslation()
 
     const {tenantId, eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
 
     if (!election) {
@@ -182,7 +177,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 labels: null,
                 last_updated_at: "",
             }
-            dispatch(setElection(election))
+            dispatch(setElection({...election, image_document_id: ""}))
             dispatch(setBallotStyle(formattedBallotStyle))
             dispatch(clearIsVoted())
             dispatch(
@@ -204,10 +199,10 @@ const ElectionSelectionScreen: React.FC = () => {
 
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
-
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    useUpdateTranslation({electionEvent}) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
@@ -215,7 +210,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const castVotesTestElection = useAppSelector(
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
-
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
     const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
@@ -277,7 +271,14 @@ const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (dataElections && dataElections.sequent_backend_election.length > 0) {
             for (let election of dataElections.sequent_backend_election) {
-                dispatch(setElection(election))
+                dispatch(
+                    setElection({
+                        ...election,
+                        image_document_id: "",
+                        contests: [],
+                        description: election.description ?? undefined,
+                    })
+                )
             }
 
             setHasLoadElections(true)
@@ -340,7 +341,6 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        console.log("openDemoModal", openDemoModal)
         if (isDemo && openDemoModal === undefined) {
             setOpenDemoModal(true)
         }

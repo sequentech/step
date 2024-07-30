@@ -238,8 +238,25 @@ const frenchTranslation: TranslationType = {
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
+                reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+            },
+            localization: {
+                emptyHeader: "Aucune langue n'a été définie pour l'événement",
+                selectLanguage: "Sélectionnez la langue",
+                notify: {
+                    success: "Localisation mise à jour avec succès",
+                    error: "Échec de la mise à jour de la localisation",
+                },
+                common: {
+                    title: "Localisation",
+                    subTitle: "Configuration de la localisation",
+                },
+                labels: {
+                    key: "Clé",
+                    value: "Valeur",
+                },
             },
             field: {
                 name: "Nom",
@@ -317,6 +334,7 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 dashboard: "Tableau de Bord",
                 data: "Données",
+                localization: "Localisation",
                 voters: "Électeurs",
                 areas: "Zones",
                 keys: "Clés",
@@ -404,6 +422,8 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
+                reorder: "Réorganiser les concours",
+                castVoteConfirm: "Modal de Confirmation de Vote",
             },
             field: {
                 name: "Nom",
@@ -770,6 +790,7 @@ const frenchTranslation: TranslationType = {
                 system: "Système de vote de bulletins",
                 design: "Design du bulletin",
                 reorder: "Réorganiser les candidats",
+                policies: "Politiques",
             },
             field: {
                 name: "Nom",
@@ -794,6 +815,12 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Seulement Candidats",
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
+            },
+            blankVotePolicy: {
+                "label": "Politique de vote blanc",
+                "allowed": "Autorisé",
+                "warn": "Avertir",
+                "not-allowed": "Non autorisé",
             },
             error: {},
             createContestSuccess: "Question créée",

@@ -134,7 +134,24 @@ export HASH=$(sha1sum ./rust/pkg/sequent-core-0.1.0.tgz | cut -d" " -f 1)
 sed -i "s/sequent-core-0\.1\.0\.\.tgz#.*/sequent-core-0.1.0.tgz#${HASH}\"/g" yarn.lock
 ```
 
-# 5. Compile the Ui library
+# 5. Compile the Ui Core library
+
+The ballot verifier uses the common UI librarry [ui-core] as a github submodule.
+If you're using devcontainers it should already be checked in, otherwise run:
+
+```bash
+git submodule update --init
+```
+
+Then you need to compile ui-core:
+
+```bash
+cd ui-core
+yarn
+yarn build
+```
+
+# 6. Compile the Ui library
 
 The ballot verifier uses the common UI librarry [ui-essentials] as a github submodule.
 If you're using devcontainers it should already be checked in, otherwise run:
@@ -152,7 +169,7 @@ yarn build
 ```
 
 
-# 56. Launching the UI in development mode
+# 6.5. Launching the UI in development mode
 
 Once you have compiled the rust code and within the `nix develop` environment,
 you can start the react development server from the repository's root folder:

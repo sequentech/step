@@ -8,7 +8,7 @@ import emotionStyled from "@emotion/styled"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
-import {isUndefined} from "../../utils/typechecks"
+import {isUndefined} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`

@@ -238,8 +238,25 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
+            },
+            localization: {
+                emptyHeader: "No se han establecido idiomas para el evento",
+                selectLanguage: "Seleccionar idioma",
+                notify: {
+                    success: "Localización actualizada con éxito",
+                    error: "La actualización de la localización ha fallado",
+                },
+                common: {
+                    title: "Localización",
+                    subTitle: "Configuración de la localización",
+                },
+                labels: {
+                    key: "Clave",
+                    value: "Valor",
+                },
             },
             field: {
                 name: "Nombre",
@@ -317,6 +334,7 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 dashboard: "Panel de Control",
                 data: "Datos",
+                localization: "Localización",
                 voters: "Votantes",
                 areas: "Áreas",
                 keys: "Claves",
@@ -402,6 +420,8 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
+                reorder: "Reordenar concursos",
+                castVoteConfirm: "Modal de Confirmación de Voto",
             },
             field: {
                 name: "Nombre",
@@ -767,6 +787,7 @@ const spanishTranslation: TranslationType = {
                 system: "Sistema de votación de papeletas",
                 design: "Diseño de la papeleta",
                 reorder: "Reordernar candidatos",
+                policies: "Políticas",
             },
             field: {
                 name: "Nombre",
@@ -791,6 +812,12 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-candidates": "Sólo Candidatos",
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
+            },
+            blankVotePolicy: {
+                "label": "Política de voto en blanco",
+                "allowed": "Permitido",
+                "warn": "Advertir",
+                "not-allowed": "No permitido",
             },
             error: {},
             createContestSuccess: "Pregunta creado",
