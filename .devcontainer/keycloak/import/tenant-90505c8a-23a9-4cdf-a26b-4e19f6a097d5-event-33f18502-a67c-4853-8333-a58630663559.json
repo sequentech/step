@@ -442,16 +442,16 @@
       "embassy" : [ "Algiers" ],
       "locale" : [ "en" ],
       "sequent.read-only.id-card-type" : [ "PhilSys ID" ],
-      "emailAndOrMobile" : [ "email" ]
+      "emailAndOrMobile" : [ "sequent.read-only.mobile-number", "email" ]
     },
     "createdTimestamp" : 1721994783438,
     "enabled" : true,
     "totp" : false,
     "credentials" : [ {
-      "id" : "29993337-c9d6-4901-b986-c7fbab41ceed",
+      "id" : "ae807b58-28d8-4978-b65d-737b9ccdad0b",
       "type" : "password",
-      "createdDate" : 1722351877215,
-      "secretData" : "{\"value\":\"ciS6snN4myRb0pqJbr6Yptyt0pknEF3x60HUUsqiRWi0fZYqF8EcSpZCQ8vZnoGOBo71huioDJFAOFkUOa8G5w==\",\"salt\":\"Z/8bgXuihMXQ24ZcbugzUA==\",\"additionalParameters\":{}}",
+      "createdDate" : 1722359569762,
+      "secretData" : "{\"value\":\"uWUbkaQGPQYmd/xGdKxXYpmg5q3CxMvTK27mJrr6Y+mqrKZZSbL1dzDJm0uyvq4cvpWhEXb/Vxczj/ahCHBHbg==\",\"salt\":\"K7J9VfvnM+gsYuIs1y1rTQ==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
     } ],
     "disableableCredentialTypes" : [ ],
@@ -2168,7 +2168,8 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
-      "authenticator" : "auth-username-password-form",
+      "authenticatorConfig" : "UPF-apec",
+      "authenticator" : "expiry-username-password-form",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 21,
@@ -2179,20 +2180,20 @@
       "authenticator" : "user-session-limits",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
-      "priority" : 22,
+      "priority" : 25,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
       "requirement" : "CONDITIONAL",
-      "priority" : 25,
+      "priority" : 26,
       "autheticatorFlow" : true,
       "flowAlias" : "message-otp-subflow",
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
       "requirement" : "CONDITIONAL",
-      "priority" : 26,
+      "priority" : 27,
       "autheticatorFlow" : true,
       "flowAlias" : "sequent browser flow Browser - Conditional OTP",
       "userSetupAllowed" : false
@@ -2267,6 +2268,16 @@
     } ]
   } ],
   "authenticatorConfig" : [ {
+    "id" : "0558dfeb-9f6b-42fb-b11a-0066ed04049b",
+    "alias" : "UPF-apec",
+    "config" : {
+      "recaptchaActionName" : "login",
+      "usernameAttributes" : "sequent.read-only.mobile-number##email",
+      "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
+      "recaptchaEnabled" : "false",
+      "recaptchaMinScore" : "0.5"
+    }
+  }, {
     "id" : "642e9134-8da8-469b-87a0-876483cd08e5",
     "alias" : "auth-note-email",
     "config" : {
@@ -2377,8 +2388,8 @@
     "id" : "286dfc32-f26f-4b06-8efa-169879045e2e",
     "alias" : "lookup-register",
     "config" : {
-      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country",
-      "auto-login" : "true",
+      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile",
+      "auto-login" : "false",
       "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
     }
   }, {

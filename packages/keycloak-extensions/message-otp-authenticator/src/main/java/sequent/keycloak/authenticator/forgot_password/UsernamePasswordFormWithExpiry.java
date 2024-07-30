@@ -17,6 +17,7 @@ import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
+import org.keycloak.events.Details;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -154,18 +155,59 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     return true;
   }
 
+  @Override
+  public boolean validateUserAndPassword(
+      AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
+    UserModel user = getUser(context, inputData);
+    boolean shouldClearUserFromCtxAfterBadPassword =
+        !isUserAlreadySetBeforeUsernamePasswordAuth(context);
+    return user != null
+        && validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword)
+        && validateUser(context, user, inputData);
+  }
+
+  @Override
+  public boolean validateUser(
+      AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
+    UserModel user = getUser(context, inputData);
+    return user != null && validateUser(context, user, inputData);
+  }
+
+  private boolean validateUser(
+      AuthenticationFlowContext context, UserModel user, MultivaluedMap<String, String> inputData) {
+    if (!enabledUser(context, user)) {
+      return false;
+    }
+    String rememberMe = inputData.getFirst("rememberMe");
+    boolean remember =
+        context.getRealm().isRememberMe()
+            && rememberMe != null
+            && rememberMe.equalsIgnoreCase("on");
+    if (remember) {
+      context.getAuthenticationSession().setAuthNote(Details.REMEMBER_ME, "true");
+      context.getEvent().detail(Details.REMEMBER_ME, "true");
+    } else {
+      context.getAuthenticationSession().removeAuthNote(Details.REMEMBER_ME);
+    }
+    context.setUser(user);
+    return true;
+  }
+
   private UserModel getUser(
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
     UserModel user = context.getUser();
     if (user != null) {
+      log.info("getUser(): User is set");
       return user;
     } else {
+      log.info("getUser(): User is null");
       return getUserFromForm(context, inputData);
     }
   }
 
   private UserModel getUserFromForm(
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
+    log.info("getUserFromForm(): start");
     String username = inputData.getFirst(AuthenticationManager.FORM_USERNAME);
     if (username == null) {
       return null;
@@ -176,7 +218,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
     UserModel user = null;
     try {
-      user = findUser(context.getSession(), context.getRealm(), username);
+      List<String> usernameAttributes =
+          Utils.getMultivalueString(
+              context.getAuthenticatorConfig(),
+              Utils.USERNAME_ATTRIBUTES,
+              Utils.USERNAME_ATTRIBUTES_DEFAULT);
+      user = findUser(context.getSession(), context.getRealm(), username, usernameAttributes);
     } catch (ModelDuplicateException mde) {
       return user;
     }
@@ -184,7 +231,23 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     return user;
   }
 
-  private UserModel findUser(KeycloakSession session, RealmModel realm, String username) {
+  private UserModel findUser(
+      KeycloakSession session, RealmModel realm, String username, List<String> usernameAttributes) {
+    if (usernameAttributes != null && !usernameAttributes.isEmpty()) {
+      for (String attribute : usernameAttributes) {
+        UserModel user =
+            session
+                .users()
+                .searchForUserByUserAttributeStream(realm, attribute, username)
+                .findFirst()
+                .orElse(null);
+
+        if (user != null) {
+          return user;
+        }
+      }
+    }
+
     if (realm.isLoginWithEmailAllowed() && username.indexOf('@') != -1) {
       UserModel user = session.users().getUserByEmail(realm, username);
       if (user != null) {
@@ -300,6 +363,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
     return List.of(
+        new ProviderConfigProperty(
+            Utils.USERNAME_ATTRIBUTES,
+            "User attributes used as username",
+            "User attributes used as username. For Example: email or phone number",
+            ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
+            Utils.USERNAME_ATTRIBUTES_DEFAULT),
         new ProviderConfigProperty(
             Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE,
             "User attribute for Password Expiration Date",
