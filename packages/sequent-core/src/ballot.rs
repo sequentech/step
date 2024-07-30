@@ -775,7 +775,7 @@ impl ContestPresentation {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
-            pagination_policy: Some("".to_owned()),  
+            pagination_policy: Some("".to_owned()),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,
