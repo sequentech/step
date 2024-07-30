@@ -120,6 +120,7 @@ public class Utils {
 
 		log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
 		log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
+		log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
 		if (
 			mobileNumber != null &&

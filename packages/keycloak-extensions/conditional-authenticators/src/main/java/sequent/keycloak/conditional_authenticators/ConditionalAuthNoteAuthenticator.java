@@ -77,7 +77,7 @@ public class ConditionalAuthNoteAuthenticator
             );
             return false;
         }
-        boolean authNoteMatch = authNoteValue.equals(requiredAuthNoteKey);
+        boolean authNoteMatch = requiredAuthNoteValue == null ? authNoteValue.isBlank() || authNoteValue.isEmpty() : requiredAuthNoteValue.equals(authNoteValue);
         log.infov(
             "matchCondition(): requiredAuthNoteKey={0}, requiredAuthNoteValue={1}, authNoteValue={2}, negateOutput[{3}] != authNoteMatch[{4}]",
             requiredAuthNoteKey,
