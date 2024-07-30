@@ -69,7 +69,7 @@ public class MessageOTPAuthenticator
 			context
 				.challenge(
 					context.form().setAttribute("realm", context.getRealm()
-				)
+				).setAttribute("courier", messageCourier)
 				.createForm(TPL_CODE));
 		} catch (Exception error) {
 			log.infov("there was an error {0}", error);
