@@ -5,11 +5,11 @@
 package sequent.keycloak.authenticator.forgot_password;
 
 import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.util.*;
 import lombok.extern.jbosslog.JBossLog;
-import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
@@ -27,7 +27,6 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
-import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.managers.AuthenticationManager;
@@ -177,9 +176,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
     UserModel user = null;
     try {
-      user =
-          KeycloakModelUtils.findUserByNameOrEmail(
-              context.getSession(), context.getRealm(), username);
+      user = findUser(context.getSession(), context.getRealm(), username);
     } catch (ModelDuplicateException mde) {
       return user;
     }
@@ -187,15 +184,25 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     return user;
   }
 
+  private UserModel findUser(KeycloakSession session, RealmModel realm, String username) {
+    if (realm.isLoginWithEmailAllowed() && username.indexOf('@') != -1) {
+      UserModel user = session.users().getUserByEmail(realm, username);
+      if (user != null) {
+        return user;
+      }
+    }
+
+    return session.users().getUserByUsername(realm, username);
+  }
+
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     log.info("action()");
-    MultivaluedMap<String, String> formData = new MultivaluedMapImpl<>();
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
     String loginHint =
         context.getAuthenticationSession().getClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM);
     String rememberMeUsername =
-        AuthenticationManager.getRememberMeUsername(
-            context.getRealm(), context.getHttpRequest().getHttpHeaders());
+        AuthenticationManager.getRememberMeUsername(context.getSession());
 
     if (context.getUser() != null) {
       LoginFormsProvider form = context.form();

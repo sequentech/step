@@ -243,7 +243,7 @@ public class Utils {
       attributes.put("properties", theme.getProperties());
       attributes.put("realmName", realm.getName());
       if (user != null) {
-        attributes.put("user", new ProfileBean(user));
+        attributes.put("user", new ProfileBean(user, session));
       }
       KeycloakUriInfo uriInfo = session.getContext().getUri();
       attributes.put("url", new UrlBean(realm, theme, uriInfo.getBaseUri(), null));

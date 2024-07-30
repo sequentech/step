@@ -6,10 +6,10 @@ package sequent.keycloak.authenticator.forgot_password;
 
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 import lombok.extern.jbosslog.JBossLog;
-import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
 import org.keycloak.Config;
 import org.keycloak.authentication.*;
 import org.keycloak.authentication.authenticators.broker.AbstractIdpAuthenticator;
@@ -76,7 +76,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
       return;
     }
 
-    MultivaluedMap<String, String> formData = new MultivaluedMapImpl<>();
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
     Response challengeResponse = challenge(context, formData);
     context.challenge(challengeResponse);
   }
