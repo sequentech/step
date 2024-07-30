@@ -50,12 +50,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</form>
 	<#elseif section = "info" >
-		<#if courier = "SMS">
-			${msg("messageOtpAuthInstructionSms")}
-		<#elseif courier = "EMAIL" >
-			${msg("messageOtpAuthInstructionEmail")}
-		<#elseif courier = "BOTH" >
-			${msg("messageOtpAuthInstruction")}
+		<#if courier??>
+			<#if courier = "SMS">
+				${msg("messageOtpAuthInstructionSms")}
+			<#elseif courier = "EMAIL" >
+				${msg("messageOtpAuthInstructionEmail")}
+			<#elseif courier = "BOTH" >
+				${msg("messageOtpAuthInstruction")}
+			</#if>
 		</#if>
 	</#if>
 </@layout.registrationLayout>
