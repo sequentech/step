@@ -13,6 +13,7 @@ import {
     stringToHtml,
     isUndefined,
     translateElection,
+    IContest,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -80,14 +81,14 @@ interface ActionButtonProps {
     handleNext: () => void
     handlePrev: () => void
     handleClearCustom?: () => void
-    contestIndex?: number
+    pageIndex?: number
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
     handleNext,
     handlePrev,
     handleClearCustom,
-    contestIndex,
+    pageIndex,
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
@@ -122,7 +123,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             <ActionsContainer>
                 <StyledLink
-                    to={contestIndex && contestIndex > 0 ? "" : backLink}
+                    to={pageIndex && pageIndex > 0 ? "" : backLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
@@ -159,7 +160,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
 interface ContestPaginationProps {
     ballotStyle: any
-    contests: any
+    contests: IContest[][]
     onSetDisableNext: (contest: any) => void
     onSetDecodedContests: (contest: any) => void
     encryptAndReview: () => void
@@ -173,20 +174,22 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     encryptAndReview,
 }) => {
     const dispatch = useAppDispatch()
-    const [contestIndex, setContextIndex] = useState(0)
-    const currContest = contests[contestIndex]
+
+    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
+    const [pageIndex, setPageIndex] = useState(0)
+    const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
 
     const handleNext = () => {
-        if (contestIndex === contests.length - 1) {
+        if (pageIndex === contests.length - 1) {
             encryptAndReview()
         } else {
-            setContextIndex(contestIndex + 1)
+            setPageIndex(pageIndex + 1)
         }
     }
 
     const handlePrev = () => {
-        if (contestIndex > 0) {
-            setContextIndex(contestIndex - 1)
+        if (pageIndex > 0) {
+            setPageIndex(pageIndex - 1)
         } else {
             dispatch(clearIsVoted())
         }
@@ -194,32 +197,38 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
 
     function handleClear() {
         if (ballotStyle) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                    contestId: currContest.id,
-                })
-            )
-            if (contestIndex === 0) dispatch(clearIsVoted())
+            contests[pageIndex].forEach((contest) => {
+                dispatch(
+                    resetBallotSelection({
+                        ballotStyle,
+                        force: true,
+                        contestId: contest.id,
+                    })
+                )
+            })
+            if (pageIndex === 0) dispatch(clearIsVoted())
         }
     }
 
     return (
         <>
-            <Question
-                ballotStyle={ballotStyle}
-                question={currContest}
-                key={contestIndex}
-                isReview={false}
-                setDisableNext={() => onSetDisableNext(currContest)}
-                setDecodedContests={() => onSetDecodedContests(currContest)}
-            />
+            {sortedContests &&
+                sortedContests.map((contest) => (
+                    <div key={contest.id}>
+                        <Question
+                            ballotStyle={ballotStyle}
+                            question={contest}
+                            isReview={false}
+                            setDisableNext={() => onSetDisableNext(contest)}
+                            setDecodedContests={() => onSetDecodedContests(contest)}
+                        />
+                    </div>
+                ))}
             <ActionButtons
                 handleNext={handleNext}
                 handlePrev={handlePrev}
                 handleClearCustom={handleClear}
-                contestIndex={contestIndex}
+                pageIndex={pageIndex}
             />
         </>
     )
@@ -236,13 +245,11 @@ const VotingScreen: React.FC = () => {
     let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
+    const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-    const ballot_pagination = 
-        ballotStyle?.ballot_eml?.election_presentation?.ballot_pagination ??
-        EBallotPagination.ONE_PAGE
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -333,6 +340,7 @@ const VotingScreen: React.FC = () => {
 
     useEffect(() => {
         let minMaxGlobal = false
+        let contestsPages = new Map<String, IContest[]>()
 
         for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
             let countVotes = 0
@@ -344,7 +352,16 @@ const VotingScreen: React.FC = () => {
             }
             let outOfRange = countVotes < contest.min_votes || countVotes > contest.max_votes
             minMaxGlobal = minMaxGlobal || outOfRange
+
+            // Calculate contests pagination using the pagination_policy string identifier
+            const contestPageName = contest.presentation?.pagination_policy || ""
+            if (!contestsPages.has(contestPageName)) {
+                contestsPages.set(contestPageName, [])
+            }
+            contestsPages.get(contestPageName)!.push(contest)
         }
+        const contestsAsArrays = Array.from(contestsPages.values())
+        setContestsPerPage(contestsAsArrays)
 
         setDisableNext((state) => ({
             ...state,
@@ -355,9 +372,6 @@ const VotingScreen: React.FC = () => {
     if (!ballotStyle || !election) {
         return <CircularProgress />
     }
-
-    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
-    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     const warnAllowContinue = (value: boolean) => {
         setOpenNonVoted(false)
@@ -396,29 +410,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {ballot_pagination === EBallotPagination.ONE_PAGE ? (
-                <>
-                    {contests.map((contest, index) => (
-                        <Question
-                            ballotStyle={ballotStyle}
-                            question={contest}
-                            key={index}
-                            isReview={false}
-                            setDisableNext={() => onSetDisableNext(contest.id)}
-                            setDecodedContests={() => onSetDecodedContests(contest.id)}
-                        />
-                    ))}
-                    <ActionButtons handleNext={encryptAndReview} handlePrev={handlePrev} />
-                </>
-            ) : (
-                <ContestPagination
-                    ballotStyle={ballotStyle}
-                    contests={contests}
-                    onSetDisableNext={onSetDisableNext}
-                    onSetDecodedContests={onSetDecodedContests}
-                    encryptAndReview={encryptAndReview}
-                />
-            )}
+
+            <ContestPagination
+                ballotStyle={ballotStyle}
+                contests={contestsPerPage}
+                onSetDisableNext={onSetDisableNext}
+                onSetDecodedContests={onSetDecodedContests}
+                encryptAndReview={encryptAndReview}
+            />
 
             {disableNextButton() ? (
                 <Dialog
