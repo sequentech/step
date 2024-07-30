@@ -201,8 +201,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
     String loginHint =
         context.getAuthenticationSession().getClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM);
-    String rememberMeUsername =
-        AuthenticationManager.getRememberMeUsername(context.getSession());
+    String rememberMeUsername = AuthenticationManager.getRememberMeUsername(context.getSession());
 
     if (context.getUser() != null) {
       LoginFormsProvider form = context.form();

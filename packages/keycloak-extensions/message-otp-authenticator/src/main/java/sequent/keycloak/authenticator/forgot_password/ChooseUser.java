@@ -5,8 +5,8 @@
 package sequent.keycloak.authenticator.forgot_password;
 
 import com.google.auto.service.AutoService;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 import lombok.extern.jbosslog.JBossLog;
