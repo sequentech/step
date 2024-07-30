@@ -152,6 +152,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     if (autoLogin) {
       context.success();
     } else {
+      context.clearUser();
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
