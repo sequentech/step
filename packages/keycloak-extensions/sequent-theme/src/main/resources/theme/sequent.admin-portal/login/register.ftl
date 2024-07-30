@@ -168,6 +168,5 @@ SPDX-License-Identifier: AGPL-3.0-only
                 $('#' + elementId).val(first);
             }
         </script>
-
     </#if>
 </@layout.registrationLayout>
