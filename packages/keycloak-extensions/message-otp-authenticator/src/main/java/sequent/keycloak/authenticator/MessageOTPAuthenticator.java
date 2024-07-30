@@ -45,6 +45,9 @@ public class MessageOTPAuthenticator
 	public void authenticate(AuthenticationFlowContext context) {
 		log.info("authenticate() called");
 		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+
+		log.infov("authenticate() Alias: {0}", config.getAlias() );
+
 		KeycloakSession session = context.getSession();
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();

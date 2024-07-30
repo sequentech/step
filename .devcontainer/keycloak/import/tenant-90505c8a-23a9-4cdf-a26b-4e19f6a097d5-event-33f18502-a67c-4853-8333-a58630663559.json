@@ -30,7 +30,7 @@
   "enabled" : true,
   "sslRequired" : "external",
   "registrationAllowed" : true,
-  "registrationEmailAsUsername" : false,
+  "registrationEmailAsUsername" : true,
   "rememberMe" : false,
   "verifyEmail" : false,
   "loginWithEmailAllowed" : true,
@@ -434,9 +434,12 @@
     "firstName" : "Xavier",
     "lastName" : "Alsina",
     "email" : "xavier.alsina@sequentech.io",
-    "emailVerified" : false,
+    "emailVerified" : true,
     "attributes" : {
+      "country" : [ "Algiers/Algeria" ],
+      "sequent.read-only.mobile-number" : [ "+34699522208" ],
       "sequent.read-only.id-card-number" : [ "39380103D" ],
+      "embassy" : [ "Algiers" ],
       "locale" : [ "en" ],
       "sequent.read-only.id-card-type" : [ "PhilSys ID" ],
       "emailAndOrMobile" : [ "email" ]
@@ -444,7 +447,13 @@
     "createdTimestamp" : 1721994783438,
     "enabled" : true,
     "totp" : false,
-    "credentials" : [ ],
+    "credentials" : [ {
+      "id" : "29993337-c9d6-4901-b986-c7fbab41ceed",
+      "type" : "password",
+      "createdDate" : 1722351877215,
+      "secretData" : "{\"value\":\"ciS6snN4myRb0pqJbr6Yptyt0pknEF3x60HUUsqiRWi0fZYqF8EcSpZCQ8vZnoGOBo71huioDJFAOFkUOa8G5w==\",\"salt\":\"Z/8bgXuihMXQ24ZcbugzUA==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+    } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
@@ -1806,7 +1815,7 @@
       "authenticatorConfig" : "inetum-registration",
       "authenticator" : "inetum-authenticator",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
+      "requirement" : "DISABLED",
       "priority" : 15,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
@@ -1837,7 +1846,7 @@
     } ]
   }, {
     "id" : "7b248f81-6142-4a51-abbf-d4ea838cdee6",
-    "alias" : "deferred-otp-subflow-sms",
+    "alias" : "deferred-otp-subflow",
     "description" : "",
     "providerId" : "basic-flow",
     "topLevel" : false,
@@ -2366,9 +2375,9 @@
     "id" : "286dfc32-f26f-4b06-8efa-169879045e2e",
     "alias" : "lookup-register",
     "config" : {
-      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number",
-      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type",
-      "unset-attributes" : "email,sequent.read-only.mobile-number"
+      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country",
+      "auto-login" : "true",
+      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
     }
   }, {
     "id" : "e2acb078-380e-4631-8a33-4d0aa811c69b",

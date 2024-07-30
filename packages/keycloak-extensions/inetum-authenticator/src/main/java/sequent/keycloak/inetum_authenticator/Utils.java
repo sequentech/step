@@ -97,8 +97,9 @@ public class Utils {
         sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
         formData.forEach((key, value) -> {
-			log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + formData.getFirst(key) + ")");
-            sessionModel.setAuthNote(key, formData.getFirst(key));
+            String values = Utils.serializeUserdataKeys(formData.get(key));
+			log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
+            sessionModel.setAuthNote(key, values);
         });
 
         sessionModel.setAuthNote(USER_ID, user.getId());
@@ -229,8 +230,8 @@ public class Utils {
 
     private static String serializeUserdataKeys(Collection<String> keys, String separator) {
         final StringBuilder key = new StringBuilder();
-        keys.forEach((s -> key.append(s + separator)));
-        return key.toString();
+        keys.forEach((s -> key.append(separator).append(s)));
+        return key.deleteCharAt(0).toString();
     }
 
     private static String serializeUserdataKeys(Collection<String> keys) {
@@ -246,6 +247,29 @@ public class Utils {
 
     private static List<String> deserializeUserdataKeys(String key) {
         return deserializeUserdataKeys(key, KEYS_USERDATA_SEPARATOR);
+    }
+
+    /**
+     * Recovers the values of an attribute stored in the auth notes.
+     * 
+     * @param context
+     * @param attribute attribute to recover the values from
+     * @return a collection of values in string format
+     */
+    public static List<String> getAttributeValuesFromAuthNote(AuthenticationFlowContext context, String attribute) {
+            return Utils.deserializeUserdataKeys(context
+            .getAuthenticationSession()
+            .getAuthNote(attribute));
+
+    }
+
+    /**
+     * Recovers the user stored in the auth notes.
+     */
+    public static UserModel lookupUserByAuthNotes(AuthenticationFlowContext context) {
+        String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+
+        return context.getSession().users().getUserById(context.getRealm(), userId);
     }
 
 }
