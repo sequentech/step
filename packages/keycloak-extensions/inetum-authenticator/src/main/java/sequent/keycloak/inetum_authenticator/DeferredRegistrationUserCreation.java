@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -236,6 +237,29 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         errors.add(
             new FormMessage(
                 RegistrationPage.FIELD_PASSWORD, err.getMessage(), err.getParameters()));
+    }
+
+    // Check for confirm values
+    for (Entry<String, List<String>> entry : formData.entrySet()) {
+      log.infov("validate: checking {0} for confirm", entry.getKey());
+
+      if (entry.getKey().endsWith("-confirm") && !entry.getKey().equals(RegistrationPage.FIELD_PASSWORD_CONFIRM)) {
+        log.info("validate: confirm found");
+        String confirmKey = entry.getKey();
+        String confirmValue = entry.getValue().stream().findFirst().orElse(null);
+
+        String key = confirmKey.substring(0, confirmKey.indexOf("-confirm"));
+        String value = formData.getFirst(key);
+
+        if (!value.equals(confirmValue)) {
+          log.errorv(
+              "validate: confirm value invalid key:{0} values {1} != {2}",
+              key, value, confirmValue);
+          context.error(Errors.INVALID_INPUT);
+          errors.add(new FormMessage(confirmKey, "invalidConfirmationValue"));
+          context.validationError(formData, errors);
+        }
+      }
     }
 
     if (errors.size() > 0) {
