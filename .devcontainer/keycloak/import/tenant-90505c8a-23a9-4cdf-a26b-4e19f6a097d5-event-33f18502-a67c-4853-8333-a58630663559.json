@@ -422,18 +422,43 @@
       "createdDate" : 1712678753664,
       "secretData" : "{\"value\":\"R0FFBSfdWOUIBuytr6got3nN6gHMPi8Uyy0Z29klk4114VyGinYQESXgZ9uAd+x6RyZHUuC84bYhkHiL2zRnhQ==\",\"salt\":\"DCA5M3VO2+53DuIeAEAcBg==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-    }, {
-      "id" : "92b5f61f-d3e1-44a8-89b7-91afa3a04b85",
-      "type" : "message-otp",
-      "createdDate" : 1712678898332,
-      "secretData" : "{\"nothing\":\"nothing\"}",
-      "credentialData" : "{\"setup\":true}"
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
     "notBefore" : 0,
     "groups" : [ "/voter" ]
+  }, {
+    "id" : "6bbb4575-8761-4eaf-9799-03dbbb0f637b",
+    "username" : "xavier.alsina@sequentech.io",
+    "firstName" : "Xavier",
+    "lastName" : "Alsina",
+    "email" : "xavier.alsina@sequentech.io",
+    "emailVerified" : true,
+    "attributes" : {
+      "country" : [ "Algiers/Algeria" ],
+      "sequent.read-only.mobile-number" : [ "+34699522208" ],
+      "sequent.read-only.id-card-number" : [ "39380103D" ],
+      "embassy" : [ "Algiers" ],
+      "locale" : [ "en" ],
+      "sequent.read-only.id-card-type" : [ "PhilSys ID" ],
+      "emailAndOrMobile" : [ "sequent.read-only.mobile-number", "email" ]
+    },
+    "createdTimestamp" : 1721994783438,
+    "enabled" : true,
+    "totp" : false,
+    "credentials" : [ {
+      "id" : "ae807b58-28d8-4978-b65d-737b9ccdad0b",
+      "type" : "password",
+      "createdDate" : 1722359569762,
+      "secretData" : "{\"value\":\"uWUbkaQGPQYmd/xGdKxXYpmg5q3CxMvTK27mJrr6Y+mqrKZZSbL1dzDJm0uyvq4cvpWhEXb/Vxczj/ahCHBHbg==\",\"salt\":\"K7J9VfvnM+gsYuIs1y1rTQ==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
+    "notBefore" : 0,
+    "groups" : [ ]
   } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
@@ -1378,7 +1403,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "saml-role-list-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "oidc-address-mapper", "saml-user-property-mapper", "oidc-full-name-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-attribute-mapper" ]
       }
     }, {
       "id" : "a26aaeed-f109-40ab-ada2-c2cec32986bf",
@@ -1412,7 +1437,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "oidc-usermodel-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "oidc-full-name-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "oidc-address-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-address-mapper", "oidc-usermodel-attribute-mapper", "saml-user-property-mapper", "oidc-full-name-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper" ]
       }
     }, {
       "id" : "0d7794fa-2e22-499b-8aa6-7fde4d9c446d",
@@ -1446,7 +1471,7 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}" ]
+        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"1\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -1774,11 +1799,26 @@
       "flowAlias" : "comelec-registration registration form",
       "userSetupAllowed" : false
     }, {
+      "authenticatorFlow" : true,
+      "requirement" : "CONDITIONAL",
+      "priority" : 13,
+      "autheticatorFlow" : true,
+      "flowAlias" : "deferred-otp-subflow-email",
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "deferred-otp-subflow-sms",
+      "authenticatorFlow" : true,
+      "requirement" : "CONDITIONAL",
+      "priority" : 14,
+      "autheticatorFlow" : true,
+      "flowAlias" : "deferred-otp-subflow",
+      "userSetupAllowed" : false
+    }, {
       "authenticatorConfig" : "inetum-registration",
       "authenticator" : "inetum-authenticator",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 11,
+      "requirement" : "DISABLED",
+      "priority" : 15,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
@@ -1786,7 +1826,7 @@
       "authenticator" : "lookup-and-update-user",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
-      "priority" : 12,
+      "priority" : 16,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -1798,10 +1838,59 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
+      "authenticatorConfig" : "drupc",
       "authenticator" : "deferred-registration-user-creation",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 20,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "7b248f81-6142-4a51-abbf-d4ea838cdee6",
+    "alias" : "deferred-otp-subflow",
+    "description" : "",
+    "providerId" : "basic-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorConfig" : "cond-sms",
+      "authenticator" : "conditional-auth-note",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 3,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "otp-sms",
+      "authenticator" : "message-otp-authenticator",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 4,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "ec150b9a-3bac-4e44-9a48-748e147335e9",
+    "alias" : "deferred-otp-subflow-email",
+    "description" : "",
+    "providerId" : "basic-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticatorConfig" : "cond-email",
+      "authenticator" : "conditional-auth-note",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "otp-email",
+      "authenticator" : "message-otp-authenticator",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 1,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -2079,7 +2168,8 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
-      "authenticator" : "auth-username-password-form",
+      "authenticatorConfig" : "UPF-apec",
+      "authenticator" : "expiry-username-password-form",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 21,
@@ -2090,20 +2180,20 @@
       "authenticator" : "user-session-limits",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
-      "priority" : 22,
+      "priority" : 25,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
       "requirement" : "CONDITIONAL",
-      "priority" : 25,
+      "priority" : 26,
       "autheticatorFlow" : true,
       "flowAlias" : "message-otp-subflow",
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
       "requirement" : "CONDITIONAL",
-      "priority" : 26,
+      "priority" : 27,
       "autheticatorFlow" : true,
       "flowAlias" : "sequent browser flow Browser - Conditional OTP",
       "userSetupAllowed" : false
@@ -2178,6 +2268,27 @@
     } ]
   } ],
   "authenticatorConfig" : [ {
+    "id" : "0558dfeb-9f6b-42fb-b11a-0066ed04049b",
+    "alias" : "UPF-apec",
+    "config" : {
+      "recaptchaActionName" : "login",
+      "usernameAttributes" : "sequent.read-only.mobile-number##email",
+      "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
+      "recaptchaEnabled" : "false",
+      "recaptchaMinScore" : "0.5"
+    }
+  }, {
+    "id" : "642e9134-8da8-469b-87a0-876483cd08e5",
+    "alias" : "auth-note-email",
+    "config" : {
+      "senderId" : "Keycloak",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "true",
+      "messageCourierAttribute" : "EMAIL"
+    }
+  }, {
     "id" : "f9975884-d43b-458f-8863-c5b70947f555",
     "alias" : "choose-user",
     "config" : {
@@ -2188,10 +2299,41 @@
       "recaptchaMinScore" : "0.5"
     }
   }, {
+    "id" : "b1898613-1b4a-4bb7-8130-cfae580481da",
+    "alias" : "cond-email",
+    "config" : {
+      "negate" : "true",
+      "conditional-auth-note-key" : "email"
+    }
+  }, {
+    "id" : "88211793-f070-4d87-b5f2-314e83ad9496",
+    "alias" : "cond-sms",
+    "config" : {
+      "negate" : "true",
+      "conditional-auth-note-key" : "sequent.read-only.mobile-number"
+    }
+  }, {
+    "id" : "4d3f46d3-98d2-4cd3-9790-96cf6c000fa9",
+    "alias" : "conditional-sms",
+    "config" : {
+      "negate" : "true",
+      "conditional-auth-note-key" : "sequent.read-only.mobile-number"
+    }
+  }, {
     "id" : "cc2db1e0-c516-4e7a-ac66-e6e5003754d6",
     "alias" : "create unique user config",
     "config" : {
       "require.password.update.after.registration" : "false"
+    }
+  }, {
+    "id" : "197c84b4-7c3a-4702-830f-95a00aabc875",
+    "alias" : "deferred-otp-subflow-sms",
+    "config" : { }
+  }, {
+    "id" : "236ef2ca-4b70-4364-8759-bd453532a160",
+    "alias" : "drupc",
+    "config" : {
+      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
     }
   }, {
     "id" : "4cce72e2-eb4a-433c-9dbd-6b1028a27e9d",
@@ -2246,9 +2388,9 @@
     "id" : "286dfc32-f26f-4b06-8efa-169879045e2e",
     "alias" : "lookup-register",
     "config" : {
-      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number",
-      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type",
-      "unset-attributes" : "email,sequent.read-only.mobile-number"
+      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile",
+      "auto-login" : "false",
+      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
     }
   }, {
     "id" : "e2acb078-380e-4631-8a33-4d0aa811c69b",
@@ -2270,6 +2412,64 @@
     "config" : {
       "userAttribute" : "sequent.read-only.expirationDate",
       "negate" : "true"
+    }
+  }, {
+    "id" : "d3042863-f4ba-4975-be3c-cf446194bd52",
+    "alias" : "otp-email",
+    "config" : {
+      "senderId" : "Keycloak",
+      "otpMethod" : "email",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "true",
+      "messageCourierAttribute" : "EMAIL"
+    }
+  }, {
+    "id" : "9d5e2eb1-f4c1-41b1-b206-ce8e4f11952a",
+    "alias" : "otp-email",
+    "config" : {
+      "senderId" : "Keycloak",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "true",
+      "messageCourierAttribute" : "EMAIL"
+    }
+  }, {
+    "id" : "40768b2c-f740-4d00-845c-b4dc471dcc6f",
+    "alias" : "otp-sms",
+    "config" : {
+      "senderId" : "Keycloak",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "true",
+      "messageCourierAttribute" : "SMS"
+    }
+  }, {
+    "id" : "36ca68d6-d220-460d-a11c-79e64745afc1",
+    "alias" : "otp-sms",
+    "config" : {
+      "senderId" : "Keycloak",
+      "otpMethod" : "sms",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "false",
+      "messageCourierAttribute" : "BOTH"
+    }
+  }, {
+    "id" : "cae6040e-02af-4173-96ae-5f107a16309c",
+    "alias" : "otp-sms",
+    "config" : {
+      "senderId" : "Keycloak",
+      "otpMethod" : "sms",
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "length" : "6",
+      "ttl" : "300",
+      "deferredUserAttribute" : "false",
+      "messageCourierAttribute" : "BOTH"
     }
   }, {
     "id" : "1ac07b83-8676-4025-8a34-31ba2f5ab268",
@@ -2425,6 +2625,14 @@
     "priority" : 80,
     "config" : { }
   }, {
+    "alias" : "delete_credential",
+    "name" : "Delete Credential",
+    "providerId" : "delete_credential",
+    "enabled" : true,
+    "defaultAction" : false,
+    "priority" : 100,
+    "config" : { }
+  }, {
     "alias" : "webauthn-register-passwordless",
     "name" : "Webauthn Register Passwordless",
     "providerId" : "webauthn-register-passwordless",
@@ -2488,7 +2696,7 @@
     "frontendUrl" : "",
     "acr.loa.map" : "{}"
   },
-  "keycloakVersion" : "24.0.2",
+  "keycloakVersion" : "24.0.5",
   "userManagedAccessAllowed" : false,
   "clientProfiles" : {
     "profiles" : [ ]

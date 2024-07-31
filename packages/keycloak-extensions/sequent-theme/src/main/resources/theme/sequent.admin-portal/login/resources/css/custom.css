@@ -33,6 +33,9 @@ html, body {
     padding: 16px 0;
 }
 
+.iti {
+    width: 100%;
+}
 
 @media (max-width: 1170px) {
     .login-pf-page-header {
