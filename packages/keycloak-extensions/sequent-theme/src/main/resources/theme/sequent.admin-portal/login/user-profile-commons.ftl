@@ -44,26 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</#if>
 
 		<#nested "beforeField" attribute>
-		<div class="${properties.kcFormGroupClass!}">
-			<div class="${properties.kcLabelWrapperClass!}">
-				<label for="${attribute.name}" class="${properties.kcLabelClass!}">${advancedMsg(attribute.displayName!'')}</label>
-				<#if attribute.required>*</#if>
-			</div>
-			<div class="${properties.kcInputWrapperClass!}">
-				<#if attribute.annotations.inputHelperTextBefore??>
-					<div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextBefore))?no_esc}</div>
-				</#if>
-				<@inputFieldByType attribute=attribute/>
-				<#if messagesPerField.existsError('${attribute.name}')>
-					<span id="input-error-${attribute.name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
-						${kcSanitize(messagesPerField.get('${attribute.name}'))?no_esc}
-					</span>
-				</#if>
-				<#if attribute.annotations.inputHelperTextAfter??>
-					<div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextAfter))?no_esc}</div>
-				</#if>
-			</div>
-		</div>
+		<@inputFieldWithLabel attribute=attribute/>
 		<#nested "afterField" attribute>
 	</#list>
 
@@ -76,6 +57,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#list profile.html5DataAnnotations?keys as key>
 		<script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
 	</#list>
+</#macro>
+
+<#macro inputFieldWithLabel attribute>
+	<div class="${properties.kcFormGroupClass!}">
+		<div class="${properties.kcLabelWrapperClass!}">
+			<label for="${attribute.name}" class="${properties.kcLabelClass!}">${advancedMsg(attribute.displayName!'')}</label>
+			<#if attribute.required>*</#if>
+		</div>
+		<div class="${properties.kcInputWrapperClass!}">
+			<#if attribute.annotations.inputHelperTextBefore??>
+				<div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextBefore))?no_esc}</div>
+			</#if>
+			<@inputFieldByType attribute=attribute/>
+			<#if messagesPerField.existsError('${attribute.name}')>
+				<span id="input-error-${attribute.name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+					${kcSanitize(messagesPerField.get('${attribute.name}'))?no_esc}
+				</span>
+			</#if>
+			<#if attribute.annotations.inputHelperTextAfter??>
+				<div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextAfter))?no_esc}</div>
+			</#if>
+		</div>
+	</div>
 </#macro>
 
 <#macro inputFieldByType attribute>
