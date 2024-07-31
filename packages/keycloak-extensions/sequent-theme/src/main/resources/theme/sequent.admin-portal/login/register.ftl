@@ -103,6 +103,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#--  https://github.com/jackocnr/intl-tel-input/tree/master  -->
 
         <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/intlTelInput.css">
+        <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/customized.css">
         <script type="text/javascript" src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
 
         <#--  Timezone country code data  -->
