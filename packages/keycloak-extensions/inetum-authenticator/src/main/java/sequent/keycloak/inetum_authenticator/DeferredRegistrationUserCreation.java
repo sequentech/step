@@ -243,7 +243,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     for (Entry<String, List<String>> entry : formData.entrySet()) {
       log.infov("validate: checking {0} for confirm", entry.getKey());
 
-      if (entry.getKey().endsWith("-confirm") && !entry.getKey().equals(RegistrationPage.FIELD_PASSWORD_CONFIRM)) {
+      if (entry.getKey().endsWith("-confirm")
+          && !entry.getKey().equals(RegistrationPage.FIELD_PASSWORD_CONFIRM)) {
         log.info("validate: confirm found");
         String confirmKey = entry.getKey();
         String confirmValue = entry.getValue().stream().findFirst().orElse(null);
