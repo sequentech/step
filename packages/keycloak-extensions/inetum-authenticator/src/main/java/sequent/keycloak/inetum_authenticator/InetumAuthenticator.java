@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -294,42 +296,93 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       }
       String responseStr = response.asString();
       log.info("verifyResults: response Str = " + responseStr);
-      String personalNumber = null;
-      try {
-        personalNumber =
-            response.asJson().get("response").get("mrz").get("personal_number").asText();
-        log.info("verifyResults: personalNumber = " + personalNumber);
-      } catch (Exception error) {
-        // ignore, we'll try the ocr
-      }
-      if (personalNumber == null) {
-        // try ocr
-        log.info("verifyResults: personalNumber is null, trying ocr");
 
-        try {
-          personalNumber =
-              response.asJson().get("response").get("ocr").get("personal_number").asText();
-        } catch (Exception error) {
-          log.error("verifyResults: ocr is also null, return false");
+      String attributesToValidate = config.getConfig().get(Utils.ATTRIBUTES_TO_VALIDATE);
+
+      if (attributesToValidate == null) {
+        log.errorv("verifyResults: could not find config {0}", Utils.ATTRIBUTES_TO_VALIDATE);
+        return false;
+      }
+
+      List<String> attributesToCheck = Arrays.asList(attributesToValidate.split("##"));
+
+      for (String attributeToCheck : attributesToCheck) {
+        String[] split = attributeToCheck.split(":");
+
+        if (split.length != 2) {
+          log.warnv("verifyResults: Invalid attribute to check {0}, ignoring", attributeToCheck);
+          continue;
+        }
+
+        String attribute = split[0];
+        String inetumField = split[1];
+
+        // Get attribute from authentication notes
+        String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
+
+        if(attributeValue == null) {
+          log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
           return false;
         }
 
-        if (personalNumber == null) {
-          log.error("verifyResults: ocr is also null, return false");
+        // Get inetum value from response
+        String inetumValue = getValueFromInetumResponse(response, inetumField);
+
+        if(inetumValue == null) {
+          log.errorv("verifyResults: could not find value in inetum response {0}", inetumField);
+          return false;
+        }
+
+        // Compare and return false if different
+
+        if (attributeValue != inetumValue) {
+          log.errorv("verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}", attribute, inetumField, attributeValue, inetumField);
           return false;
         }
       }
-      log.info("verifyResults: TRUE, personalNumber = " + personalNumber);
 
-      sessionModel.setAuthNote(configMap.get(Utils.DOC_ID_ATTRIBUTE), personalNumber);
+      log.info("verifyResults: TRUE");
+
       sessionModel.setAuthNote(
           configMap.get(Utils.USER_STATUS_ATTRIBUTE), Utils.USER_STATUS_VERIFIED);
 
       return true;
     } catch (IOException error) {
       log.error("verifyResults(): FALSE; Exception: " + error.toString());
-      return false;
+      return false; 
     }
+  }
+
+  private String getValueFromInetumResponse(SimpleHttp.Response response,
+      String inetumField) {
+        String inetumValue = null;
+        try {
+          inetumValue =
+              response.asJson().get("response").get("mrz").get(inetumField).asText();
+          log.infov("verifyResults: {0} = {1}", inetumField, inetumValue);
+        } catch (Exception error) {
+          // ignore, we'll try the ocr
+        }
+        if (inetumValue == null) {
+          // try ocr
+          log.infov("verifyResults: {0} is null, trying ocr", inetumField);
+  
+          try {
+            inetumValue =
+                response.asJson().get("response").get("ocr").get(inetumField).asText();
+          } catch (Exception error) {
+            log.error("verifyResults: ocr is also null, return false");
+            return null;
+          }
+  
+          if (inetumValue == null) {
+            log.error("verifyResults: ocr is also null, return false");
+            return null;
+          }
+        }
+  
+        log.infov("{0}: {1}", inetumField , inetumValue);
+        return inetumValue;
   }
 
   protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context) {
@@ -429,6 +482,12 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "The name of the user validation status attribute.",
             ProviderConfigProperty.STRING_TYPE,
             "sequent.read-only.id-card-number-validated"),
+        new ProviderConfigProperty(
+            Utils.ATTRIBUTES_TO_VALIDATE,
+            "Attributes to validate using inetum data",
+            "-",
+            ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
+            Collections.unmodifiableCollection(Arrays.asList("sequent.read-only.id-card-number:personal_number"))),
         new ProviderConfigProperty(
             Utils.SDK_ATTRIBUTE,
             "Configuration for the SDK",
