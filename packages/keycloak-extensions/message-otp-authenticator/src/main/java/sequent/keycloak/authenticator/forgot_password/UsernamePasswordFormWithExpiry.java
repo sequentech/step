@@ -35,13 +35,14 @@ import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 
 /**
- * This is just like the normal Username Password form, except with more
- * features:
+ * This is just like the normal Username Password form, except with more features:
  *
- * - It allows to check if the password has expired or not.
- * - It supports recaptcha v3 for login.
- * - It allows to look up the user using one or more username attributes (for
- *   example username and tlf).
+ * <ul>
+ *   <li>It allows to check if the password has expired or not.
+ *   <li>It supports recaptcha v3 for login.
+ *   <li>It allows to look up the user using one or more username attributes (for example username
+ *       and tlf).
+ * </ul>
  */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
