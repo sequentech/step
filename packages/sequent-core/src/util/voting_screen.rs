@@ -10,7 +10,6 @@ pub fn check_voting_not_allowed_next(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> Result<bool, bool> {
-
     let voting_not_allowed = contests.iter().any(|contest| {
         let default_vote_policy = InvalidVotePolicy::default();
         let vote_policy = contest
