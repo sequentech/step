@@ -62,11 +62,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		}
 
 		function setAllReadOnly(id, value) {
-			setReadOnly(id);
+			setReadOnly(id, value);
             // In case of using hidden inputs for int-tel input
-			setReadOnly(id + "-input");
+			setReadOnly(id + "-input", value);
 			// In case of having confirm inputs
-			setReadOnly(id + "-confirm");
+			setReadOnly(id + "-confirm", value);
 		}
 
 	<#list readonlyElements as element>
@@ -82,7 +82,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#macro inputFieldWithLabel attribute name>
 	<div class="${properties.kcFormGroupClass!}">
 		<div class="${properties.kcLabelWrapperClass!}">
-			<label for="${name}" class="${properties.kcLabelClass!}">${advancedMsg(attribute.displayName!'')}</label>
+			<label for="${name}" class="${properties.kcLabelClass!}">
+				<#if name?ends_with("-confirm")>
+					${advancedMsg(attribute.annotations.confirm!'')}
+				<#else>
+					${advancedMsg(attribute.displayName!'')}
+				</#if>
+			</label>
 			<#if attribute.required>*</#if>
 		</div>
 		<div class="${properties.kcInputWrapperClass!}">
