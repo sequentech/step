@@ -41,6 +41,9 @@ public class MessageOTPAuthenticator
   public void authenticate(AuthenticationFlowContext context) {
     log.info("authenticate() called");
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+
+    log.infov("authenticate() Alias: {0}", config.getAlias());
+
     KeycloakSession session = context.getSession();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
@@ -51,7 +54,11 @@ public class MessageOTPAuthenticator
       UserModel user = context.getUser();
       Utils.sendCode(config, session, user, authSession, messageCourier, deferredUser);
       context.challenge(
-          context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
+          context
+              .form()
+              .setAttribute("realm", context.getRealm())
+              .setAttribute("courier", messageCourier)
+              .createForm(TPL_CODE));
     } catch (Exception error) {
       log.infov("there was an error {0}", error);
       context.failureChallenge(

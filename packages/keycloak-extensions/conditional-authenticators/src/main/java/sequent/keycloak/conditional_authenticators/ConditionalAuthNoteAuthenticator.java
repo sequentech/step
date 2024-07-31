@@ -57,7 +57,10 @@ public class ConditionalAuthNoteAuthenticator implements ConditionalAuthenticato
       log.infov("matchCondition(): requiredAuthNoteKey={0} not present", requiredAuthNoteKey);
       return false;
     }
-    boolean authNoteMatch = requiredAuthNoteValue.equals(authNoteValue);
+    boolean authNoteMatch =
+        requiredAuthNoteValue == null
+            ? authNoteValue.isBlank() || authNoteValue.isEmpty()
+            : requiredAuthNoteValue.equals(authNoteValue);
     log.infov(
         "matchCondition(): requiredAuthNoteKey={0}, requiredAuthNoteValue={1}, authNoteValue={2}, negateOutput[{3}] != authNoteMatch[{4}]",
         requiredAuthNoteKey, requiredAuthNoteValue, authNoteValue, negateOutput, authNoteMatch);
