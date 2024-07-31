@@ -297,17 +297,18 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       String responseStr = response.asString();
       log.info("verifyResults: response Str = " + responseStr);
 
-      String attributesToValidate = config.getConfig().get(Utils.ATTRIBUTES_TO_VALIDATE);
+      String attributesToValidate = configMap.get(Utils.ATTRIBUTES_TO_VALIDATE);
 
       if (attributesToValidate == null) {
         log.errorv("verifyResults: could not find config {0}", Utils.ATTRIBUTES_TO_VALIDATE);
         return false;
       }
 
-      List<String> attributesToCheck = Arrays.asList(attributesToValidate.split("##"));
+      List<String> attributesToCheck =
+          Arrays.asList(attributesToValidate.split(Utils.MULTIVALUE_SEPARATOR));
 
       for (String attributeToCheck : attributesToCheck) {
-        String[] split = attributeToCheck.split(":");
+        String[] split = attributeToCheck.split(Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR);
 
         if (split.length != 2) {
           log.warnv("verifyResults: Invalid attribute to check {0}, ignoring", attributeToCheck);
@@ -320,7 +321,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         // Get attribute from authentication notes
         String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
 
-        if(attributeValue == null) {
+        if (attributeValue == null) {
           log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
           return false;
         }
@@ -328,15 +329,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         // Get inetum value from response
         String inetumValue = getValueFromInetumResponse(response, inetumField);
 
-        if(inetumValue == null) {
+        if (inetumValue == null) {
           log.errorv("verifyResults: could not find value in inetum response {0}", inetumField);
           return false;
         }
 
         // Compare and return false if different
 
-        if (attributeValue != inetumValue) {
-          log.errorv("verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}", attribute, inetumField, attributeValue, inetumField);
+        if (!attributeValue.trim().equalsIgnoreCase(inetumValue.trim())) {
+          log.errorv(
+              "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+              attribute, inetumField, attributeValue, inetumValue);
           return false;
         }
       }
@@ -349,40 +352,37 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       return true;
     } catch (IOException error) {
       log.error("verifyResults(): FALSE; Exception: " + error.toString());
-      return false; 
+      return false;
     }
   }
 
-  private String getValueFromInetumResponse(SimpleHttp.Response response,
-      String inetumField) {
-        String inetumValue = null;
-        try {
-          inetumValue =
-              response.asJson().get("response").get("mrz").get(inetumField).asText();
-          log.infov("verifyResults: {0} = {1}", inetumField, inetumValue);
-        } catch (Exception error) {
-          // ignore, we'll try the ocr
-        }
-        if (inetumValue == null) {
-          // try ocr
-          log.infov("verifyResults: {0} is null, trying ocr", inetumField);
-  
-          try {
-            inetumValue =
-                response.asJson().get("response").get("ocr").get(inetumField).asText();
-          } catch (Exception error) {
-            log.error("verifyResults: ocr is also null, return false");
-            return null;
-          }
-  
-          if (inetumValue == null) {
-            log.error("verifyResults: ocr is also null, return false");
-            return null;
-          }
-        }
-  
-        log.infov("{0}: {1}", inetumField , inetumValue);
-        return inetumValue;
+  private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
+    String inetumValue = null;
+    try {
+      inetumValue = response.asJson().get("response").get("mrz").get(inetumField).asText();
+      log.infov("getValueFromInetumResponse: {0} = {1}", inetumField, inetumValue);
+    } catch (Exception error) {
+      // ignore, we'll try the ocr
+    }
+    if (inetumValue == null) {
+      // try ocr
+      log.infov("getValueFromInetumResponse: {0} is null, trying ocr", inetumField);
+
+      try {
+        inetumValue = response.asJson().get("response").get("ocr").get(inetumField).asText();
+      } catch (Exception error) {
+        log.error("getValueFromInetumResponse: ocr is also null, return false");
+        return null;
+      }
+
+      if (inetumValue == null) {
+        log.error("getValueFromInetumResponse: ocr is also null, return false");
+        return null;
+      }
+    }
+
+    log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
+    return inetumValue;
   }
 
   protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context) {
@@ -485,9 +485,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         new ProviderConfigProperty(
             Utils.ATTRIBUTES_TO_VALIDATE,
             "Attributes to validate using inetum data",
-            "-",
+            "A list of attributes to be validated against inetum data. Every entry must 2 values separated by the separator '"
+                + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                + "', where the first value is the user profile attribute and the second the inetum data field. For example firstName"
+                + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                + "given_names",
             ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
-            Collections.unmodifiableCollection(Arrays.asList("sequent.read-only.id-card-number:personal_number"))),
+            Collections.unmodifiableCollection(
+                Arrays.asList(
+                    "sequent.read-only.id-card-number"
+                        + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                        + "personal_number"))),
         new ProviderConfigProperty(
             Utils.SDK_ATTRIBUTE,
             "Configuration for the SDK",
