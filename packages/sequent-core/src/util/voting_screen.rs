@@ -5,6 +5,11 @@
 use crate::ballot::*;
 use crate::plaintext::*;
 use std::collections::HashMap;
+use uuid::Uuid;
+// use crate::ballot::{ContestPresentation, HashableBallot};
+
+extern crate console_error_panic_hook;
+
 
 pub fn check_voting_not_allowed_next(
     contests: Vec<Contest>,
@@ -90,4 +95,127 @@ pub fn check_voting_error_dialog(
     });
 
     Ok(show_voting_alert)
+}
+
+
+
+// TESTS: WIP
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_check_voting_not_allowed_next() {
+        let tenant_id = Uuid::new_v4().to_string();
+        let election_event_id = Uuid::new_v4().to_string();
+        let election_id = Uuid::new_v4().to_string();
+        // Create mock data for candidates
+        let mut candidate = Candidate {
+            id: Uuid::new_v4(),
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: election_id.clone(),
+            ..Default::default()
+        };
+        // Create mock data for contests
+        let contest1_id = Uuid::new_v4().to_string();
+        let contest1 = Contest {
+            id: contest1_id.clone(),
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: election_id.clone(),
+            max_votes: 4,
+            min_votes: 2,
+            is_encrypted: true,
+            candidates: vec![...candidate, contest_id: contest1_id],
+            presentation: Some(Presentation {
+                invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
+                blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let contest2_id = Uuid::new_v4();
+        let contest2 = Contest {
+            id: contest2_id.clone(),
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: election_id.clone(),
+            max_votes: 4,
+            min_votes: 2,
+            is_encrypted: true,
+            candidates: vec![...candidate, contest_id: contest2_id],
+            presentation: Some(ContestPresentation {
+                invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                blank_vote_policy: Some(EBlankVotePolicy::NOT_ALLOWED),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let contest3_id = Uuid::new_v4();
+        let contest3 = Contest {
+            id: contest3_id.clone(),
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: election_id.clone(),
+            max_votes: 4,
+            min_votes: 2,
+            is_encrypted: true,
+            candidates: vec![...candidate, contest_id: contest3_id],
+            presentation: Some(ContestPresentation {
+                invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+                blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let contests = vec![contest1, contest2];
+        candidate.
+        // Create mock data for decoded contests
+        let mut decoded_contests = HashMap::new<String, DecodedVoteContest>();
+        let decoded_contest = DecodedVoteContest {
+            choices: vec![Choice { selected: 0 }],
+            invalid_errors: vec![InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::Explicit,
+            }],
+            is_explicit_invalid: true,
+        };
+        decoded_contests.insert("contest1".to_string(), decoded_contest);
+
+        // Test the function
+        let result = check_voting_not_allowed_next(contests, decoded_contests);
+        assert_eq!(result.unwrap(), true);
+    }
+
+
+
+
+    // #[test]
+    // fn test_check_voting_error_dialog() {
+    //     // Create mock data for contests
+    //     let contest = Contest {
+    //         id: "contest2".to_string(),
+    //         presentation: Some(Presentation {
+    //             invalid_vote_policy: Some(InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT),
+    //             blank_vote_policy: Some(EBlankVotePolicy::WARN),
+    //         }),
+    //     };
+    //     let contests = vec![contest];
+
+    //     // Create mock data for decoded contests
+    //     let mut decoded_contests = HashMap::new();
+    //     let decoded_contest = DecodedVoteContest {
+    //         choices: vec![Choice { selected: 0 }],
+    //         invalid_errors: vec![InvalidPlaintextError {
+    //             error_type: InvalidPlaintextErrorType::Explicit,
+    //         }],
+    //         is_explicit_invalid: true,
+    //     };
+    //     decoded_contests.insert("contest2".to_string(), decoded_contest);
+
+    //     // Test the function
+    //     let result = check_voting_error_dialog(contests, decoded_contests);
+    //     assert_eq!(result.unwrap(), true);
+    // }
 }
