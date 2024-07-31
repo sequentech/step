@@ -240,10 +240,10 @@ export default function ElectionEvents() {
     }
 
     const transformCandidatesForSort = (contest: IContest): ICandidate[] => {
-        return contest.candidates.map((candidate, index) => {
+        return contest.candidates.map((candidate: ICandidate, index) => {
             return {
                 ...candidate,
-                id: String(index),
+                id: candidate.id,
                 election_id: contest.election_id,
                 tenant_id: tenantId || "",
             }
