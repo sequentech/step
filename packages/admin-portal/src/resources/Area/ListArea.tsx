@@ -164,9 +164,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         }
     }, [recordId])
 
-    /*useEffect(() => {
+    useEffect(() => {
         refetch()
-    }, [refetch, parentAreaIds])*/
+    }, [refetch, parentAreaIds])
 
     const createAction = () => {
         setOpenCreate(true)
