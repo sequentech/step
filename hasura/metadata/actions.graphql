@@ -362,11 +362,11 @@ type Mutation {
 
 type Mutation {
   upsert_tally_sheet(
-    electionEventId: String!
+    election_event_id: String!
     channel: String!
     content: jsonb!
-    contestId: String!
-    areaId: String!
+    contest_id: String!
+    area_id: String!
   ): TallySheetOutput
 }
 
