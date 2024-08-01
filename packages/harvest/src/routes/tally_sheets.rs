@@ -94,7 +94,7 @@ pub struct CreateTallySheetInput {
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/upsert-tally-sheet", format = "json", data = "<body>")]
-pub async fn create_tally_sheet(
+pub async fn upsert_tally_sheet(
     body: Json<CreateTallySheetInput>,
     claims: JwtClaims,
 ) -> Result<Json<TallySheet>, (Status, String)> {
