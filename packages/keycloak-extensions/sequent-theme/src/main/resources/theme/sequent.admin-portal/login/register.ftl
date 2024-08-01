@@ -149,15 +149,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 e = e || window.event;
                 var target = e.target || e.srcElement;
 
-                if (document.getElementById(idToSetReadOnly)) {
-                    document.getElementById(idToSetReadOnly).readOnly = !target.checked;
-                }
-
-                // In case of using hidden inputs for int-tel input
-                if (document.getElementById(idToSetReadOnly + "-input")) {
-                    document.getElementById(idToSetReadOnly + "-input").readOnly = !target.checked;
-                }
-
+                setAllReadOnly(idToSetReadOnly, target.checked);
             }
         </script>
 
