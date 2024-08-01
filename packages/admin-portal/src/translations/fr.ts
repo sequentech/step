@@ -149,6 +149,7 @@ const frenchTranslation: TranslationType = {
             createAreaSuccess: "Zone créée",
             createAreaError: "Erreur lors de la création de la zone",
             sequent_backend_area_contest: "Questions de la Zone",
+            parent_areas: "Zones Parent",
             empty: {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",

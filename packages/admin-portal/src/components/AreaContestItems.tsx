@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {Sequent_Backend_Area} from "@/gql/graphql"
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
@@ -21,7 +22,7 @@ import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
     */
 
 interface AreaContestItemsProps {
-    record: RaRecord<Identifier>
+    record: Sequent_Backend_Area
 }
 
 export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {

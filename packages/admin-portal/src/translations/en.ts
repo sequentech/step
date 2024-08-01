@@ -147,6 +147,7 @@ const englishTranslation = {
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
+            parent_areas: "Parent Areas",
             empty: {
                 header: "No Areas yet.",
                 action: "Create Area",
