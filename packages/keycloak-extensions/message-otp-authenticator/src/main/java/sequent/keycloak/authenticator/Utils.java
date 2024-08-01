@@ -296,10 +296,10 @@ public class Utils {
 
       emailSender.send(
           realm.getSmtpConfig(),
+          address,
           emailTemplate.getSubject(),
           emailTemplate.getTextBody(),
-          emailTemplate.getHtmlBody(),
-          address);
+          emailTemplate.getHtmlBody());
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {
