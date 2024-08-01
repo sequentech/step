@@ -93,7 +93,7 @@ pub struct CreateTallySheetInput {
 
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
-#[post("/create-tally-sheet", format = "json", data = "<body>")]
+#[post("/upsert-tally-sheet", format = "json", data = "<body>")]
 pub async fn create_tally_sheet(
     body: Json<CreateTallySheetInput>,
     claims: JwtClaims,
@@ -133,7 +133,7 @@ pub async fn create_tally_sheet(
         ));
     };
 
-    let new_tally_sheet = tally_sheet::insert_tally_sheet(
+    let new_tally_sheet = tally_sheet::upsert_tally_sheet(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,

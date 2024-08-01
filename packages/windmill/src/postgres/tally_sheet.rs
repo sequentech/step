@@ -141,7 +141,7 @@ pub async fn publish_tally_sheet(
 }
 
 #[instrument(skip(hasura_transaction, content), err)]
-pub async fn insert_tally_sheet(
+pub async fn upsert_tally_sheet(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -180,6 +180,10 @@ pub async fn insert_tally_sheet(
                     $7,
                     $8
                 )
+                ON CONFLICT (tenant_id, election_event_id, election_id, contest_id, area_id, channel)
+                DO UPDATE SET
+                    content = EXCLUDED.content,
+                    last_updated_at = NOW()
                 RETURNING
                     *;
             "#,
