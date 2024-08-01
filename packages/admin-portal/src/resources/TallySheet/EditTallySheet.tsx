@@ -446,6 +446,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                                 label="Search Area"
                                 onChange={debouncedSearchArea}
                                 value={areaNameFilter}
+                                required
                             />
                         )}
                         value={currentArea}
