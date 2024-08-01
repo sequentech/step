@@ -354,20 +354,20 @@ type Mutation {
 }
 
 type Mutation {
-  upsertTallySheet(
+  upsert_areas(
+    election_event_id: String!
+    document_id: String!
+  ): OptionalId
+}
+
+type Mutation {
+  upsert_tally_sheet(
     electionEventId: String!
     channel: String!
     content: jsonb!
     contestId: String!
     areaId: String!
   ): TallySheetOutput
-}
-
-type Mutation {
-  upsert_areas(
-    election_event_id: String!
-    document_id: String!
-  ): OptionalId
 }
 
 enum OrderDirection {
