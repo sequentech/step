@@ -64,7 +64,9 @@ async fn main() -> Result<()> {
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
 
+            set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
+            set_is_app_active(false);
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {

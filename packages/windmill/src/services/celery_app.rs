@@ -32,6 +32,7 @@ use crate::tasks::update_election_event_ballot_styles::update_election_event_bal
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
 static mut TASK_MAX_RETRIES: u32 = 4;
+static mut IS_APP_ACTIVE: bool = true;
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
@@ -49,6 +50,16 @@ pub fn set_task_max_retries(new_val: u32) {
     unsafe {
         TASK_MAX_RETRIES = new_val;
     }
+}
+
+pub fn set_is_app_active(new_val: bool) {
+    unsafe {
+        IS_APP_ACTIVE = new_val;
+    }
+}
+
+pub fn get_is_app_active() -> bool {
+    unsafe { IS_APP_ACTIVE }
 }
 
 #[instrument]
