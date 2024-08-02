@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.text.Collator;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -210,10 +212,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
         // context.failureChallenge(
-        //	AuthenticationFlowError.INVALID_CREDENTIALS,
-        //	getBaseForm(context)
-        //		.setError(Utils.FTL_ERROR_AUTH_INVALID)
-        //		.createForm(Utils.INETUM_ERROR)
+        // AuthenticationFlowError.INVALID_CREDENTIALS,
+        // getBaseForm(context)
+        // .setError(Utils.FTL_ERROR_AUTH_INVALID)
+        // .createForm(Utils.INETUM_ERROR)
         // );
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
@@ -271,8 +273,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       // TODO: I don't know why I'm getting "processing" instead of
       // "verificationOk"
       // if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
-      // 	log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
-      // 	return false;
+      // log.error("verifyResults: Error calling transaction/status, idStatus = " +
+      // idStatus);
+      // return false;
       // }
 
       // The status is verification OK. Now we need to retrieve the
@@ -298,14 +301,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       log.info("verifyResults: response Str = " + responseStr);
 
       String attributesToValidate = configMap.get(Utils.ATTRIBUTES_TO_VALIDATE);
+      List<String> attributesToCheck = new ArrayList<>();
 
-      if (attributesToValidate == null) {
-        log.errorv("verifyResults: could not find config {0}", Utils.ATTRIBUTES_TO_VALIDATE);
-        return false;
+      if (attributesToValidate != null) {
+        attributesToCheck = Arrays.asList(attributesToValidate.split(Utils.MULTIVALUE_SEPARATOR));
       }
-
-      List<String> attributesToCheck =
-          Arrays.asList(attributesToValidate.split(Utils.MULTIVALUE_SEPARATOR));
 
       for (String attributeToCheck : attributesToCheck) {
         String[] split = attributeToCheck.split(Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR);
@@ -335,8 +335,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         }
 
         // Compare and return false if different
+        Collator collator = Collator.getInstance();
+        collator.setDecomposition(2);
+        collator.setStrength(0);
 
-        if (!attributeValue.trim().equalsIgnoreCase(inetumValue.trim())) {
+        if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
           log.errorv(
               "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
               attribute, inetumField, attributeValue, inetumValue);
@@ -508,30 +511,30 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Uses FreeMarker template, see example",
             ProviderConfigProperty.TEXT_TYPE,
             """
-{
-	environment: 0,
-	customTextsConfig: myStrings,
-	baseAssetsUrl: "../../../",
-	uploadAndCheckIdentifiers: ["ESP"],
-	showLogs: false,
-	logTypes: ['ERROR', 'INFO'],
-	design: design,
-	bamEnabled: true,
-	ocrCountdown: false,
-	videoSelfieShowDNI: true,
-	cancelProcessButton: true,
-	showPermissionsHelp: true,
-	qrEnabled: false,
-	voiceEnabled: true,
-	voiceLanguage: VoiceLanguage.spanishSpain,
-	customIOSBrowsersConfig: [IOSBrowser.safari],
-	otpEmailAddress: 'xxxxxxx@inetum.com',
-	otpPhoneNumber: 'xxxxxxxx',
-	countryCode: CountryCode.españa,
-	applicationId: window.DOB_APP_ID,
-	broadcast: new LocalBroadcastManager()
-}
-				"""),
+                {
+                	environment: 0,
+                	customTextsConfig: myStrings,
+                	baseAssetsUrl: "../../../",
+                	uploadAndCheckIdentifiers: ["ESP"],
+                	showLogs: false,
+                	logTypes: ['ERROR', 'INFO'],
+                	design: design,
+                	bamEnabled: true,
+                	ocrCountdown: false,
+                	videoSelfieShowDNI: true,
+                	cancelProcessButton: true,
+                	showPermissionsHelp: true,
+                	qrEnabled: false,
+                	voiceEnabled: true,
+                	voiceLanguage: VoiceLanguage.spanishSpain,
+                	customIOSBrowsersConfig: [IOSBrowser.safari],
+                	otpEmailAddress: 'xxxxxxx@inetum.com',
+                	otpPhoneNumber: 'xxxxxxxx',
+                	countryCode: CountryCode.españa,
+                	applicationId: window.DOB_APP_ID,
+                	broadcast: new LocalBroadcastManager()
+                }
+                				"""),
         new ProviderConfigProperty(
             Utils.BASE_URL_ATTRIBUTE,
             "Base URL for Inetum API",
@@ -544,28 +547,28 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Uses FreeMarker template, see example",
             ProviderConfigProperty.TEXT_TYPE,
             """
-{
-	"wFtype_Facial": true,
-	"wFtype_OCR": true,
-	"wFtype_Video": false,
-	"wFtype_Anti_Spoofing": false,
-	"wFtype_Sign": false,
-	"wFtype_VerifAvan": false,
-	"wFtype_UECertificate": false,
-	"docID": "${doc_id}",
-	"name": "",
-	"lastname1": "",
-	"lastname2": "",
-	"country": "",
-	"mobilePhone": "",
-	"eMail": "",
-	"priority": 3,
-	"maxRetries": 3,
-	"maxProcessTime": 30,
-	"application": "sequent-keycloak",
-	"clienteID": "${client_id}"
-}
-				"""));
+                {
+                	"wFtype_Facial": true,
+                	"wFtype_OCR": true,
+                	"wFtype_Video": false,
+                	"wFtype_Anti_Spoofing": false,
+                	"wFtype_Sign": false,
+                	"wFtype_VerifAvan": false,
+                	"wFtype_UECertificate": false,
+                	"docID": "${doc_id}",
+                	"name": "",
+                	"lastname1": "",
+                	"lastname2": "",
+                	"country": "",
+                	"mobilePhone": "",
+                	"eMail": "",
+                	"priority": 3,
+                	"maxRetries": 3,
+                	"maxProcessTime": 30,
+                	"application": "sequent-keycloak",
+                	"clienteID": "${client_id}"
+                }
+                				"""));
   }
 
   @Override
