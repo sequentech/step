@@ -6,12 +6,16 @@ use crate::hasura::election::{get_election, update_election_status};
 use crate::hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::hasura::election_event::{get_election_event, update_election_event_status};
 use crate::postgres::election::update_election_voting_status;
-use crate::postgres::election_event::update_elections_status_by_election_event;
+use crate::postgres::election_event::{
+    get_election_event_by_id, update_elections_status_by_election_event,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client;
+use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
+use sequent_core::types::hasura::core::ElectionEvent;
 use serde_json::value::Value;
 use std::default::Default;
 use tracing::{info, instrument};
@@ -35,31 +39,13 @@ pub fn has_config_created(status_json_opt: Option<Value>) -> bool {
 
 #[instrument(err)]
 pub async fn update_event_voting_status(
-    tenant_id: String,
-    election_event_id: String,
-    new_status: VotingStatus,
-) -> Result<GetElectionEventSequentBackendElectionEvent> {
-    let auth_headers = get_client_credentials().await?;
-    let mut hasura_db_client: Client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
-    let data = get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?
-    .data
-    .expect("expected data".into())
-    .sequent_backend_election_event;
-
-    let election_event = data
-        .get(0)
-        .clone()
-        .ok_or(anyhow!("Election event not found: {}", election_event_id))?;
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    new_status: &VotingStatus,
+) -> Result<ElectionEvent> {
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
 
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
@@ -92,8 +78,8 @@ pub async fn update_event_voting_status(
 
     status.voting_status = new_status.clone();
 
-    if new_status == VotingStatus::OPEN || new_status == VotingStatus::CLOSED {
-        election_status.voting_status = new_status;
+    if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
+        election_status.voting_status = new_status.clone();
         update_elections_status_by_election_event(
             &hasura_transaction,
             &tenant_id,
@@ -102,20 +88,7 @@ pub async fn update_event_voting_status(
         )
         .await?;
     }
-    let status_js = serde_json::to_value(&status)?;
-
-    update_election_event_status(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        status_js,
-    )
-    .await?;
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed update election status: {}", e));
-    Ok(election_event.clone())
+    Ok(election_event)
 }
 
 #[instrument(err)]
