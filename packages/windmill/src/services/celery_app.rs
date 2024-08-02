@@ -32,6 +32,9 @@ use crate::tasks::update_election_event_ballot_styles::update_election_event_bal
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
 static mut TASK_MAX_RETRIES: u32 = 4;
+static mut IS_APP_ACTIVE: bool = true;
+static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
+static mut HEARTBEAT_SECS: u16 = 10;
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
@@ -51,15 +54,41 @@ pub fn set_task_max_retries(new_val: u32) {
     }
 }
 
+pub fn set_is_app_active(new_val: bool) {
+    unsafe {
+        IS_APP_ACTIVE = new_val;
+    }
+}
+
+pub fn set_broker_connection_max_retries(new_val: u32) {
+    unsafe {
+        BROKER_CONNECTION_MAX_RETRIES = new_val;
+    }
+}
+
+pub fn set_heartbeat(new_val: u16) {
+    unsafe {
+        HEARTBEAT_SECS = new_val;
+    }
+}
+
+pub fn get_is_app_active() -> bool {
+    unsafe { IS_APP_ACTIVE }
+}
+
 #[instrument]
 pub async fn generate_celery_app() -> Arc<Celery> {
     let prefetch_count: u16;
     let acks_late: bool;
     let task_max_retries: u32;
+    let broker_connection_max_retries: u32;
+    let heartbeat: u16;
     unsafe {
         prefetch_count = PREFETCH_COUNT_S;
         acks_late = ACKS_LATE_S;
         task_max_retries = TASK_MAX_RETRIES;
+        broker_connection_max_retries = BROKER_CONNECTION_MAX_RETRIES;
+        heartbeat = HEARTBEAT_SECS;
     }
     event!(
         Level::INFO,
@@ -118,7 +147,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         prefetch_count = prefetch_count,
         acks_late = acks_late,
         task_max_retries = task_max_retries,
-        heartbeat = Some(10),
+        heartbeat = Some(heartbeat),
+        broker_connection_max_retries = broker_connection_max_retries,
     ).await.unwrap()
 }
 
