@@ -70,7 +70,7 @@ body {
 }
 
 .dob-container {
-  height: calc(100vh - 200px);
+  height: max(80vh, 572px);
   width: 1170px;
   position: relative;
   margin: 0 auto;
@@ -84,14 +84,19 @@ body {
 
 @media (max-width: 1200px) {
   .dob-container {
-    height: calc(100vh - 25vh);
-    max-height: 500px;
+    height: max(80vh, 572px);
     width: 100%;
     position: relative;
     max-width: 1170px;
     margin: 0 auto;
     margin-bottom: auto;
     border: 0;
+  }
+}
+
+@media (min-width: 992px) {
+  .dob-informative-step-layout {
+      grid-template-rows: auto auto 1fr !important;
   }
 }
 
