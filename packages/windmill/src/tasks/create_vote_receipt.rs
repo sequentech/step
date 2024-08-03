@@ -27,17 +27,6 @@ pub async fn create_vote_receipt(
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
-        let element_id = element_id.clone();
-        let ballot_id = ballot_id.clone();
-        let ballot_tracker_url = ballot_tracker_url.clone();
-        let tenant_id = tenant_id.clone();
-        let election_event_id = election_event_id.clone();
-        let election_id = election_id.clone();
-        let area_id = area_id.clone();
-        let voter_id = voter_id.clone();
-        let time_zone = time_zone.clone();
-        let date_format = date_format.clone();
-
         move || {
             tokio::runtime::Handle::current().block_on(async move {
                 vote_receipt::create_vote_receipt_task(

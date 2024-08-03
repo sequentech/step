@@ -8,17 +8,17 @@ use std::env;
 
 use super::s3;
 use crate::postgres::{self, communication_template, election};
+use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::{event, instrument, Level};
-
-use deadpool_postgres::Transaction;
 use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
@@ -104,6 +104,36 @@ async fn get_manual_verification_url(
     let response_body: ManualVerificationOutput = unwrapped_response.json().await?;
 
     Ok(response_body.link)
+}
+
+pub async fn get_manual_verification_pdf_task(
+    document_id: String,
+    tenant_id: String,
+    election_event_id: String,
+    voter_id: String,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let hasura_transaction: Transaction<'_> = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    get_manual_verification_pdf(
+        &hasura_transaction,
+        &document_id,
+        &tenant_id,
+        &election_event_id,
+        &voter_id,
+    )
+    .await
+    .map_err(|err| anyhow!("{}", err))?;
+
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
