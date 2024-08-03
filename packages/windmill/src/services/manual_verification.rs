@@ -107,39 +107,7 @@ async fn get_manual_verification_url(
 }
 
 #[instrument(err)]
-pub async fn get_manual_verification_pdf_task(
-    document_id: String,
-    tenant_id: String,
-    election_event_id: String,
-    voter_id: String,
-) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let hasura_transaction: Transaction<'_> = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    get_manual_verification_pdf(
-        &hasura_transaction,
-        &document_id,
-        &tenant_id,
-        &election_event_id,
-        &voter_id,
-    )
-    .await
-    .map_err(|err| anyhow!("{}", err))?;
-
-    Ok(())
-}
-
-#[instrument(skip(hasura_transaction), err)]
 pub async fn get_manual_verification_pdf(
-    hasura_transaction: &Transaction<'_>,
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,

@@ -22,11 +22,11 @@ pub async fn get_manual_verification_pdf(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                manual_verification::get_manual_verification_pdf_task(
-                    document_id,
-                    tenant_id,
-                    election_event_id,
-                    voter_id,
+                manual_verification::get_manual_verification_pdf(
+                    &document_id,
+                    &tenant_id,
+                    &election_event_id,
+                    &voter_id,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))
