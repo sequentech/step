@@ -54,6 +54,7 @@ pub fn set_task_max_retries(new_val: u32) {
     }
 }
 
+#[instrument]
 pub fn set_is_app_active(new_val: bool) {
     unsafe {
         IS_APP_ACTIVE = new_val;
