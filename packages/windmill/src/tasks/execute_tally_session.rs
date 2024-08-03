@@ -76,14 +76,6 @@ use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
-/*type AreaContestDataType = (
-    Vec<<RistrettoCtx as Ctx>::P>,
-    GetLastTallySessionExecutionSequentBackendTallySessionContest,
-    Contest,
-    BallotStyle,
-    u64,
-);*/
-
 #[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
