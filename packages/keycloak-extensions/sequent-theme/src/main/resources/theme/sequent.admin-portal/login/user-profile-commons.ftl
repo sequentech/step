@@ -44,32 +44,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</#if>
 
 		<#nested "beforeField" attribute>
-		<div class="${properties.kcFormGroupClass!}">
-			<div class="${properties.kcLabelWrapperClass!}">
-				<label for="${attribute.name}" class="${properties.kcLabelClass!}">${advancedMsg(attribute.displayName!'')}</label>
-				<#if attribute.required>*</#if>
-			</div>
-			<div class="${properties.kcInputWrapperClass!}">
-				<#if attribute.annotations.inputHelperTextBefore??>
-					<div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextBefore))?no_esc}</div>
-				</#if>
-				<@inputFieldByType attribute=attribute/>
-				<#if messagesPerField.existsError('${attribute.name}')>
-					<span id="input-error-${attribute.name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
-						${kcSanitize(messagesPerField.get('${attribute.name}'))?no_esc}
-					</span>
-				</#if>
-				<#if attribute.annotations.inputHelperTextAfter??>
-					<div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextAfter))?no_esc}</div>
-				</#if>
-			</div>
-		</div>
+		<@inputFieldWithLabel attribute=attribute name=attribute.name/>
+		<#if attribute.annotations.confirm??>
+			<@inputFieldWithLabel attribute=attribute name=attribute.name+'-confirm'/>
+		</#if>
 		<#nested "afterField" attribute>
 	</#list>
 
 	<script>
-	<#list readonlyElements as id>
-		document.getElementById("${id}").readOnly = true;
+		function setReadOnly(id, value) {
+			let element = document.getElementById(id);
+
+			if (element) {
+				element.readOnly = !value;
+				element.required = value;
+			}
+		}
+
+		function setAllReadOnly(id, value) {
+			setReadOnly(id, value);
+            // In case of using hidden inputs for int-tel input
+			setReadOnly(id + "-input", value);
+			// In case of having confirm inputs
+			setReadOnly(id + "-confirm", value);
+		}
+
+	<#list readonlyElements as element>
+		setAllReadOnly("${element.id}", ${element.checked});
 	</#list>
 	</script>
 
@@ -78,33 +79,62 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#list>
 </#macro>
 
-<#macro inputFieldByType attribute>
+<#macro inputFieldWithLabel attribute name>
+	<div class="${properties.kcFormGroupClass!}">
+		<div class="${properties.kcLabelWrapperClass!}">
+			<label for="${name}" class="${properties.kcLabelClass!}">
+				<#if name?ends_with("-confirm")>
+					${advancedMsg(attribute.annotations.confirm!'')}
+				<#else>
+					${advancedMsg(attribute.displayName!'')}
+				</#if>
+			</label>
+			<#if attribute.required>*</#if>
+		</div>
+		<div class="${properties.kcInputWrapperClass!}">
+			<#if attribute.annotations.inputHelperTextBefore??>
+				<div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextBefore))?no_esc}</div>
+			</#if>
+			<@inputFieldByType attribute=attribute name=name/>
+			<#if messagesPerField.existsError('${name}')>
+				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
+				</span>
+			</#if>
+			<#if attribute.annotations.inputHelperTextAfter??>
+				<div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextAfter))?no_esc}</div>
+			</#if>
+		</div>
+	</div>
+</#macro>
+
+<#macro inputFieldByType attribute name>
 	<#switch attribute.annotations.inputType!''>
 	<#case 'textarea'>
-		<@textareaTag attribute=attribute/>
+		<@textareaTag attribute=attribute name=name/>
 		<#break>
 	<#case 'select'>
 	<#case 'multiselect'>
-		<@selectTag attribute=attribute/>
+		<@selectTag attribute=attribute name=name/>
 		<#break>
 	<#case 'select-radiobuttons'>
 	<#case 'multiselect-checkboxes'>
-		<@inputTagSelects attribute=attribute/>
+		<@inputTagSelects attribute=attribute name=name/>
 		<#break>
 	<#default>
 		<#if attribute.multivalued && attribute.values?has_content>
 			<#list attribute.values as value>
-				<@inputTag attribute=attribute value=value!''/>
+				<@inputTag attribute=attribute name=name value=value!''/>
 			</#list>
 		<#else>
-			<@inputTag attribute=attribute value=attribute.value!''/>
+			<@inputTag attribute=attribute name=name value=attribute.value!''/>
 		</#if>
 	</#switch>
 </#macro>
 
-<#macro inputTag attribute value>
-	<input type="<@inputTagType attribute=attribute/>" id="${attribute.name}" name="${attribute.name}" value="${(value!'')}" class="${properties.kcInputClass!}"
-		aria-invalid="<#if messagesPerField.existsError('${attribute.name}')>true</#if>"
+<#macro inputTag attribute name value>
+	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
+		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if attribute.readOnly>disabled</#if>
 		<#--  Checks for attribute annotations that start with "html-attribute:" and sets them as input attributes  -->
 		<#list attribute.annotations as key, value>
@@ -139,9 +169,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#compress>
 </#macro>
 
-<#macro textareaTag attribute>
-	<textarea id="${attribute.name}" name="${attribute.name}" class="${properties.kcInputClass!}"
-		aria-invalid="<#if messagesPerField.existsError('${attribute.name}')>true</#if>"
+<#macro textareaTag attribute name>
+	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
+		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if attribute.readOnly>disabled</#if>
 		<#if attribute.annotations.inputTypeCols??>cols="${attribute.annotations.inputTypeCols}"</#if>
 		<#if attribute.annotations.inputTypeRows??>rows="${attribute.annotations.inputTypeRows}"</#if>
@@ -149,9 +179,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	>${(attribute.value!'')}</textarea>
 </#macro>
 
-<#macro selectTag attribute>
-	<select id="${attribute.name}" name="${attribute.name}" class="${properties.kcInputClass!}"
-		aria-invalid="<#if messagesPerField.existsError('${attribute.name}')>true</#if>"
+<#macro selectTag attribute name>
+	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
+		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if attribute.readOnly>disabled</#if>
 		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
@@ -176,7 +206,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</select>
 </#macro>
 
-<#macro inputTagSelects attribute>
+<#macro inputTagSelects attribute name>
 	<#if attribute.annotations.inputType=='select-radiobuttons'>
 		<#assign inputType='radio'>
 		<#assign classDiv=properties.kcInputClassRadio!>
@@ -199,16 +229,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<#list options as option>
 		<div class="${classDiv}">
-			<input type="${inputType}" id="${attribute.name}-${option}" name="${attribute.name}" value="${option}" class="${classInput}"
-				aria-invalid="<#if messagesPerField.existsError('${attribute.name}')>true</#if>"
+			<input type="${inputType}" id="${name}-${option}" name="${name}" value="${option}" class="${classInput}"
+				aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 				<#if attribute.readOnly>disabled</#if>
 				<#if attribute.values?seq_contains(option)>checked</#if>
 				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
 			/>
-			<label for="${attribute.name}-${option}" class="${classLabel}<#if attribute.readOnly> ${properties.kcInputClassRadioCheckboxLabelDisabled!}</#if>"><@selectOptionLabelText attribute=attribute option=option/></label>
+			<label for="${name}-${option}" class="${classLabel}<#if attribute.readOnly> ${properties.kcInputClassRadioCheckboxLabelDisabled!}</#if>"><@selectOptionLabelText attribute=attribute option=option/></label>
 		</div>
 		<#if attribute.annotations.disableAttribute??>
-		<#assign readonlyElements += ["${option}"]>
+		<#assign readonlyElements += [{"id":"${option}","checked":"${attribute.values?seq_contains(option)?c}"}]>
 		</#if>
 	</#list>
 </#macro>

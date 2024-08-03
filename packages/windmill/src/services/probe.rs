@@ -12,6 +12,8 @@ use tokio::join;
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
+use super::celery_app::get_is_app_active;
+
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum AppName {
     BEAT,
@@ -27,7 +29,7 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
 
     let celery_result = celery_app.broker.reconnect(BROKER_CONNECTION_TIMEOUT).await;
 
-    Some(celery_result.is_ok())
+    Some(celery_result.is_ok() && get_is_app_active())
 }
 
 #[instrument]
