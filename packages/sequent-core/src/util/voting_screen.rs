@@ -97,110 +97,240 @@ pub fn check_voting_error_dialog_util(
 
 
 
-// // TESTS: WIP
-// #[cfg(test)]
-// mod tests {
-//     use uuid::Uuid;
-//     use crate::ballot::{Candidate, Contest, ContestPresentation, EBlankVotePolicy, InvalidVotePolicy};
-//     use crate::voting_screen::{ContestPresentation, HashableBallot, Contest};
+// TESTS: WIP
+fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_policy: InvalidVotePolicy) -> Contest {
+    Contest {
+        created_at: None,
+        id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        name: Some("Secretario General".into()),
+        name_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        winning_candidates_num: 1,
+        description: Some("Elige quien quieres que sea tu Secretario General en tu municipio".into()),
+        description_i18n: None,
+        max_votes: 1,
+        min_votes: 0,
+        voting_type: Some("first-past-the-post".into()),
+        counting_algorithm: Some("plurality-at-large".into()), 
+        is_encrypted: true,
+        candidates: vec![
+            Candidate {
+                id: "0".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("José Rabano Pimiento".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(0),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "1".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Miguel Pimentel Inventado".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(1),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "2".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Juan Iglesias Torquemada".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(2),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "3".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Mari Pili Hernández Ordoñez".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(3),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+            Candidate {
+                id: "4".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Juan Y Medio".into()),
+                name_i18n: None,
+                alias: None,
+                alias_i18n: None,
+                description: None,
+                description_i18n: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    i18n: None,
+                    is_explicit_invalid: Some(false),
+                    is_explicit_blank: Some(false),
+                    is_disabled: Some(false),
+                    is_write_in: Some(false),
+                    sort_order: Some(4),
+                    urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: Some(false),
+                    subtype: None,
+                }),
+            },
+        ],
+        presentation: Some(ContestPresentation {
+            i18n: None,
+            allow_writeins: Some(false),
+            base32_writeins: Some(true),
+            cumulative_number_of_checkboxes: None,
+            shuffle_categories: Some(true),
+            shuffle_category_list: None,
+            show_points: Some(false),
+            enable_checkable_lists: None,
+            candidates_order: None,
+            candidates_selection_policy: None,
+            max_selections_per_type: None,
+            types_presentation: None,
+            sort_order: None,
+            under_vote_alert: Some(false),
+            invalid_vote_policy: Some(invalid_vote_policy),
+            blank_vote_policy: Some(blank_vote_policy),
+        }),
+    }
+}
 
-//     #[test]
-//     fn test_check_voting_not_allowed_next() {
-//         let tenant_id = Uuid::new_v4().to_string();
-//         let election_event_id = Uuid::new_v4().to_string();
-//         let election_id = Uuid::new_v4().to_string();
-//         // Create mock data for candidates
-//         let mut candidate = Candidate {
-//             id: Uuid::new_v4(),
-//             tenant_id: tenant_id.clone(),
-//             election_event_id: election_event_id.clone(),
-//             election_id: election_id.clone(),
-//         };
-//         // Create mock data for contests
-//         let contest1_id = Uuid::new_v4().to_string();
-//         let contest1 = Contest {
-//             id: contest1_id.clone(),
-//             tenant_id: tenant_id.clone(),
-//             election_event_id: election_event_id.clone(),
-//             election_id: election_id.clone(),
-//             max_votes: 4,
-//             min_votes: 2,
-//             is_encrypted: true,
-//             candidates: vec![...candidate, contest_id: contest1_id],
-//             presentation: Some(ContestPresentation {
-//                 invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
-//                 blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
-//             }),
-//         };
-//         let contest2_id = Uuid::new_v4();
-//         let contest2 = Contest {
-//             id: contest2_id.clone(),
-//             tenant_id: tenant_id.clone(),
-//             election_event_id: election_event_id.clone(),
-//             election_id: election_id.clone(),
-//             max_votes: 4,
-//             min_votes: 2,
-//             is_encrypted: true,
-//             candidates: vec![...candidate, contest_id: contest2_id],
-//             presentation: Some(ContestPresentation {
-//                 invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
-//                 blank_vote_policy: Some(EBlankVotePolicy::NOT_ALLOWED),
-//             }),
-//         };
-//         let contest3_id = Uuid::new_v4();
-//         let contest3 = Contest {
-//             id: contest3_id.clone(),
-//             tenant_id: tenant_id.clone(),
-//             election_event_id: election_event_id.clone(),
-//             election_id: election_id.clone(),
-//             max_votes: 4,
-//             min_votes: 2,
-//             is_encrypted: true,
-//             candidates: vec![...candidate, contest_id: contest3_id],
-//             presentation: Some(ContestPresentation {
-//                 invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
-//                 blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
-//             }),
-//         };
-//         let contests = vec![contest1, contest2];
-//         candidate.contest_id = contest1.id.clone();
-//         // Create mock data for decoded contests
-//         let mut decoded_contests = HashMap::new<String, DecodedVoteContest>();
-//         let decoded_contest = DecodedVoteContest {
-//             choices: vec![Choice { selected: 0 }],
-//             invalid_errors: vec![InvalidPlaintextError {
-//                 error_type: InvalidPlaintextErrorType::Explicit,
-//             }],
-//             is_explicit_invalid: true,
-//         };
-//         decoded_contests.insert("contest1".to_string(), decoded_contest);
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use uuid::Uuid;
+    use crate::ballot::*;
+    use crate::plaintext::*;
+    use crate::util::voting_screen::{check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality};
 
-//         // Test the function
-//         let result = check_voting_not_allowed_next(contests, decoded_contests);
-//         assert_eq!(result.unwrap(), true); //TODO: unwrap or
-//     }
+    #[test]
+    fn test_check_voting_not_allowed_next() {
+        let tenant_id = Uuid::new_v4().to_string();
+        let election_event_id = Uuid::new_v4().to_string();
+        let election_id = Uuid::new_v4().to_string();
+
+        // Create mock data for contests
+        let contest1 = get_contest_plurality(EBlankVotePolicy::ALLOWED, InvalidVotePolicy::NOT_ALLOWED);
+        let contest2 = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::ALLOWED);
+        let contest3 = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::NOT_ALLOWED);
+        let contests = vec![contest1, contest2, contest3];
+
+        // Create mock data for decoded contests
+        let mut decoded_contests: HashMap<String, DecodedVoteContest> = HashMap::new();
+        // for contest in &contests {
+        //     let decoded_contest = DecodedVoteContest {
+        //         contest_id: contest.id.clone(),
+        //         is_explicit_invalid: true,
+        //         invalid_errors: vec![InvalidPlaintextError {
+        //             error_type: InvalidPlaintextErrorType::Explicit,
+        //         }],
+        //         invalid_alerts: vec![InvalidPlaintextError {
+        //             error_type: InvalidPlaintextErrorType::Explicit,
+        //         }],
+        //         choices: vec![DecodedVoteChoice { selected: 0 }],
+        //     };
+        //     decoded_contests.insert(contest.id.clone(), decoded_contest);
+        // }
+
+        // Test the function
+        let result = check_voting_not_allowed_next_util(contests, decoded_contests);
+        assert_eq!(result, true)
+    }
 
 
+    // #[test]
+    // fn test_check_voting_error_dialog() {
+    //     // Create mock data for contests
+    //     let contests = get_contest_plurality();
 
+    //     // Create mock data for decoded contests
+    //     let mut decoded_contests = HashMap::new();
+    //     let decoded_contest = DecodedVoteContest {
+    //         choices: vec![Choice { selected: 0 }],
+    //         invalid_errors: vec![InvalidPlaintextError {
+    //             error_type: InvalidPlaintextErrorType::Explicit,
+    //         }],
+    //         is_explicit_invalid: true,
+    //     };
+    //     decoded_contests.insert("contest2".to_string(), decoded_contest);
 
-//     // #[test]
-//     // fn test_check_voting_error_dialog() {
-//     //     // Create mock data for contests
-//     //     let contests = get_contest_plurality();
-
-//     //     // Create mock data for decoded contests
-//     //     let mut decoded_contests = HashMap::new();
-//     //     let decoded_contest = DecodedVoteContest {
-//     //         choices: vec![Choice { selected: 0 }],
-//     //         invalid_errors: vec![InvalidPlaintextError {
-//     //             error_type: InvalidPlaintextErrorType::Explicit,
-//     //         }],
-//     //         is_explicit_invalid: true,
-//     //     };
-//     //     decoded_contests.insert("contest2".to_string(), decoded_contest);
-
-//     //     // Test the function
-//     //     let result = check_voting_error_dialog(contests, decoded_contests);
-//     //     assert_eq!(result.unwrap(), true);
-//     // }
-// }
+    //     // Test the function
+    //     let result = check_voting_error_dialog(contests, decoded_contests);
+    //     assert_eq!(result.unwrap(), true);
+    // }
+}
