@@ -106,6 +106,7 @@ async fn get_manual_verification_url(
     Ok(response_body.link)
 }
 
+#[instrument(err)]
 pub async fn get_manual_verification_pdf_task(
     document_id: String,
     tenant_id: String,
