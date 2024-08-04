@@ -88,7 +88,10 @@ async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -
     let response = client.get(manual_verification_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!("File not found: {}", file_manual_verification_template));
+        return Err(anyhow!(
+            "File not found: {}",
+            file_manual_verification_template
+        ));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
