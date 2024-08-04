@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Authenticate to Vote</title>
-  <script src="{{data.file_qrcode_lib}}"></script>
+  <script src="{{file_qrcode_lib}}"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     }
 
     .logo {
-      content: url("{{data.file_logo}}");
+      content: url("{{file_logo}}");
       text-align: center;
       margin: 16px auto;
     }
@@ -65,13 +65,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 </head>
 
 <body>
-  <div class="main">
-  </div>
+  <main class="main">
+      {{{rendered_user_template}}}
+  </main>
 </body>
 
 <script>
   const qrcode = new QRCode(document.getElementById("qrcode"), {
-    text: "{{data.manual_verification_url}}",
+    text: "{{manual_verification_url}}",
     width: 280,
     height: 280,
     colorDark: '#000000',

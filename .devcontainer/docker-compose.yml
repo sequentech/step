@@ -88,14 +88,7 @@ services:
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
       - MINIO_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
       - MINIO_ACCESS_SECRET=${AWS_S3_ACCESS_SECRET}
-    #entrypoint: sh
-    #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
     command: server --console-address ":9001" /data
-    #entrypoint: /bin/bash
-    #command: -c 'minio server --console-address ":9001" /data'
-    #restart: always
-    #depends_on:
-    #  - graphql-engine
   
   # used to add headers to minio
   minio-proxy:
@@ -115,7 +108,6 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
-    #image: minio/mc
     depends_on:
       - minio
     environment:
@@ -779,6 +771,8 @@ services:
       PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT}
       PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
       PUBLIC_ASSETS_EML_BASE_TEMPLATE: ${PUBLIC_ASSETS_EML_BASE_TEMPLATE}
+      PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE: ${PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE}
+      PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE: ${PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE}
       VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
       VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
