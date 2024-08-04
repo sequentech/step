@@ -42,7 +42,7 @@ impl StartKeyCeremony {
     }
 }
 
-fn start_ceremony(
+pub fn start_ceremony(
     election_event_id: &str,
     threshold: i64,
 ) -> Result<String, Box<dyn std::error::Error>> {

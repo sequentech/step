@@ -50,7 +50,7 @@ impl UpdateTallyStatus {
     }
 }
 
-fn update_status(
+pub fn update_status(
     election_event_id: &str,
     tally_id: &str,
     status: &str,

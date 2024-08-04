@@ -41,7 +41,10 @@ impl UpdateElectionEventStatus {
     }
 }
 
-fn update_status(election_event_id: &str, status: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn update_status(
+    election_event_id: &str,
+    status: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 

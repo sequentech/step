@@ -46,7 +46,7 @@ impl PublishChanges {
     }
 }
 
-fn publish_changes(election_event_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub fn publish_changes(election_event_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
 
     let client = reqwest::blocking::Client::new();

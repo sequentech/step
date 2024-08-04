@@ -42,7 +42,7 @@ impl StartTallyCeremony {
     }
 }
 
-fn start_ceremony(
+pub fn start_ceremony(
     election_event_id: &str,
     election_ids: Option<Vec<String>>,
 ) -> Result<String, Box<dyn std::error::Error>> {

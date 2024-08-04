@@ -79,7 +79,7 @@ impl UpdateVoter {
     }
 }
 
-fn edit_voter(
+pub fn edit_voter(
     election_event_id: &str,
     user_id: &str,
     first_name: &str,

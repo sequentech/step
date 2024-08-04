@@ -60,7 +60,7 @@ impl Config {
     }
 }
 
-fn create_config(
+pub fn create_config(
     endpoint_url: &str,
     keycloak_url: &str,
     username: &str,

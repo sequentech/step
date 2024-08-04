@@ -27,7 +27,7 @@ pub struct CreateVoter {
     username: String,
 
     /// User Email
-    #[arg(long)]
+    #[arg(long, default_value = "")]
     email: String,
 }
 
@@ -58,7 +58,7 @@ impl CreateVoter {
     }
 }
 
-fn create_voter(
+pub fn create_voter(
     election_event_id: &str,
     first_name: &str,
     last_name: &str,
@@ -83,7 +83,11 @@ fn create_voter(
                 Some(last_name.to_string())
             },
             attributes: None,
-            email: Some(email.to_string()),
+            email: if email.is_empty() {
+                None
+            } else {
+                Some(email.to_string())
+            },
             username: if username.is_empty() {
                 None
             } else {

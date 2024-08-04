@@ -46,7 +46,7 @@ impl ConfirmKeyForTally {
     }
 }
 
-fn confirm_key(
+pub fn confirm_key(
     election_event_id: &str,
     tally_id: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {

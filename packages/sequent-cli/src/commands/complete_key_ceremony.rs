@@ -37,7 +37,7 @@ impl Complete {
     }
 }
 
-fn complete_ceremony(
+pub fn complete_ceremony(
     election_event_id: &str,
     key_ceremony_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
