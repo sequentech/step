@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 extern crate console_error_panic_hook;
 
-
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
@@ -95,9 +94,11 @@ pub fn check_voting_error_dialog_util(
     show_voting_alert
 }
 
-
-
-pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_policy: InvalidVotePolicy, min_votes: Option<i64>) -> Contest {
+pub fn get_contest_plurality(
+    blank_vote_policy: EBlankVotePolicy,
+    invalid_vote_policy: InvalidVotePolicy,
+    min_votes: Option<i64>,
+) -> Contest {
     let min_votes = min_votes.unwrap_or(1);
 
     Contest {
@@ -111,18 +112,22 @@ pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_p
         alias: None,
         alias_i18n: None,
         winning_candidates_num: 1,
-        description: Some("Elige quien quieres que sea tu Secretario General en tu municipio".into()),
+        description: Some(
+            "Elige quien quieres que sea tu Secretario General en tu municipio"
+                .into(),
+        ),
         description_i18n: None,
         max_votes: 3,
         min_votes,
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()), 
+        counting_algorithm: Some("plurality-at-large".into()),
         is_encrypted: true,
         candidates: vec![
             Candidate {
                 id: "0".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
-                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("José Rabano Pimiento".into()),
@@ -148,7 +153,8 @@ pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_p
             Candidate {
                 id: "1".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
-                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Miguel Pimentel Inventado".into()),
@@ -174,7 +180,8 @@ pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_p
             Candidate {
                 id: "2".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
-                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Iglesias Torquemada".into()),
@@ -200,7 +207,8 @@ pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_p
             Candidate {
                 id: "3".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
-                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Mari Pili Hernández Ordoñez".into()),
@@ -226,7 +234,8 @@ pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_p
             Candidate {
                 id: "4".into(),
                 tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
-                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46"
+                    .into(),
                 election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
                 name: Some("Juan Y Medio".into()),
@@ -288,11 +297,14 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
         invalid_alerts: vec![InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Explicit,
             candidate_id: None,
-            message: Some("errors.implicit.underVote".to_string(),
-            ),
+            message: Some("errors.implicit.underVote".to_string()),
             message_map,
         }],
         invalid_errors: vec![],
-        choices: vec![DecodedVoteChoice { id: "b11b19c6-7157-4f26-b2e9-b5e353f252c2".into(), selected: -1, write_in_text: None }],
+        choices: vec![DecodedVoteChoice {
+            id: "b11b19c6-7157-4f26-b2e9-b5e353f252c2".into(),
+            selected: -1,
+            write_in_text: None,
+        }],
     }
 }

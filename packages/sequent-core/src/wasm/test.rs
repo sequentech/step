@@ -17,6 +17,9 @@ use crate::util::normalize_vote::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
+use crate::util::voting_screen::{
+    check_voting_error_dialog_util, check_voting_not_allowed_next_util,
+};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -24,7 +27,6 @@ use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
-use crate::util::voting_screen::{check_voting_not_allowed_next_util, check_voting_error_dialog_util};
 
 pub trait IntoResult<T> {
     fn into_json(self) -> Result<T, JsValue>;
@@ -577,7 +579,8 @@ pub fn check_voting_not_allowed_next(
             ))
         })?;
 
-    let voting_not_allowed = check_voting_not_allowed_next_util(all_contests, all_decoded_contests);
+    let voting_not_allowed =
+        check_voting_not_allowed_next_util(all_contests, all_decoded_contests);
 
     Ok(JsValue::from_bool(voting_not_allowed))
 }
@@ -599,7 +602,8 @@ pub fn check_voting_error_dialog(
             ))
         })?;
 
-    let show_voting_alert = check_voting_error_dialog_util(all_contests, all_decoded_contests);
+    let show_voting_alert =
+        check_voting_error_dialog_util(all_contests, all_decoded_contests);
 
     Ok(JsValue::from_bool(show_voting_alert))
 }
