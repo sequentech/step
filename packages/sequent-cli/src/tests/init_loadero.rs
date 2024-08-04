@@ -24,6 +24,7 @@ pub fn init_loadero_tests(
         election_event_id,
         voting_portal_url,
         voter_count,
+        participant_count,
     )?;
 
     // Step 1.5: Add participant to test
@@ -76,6 +77,7 @@ fn create_test(
     election_event_id: &str,
     voting_portal_url: &str,
     voter_count: u64,
+    participant_count: u64,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
@@ -88,7 +90,7 @@ fn create_test(
         "name": format!("Test Voting Portal - Election {}", election_event_id),
         "participant_timeout": 300,
         "script": script,
-        "start_interval": 60
+        "start_interval": 30 * participant_count
     });
 
     let response = client
