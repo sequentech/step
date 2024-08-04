@@ -97,8 +97,9 @@ pub fn check_voting_error_dialog_util(
 
 
 
-// TESTS: WIP
-fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_policy: InvalidVotePolicy) -> Contest {
+pub fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_policy: InvalidVotePolicy, min_votes: Option<i64>) -> Contest {
+    let min_votes = min_votes.unwrap_or(1);
+
     Contest {
         created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
@@ -112,8 +113,8 @@ fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_polic
         winning_candidates_num: 1,
         description: Some("Elige quien quieres que sea tu Secretario General en tu municipio".into()),
         description_i18n: None,
-        max_votes: 1,
-        min_votes: 0,
+        max_votes: 3,
+        min_votes,
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), 
         is_encrypted: true,
@@ -270,67 +271,28 @@ fn get_contest_plurality(blank_vote_policy: EBlankVotePolicy, invalid_vote_polic
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-    use uuid::Uuid;
-    use crate::ballot::*;
-    use crate::plaintext::*;
-    use crate::util::voting_screen::{check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality};
+pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
+    let message_map = [
+        ("max".to_string(), "1".to_string()),
+        ("min".to_string(), "0".to_string()),
+        ("numSelected".to_string(), "0".to_string()),
+        ("type".to_string(), "alert".to_string()),
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
-    #[test]
-    fn test_check_voting_not_allowed_next() {
-        let tenant_id = Uuid::new_v4().to_string();
-        let election_event_id = Uuid::new_v4().to_string();
-        let election_id = Uuid::new_v4().to_string();
-
-        // Create mock data for contests
-        let contest1 = get_contest_plurality(EBlankVotePolicy::ALLOWED, InvalidVotePolicy::NOT_ALLOWED);
-        let contest2 = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::ALLOWED);
-        let contest3 = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::NOT_ALLOWED);
-        let contests = vec![contest1, contest2, contest3];
-
-        // Create mock data for decoded contests
-        let mut decoded_contests: HashMap<String, DecodedVoteContest> = HashMap::new();
-        // for contest in &contests {
-        //     let decoded_contest = DecodedVoteContest {
-        //         contest_id: contest.id.clone(),
-        //         is_explicit_invalid: true,
-        //         invalid_errors: vec![InvalidPlaintextError {
-        //             error_type: InvalidPlaintextErrorType::Explicit,
-        //         }],
-        //         invalid_alerts: vec![InvalidPlaintextError {
-        //             error_type: InvalidPlaintextErrorType::Explicit,
-        //         }],
-        //         choices: vec![DecodedVoteChoice { selected: 0 }],
-        //     };
-        //     decoded_contests.insert(contest.id.clone(), decoded_contest);
-        // }
-
-        // Test the function
-        let result = check_voting_not_allowed_next_util(contests, decoded_contests);
-        assert_eq!(result, true)
+    DecodedVoteContest {
+        contest_id: contest.id.clone(),
+        is_explicit_invalid: true,
+        invalid_alerts: vec![InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::Explicit,
+            candidate_id: None,
+            message: Some("errors.implicit.underVote".to_string(),
+            ),
+            message_map,
+        }],
+        invalid_errors: vec![],
+        choices: vec![DecodedVoteChoice { id: "b11b19c6-7157-4f26-b2e9-b5e353f252c2".into(), selected: -1, write_in_text: None }],
     }
-
-
-    // #[test]
-    // fn test_check_voting_error_dialog() {
-    //     // Create mock data for contests
-    //     let contests = get_contest_plurality();
-
-    //     // Create mock data for decoded contests
-    //     let mut decoded_contests = HashMap::new();
-    //     let decoded_contest = DecodedVoteContest {
-    //         choices: vec![Choice { selected: 0 }],
-    //         invalid_errors: vec![InvalidPlaintextError {
-    //             error_type: InvalidPlaintextErrorType::Explicit,
-    //         }],
-    //         is_explicit_invalid: true,
-    //     };
-    //     decoded_contests.insert("contest2".to_string(), decoded_contest);
-
-    //     // Test the function
-    //     let result = check_voting_error_dialog(contests, decoded_contests);
-    //     assert_eq!(result.unwrap(), true);
-    // }
 }

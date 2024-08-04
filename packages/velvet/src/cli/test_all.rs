@@ -1236,4 +1236,70 @@ mod tests {
 
         Ok(())
     }
+
+    use std::collections::HashMap;
+    use sequent_core::ballot::*;
+    use sequent_core::plaintext::*;
+    use sequent_core::util::voting_screen::{check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality, get_decoded_contest_plurality};
+
+    #[test]
+    fn test_check_voting_not_allowed_next() {
+        // Case1: InvalidVotePolicy::NOT_ALLOWED but there arent any invalid_errors -> false
+        let contest1 = get_contest_plurality(EBlankVotePolicy::ALLOWED, InvalidVotePolicy::NOT_ALLOWED, None);
+        let mut decoded_contests1: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest1);
+        decoded_contests1.insert(contest1.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest1], decoded_contests1);
+        assert_eq!(result, false);
+
+        // Case2:EBlankVotePolicy::NOT_ALLOWED and there arent any votes casted -> true
+        let contest2: Contest = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::ALLOWED, None);
+        let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        decoded_contests2.insert(contest2.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest2], decoded_contests2);
+        assert_eq!(result, true);
+
+        // Case3: EBlankVotePolicy::NOT_ALLOWED bun minVotes = 0 && InvalidVotePolicy::NOT_ALLOWED but there arent any invalid_errors -> false
+        let contest3 = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::NOT_ALLOWED, Some(0));
+        let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        decoded_contests3.insert(contest3.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest3], decoded_contests3);
+        assert_eq!(result, true);
+
+        // Case4:
+        let contest4 = get_contest_plurality(EBlankVotePolicy::NOT_ALLOWED, InvalidVotePolicy::NOT_ALLOWED, None);
+        let mut decoded_contests4: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest4);
+        decoded_contests4.insert(contest4.id.clone(), decoded_contest);
+    
+        let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
+        assert_eq!(result, true);
+    }
+
+
+    // #[test]
+    // fn test_check_voting_error_dialog() {
+    //     // Create mock data for contests
+    //     let contests = get_contest_plurality();
+
+    //     // Create mock data for decoded contests
+    //     let mut decoded_contests = HashMap::new();
+    //     let decoded_contest = DecodedVoteContest {
+    //         choices: vec![Choice { selected: 0 }],
+    //         invalid_errors: vec![InvalidPlaintextError {
+    //             error_type: InvalidPlaintextErrorType::Explicit,
+    //         }],
+    //         is_explicit_invalid: true,
+    //     };
+    //     decoded_contests.insert("contest2".to_string(), decoded_contest);
+
+    //     // Test the function
+    //     let result = check_voting_error_dialog(contests, decoded_contests);
+    //     assert_eq!(result.unwrap(), true);
+    // }
 }
