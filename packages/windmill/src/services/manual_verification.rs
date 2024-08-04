@@ -7,75 +7,73 @@
 use std::env;
 
 use super::s3;
-use crate::postgres::{self, communication_template, election};
-use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::{event, instrument, Level};
-use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 
+/// Struct returned by the API call
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManualVerificationOutput {
     pub link: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManualVerificationData {
+pub struct SystemTemplateData {
+    pub rendered_user_template: String,
     pub manual_verification_url: String,
-    pub qrcode: String,
-    pub logo: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManualVerificationRoot {
-    pub data: ManualVerificationData,
+pub struct UserTemplateData {
+    pub manual_verification_url: String,
+    pub qrcode: String,
+    pub logo: String,
 }
 
 trait ToMap {
     fn to_map(&self) -> Result<Map<String, Value>>;
 }
 
-impl ToMap for ManualVerificationRoot {
+impl ToMap for SystemTemplateData {
     fn to_map(&self) -> Result<Map<String, Value>> {
         let Value::Object(map) = serde_json::to_value(self.clone())? else {
-            return Err(anyhow!("Can't convert ManualVerificationRoot to Map"));
+            return Err(anyhow!("Can't convert SystemTemplateData to Map"));
         };
         Ok(map)
     }
 }
 
-impl ToMap for ManualVerificationData {
+impl ToMap for UserTemplateData {
     fn to_map(&self) -> Result<Map<String, Value>> {
         let Value::Object(map) = serde_json::to_value(self.clone())? else {
-            return Err(anyhow!("Can't convert ManualVerificationData to Map"));
+            return Err(anyhow!("Can't convert UserTemplateData to Map"));
         };
         Ok(map)
     }
 }
 
 enum TemplateType {
-    Root,
-    Content,
+    System,
+    User,
 }
 
 async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -> Result<String> {
     let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
 
     let file_manual_verification_template = match tpl_type {
-        TemplateType::Root => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_TEMPLATE")?,
-        TemplateType::Content => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_TEMPLATE_CONTENT")?,
+        TemplateType::System => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_SYSTEM_TEMPLATE")?,
+        TemplateType::User => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_USER_TEMPLATE")?,
     };
 
     let minio_endpoint_base = s3::get_minio_url()?;
@@ -161,10 +159,25 @@ pub async fn get_manual_verification_pdf(
 
     let minio_endpoint_base = get_minio_url()?;
 
-    let data = ManualVerificationData {
+    let user_template_data = UserTemplateData {
         manual_verification_url: manual_verification_url.to_string(),
         qrcode: QR_CODE_TEMPLATE.to_string(),
         logo: LOGO_TEMPLATE.to_string(),
+    }
+    .to_map()?;
+
+    // TODO: make it configurable per election event, like vote_receipt.rs
+    let user_template = get_public_asset_manual_verification_template(TemplateType::User).await?;
+    event!(Level::INFO, "user template: {user_template:?}");
+    let rendered_user_template = reports::render_template_text(&user_template, user_template_data)?;
+    event!(
+        Level::INFO,
+        "rendered user template: {rendered_user_template:?}"
+    );
+
+    let system_template_data = SystemTemplateData {
+        rendered_user_template,
+        manual_verification_url: manual_verification_url.to_string(),
         file_logo: format!(
             "{}/{}/{}",
             minio_endpoint_base, public_asset_path, file_logo
@@ -173,16 +186,21 @@ pub async fn get_manual_verification_pdf(
             "{}/{}/{}",
             minio_endpoint_base, public_asset_path, file_qrcode_lib
         ),
-    };
+    }
+    .to_map()?;
 
-    // TODO: make it configurable per election event, like vote_receipt.rs
-    let template = get_public_asset_manual_verification_template(TemplateType::Root).await?;
-
-    let map = ManualVerificationRoot { data: data.clone() }.to_map()?;
-    let render = reports::render_template_text(&template, map)?;
+    let system_template =
+        get_public_asset_manual_verification_template(TemplateType::System).await?;
+    event!(Level::INFO, "system template: {system_template:?}");
+    let rendered_system_template =
+        reports::render_template_text(&system_template, system_template_data)?;
+    event!(
+        Level::INFO,
+        "rendered system template: {rendered_system_template:?}"
+    );
 
     // Gen pdf
-    let bytes_pdf = pdf::html_to_pdf(render)
+    let bytes_pdf = pdf::html_to_pdf(rendered_system_template)
         .map_err(|err| anyhow!("error rendering manual verification pdf: {}", err))?;
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&bytes_pdf, "manual-verification-", ".pdf")
