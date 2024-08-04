@@ -239,6 +239,7 @@ impl ImportUsersBody {
                     // Cast enabled to boolean
                     "enabled" => "enabled::boolean".to_string(),
                     "id" => "gen_random_uuid()".to_string(),
+                    "email" => "LOWER(email)".to_string(),
                     _ => column.to_string(),
                 }
             })
