@@ -65,6 +65,43 @@ impl ToMap for ManualVerificationData {
     }
 }
 
+enum TemplateType {
+    Root,
+    Content,
+}
+
+async fn get_public_asset_manual_verification_template(tpl_type: TemplateType) -> Result<String> {
+    let public_asset_path = env::var("PUBLIC_ASSETS_PATH")?;
+
+    let file_manual_verification_template = match tpl_type {
+        TemplateType::Root => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_TEMPLATE")?,
+        TemplateType::Content => env::var("PUBLIC_ASSETS_MANUAL_VERIFICATION_TEMPLATE_CONTENT")?,
+    };
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+    let manual_verification_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, file_manual_verification_template
+    );
+
+    let client = reqwest::Client::new();
+    let response = client.get(manual_verification_template).send().await?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!("File not found: {}", file_manual_verification_template));
+    }
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Unexpected response status: {:?}",
+            response.status()
+        ));
+    }
+
+    let template_hbs: String = response.text().await?;
+
+    Ok(template_hbs)
+}
+
 fn get_minio_url() -> Result<String> {
     let minio_private_uri =
         env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
@@ -134,109 +171,12 @@ pub async fn get_manual_verification_pdf(
             minio_endpoint_base, public_asset_path, file_qrcode_lib
         ),
     };
+
+    // TODO: make it configurable per election event, like vote_receipt.rs
+    let template = get_public_asset_manual_verification_template(TemplateType::Root).await?;
+
     let map = ManualVerificationRoot { data: data.clone() }.to_map()?;
-    let render = reports::render_template_text(
-        r#"
-        <html lang="en-US">
-
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width,initial-scale=1" />
-          <title>Authenticate to Vote</title>
-          <script src="{{data.file_qrcode_lib}}"></script>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: auto;
-              max-width: 640px;
-            }
-        
-            h1, h2, h3, h4 {
-              margin-top: 48px;
-              margin-bottom: 48px;
-            }
-
-            .logo {
-              content: url("{{data.file_logo}}");
-              text-align: center;
-              margin: 16px auto;
-            }
-        
-            .main {
-              margin-top: 32px;
-            }
-        
-            .main div {
-              margin-top: 32px;
-            }
-
-            .id-content {
-              print-color-adjust: exact;
-              font-family: monospace;
-              font-size:11px;
-              padding: 6px 12px;
-              background: #ecfdf5;
-              color: #191d23;
-              border-radius: 4px;
-            }
-
-            .info {
-              margin: 32px 0;
-            }
-            .info p {
-              margin: 12px 0;
-            }
-        
-            #qrcode {
-              margin-top: 32px;
-              display: flex;
-              justify-content: center;
-            }
-          </style>
-        </head>
-
-        <body>
-          <main class="main">
-            <div>
-            {{{data.logo}}}
-            </div>
-            <div>
-            <h2>Authenticate to Vote</h2>
-            <p>
-                Use the link below allows you to authenticate
-                after having performed Manual Verification:
-            </p>
-            <div class="info">
-                <p>
-                <a href="{{data.manual_verification_url}}">Login Link</a>
-                </p>
-            </div>
-            </div>
-            
-            <div>
-            <p>
-                You can also enter the link using the following QR code:
-            </p>
-            {{{data.qrcode}}}
-            </div>
-          </main>
-        </body>
-
-        <script>
-          const qrcode = new QRCode(document.getElementById("qrcode"), {
-            text: "{{data.manual_verification_url}}",
-            width: 180,
-            height: 180,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H,
-          });
-        </script>
-
-        </html>
-        "#,
-        map,
-    )?;
+    let render = reports::render_template_text(&template, map)?;
 
     // Gen pdf
     let bytes_pdf = pdf::html_to_pdf(render)
