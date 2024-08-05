@@ -234,6 +234,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "URLs personalitzades",
                 language: "Idiomes",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",

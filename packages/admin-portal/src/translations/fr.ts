@@ -235,6 +235,7 @@ const frenchTranslation: TranslationType = {
                 general: "Général",
                 dates: "Dates",
                 language: "Langues",
+                customUrls: "URLs personnalisées",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",

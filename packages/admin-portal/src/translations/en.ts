@@ -232,6 +232,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Custom URLs",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",

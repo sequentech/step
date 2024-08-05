@@ -829,6 +829,25 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-custom-urls"}
+                                onChange={() => setExpanded("election-event-data-custom-urls")}
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-custom-urls" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.customUrls")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>{/* TODO: */}</AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-materials"}
                                 onChange={() => setExpanded("election-event-data-materials")}
                             >
