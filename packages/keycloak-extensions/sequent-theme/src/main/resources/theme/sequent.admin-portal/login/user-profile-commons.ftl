@@ -44,9 +44,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</#if>
 
 		<#nested "beforeField" attribute>
-		<@inputFieldWithLabel attribute=attribute name=attribute.name/>
-		<#if attribute.annotations.confirm??>
-			<@inputFieldWithLabel attribute=attribute name=attribute.name+'-confirm'/>
+		<#if attribute.annotations.hidden?? && attribute.annotations.hidden?matches("true")>
+		<#else>
+			<@inputFieldWithLabel attribute=attribute name=attribute.name/>
+			<#if attribute.annotations.confirm??>
+				<@inputFieldWithLabel attribute=attribute name=attribute.name+'-confirm'/>
+			</#if>
 		</#if>
 		<#nested "afterField" attribute>
 	</#list>
@@ -58,6 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			if (element) {
 				element.readOnly = !value;
 				element.required = value;
+				element.value = '';
 			}
 		}
 

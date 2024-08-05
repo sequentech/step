@@ -180,13 +180,23 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       log.info("validate: ValidationException pve = " + pve.toString());
 
       // Filter email exists and username exists - this is to be expected
+      // If username is hidden ignore the missing username validation error.
       List<ValidationException.Error> filteredErrors =
           pve.getErrors().stream()
               .filter(
                   error ->
                       ((!context.getRealm().isRegistrationEmailAsUsername()
                               || !Messages.USERNAME_EXISTS.equals(error.getMessage()))
-                          && !Messages.EMAIL_EXISTS.equals(error.getMessage())))
+                          && !Messages.EMAIL_EXISTS.equals(error.getMessage())
+                          // If username is hidden ignore the missing username validation error.
+                          && !(Messages.MISSING_USERNAME.equals(error.getMessage())
+                              && "true"
+                                  .equals(
+                                      profile
+                                          .getAttributes()
+                                          .getMetadata(UserModel.USERNAME)
+                                          .getAnnotations()
+                                          .get("hidden")))))
               .collect(Collectors.toList());
       List<FormMessage> errors = Validation.getFormErrorsFromValidation(filteredErrors);
 
