@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
 
     setup_probe(AppName::WINDMILL).await;
 
-    println!("Settings: {:#?}", *SETTINGS);
+    event!(Level::DEBUG, "Settings: {:#?}", *SETTINGS);
 
     let opt = CeleryOpt::from_args();
 

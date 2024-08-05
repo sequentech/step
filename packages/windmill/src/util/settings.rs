@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::{anyhow, Result};
 use config::{Config, Environment};
 use serde::Deserialize;
-use anyhow::{anyhow, Result};
 use tracing::info;
 
 #[derive(Debug, Deserialize)]
@@ -23,10 +23,15 @@ pub struct DatabaseSettings {
 impl Default for DatabaseSettings {
     fn default() -> Self {
         DatabaseSettings {
+            keycloak_db: Default::default(),
+            hasura_db: Default::default(),
             low_sql_limit: 1000,
             default_sql_limit: 20,
             default_sql_batch_size: 1000,
-            ..Default::default()
+            immudb_server_url: Default::default(),
+            immudb_user: Default::default(),
+            immudb_password: Default::default(),
+            immudb_index_db: Default::default(),
         }
     }
 }
