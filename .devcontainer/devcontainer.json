@@ -26,6 +26,7 @@
 
 	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"postCreateCommand": "curl -fsSL https://get.extism.io | sh && extism --version",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
