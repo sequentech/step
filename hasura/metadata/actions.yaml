@@ -304,6 +304,13 @@ actions:
   - role: admin-dashboard-view
   - role: admin-user
   comment: get election event stats
+- name: getElections
+  definition:
+    kind: ""
+    handler: http://{{HARVEST_DOMAIN}}/get_elections
+  permissions:
+  - role: service-account
+  comment: getElections
 - name: get_ballot_publication_changes
   definition:
     kind: synchronous
@@ -820,4 +827,6 @@ custom_types:
   - name: OptionalImportEvent
   - name: ManageElectionDatesOutput
   - name: ExportLogsOutput
+  - name: GetElectionsOutput
+  - name: Election
   scalars: []

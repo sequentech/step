@@ -150,6 +150,10 @@ type Query {
   ): ElectionStatsOutput
 }
 
+type Query {
+  getElections : GetElectionsOutput
+}
+
 type Mutation {
   get_ballot_publication_changes (
     election_event_id: uuid!
@@ -849,5 +853,29 @@ type ManageElectionDatesOutput {
 type ExportLogsOutput {
   task_id : String!
   document_id : String!
+}
+
+type GetElectionsOutput {
+  elections : [Election]
+}
+
+type Election {
+  annotations : jsonb
+  created_at : timestamptz
+  dates : jsonb
+  description : String
+  election_event_id : uuid
+  eml : jsonb
+  id : uuid
+  is_consolidated_ballot_encoding : Boolean
+  labels : jsonb
+  last_updated_at : timestamptz
+  name : String
+  num_allowed_revotes : Int
+  presentation : jsonb
+  spoil_ballot_option : jsonb
+  status : String
+  tenant_id : uuid
+  alias : String
 }
 

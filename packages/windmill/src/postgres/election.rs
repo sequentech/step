@@ -383,3 +383,38 @@ pub async fn update_election_dates(
 
     Ok(())
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_elections(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Vec<Election>> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, presentation, dates, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, alias, voting_channels, is_kiosk, image_document_id, statistics, receipts
+                FROM 
+                    sequent_backend.election
+                WHERE tenant_id = $1;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the update_election_dates query: {err}"))?;
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+    Ok(elections)
+}
