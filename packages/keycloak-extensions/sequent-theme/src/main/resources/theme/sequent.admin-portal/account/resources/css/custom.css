@@ -15,6 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     --pf-global--link--Color: #191D23;
     --pf-c-nav__link--Color: #191D23;
     --pf-global--link--TextDecoration: underline;
+    --pf-c-form-control--FontSize: 12px;
 }
 
 html, body {
