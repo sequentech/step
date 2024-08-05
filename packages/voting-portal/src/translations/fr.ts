@@ -171,8 +171,10 @@ const frenchTranslation: TranslationType = {
                     "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera PAS compté.</strong> Ce bureau de vote est uniquement destiné à des fins de démonstration.",
                 ok: "J'accepte que mon vote ne sera pas compté",
             },
-            noVotingAreaError:
-                "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
+            errors: {
+                noVotingArea:
+                    "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
+            },
         },
         errors: {
             encoding: {

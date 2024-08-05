@@ -12,6 +12,7 @@ export const updateBallotStyleAndSelection = (
     data: GetBallotStylesQuery,
     dispatch: AppDispatch
 ) => {
+    console.log({data})
     for (let ballotStyle of data.sequent_backend_ballot_style) {
         const ballotEml = ballotStyle.ballot_eml
         if (!isString(ballotEml)) {
