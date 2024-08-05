@@ -15,8 +15,9 @@ pub fn init_loadero_tests(
     let loadero_url = std::env::var("LOADERO_URL")?;
     let participant_count = std::env::var("LOADERO_PARTICIPANT_COUNT").unwrap_or("1".to_string()); // Fallback is 1
     let participant_count: u64 = participant_count.parse()?;
-    let loadero_interval_sec = std::env::var("LOADERO_INTERVAL_TIME").unwrap_or("15".to_string()); // Fallback is 15 sec
-    let loadero_interval_sec: u64 = loadero_interval_sec.parse()?;
+    let loadero_interval_polling_sec =
+        std::env::var("LOADERO_INTERVAL_POLLING_TIME").unwrap_or("30".to_string()); // Fallback is 30 sec
+    let loadero_interval_polling_sec: u64 = loadero_interval_polling_sec.parse()?;
 
     // Step 1: Create Test
     let test_id = create_test(
@@ -34,7 +35,7 @@ pub fn init_loadero_tests(
     let run_id = launch_test(&loadero_url, &test_id)?;
 
     // Step 3: Poll for test result
-    let polling_interval = Duration::from_secs(loadero_interval_sec);
+    let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
     loop {
         match check_test_status(&loadero_url, &test_id, &run_id) {
             Ok((pass, fail)) => {
@@ -82,7 +83,12 @@ fn create_test(
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
-    let script = generate_script(voting_portal_url, voter_count)?;
+    let script = generate_script(voting_portal_url, voter_count)?; //TODO: Add randomizing candidate selection - Currently the first candidate is selected
+
+    let loadero_interval_sec = std::env::var("LOADERO_INTERVAL_TIME").unwrap_or("3.3".to_string()); // Fallback is 3.3 sec
+    let loadero_interval_sec: f64 = loadero_interval_sec.parse()?;
+
+    let start_interval_time = (participant_count as f64) * loadero_interval_sec;
 
     let json_body = json!({
         "increment_strategy": "linear",
@@ -90,7 +96,7 @@ fn create_test(
         "name": format!("Test Voting Portal - Election {}", election_event_id),
         "participant_timeout": 300,
         "script": script,
-        "start_interval": 30 * participant_count
+        "start_interval": start_interval_time
     });
 
     let response = client

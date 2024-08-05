@@ -21,6 +21,8 @@ use std::{env, error::Error, fmt::format};
 
 #[test]
 fn run_e2e() -> Result<(), Box<dyn Error>> {
+    // TODO: Add environment Variables in dev.env + beyond + gitops - Do this for the variables in this file + the variables in init_loadero.rs
+
     // Step 0 - Create Config
     let tenant_id = env::var("TENANT_ID")?;
     let hasura_endpoint = env::var("HASURA_ENDPOINT")?;
