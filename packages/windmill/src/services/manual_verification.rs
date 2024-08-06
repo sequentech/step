@@ -8,17 +8,17 @@ use std::env;
 
 use super::s3;
 use crate::postgres::{self, communication_template, election};
+use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::{event, instrument, Level};
-
-use deadpool_postgres::Transaction;
 use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
@@ -106,9 +106,8 @@ async fn get_manual_verification_url(
     Ok(response_body.link)
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(err)]
 pub async fn get_manual_verification_pdf(
-    hasura_transaction: &Transaction<'_>,
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,

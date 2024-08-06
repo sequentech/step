@@ -33,7 +33,7 @@ pub fn get_datetime(event: &PostgresScheduledEvent) -> Option<DateTime<Local>> {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(expires = 30)]
 pub async fn scheduled_events() -> Result<()> {
     let celery_app = get_celery_app().await;
     let now = ISO8601::now();
@@ -87,7 +87,8 @@ pub async fn scheduled_events() -> Result<()> {
                                 scheduled_event.id.clone(),
                                 election_id,
                             )
-                            .with_eta(datetime.with_timezone(&Utc)),
+                            .with_eta(datetime.with_timezone(&Utc))
+                            .with_expires_in(120),
                         )
                         .await?;
                     event!(
@@ -104,7 +105,8 @@ pub async fn scheduled_events() -> Result<()> {
                                 election_event_id.clone(),
                                 scheduled_event.id.clone(),
                             )
-                            .with_eta(datetime.with_timezone(&Utc)),
+                            .with_eta(datetime.with_timezone(&Utc))
+                            .with_expires_in(120),
                         )
                         .await?;
                     event!(

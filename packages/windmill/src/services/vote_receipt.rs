@@ -7,10 +7,12 @@ use std::env;
 
 use super::s3;
 use crate::postgres::{self, communication_template, election};
+use crate::services::database::get_hasura_pool;
 use crate::services::{
     documents::upload_and_return_document, temp_path::write_into_named_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::date_time::{DateFormat, TimeZone};
@@ -18,8 +20,6 @@ use sequent_core::util::date_time::generate_timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
-
-use deadpool_postgres::Transaction;
 use uuid::Uuid;
 
 const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
@@ -221,6 +221,55 @@ impl ToMap for VoteReceiptRootTemplate {
 
         Ok(map)
     }
+}
+
+#[instrument(err)]
+pub async fn create_vote_receipt_task(
+    element_id: String,
+    ballot_id: String,
+    ballot_tracker_url: String,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+    area_id: String,
+    voter_id: String,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let hasura_transaction: Transaction<'_> = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    create_vote_receipt(
+        &hasura_transaction,
+        &element_id,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        &voter_id,
+        &ballot_id,
+        &ballot_tracker_url,
+        time_zone,
+        date_format,
+    )
+    .await
+    .map_err(|err| anyhow!("{}", err))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Error committing create_vote_receipt transaction")
+        .map_err(|err| anyhow!("{}", err))?;
+
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
