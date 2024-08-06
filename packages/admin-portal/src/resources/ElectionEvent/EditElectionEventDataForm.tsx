@@ -357,10 +357,10 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
         }
 
-        if(!temp.presentation?.custom_urls){
+        if (!temp.presentation?.custom_urls) {
             temp.presentation.custom_urls = {}
         }
-        
+
         return temp
     }
 
@@ -849,18 +849,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    {
-                                /* TODO: */   
-                             }
-                              <TextInput
-                                source={`presentation.custom_urls.login`}
-                                label={t("electionEventScreen.customUrls.login")}
-                            />
-                             <TextInput
-                                source={`presentation.custom_urls.enrollment`}
-                                label={t("electionEventScreen.customUrls.enrollment")}
-                            />
-                             </AccordionDetails>
+                                    {/* TODO: */}
+                                    <TextInput
+                                        source={`presentation.custom_urls.login`}
+                                        label={t("electionEventScreen.customUrls.login")}
+                                    />
+                                    <TextInput
+                                        source={`presentation.custom_urls.enrollment`}
+                                        label={t("electionEventScreen.customUrls.enrollment")}
+                                    />
+                                </AccordionDetails>
                             </Accordion>
 
                             <Accordion

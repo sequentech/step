@@ -243,7 +243,7 @@ const catalanTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
             },
-            customUrls:{
+            customUrls: {
                 login: "Inici de sessió",
                 enrollment: "Inscripció",
             },

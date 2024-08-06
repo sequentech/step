@@ -243,7 +243,7 @@ const frenchTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
             },
-            customUrls:{
+            customUrls: {
                 login: "Connexion",
                 enrollment: "Inscription",
             },

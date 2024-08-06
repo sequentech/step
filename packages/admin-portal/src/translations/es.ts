@@ -243,7 +243,7 @@ const spanishTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
             },
-            customUrls:{
+            customUrls: {
                 login: "Inicio de sesión",
                 enrollment: "Inscripción",
             },

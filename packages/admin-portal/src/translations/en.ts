@@ -241,8 +241,8 @@ const englishTranslation = {
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
             },
-            customUrls:{
-                login: 'Login',
+            customUrls: {
+                login: "Login",
                 enrollment: "Enrollment",
             },
             localization: {
