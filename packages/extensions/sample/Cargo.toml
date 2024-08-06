@@ -1,7 +1,7 @@
 [package]
-name = "sample_extension"
+name = "sample"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wasm-bindgen = "0.2.79"
+extism-pdk = "1.2.0"

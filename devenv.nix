@@ -59,6 +59,8 @@
     set -a
     source .devcontainer/.env
     set +a
+    curl -s https://get.extism.org/cli | sh --y 
+    export PATH=/usr/local/bin:$PATH
   '';
 
   # https://devenv.sh/languages/
