@@ -2,101 +2,69 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { NightwatchAPI } from "nightwatch"
-import { loginUrl, password, pause, username } from "..";
-import { getRandomUniqueItems } from "../../src/utils/getRandomUniqueItems"
-import { getRandomNumberBetween } from "../../src/utils/getRandomNumberBetween"
+import {NightwatchAPI} from "nightwatch"
+import {loginUrl, password, pause, username} from ".."
+import {selectCandidatesForContest} from "../commands/selectCandidatesForContest"
 
 describe("Cast ballot", function () {
-	before(function (browser) {
-		browser.pause(pause.medium).login({
-			loginUrl,
-			username,
-			password,
-		})
-	})
+    before(function (browser) {
+        browser.pause(pause.medium).login({
+            loginUrl,
+            username,
+            password,
+        })
+    })
 
-	after(function (browser) {
-		browser.logout().end()
-	})
+    after(function (browser) {
+        browser.logout().end()
+    })
 
-	it("should be able to cast ballot for all available elections", async (browser: NightwatchAPI) => {
-		const electionListLabel = await browser.element.findByText("Ballot List")
-		browser.assert.visible(electionListLabel).pause(pause.medium)
+    it("should be able to cast ballot for all available elections", async (browser: NightwatchAPI) => {
+        const electionListLabel = await browser.element.findByText("Ballot List")
+        browser.assert.visible(electionListLabel).pause(pause.medium)
 
-		//get list of elections by class selector
-		const electionList = await browser.elements("css selector", `.election-title`)
+        //get list of elections by class selector
+        const electionList = await browser.elements("css selector", `.election-title`)
 
-		// loop through found elections
-		const namesOfElections = electionList.map(async function (electionItem) {
+        // loop through found elections
+        const namesOfElections = electionList.map(async function (electionItem) {
+            //get name of each election and push into namesOfElections array
+            const electionTitle = await browser.elementIdText(
+                Object.values(electionItem)[0] as string
+            )
 
-			//get name of each election and push into namesOfElections array
-			const electionTitle = await browser.elementIdText(
-				Object.values(electionItem)[0] as string
-			)
+            // namesOfElections.push(electionTitle);
+            return electionTitle
+        })
 
-			// namesOfElections.push(electionTitle);
-			return electionTitle
-		})
+        const asyncFns = namesOfElections.map((nameOfElection) => {
+            return () =>
+                new Promise((res, rej) => {
+                    nameOfElection.then((e) => {
+                        browser
+                            .useXpath()
+                            .click(
+                                `//p[contains(normalize-space(),'${e}') and contains(@class,'election-title')]/../../div/button[normalize-space()='Click to Vote']`
+                            )
+                            .click(`//button[normalize-space()="Start Voting"]`)
 
+                        browser.elements("css selector", `.contest-title`, function (contestList) {
+                            contestList.value.forEach((i) => selectCandidatesForContest(browser, i))
 
-		const asyncFns = namesOfElections.map((nameOfElection) => {
-			return () =>
-				new Promise((res, rej) => {
-					nameOfElection.then((e) => {
-						browser
-							.useXpath()
-							.click(
-								`//p[contains(normalize-space(),'${e}') and contains(@class,'election-title')]/../../div/button[normalize-space()='Click to Vote']`
-							)
-							.click(`//button[normalize-space()="Start Voting"]`)
+                            browser
+                                .click(`//button[contains(@class,"next-button")]`)
+                                .click(`//button[contains(normalize-space(),"Cast your ballot")]`)
+                                .click(`//button[contains(normalize-space(),"Finish")]`)
+                                .agreeDemo()
 
-						browser.elements("css selector", `.contest-title`, function (contestList) {
+                            res("complete")
+                        })
+                    })
+                })
+        })
 
-							contestList.value.forEach((contestItem) => {
-
-								browser.elementIdText(
-									Object.values(contestItem)[0] as string,
-									function (contestTitle) {
-										browser.elements(
-											"xpath",
-											`//h5[normalize-space()='${contestTitle.value}']/..//div[contains(@class, 'candidate-item')]`,
-											async function (candidateList) {
-
-												const minVotes = await browser.getAttribute(`//h5[normalize-space()='${contestTitle.value}']`, 'data-min')
-												const maxVotes = await browser.getAttribute(`//h5[normalize-space()='${contestTitle.value}']`, 'data-max')
-												const numberOfChoices = getRandomNumberBetween(Number(minVotes), Number(maxVotes))
-
-												const voterSelections = getRandomUniqueItems(candidateList.value.map((_, i) => i + 1), numberOfChoices)
-												
-												voterSelections.forEach(async (candidateIndex) => {
-													browser
-														.useXpath()
-														.click(
-															`//h5[normalize-space()='${contestTitle.value
-															}']/..//div[contains(@class, 'candidate-item')][${candidateIndex}]`
-														)
-												})
-											}
-										)
-									}
-								)
-							})
-
-							browser
-								.click(`//button[contains(@class,"next-button")]`)
-								.click(`//button[contains(normalize-space(),"Cast your ballot")]`)
-								.click(`//button[contains(normalize-space(),"Finish")]`)
-								.agreeDemo()
-
-							res("complete")
-						})
-					})
-				})
-		})
-
-		for (const fn of asyncFns) {
-			await fn()
-		}
-	})
+        for (const fn of asyncFns) {
+            await fn()
+        }
+    })
 })

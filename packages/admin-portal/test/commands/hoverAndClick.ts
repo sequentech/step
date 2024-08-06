@@ -7,9 +7,18 @@ import {NightWatchHoverAndClick} from ".."
 exports.command = async function (el: NightWatchHoverAndClick) {
     // if el is an object
     if (typeof el === "object") {
-        // then it contains an element to hover and one to click
-        this.moveToElement(el.hoverElement, 10, 10).click(el.clickElement)
+        if (el.hoverElement.startsWith("//")) {
+            this.useXpath().moveToElement(el.hoverElement, 10, 10)
+        } else {
+            this.useCss().moveToElement(el.hoverElement, 10, 10)
+        }
 
+        if (el.clickElement.startsWith("//")) {
+            //is xpath selector
+            this.useXpath().click(el.clickElement)
+        } else {
+            this.useCss().moveToElement(el.clickElement)
+        }
         return this
     }
 

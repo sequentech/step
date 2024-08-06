@@ -8,28 +8,26 @@ import {createElectionEvent} from "./create"
 
 export const deleteElectionEvent = {
     deleteElectionEvent: (browser: NightwatchAPI) => {
-        // delete election event
         browser.hoverAndClick({
             hoverElement: `a[title='${createElectionEvent.config.electionEvent.name}']`,
-            clickElement: `a[title='${
-                createElectionEvent.config.electionEvent.name
-            }'] + div.menu-actions-${electionEventLink!}`,
+            clickElement: `//a//span[text()='${createElectionEvent.config.electionEvent.name}']/../../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
         })
-        browser.assert
-            .visible(`li.menu-action-delete-${electionEventLink!}`)
-            .element(`li.menu-action-delete-${electionEventLink!}`)
+        browser
+            .useCss()
+            .assert.visible(`li.menu-action-archive-${electionEventLink!}`)
+            .element(`li.menu-action-archive-${electionEventLink!}`)
             .click()
         browser.element(`button.ok-button`).click()
     },
     deleteElection: (browser: NightwatchAPI) => {
         // delete election
-        browser.hoverAndClick(
-            `a[title='${
-                createElectionEvent.config.election.name
-            }'] + div.menu-actions-${electionLink!}`
-        )
-        browser.assert
-            .visible(`li.menu-action-delete-${electionLink!}`)
+        browser.hoverAndClick({
+            hoverElement: `a[title='${createElectionEvent.config.election.name}']`,
+            clickElement: `//a//p[normalize-space()='${createElectionEvent.config.election.name}']/../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
+        })
+        browser
+            .useCss()
+            .assert.visible(`li.menu-action-delete-${electionLink!}`)
             .click(`li.menu-action-delete-${electionLink!}`)
         browser.assert.enabled(`button.ok-button`).click(`button.ok-button`)
         browser.assert.not.visible(
@@ -42,12 +40,11 @@ export const deleteElectionEvent = {
         // delete contest
         browser.hoverAndClick({
             hoverElement: `a[title='${createElectionEvent.config.contest.name}']`,
-            clickElement: `a[title='${
-                createElectionEvent.config.contest.name
-            }'] + div.menu-actions-${contestLink!}`,
+            clickElement: `//a//p[normalize-space()='${createElectionEvent.config.contest.name}']/../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
         })
-        browser.assert
-            .visible(`li.menu-action-delete-${contestLink!}`)
+        browser
+            .useCss()
+            .assert.visible(`li.menu-action-delete-${contestLink!}`)
             .element(`li.menu-action-delete-${contestLink!}`)
             .click()
         browser.assert.enabled(`button.ok-button`).element(`button.ok-button`).click()
@@ -61,40 +58,43 @@ export const deleteElectionEvent = {
         // delete candidate two
         browser.hoverAndClick({
             hoverElement: `a[title='${createElectionEvent.config.candidate2.name}']`,
-            clickElement: `a[title='${
-                createElectionEvent.config.candidate2.name
-            }'] + div.menu-actions-${candidateLink!}`,
+            clickElement: `//a//p[normalize-space()='${createElectionEvent.config.candidate2.name}']/../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
         })
-        browser.assert
-            .visible(`li.menu-action-delete-${candidateLink!}`)
+        browser
+            .useCss()
+            .assert.visible(`li.menu-action-delete-${candidateLink!}`)
             .element(`li.menu-action-delete-${candidateLink!}`)
             .click()
-        browser.assert
-            .visible(`button.ok-button`)
+        browser
+            .useCss()
+            .assert.visible(`button.ok-button`)
             .assert.enabled(`button.ok-button`)
             .click(`button.ok-button`)
-        browser.assert.not.visible(
-            `a[title='${
-                createElectionEvent.config.candidate2.name
-            }'] + div.menu-actions-${candidateLink!}`
-        )
+        browser
+            .useCss()
+            .assert.not.visible(
+                `a[title='${
+                    createElectionEvent.config.candidate2.name
+                }'] + div.menu-actions-${candidateLink!}`
+            )
 
         // delete candidate one
         browser.hoverAndClick({
             hoverElement: `a[title='${createElectionEvent.config.candidate1.name}']`,
-            clickElement: `a[title='${
-                createElectionEvent.config.candidate1.name
-            }'] + div.menu-actions-${candidateLink!}`,
+            clickElement: `//a//p[normalize-space()='${createElectionEvent.config.candidate1.name}']/../..//div[contains(@class,'menu-actions-sequent')]//*[local-name()='svg']`,
         })
-        browser.assert
-            .visible(`li.menu-action-delete-${candidateLink!}`)
+        browser
+            .useCss()
+            .assert.visible(`li.menu-action-delete-${candidateLink!}`)
             .element(`li.menu-action-delete-${candidateLink!}`)
             .click()
-        browser.assert.visible(`button.ok-button`).click(`button.ok-button`)
-        browser.assert.not.visible(
-            `a[title='${
-                createElectionEvent.config.candidate1.name
-            }'] + div.menu-actions-${candidateLink!}`
-        )
+        browser.useCss().assert.visible(`button.ok-button`).click(`button.ok-button`)
+        browser
+            .useCss()
+            .assert.not.visible(
+                `a[title='${
+                    createElectionEvent.config.candidate1.name
+                }'] + div.menu-actions-${candidateLink!}`
+            )
     },
 }

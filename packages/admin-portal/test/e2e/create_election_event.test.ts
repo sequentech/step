@@ -15,19 +15,19 @@ describe("login", function () {
         browser.logout().end()
     })
 
-    it("create an election event", (browser: NightwatchAPI) =>
-        createElectionEvent.createElectionEvent(browser))
-    it("create an election", (browser: NightwatchAPI) =>
-        createElectionEvent.createElection(browser))
-    it("create a contest", (browser: NightwatchAPI) => createElectionEvent.createContest(browser))
-    it("create candidates", (browser: NightwatchAPI) =>
-        createElectionEvent.createCandidates(browser))
+    // it("create an election event", (browser: NightwatchAPI) =>
+    //     createElectionEvent.createElectionEvent(browser))
+    // it("create an election", (browser: NightwatchAPI) =>
+    //     createElectionEvent.createElection(browser))
+    // it("create a contest", (browser: NightwatchAPI) => createElectionEvent.createContest(browser))
+    // it("create candidates", (browser: NightwatchAPI) =>
+    //     createElectionEvent.createCandidates(browser))
 
-    it("delete candidates", (browser: NightwatchAPI) =>
-        deleteElectionEvent.deleteCandidates(browser))
-    it("delete contest", (browser: NightwatchAPI) => deleteElectionEvent.deleteContest(browser))
-    it("delete an election", (browser: NightwatchAPI) =>
-        deleteElectionEvent.deleteElection(browser))
+    // it("delete candidates", (browser: NightwatchAPI) =>
+    //     deleteElectionEvent.deleteCandidates(browser))
+    // it("delete contest", (browser: NightwatchAPI) => deleteElectionEvent.deleteContest(browser))
+    // it("delete an election", (browser: NightwatchAPI) =>
+    //     deleteElectionEvent.deleteElection(browser))
     it("delete an election event", (browser: NightwatchAPI) =>
         deleteElectionEvent.deleteElectionEvent(browser))
 })

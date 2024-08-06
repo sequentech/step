@@ -55,6 +55,16 @@ module.exports = {
 
             desiredCapabilities: {
                 browserName: "chrome",
+                chromeOptions: {
+                    prefs: {
+                        download: {
+                            prompt_for_download: false,
+                            default_directory: require("path").resolve(
+                                __dirname + "/test/e2e/downloads"
+                            ),
+                        },
+                    },
+                },
             },
 
             webdriver: {
@@ -77,6 +87,14 @@ module.exports = {
                         //'--allow-insecure-localhost',
                         //'--headless'
                     ],
+                },
+                "chromeOptions": {
+                    prefs: {
+                        download: {
+                            prompt_for_download: false,
+                            default_directory: require("path").resolve(__dirname + "/download"),
+                        },
+                    },
                 },
             },
 

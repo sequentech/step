@@ -162,7 +162,7 @@ export const ElectionEventTabs: React.FC = () => {
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.publish")}
                         onClick={() => setTabKey(uuidv4())}
-						className="election-event-publish-tab"
+                        className="election-event-publish-tab"
                     >
                         <Publish electionEventId={record?.id} type={EPublishType.Event} />
                     </TabbedShowLayout.Tab>

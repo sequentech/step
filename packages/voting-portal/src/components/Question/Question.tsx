@@ -144,7 +144,12 @@ export const Question: React.FC<IQuestionProps> = ({
 
     return (
         <Box>
-            <StyledTitle className="contest-title" variant="h5">
+            <StyledTitle
+                className="contest-title"
+                variant="h5"
+                data-min={question.min_votes}
+                data-max={question.max_votes}
+            >
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
             {question.description ? (

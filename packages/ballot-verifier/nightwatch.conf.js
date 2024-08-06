@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-
 // Refer to the online docs for more details:
 // https://nightwatchjs.org/gettingstarted/configuration/
 //
@@ -44,7 +40,7 @@ module.exports = {
     test_settings: {
         default: {
             disable_error_log: false,
-            launch_url: "http://localhost:3002",
+            launch_url: "http://localhost:3001",
 
             screenshots: {
                 enabled: false,
@@ -75,21 +71,22 @@ module.exports = {
         chrome: {
             desiredCapabilities: {
                 "browserName": "chrome",
+                "chromeOptions": {
+                    prefs: {
+                        download: {
+                            prompt_for_download: false,
+                            default_directory: require("path").resolve(__dirname + "/download"),
+                        },
+                    },
+                },
                 "goog:chromeOptions": {
                     // More info on Chromedriver: https://sites.google.com/a/chromium.org/chromedriver/
-                    //
-                    // w3c:false tells Chromedriver to run using the legacy JSONWire protocol (not required in Chrome 78)
-                    w3c: true,
                     args: [
                         //'--no-sandbox',
                         //'--ignore-certificate-errors',
                         //'--allow-insecure-localhost',
-                        //'--headless'
-                        "--start-maximized",
+                        //'--headless=new'
                     ],
-                },
-                "chromeOptions": {
-                    args: ["start-maximized"],
                 },
             },
 
