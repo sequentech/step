@@ -113,6 +113,13 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#-- jQuery -->
         <script type="text/javascript" src="${url.resourcesPath}/js/jquery-3.7.1.slim.min.js"></script>
 
+        <#-- Strengthify -->
+        <#-- https://github.com/nextcloud/strengthify -->
+        <script src="${url.resourcesPath}/js/jquery.strengthify.min.js"></script>
+        <script src="${url.resourcesPath}/js/bootstrap.min.js"></script>
+        <link rel="stylesheet" href="${url.resourcesPath}/css/strengthify.min.css" type="text/css">
+        <link rel="stylesheet" href="${url.resourcesPath}/css/bootstrap.min.css" type="text/css">
+
         <script>
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
@@ -164,6 +171,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                 // Set default value
                 $('#' + elementId).val(first);
             }
+        </script>
+
+        <script>
+            $('#password').strengthify({
+                zxcvbn: '${url.resourcesPath}/js/zxcvbn.js',
+            })
         </script>
     </#if>
 </@layout.registrationLayout>
