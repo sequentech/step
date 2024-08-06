@@ -224,6 +224,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
+    const [manageCustomUrls] = useMutation() // TODO: Create Mutation
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
@@ -600,6 +601,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 end_date: endDate,
                             },
                         })
+                        const customUrls = (parsedValue.presentation as IElectionEventPresentation)?.custom_urls
+                        if(customUrls?.login || customUrls?.enrollment){
+                            await manageCustomUrls({
+                                variables:{
+                                    electionEventId: record.id,
+                                    login: customUrls.login,
+                                    enrollment: customUrls.enrollment
+                                }
+                            })
+                        }
                     }
                     return (
                         <SimpleForm
