@@ -19,7 +19,7 @@ describe("login", function () {
         browser.logout().end()
     })
 
-	// running from voting-portal/verify_ballot.test.ts worls better since it ends up eexporting the ballot file and getting the ballotId a lot more dynamically
+    // running from voting-portal/verify_ballot.test.ts worls better since it ends up eexporting the ballot file and getting the ballotId a lot more dynamically
     it("should be able to verify ballot", async (browser: NightwatchAPI) => {
         verifyBallot(browser, {
             ballotPath: `${require("path").resolve(

@@ -5,8 +5,7 @@
 import {pause} from ".."
 
 exports.command = function () {
-    this
-        .useXpath()
+    this.useXpath()
         .click("//button[@aria-label='log out button']")
         .click("//li[normalize-space()='Logout']")
         .click("//button[normalize-space()='OK']")

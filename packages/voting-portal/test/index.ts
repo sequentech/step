@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //Auth
-// should be updated per event 
+// should be updated per event
 export const loginUrl =
     "http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/082f17f4-d873-467a-a8a5-596e10a23a38/login"
 export const username = "edulix@nvotes.com"
