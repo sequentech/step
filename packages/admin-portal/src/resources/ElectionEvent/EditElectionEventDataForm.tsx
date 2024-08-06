@@ -356,6 +356,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
         }
+
+        if(!temp.presentation?.custom_urls){
+            temp.presentation.custom_urls = {}
+        }
+        
         return temp
     }
 
@@ -843,7 +848,19 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         </ElectionHeaderStyles.Title>
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
-                                <AccordionDetails>{/* TODO: */}</AccordionDetails>
+                                <AccordionDetails>
+                                    {
+                                /* TODO: */   
+                             }
+                              <TextInput
+                                source={`presentation.custom_urls.login`}
+                                label={t("electionEventScreen.customUrls.login")}
+                            />
+                             <TextInput
+                                source={`presentation.custom_urls.enrollment`}
+                                label={t("electionEventScreen.customUrls.enrollment")}
+                            />
+                             </AccordionDetails>
                             </Accordion>
 
                             <Accordion

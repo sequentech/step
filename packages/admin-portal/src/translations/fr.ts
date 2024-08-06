@@ -243,6 +243,10 @@ const frenchTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
             },
+            customUrls:{
+                login: "Connexion",
+                enrollment: "Inscription",
+            },
             localization: {
                 emptyHeader: "Aucune langue n'a été définie pour l'événement",
                 selectLanguage: "Sélectionnez la langue",

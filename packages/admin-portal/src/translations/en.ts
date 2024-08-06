@@ -241,6 +241,10 @@ const englishTranslation = {
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
             },
+            customUrls:{
+                login: 'Login',
+                enrollment: "Enrollment",
+            },
             localization: {
                 emptyHeader: "No languages were set for the event",
                 selectLanguage: "Select Language",

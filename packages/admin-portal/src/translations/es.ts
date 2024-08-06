@@ -243,6 +243,10 @@ const spanishTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
             },
+            customUrls:{
+                login: "Inicio de sesión",
+                enrollment: "Inscripción",
+            },
             localization: {
                 emptyHeader: "No se han establecido idiomas para el evento",
                 selectLanguage: "Seleccionar idioma",
