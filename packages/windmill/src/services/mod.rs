@@ -8,6 +8,7 @@ pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;
 pub mod compress;
+pub mod custom_url;
 pub mod database;
 pub mod date;
 pub mod documents;
