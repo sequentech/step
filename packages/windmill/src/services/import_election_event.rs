@@ -98,7 +98,7 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
     let realm_config = fs::read_to_string(&realm_config_path)
         .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}"));
 
-    serde_json::from_str(&realm_config)
+    deserialize_str(&realm_config)
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
@@ -208,7 +208,7 @@ pub fn replace_ids(
         new_data = new_data.replace(&original_data.tenant_id.to_string(), &tenant_id);
     }
 
-    let data: ImportElectionEventSchema = serde_json::from_str(&new_data)?;
+    let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
     Ok(data.clone())
 }
 
@@ -240,7 +240,7 @@ pub async fn get_document(
     let mut data_str = String::new();
     file.read_to_string(&mut data_str)?;
 
-    let original_data: ImportElectionEventSchema = serde_json::from_str(&data_str)?;
+    let original_data: ImportElectionEventSchema = deserialize_str(&data_str)?;
 
     let data = replace_ids(&data_str, &original_data, id, tenant_id)?;
 
@@ -334,7 +334,7 @@ pub async fn manage_dates(
     //Manage election event
     match &data.election_event.dates {
         Some(dates) => {
-            let election_event_dates: ElectionEventDates = serde_json::from_value(dates.clone())?;
+            let election_event_dates: ElectionEventDates = deserialize_value(dates.clone())?;
             if let Some(start_date) = election_event_dates.start_date {
                 maybe_create_scheduled_event(
                     hasura_transaction,
@@ -365,7 +365,7 @@ pub async fn manage_dates(
     let elections = &data.elections;
     for election in elections {
         if let Some(dates_js) = election.dates.clone() {
-            let dates: ElectionDates = serde_json::from_value(dates_js)?;
+            let dates: ElectionDates = deserialize_value(dates_js)?;
             if let Some(start_date) = dates.start_date {
                 maybe_create_scheduled_event(
                     hasura_transaction,

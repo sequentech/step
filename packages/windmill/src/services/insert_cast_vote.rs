@@ -80,7 +80,7 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id = area.election_event_id.as_str();
 
-    let hashable_ballot: HashableBallot = serde_json::from_str(&input.content)
+    let hashable_ballot: HashableBallot = deserialize_str(&input.content)
         .map_err(|err| anyhow!("Error deserializing ballot content: {}", err))?;
 
     let pseudonym_h =

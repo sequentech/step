@@ -10,6 +10,7 @@ use crate::types::scheduled_event::EventProcessors;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionEventDates;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use tracing::{info, instrument};
 
 #[instrument]
@@ -47,7 +48,7 @@ pub async fn manage_dates(
     let current_dates: ElectionEventDates = election_event
         .dates
         .clone()
-        .map(|presentation| serde_json::from_value(presentation))
+        .map(|presentation| deserialize_value(presentation))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
         .unwrap_or(Default::default());

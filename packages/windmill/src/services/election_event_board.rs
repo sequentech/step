@@ -25,7 +25,7 @@ impl Into<BoardSerializable> for Board {
 
 pub fn get_election_event_board(bulletin_board_reference: Option<Value>) -> Option<String> {
     bulletin_board_reference.and_then(|board_json| {
-        let opt_board: Option<BoardSerializable> = serde_json::from_value(board_json).ok();
+        let opt_board: Option<BoardSerializable> = deserialize_value(board_json).ok();
 
         opt_board.map(|board| board.database_name)
     })

@@ -88,7 +88,7 @@ pub async fn get_template(
         return Ok(None);
     };
 
-    let receipts: ReceiptsRoot = serde_json::from_value(receipts_json)?;
+    let receipts: ReceiptsRoot = deserialize_value(receipts_json)?;
     let Some(template_id) = receipts.document.and_then(|document| document.template) else {
         return Ok(None);
     };
@@ -104,7 +104,7 @@ pub async fn get_template(
     };
 
     let communication_template_value: CommunicationTemplateValue =
-        serde_json::from_value(communication_template.template)?;
+        deserialize_value(communication_template.template)?;
 
     Ok(Some(communication_template_value.document))
 }

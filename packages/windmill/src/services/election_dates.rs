@@ -9,6 +9,7 @@ use crate::{postgres::election::*, types::scheduled_event::CronConfig};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionDates, ElectionPresentation};
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use tracing::{info, instrument};
 
 #[instrument(skip(hasura_transaction), err)]
@@ -34,7 +35,7 @@ pub async fn manage_dates(
     let current_dates: ElectionDates = election
         .dates
         .clone()
-        .map(|presentation| serde_json::from_value(presentation))
+        .map(|presentation| deserialize_value(presentation))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
         .unwrap_or(Default::default());
@@ -89,7 +90,7 @@ pub async fn manage_dates(
                     event_processor,
                     &start_task_id,
                     cron_config,
-                    serde_json::to_value(payload)?,
+                    deserialize_value(payload)?,
                 )
                 .await?;
             }
