@@ -172,8 +172,15 @@ const englishTranslation = {
             },
             errors: {
                 noVotingArea:
-                    "Election Area not assigned to voter. Kindly contact your administrator for assistance",
-                // noElections: "There are no elections to vote for",
+                    "Election area not assigned to voter. Kindly contact your administrator for assistance.",
+                networkError: "There was a network problem. Please try again later.",
+                unableToFetchData: "There was a problem fetching the data. Please try again later.",
+                noElectionEvent: "Election event doesn’t exist. Please contact support.",
+            },
+            alerts: {
+                noElections:
+                    "There are no elections to vote for. This could be because the area doesn’t have any contests associated.",
+                electionEventNotPublished: "The election event hasn’t been published yet.",
             },
         },
         errors: {

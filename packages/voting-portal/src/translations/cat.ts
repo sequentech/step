@@ -174,7 +174,18 @@ const catalanTranslation: TranslationType = {
             },
             errors: {
                 noVotingArea:
-                    "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
+                    "Àrea electoral no assignada a l'elector. Si us plau, contacteu amb el vostre administrador per obtenir ajuda.",
+                networkError:
+                    "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a provar més tard.",
+                unableToFetchData:
+                    "Hi ha hagut un problema en recuperar les dades. Si us plau, torneu-ho a provar més tard.",
+                noElectionEvent:
+                    "L'esdeveniment electoral no existeix. Si us plau, contacteu amb el suport.",
+            },
+            alerts: {
+                noElections:
+                    "No hi ha eleccions per votar. Això podria ser perquè la zona no té cap concurs associat.",
+                electionEventNotPublished: "L'esdeveniment electoral encara no s'ha publicat.",
             },
         },
         errors: {

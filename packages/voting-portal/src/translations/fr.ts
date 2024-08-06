@@ -173,7 +173,17 @@ const frenchTranslation: TranslationType = {
             },
             errors: {
                 noVotingArea:
-                    "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
+                    "Zone électorale non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
+                networkError: "Il y a eu un problème de réseau. Veuillez réessayer plus tard.",
+                unableToFetchData:
+                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard.",
+                noElectionEvent:
+                    "L'événement électoral n'existe pas. Veuillez contacter le support.",
+            },
+            alerts: {
+                noElections:
+                    "Il n'y a pas d'élections pour voter. Cela pourrait être dû au fait que la zone n'a pas de concours associés.",
+                electionEventNotPublished: "L'événement électoral n'a pas encore été publié.",
             },
         },
         errors: {

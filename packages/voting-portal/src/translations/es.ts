@@ -174,7 +174,16 @@ const spanishTranslation: TranslationType = {
             },
             errors: {
                 noVotingArea:
-                    "Área de votación no asignada al votante. Por favor, contacte con su administrador para obtener asistencia.",
+                    "Área electoral no asignada al votante. Por favor, contacte a su administrador para asistencia.",
+                networkError: "Hubo un problema de red. Por favor, intente nuevamente más tarde.",
+                unableToFetchData:
+                    "Hubo un problema al recuperar los datos. Por favor, intente nuevamente más tarde.",
+                noElectionEvent: "El evento electoral no existe. Por favor, contacte a soporte.",
+            },
+            alerts: {
+                noElections:
+                    "No hay elecciones para votar. Esto podría deberse a que el área no tiene concursos asociados.",
+                electionEventNotPublished: "El evento electoral aún no ha sido publicado.",
             },
         },
         errors: {
