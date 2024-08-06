@@ -15,14 +15,16 @@ pub fn print_to_pdf(
     wait: Option<Duration>,
 ) -> Result<Vec<u8>> {
     let options = LaunchOptionsBuilder::default()
-        //.idle_browser_timeout(Duration::from_secs(99999999))
         .sandbox(false)
+        // <WTF> Why? well this:
+        // https://github.com/rust-headless-chrome/rust-headless-chrome/issues/500
+        .devtools(false)
+        .headless(true)
+        // </WTF>
         .build()
         .expect("Default should not panic");
     let browser = Browser::new(options)?;
-    //browser.wait_for_initial_tab()?;
     let tab = browser.new_tab()?;
-    //tab.set_default_timeout(Duration::from_secs(99999999));
     println!("path: {}", file_path);
     tab.navigate_to(file_path)?.wait_until_navigated()?;
 
