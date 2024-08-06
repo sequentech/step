@@ -176,6 +176,10 @@ const englishTranslation = {
                 networkError: "There was a network problem. Please try again later.",
                 unableToFetchData: "There was a problem fetching the data. Please try again later.",
                 noElectionEvent: "Election event doesn’t exist. Please contact support.",
+                ballotStylesEmlError:
+                    "There was an error with the publish ballot style. Please contact support.",
+                obtainingElectionFromID:
+                    "There was an error obtaining elections associated with the following IDs: {{electionId}}. Please contact support.",
             },
             alerts: {
                 noElections:

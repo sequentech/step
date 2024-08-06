@@ -181,6 +181,10 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un problema en recuperar les dades. Si us plau, torneu-ho a provar més tard.",
                 noElectionEvent:
                     "L'esdeveniment electoral no existeix. Si us plau, contacteu amb el suport.",
+                ballotStylesEmlError:
+                    "Hi ha hagut un error amb l'estil de publicació de les paperetes. Si us plau, contacteu amb el suport.",
+                obtainingElectionFromID:
+                    "Hi ha hagut un error en obtenir les eleccions associades als següents IDs: {{electionId}}. Si us plau, contacteu amb el suport.",
             },
             alerts: {
                 noElections:

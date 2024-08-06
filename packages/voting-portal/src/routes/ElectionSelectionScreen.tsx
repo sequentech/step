@@ -77,7 +77,7 @@ const ElectionContainer = styled(Box)`
     margin-bottom: 30px;
 `
 
-const StyledAlert = styled(Box)`
+const StyledMsg = styled(Box)`
     width: max-content;
     max-width: 800px;
     display: flex;
@@ -85,6 +85,7 @@ const StyledAlert = styled(Box)`
     padding: 20px;
     justify-content: center;
     margin: auto;
+    color: firebrick;
 `
 
 interface ElectionWrapperProps {
@@ -268,7 +269,7 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
-    const hasNoElections = !loadingElections && electionIds.length === 0
+    const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
     const isPublished = useMemo(
         () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
@@ -298,7 +299,17 @@ const ElectionSelectionScreen: React.FC = () => {
         } else if (!isPublished) {
             setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
         } else if (hasNoElections) {
-            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`))
+            if (electionIds.length > 0) {
+                setErrorMsg(
+                    t(
+                        `electionSelectionScreen.errors.${ElectionScreenErrorType.OBTAINING_ELECTION}`
+                    )
+                )
+            } else {
+                setAlertMsg(
+                    t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`)
+                )
+            }
         } else {
             setAlertMsg(undefined)
             setErrorMsg(undefined)
@@ -315,7 +326,13 @@ const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+            try {
+                updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+            } catch {
+                setErrorMsg(
+                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+                )
+            }
         } else if (globalSettings.DISABLE_AUTH) {
             fakeUpdateBallotStyleAndSelection(dispatch)
         }
@@ -448,7 +465,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
-            {(errorMsg || alertMsg) && <StyledAlert>{errorMsg || alertMsg}</StyledAlert>}
+            {(errorMsg || alertMsg) && <StyledMsg>{errorMsg || alertMsg}</StyledMsg>}
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (

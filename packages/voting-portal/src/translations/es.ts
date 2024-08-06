@@ -179,6 +179,10 @@ const spanishTranslation: TranslationType = {
                 unableToFetchData:
                     "Hubo un problema al recuperar los datos. Por favor, intente nuevamente más tarde.",
                 noElectionEvent: "El evento electoral no existe. Por favor, contacte a soporte.",
+                ballotStylesEmlError:
+                    "Hubo un error con el estilo de publicación de las papeletas. Por favor, contacte a soporte.",
+                obtainingElectionFromID:
+                    "Hubo un error al obtener las elecciones asociadas a los siguientes IDs: {{electionId}}. Por favor, contacte a soporte.",
             },
             alerts: {
                 noElections:

@@ -179,6 +179,10 @@ const frenchTranslation: TranslationType = {
                     "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard.",
                 noElectionEvent:
                     "L'événement électoral n'existe pas. Veuillez contacter le support.",
+                ballotStylesEmlError:
+                    "Il y a eu une erreur avec le style de publication des bulletins. Veuillez contacter le support.",
+                obtainingElectionFromID:
+                    "Il y a eu une erreur lors de l'obtention des élections associées aux identifiants suivants : {{electionId}}. Veuillez contacter le support.",
             },
             alerts: {
                 noElections:

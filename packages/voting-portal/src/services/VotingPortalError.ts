@@ -17,8 +17,8 @@ export enum ElectionScreenErrorType {
     NO_AREA = "noVotingArea",
     NETWORK = "networkError",
     NO_ELECTION_EVENT = "noElectionEvent",
-    NO_CONTESTS = "noContests",
-    WAITING_FOR_DATA = "waitingForData"
+    OBTAINING_ELECTION = "obtainingElectionFromID",
+    BALLOT_STYLES_EML = "ballotStylesEmlError",
 }
 
 export enum ElectionScreenMsgType {
