@@ -3016,7 +3016,6 @@ dependencies = [
  "either",
  "graphql_client",
  "handlebars 4.5.0",
- "headless_chrome",
  "immu-board",
  "immudb-rs",
  "regex",
