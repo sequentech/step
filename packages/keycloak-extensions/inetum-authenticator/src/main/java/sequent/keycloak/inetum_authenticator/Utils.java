@@ -77,6 +77,7 @@ public class Utils {
   private static final String USER_ID = "userId";
   public static final String MULTIVALUE_SEPARATOR = "##";
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
+  public static final String ERROR_USER_NOT_FOUND = "userNotFound";
 
   /**
    * We store the user data entered in the registration form in the session notes. This information

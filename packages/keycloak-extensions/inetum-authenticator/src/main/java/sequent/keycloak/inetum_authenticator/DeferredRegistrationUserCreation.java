@@ -108,12 +108,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
     if (user == null) {
-      log.error("validate(): user could not be found");
-      // TODO: Change error code
-      context.error(Errors.INVALID_REQUEST);
+      String sessionId = context.getAuthenticationSession().getParentSession().getId();
+
+      log.errorv("validate(): user could not be found. session id: {0}", sessionId);
+      context.error(Utils.ERROR_USER_NOT_FOUND);
       List<FormMessage> errors = new ArrayList<>();
-      // TODO Set a better form message
-      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      errors.add(new FormMessage(Utils.ERROR_USER_NOT_FOUND));
       context.validationError(formData, errors);
       return;
     }
