@@ -45,3 +45,6 @@ node_modules/
 
 # coredumps
 packages/rustc-ice*
+
+# ignoring e2e downloaded files
+**/e2e/downloads
