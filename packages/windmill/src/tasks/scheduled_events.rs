@@ -17,6 +17,7 @@ use celery::error::TaskError;
 use chrono::prelude::*;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
@@ -75,7 +76,7 @@ pub async fn scheduled_events() -> Result<()> {
                 event!(Level::WARN, "Missing election_event_id");
                 return Ok(());
             };
-            let payload: ManageElectionDatePayload = serde_json::from_value(event_payload)?;
+            let payload: ManageElectionDatePayload = deserialize_value(event_payload)?;
             // create the public keys in async task
             match payload.election_id.clone() {
                 Some(election_id) => {

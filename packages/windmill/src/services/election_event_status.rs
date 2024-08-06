@@ -14,6 +14,7 @@ use deadpool_postgres::Client;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::*;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura::core::ElectionEvent;
 use serde_json::value::Value;
@@ -23,11 +24,11 @@ use tracing::{info, instrument};
 use super::database::get_hasura_pool;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
-    status_json_opt.and_then(|status_json| serde_json::from_value(status_json).ok())
+    status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
-    status_json_opt.and_then(|status_json| serde_json::from_value(status_json).ok())
+    status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
 pub fn has_config_created(status_json_opt: Option<Value>) -> bool {

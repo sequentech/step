@@ -4,6 +4,7 @@
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::tally_sheets::AreaContestResults;
 use serde_json::Value;
@@ -18,7 +19,7 @@ impl TryFrom<Row> for TallySheetWrapper {
     fn try_from(item: Row) -> Result<Self> {
         let content_val: Option<Value> = item.try_get("content")?;
         let content: Option<AreaContestResults> = content_val
-            .map(|val| serde_json::from_value(val))
+            .map(|val| deserialize_value(val))
             .transpose()?;
         Ok(TallySheetWrapper(TallySheet {
             id: item.try_get::<_, Uuid>("id")?.to_string(),

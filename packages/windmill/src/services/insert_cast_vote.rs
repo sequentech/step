@@ -268,7 +268,7 @@ async fn check_status(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|value| serde_json::from_value(value).ok())
+        .map(|value| deserialize_value(value).ok())
         .flatten()
         .unwrap_or(Default::default());
 
@@ -289,7 +289,7 @@ async fn check_status(
     let election_status: ElectionStatus = election
         .status
         .clone()
-        .map(|value| serde_json::from_value(value).context("Failed to deserialize election status"))
+        .map(|value| deserialize_value(value).context("Failed to deserialize election status"))
         .transpose()
         .map(|value| value.unwrap_or(Default::default()))?;
 
