@@ -26,7 +26,6 @@ pub async fn create_vote_receipt(
     date_format: Option<DateFormat>,
 ) -> Result<()> {
     // Spawn the task using an async block
-    /*
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
@@ -52,21 +51,7 @@ pub async fn create_vote_receipt(
     match handle.await {
         Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
         Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
-    }?;*/
-    vote_receipt::create_vote_receipt_task(
-        element_id,
-        ballot_id,
-        ballot_tracker_url,
-        tenant_id,
-        election_event_id,
-        election_id,
-        area_id,
-        voter_id,
-        time_zone,
-        date_format,
-    )
-    .await
-    .map_err(|err| anyhow!("{}", err))?;
+    }?;
 
     Ok(())
 }
