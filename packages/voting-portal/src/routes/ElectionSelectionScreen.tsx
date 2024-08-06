@@ -44,6 +44,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
     ElectionScreenErrorType,
+    ElectionScreenMsgType,
     VotingPortalError,
     VotingPortalErrorType,
 } from "../services/VotingPortalError"
@@ -222,6 +223,7 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [oneBallotStyle])
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
+    const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
 
     const {
         error: errorBallotStyles,
@@ -257,20 +259,46 @@ const ElectionSelectionScreen: React.FC = () => {
     }
 
     const hasNoElections = hasLoadElections && electionIds.length === 0
-    const isPublished = useMemo(() => !!dataElectionEvent?.sequent_backend_election_event[0].status.is_published, [dataElectionEvent]);
 
+    const isPublished = useMemo(
+        () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
+        [dataElectionEvent?.sequent_backend_election_event]
+    )
+
+    // Errors handeling
     useEffect(() => {
-        // console.log({isPublished})
-        if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-            setErrorMsg(ElectionScreenErrorType.NO_AREA)
-        } else if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
-            throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
-        } else if (isPublished !== true) {
-            setErrorMsg(ElectionScreenErrorType.NOT_PUBLISHED)
+        if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
+            if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
+                setErrorMsg(ElectionScreenErrorType.NO_AREA)
+            } else if (
+                errorElections?.networkError ||
+                errorElectionEvent?.networkError ||
+                errorBallotStyles?.networkError ||
+                errorCastVote?.networkError
+            ) {
+                setErrorMsg(ElectionScreenErrorType.NETWORK)
+            } else {
+                setErrorMsg(ElectionScreenErrorType.FETCH_DATA)
+            }
+        } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
+            setErrorMsg(ElectionScreenErrorType.NO_ELECTION_EVENT)
+        } else if (!isPublished) {
+            setAlertMsg(ElectionScreenMsgType.NOT_PUBLISHED)
         } else if (hasNoElections) {
-            setErrorMsg(ElectionScreenErrorType.NO_ELECTIONS)
+            setAlertMsg(ElectionScreenMsgType.NO_ELECTIONS) //TODO: fix and seperate the case
+        } else {
+            setAlertMsg(undefined)
+            setErrorMsg(undefined)
         }
-    }, [errorBallotStyles, errorCastVote, errorElectionEvent, errorElections, hasNoElections, isPublished])
+    }, [
+        errorBallotStyles,
+        errorCastVote,
+        errorElectionEvent,
+        errorElections,
+        isPublished,
+        hasNoElections,
+        dataElectionEvent?.sequent_backend_election_event.length,
+    ])
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
@@ -408,8 +436,11 @@ const ElectionSelectionScreen: React.FC = () => {
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
-            {errorMsg ? (
-                <h3>{errorMsg}</h3>
+            {errorMsg || alertMsg ? (
+                <>
+                    <h3>ERROR: {errorMsg}</h3>
+                    <h3>ALERT: {alertMsg}</h3>
+                </>
             ) : (
                 <ElectionContainer className="elections-list">
                     {!hasNoElections ? (

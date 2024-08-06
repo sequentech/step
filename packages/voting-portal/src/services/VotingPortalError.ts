@@ -13,10 +13,17 @@ export enum VotingPortalErrorType {
 }
 
 export enum ElectionScreenErrorType {
+    FETCH_DATA = "unableToFetchData",
     NO_AREA = "noVotingArea",
+    NETWORK = "networkError",
+    NO_ELECTION_EVENT = "noElectionEvent",
+    NO_CONTESTS = "noContests",
+    WAITING_FOR_DATA = "waitingForData"
+}
+
+export enum ElectionScreenMsgType {
     NOT_PUBLISHED = "electionEventNotPublished",
     NO_ELECTIONS = "noElections",
-    NO_CONTESTS = "noContests",
 }
 
 export class VotingPortalError extends Error {
