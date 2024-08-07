@@ -4,9 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const SET_CUSTOM_URL = gql`
-    mutation SetCustomUrl($tenantId: String!, origin: String!, redirect_to: String!) {
-        set_custom_url(tenant_id: $tenantId, origin: $origin, redirect_to: $redirect_to) {
-           message
-        }
+    mutation SetCustomUrl($tenantId: String!, $origin: String!, $redirect_to: String!) {
+        set_custom_url(tenant_id: $tenantId, origin: $origin, redirect_to: $redirect_to)
     }
 `

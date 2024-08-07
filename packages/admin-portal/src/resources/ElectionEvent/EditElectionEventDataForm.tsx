@@ -548,6 +548,46 @@ export const EditElectionEventDataForm: React.FC = () => {
         notify("Candidates successfully imported", {type: "success"})
     }
 
+    const handleUpdateCustomUrls = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        const customUrls = presentation?.custom_urls
+        if (customUrls) {
+            const urlEntries = [
+                {
+                    key: "login",
+                    origin: customUrls.login,
+                    redirect_to: getLoginUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId
+                    ),
+                },
+                {
+                    key: "enrollment",
+                    origin: customUrls.enrollment,
+                    redirect_to: getLoginUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId
+                    ),
+                },
+            ]
+            for (const {origin, redirect_to} of urlEntries) {
+                if (origin) {
+                    await manageCustomUrls({
+                        variables: {
+                            tenantId: tenantId ?? "",
+                            origin: origin,
+                            redirect_to: redirect_to ?? "",
+                        },
+                    })
+                }
+            }
+        }
+    }
+
     const sortedElections = (elections ?? []).sort((a, b) => {
         let presentationA = a.presentation as IElectionPresentation | undefined
         let presentationB = b.presentation as IElectionPresentation | undefined
@@ -607,41 +647,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 notify("Error updating custom url", {type: "error"})
                             },
                         })
-                        const customUrls = (parsedValue.presentation as IElectionEventPresentation)
-                            ?.custom_urls
-                        if (customUrls) {
-                            const urlEntries = [
-                                {
-                                    key: "login",
-                                    origin: customUrls.login,
-                                    redirect_to: getLoginUrl(
-                                        globalSettings.VOTING_PORTAL_URL,
-                                        tenantId ?? "",
-                                        record.id
-                                    ),
-                                },
-                                {
-                                    key: "enrollment",
-                                    origin: customUrls.enrollment,
-                                    redirect_to: getLoginUrl(
-                                        globalSettings.VOTING_PORTAL_URL,
-                                        tenantId ?? "",
-                                        record.id
-                                    ),
-                                },
-                            ]
-                            for (const {origin, redirect_to} of urlEntries) {
-                                if (origin) {
-                                    await manageCustomUrls({
-                                        variables: {
-                                            tenantId: tenantId ?? "",
-                                            origin: origin,
-                                            redirect_to: redirect_to,
-                                        },
-                                    })
-                                }
-                            }
-                        }
+                        await handleUpdateCustomUrls(
+                            parsedValue.presentation as IElectionEventPresentation,
+                            record.id
+                        )
                     }
                     return (
                         <SimpleForm
