@@ -83,6 +83,20 @@ const spanishTranslation: TranslationType = {
                 ok: "Sí, quiero EMITIR mi voto",
                 cancel: "Cancelar",
             },
+            error: {
+                LOAD_ELECTION_EVENT:
+                    "No se puede cargar el evento electoral. Por favor, inténtelo de nuevo más tarde.",
+                NO_BALLOT_SELECTION:
+                    "El estado de selección para esta elección no está presente. Por favor, asegúrese de haber seleccionado sus opciones correctamente.",
+                NO_BALLOT_STYLE:
+                    "El estilo de la papeleta no está disponible. Por favor, contacte con soporte.",
+                NO_AUDITABLE_BALLOT:
+                    "No hay papeleta auditable disponible. Por favor, contacte con soporte.",
+                INCONSISTENT_HASH:
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. ballotId: {{ballotId}} no es consistente con el Hash de la Papeleta Auditable: {{auditableBallotHash}}. Por favor, reporte este problema a soporte.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "El evento electoral está cerrado. Por favor, contacte con soporte.",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",

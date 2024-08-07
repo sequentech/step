@@ -82,6 +82,20 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux VOTER",
                 cancel: "Annuler",
             },
+            error: {
+                LOAD_ELECTION_EVENT:
+                    "Impossible de charger l'événement électoral. Veuillez réessayer plus tard.",
+                NO_BALLOT_SELECTION:
+                    "L'état de sélection pour cette élection n'est pas présent. Veuillez vous assurer que vous avez correctement sélectionné vos choix.",
+                NO_BALLOT_STYLE:
+                    "Le style du bulletin n'est pas disponible. Veuillez contacter le support.",
+                NO_AUDITABLE_BALLOT:
+                    "Aucun bulletin auditable n'est disponible. Veuillez contacter le support.",
+                INCONSISTENT_HASH:
+                    "Il y a eu une erreur liée au processus de hachage du bulletin. ballotId: {{ballotId}} n'est pas cohérent avec le Hash du Bulletin Auditable: {{auditableBallotHash}}. Veuillez signaler ce problème au support.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "L'événement électoral est fermé. Veuillez contacter le support.",
+            },
         },
         confirmationScreen: {
             title: "Votre vote a été émis",

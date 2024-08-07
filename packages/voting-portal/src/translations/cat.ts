@@ -83,6 +83,20 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull EMETRE el meu vot",
                 cancel: "Cancel·lar",
             },
+            error: {
+                LOAD_ELECTION_EVENT:
+                    "No es pot carregar l'esdeveniment electoral. Torneu-ho a intentar més tard.",
+                NO_BALLOT_SELECTION:
+                    "L'estat de selecció per a aquesta elecció no està present. Si us plau, assegureu-vos que heu seleccionat les vostres opcions correctament.",
+                NO_BALLOT_STYLE:
+                    "L'estil de la papereta no està disponible. Si us plau, contacteu amb el suport.",
+                NO_AUDITABLE_BALLOT:
+                    "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el suport.",
+                INCONSISTENT_HASH:
+                    "Hi ha hagut un error relacionat amb el procés de hash de la papereta. ballotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al suport.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "L'esdeveniment electoral està tancat. Si us plau, contacteu amb el suport.",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",

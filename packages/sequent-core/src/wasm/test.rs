@@ -65,6 +65,7 @@ pub fn to_hashable_ballot_js(
         serde_wasm_bindgen::from_value(auditable_ballot_json).map_err(
             |err| format!("Error reading javascript auditable ballot: {}", err),
         )?;
+
     // test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_ballot
         .deserialize_contests::<RistrettoCtx>()

@@ -83,11 +83,13 @@ const englishTranslation = {
             },
             error: {
                 LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
-                NO_BALLOT_SELECTION: "The selection state for this election is not present. Please ensure you have selected your choices correctly.",
+                NO_BALLOT_SELECTION:
+                    "The selection state for this election is not present. Please ensure you have selected your choices correctly.",
                 NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
                 NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
-                INCONSISTENT_HASH:  "There was an error related to the ballot hashing process. ballotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
-                ELECTION_EVENT_NOT_OPEN: ""
+                INCONSISTENT_HASH:
+                    "There was an error related to the ballot hashing process. ballotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                ELECTION_EVENT_NOT_OPEN: "The election event is closed. Please contact support.",
             },
         },
         confirmationScreen: {
