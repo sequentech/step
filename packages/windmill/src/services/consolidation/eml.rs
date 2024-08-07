@@ -30,3 +30,69 @@ pub struct ACMJson {
     pub publickey: String,
     pub transfer_start: String,
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLOfficialStatusDetail {
+    pub official_status: String,
+    pub status_date: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLHeader {
+    pub transaction_id: String,
+    pub issue_date: String,
+    pub official_status_detail: EMLOfficialStatusDetail,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLIdentifier {
+    pub id_number: String,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLContest {
+    pub identifier: EMLIdentifier,
+    pub contests: Vec<EMLContest>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLCandidate {}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLSelection {
+    pub candidates: EMLCandidate,
+    pub valid_votes: i64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLCountMetric {
+    pub kind: String,
+    pub id: String,
+    pub datum: i64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLTotalVotes {
+    pub count_metrics: Vec<EMLCountMetric>,
+    pub selections: Vec<EMLSelection>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLElection {
+    pub identifier: EMLIdentifier,
+    pub total_votes: EMLTotalVotes,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLCount {
+    pub identifier: EMLIdentifier,
+    pub elections: Vec<EMLElection>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLFile {
+    pub id: String,
+    pub header: EMLHeader,
+    pub counts: Vec<EMLCount>,
+}
