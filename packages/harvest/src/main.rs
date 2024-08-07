@@ -84,6 +84,7 @@ async fn rocket() -> _ {
                 routes::tally_ceremony::update_tally_ceremony,
                 routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::tally_sheets::publish_tally_sheet,
+                routes::tally_sheets::upsert_tally_sheet,
                 routes::create_vote_receipt::create_vote_receipt,
                 routes::election_dates::manage_election_dates,
             ],

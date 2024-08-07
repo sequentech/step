@@ -149,6 +149,7 @@ const catalanTranslation: TranslationType = {
             createAreaSuccess: "Àrea creada",
             createAreaError: "Error creant àrea",
             sequent_backend_area_contest: "Preguntes de l'Àrea",
+            parent_areas: "Arees Pare",
             empty: {
                 header: "No hi ha Àrees encara.",
                 action: "Crear una Àrea",

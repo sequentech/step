@@ -149,6 +149,7 @@ const spanishTranslation: TranslationType = {
             createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
+            parent_areas: "Áreas Padre",
             empty: {
                 header: "No hay Áreas aún.",
                 action: "Crear un Área",

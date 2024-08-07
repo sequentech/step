@@ -1,14 +1,16 @@
+use sequent_core::types::hasura::core::VotingChannels;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::anyhow;
-use anyhow::{Context, Result};
-use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::TallySheet;
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use sequent_core::types::tally_sheets::AreaContestResults;
+use sequent_core::types::{hasura::core::TallySheet, tally_sheets::VotingChannel};
 use serde_json::Value;
+use std::convert::From;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tokio_postgres::types::ToSql;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 pub struct TallySheetWrapper(pub TallySheet);
@@ -82,4 +84,139 @@ pub async fn get_published_tally_sheets_by_event(
         .collect::<Result<Vec<TallySheet>>>()?;
 
     Ok(election_events)
+}
+
+#[instrument(skip(transaction), err)]
+pub async fn publish_tally_sheet(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_sheet_id: &str,
+    user_id: &str,
+    publish: bool,
+) -> Result<Option<()>> {
+    let set_published_at = if publish { "now()" } else { "NULL" };
+    let filter_published_at = if publish { "NULL" } else { "NOT NULL" };
+    let publish_statement = transaction
+        .prepare(
+            format!(
+                r#"
+        UPDATE sequent_backend.tally_sheet tally_sheet
+        SET
+            published_at = {set_published_at},
+            published_by_user_id = $4
+        WHERE
+            tally_sheet.tenant_id = $1 AND
+            tally_sheet.election_event_id = $2 AND
+            tally_sheet.id = $3 AND
+            tally_sheet.deleted_at IS NULL AND
+            tally_sheet.published_at IS {filter_published_at}
+        RETURNING *
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet_id)
+        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
+    let publish_params: Vec<&(dyn ToSql + Sync)> = vec![
+        &tenant_uuid,
+        &election_event_uuid,
+        &tally_sheet_uuid,
+        &user_id,
+    ];
+    let publish_rows: Vec<Row> = transaction
+        .query(&publish_statement, &publish_params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    if publish_rows.len() != 1 {
+        return Ok(None);
+    }
+    Ok(Some(()))
+}
+
+#[instrument(skip(hasura_transaction, content), err)]
+pub async fn upsert_tally_sheet(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    contest_id: &str,
+    area_id: &str,
+    content: &AreaContestResults,
+    channel: &VotingChannel,
+    created_by_user_id: &str,
+) -> Result<TallySheet> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let contest_uuid: uuid::Uuid = Uuid::parse_str(contest_id)
+        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let content_value = serde_json::to_value(content)?;
+    let channel_str = channel.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.tally_sheet
+                (tenant_id, election_event_id, election_id, contest_id, area_id, content, channel, created_by_user_id)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8
+                )
+                ON CONFLICT (tenant_id, election_event_id, election_id, contest_id, area_id, channel)
+                DO UPDATE SET
+                    content = EXCLUDED.content,
+                    last_updated_at = NOW()
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &contest_uuid,
+                &area_uuid,
+                &content_value,
+                &channel_str,
+                &created_by_user_id.to_string(),
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting tally sheet: {}", err))?;
+
+    let elements: Vec<TallySheet> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySheet> {
+            row.try_into()
+                .map(|res: TallySheetWrapper| -> TallySheet { res.0 })
+        })
+        .collect::<Result<Vec<TallySheet>>>()?;
+
+    if 1 == elements.len() {
+        Ok(elements[0].clone())
+    } else {
+        Err(anyhow!("Unexpected rows affected {}", elements.len()))
+    }
 }

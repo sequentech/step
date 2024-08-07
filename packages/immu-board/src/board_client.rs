@@ -4,15 +4,12 @@
 
 use anyhow::{anyhow, Result};
 use log::info;
+use std::env;
 use tracing::{event, instrument, Level};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 use tokio::time::{sleep, Duration};
-
-const IMMUDB_DEFAULT_LIMIT: usize = 900;
-const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
-const IMMUDB_DEFAULT_OFFSET: usize = 0;
 
 #[derive(Debug, Clone)]
 enum Table {
@@ -137,6 +134,9 @@ impl BoardClient {
         board_db: &str,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
+        let IMMUDB_DEFAULT_LIMIT = env::var("IMMUDB_DEFAULT_LIMIT")
+            .expect(&format!("IMMUDB_DEFAULT_LIMIT must be set"))
+            .parse::<usize>()?;
         let mut offset: usize = 0;
         let mut last_batch = self
             .get(
@@ -179,6 +179,9 @@ impl BoardClient {
         board_db: &str,
     ) -> Result<Vec<BoardMessage>> {
         let mut offset: usize = 0;
+        let IMMUDB_DEFAULT_LIMIT = env::var("IMMUDB_DEFAULT_LIMIT")
+            .expect(&format!("IMMUDB_DEFAULT_LIMIT must be set"))
+            .parse::<usize>()?;
         let mut last_batch = self
             .get(
                 board_db,
@@ -214,6 +217,12 @@ impl BoardClient {
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<Vec<BoardMessage>> {
+        let IMMUDB_DEFAULT_LIMIT = env::var("IMMUDB_DEFAULT_LIMIT")
+            .expect(&format!("IMMUDB_DEFAULT_LIMIT must be set"))
+            .parse::<usize>()?;
+        let IMMUDB_DEFAULT_OFFSET = env::var("IMMUDB_DEFAULT_OFFSET")
+            .expect(&format!("IMMUDB_DEFAULT_OFFSET must be set"))
+            .parse::<usize>()?;
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -424,6 +433,9 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
+        let IMMUDB_DEFAULT_ENTRIES_TX_LIMIT = env::var("IMMUDB_DEFAULT_ENTRIES_TX_LIMIT")
+            .expect(&format!("IMMUDB_DEFAULT_ENTRIES_TX_LIMIT must be set"))
+            .parse::<usize>()?;
         let max_attempts = 5;
         let initial_delay = Duration::from_millis(10);
 
