@@ -74,6 +74,8 @@ import {useWatch} from "react-hook-form"
 import {convertToNumber} from "@/lib/helpers"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
+import {getLoginUrl} from "@/services/UrlGeneration"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -204,6 +206,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const canEdit = authContext.isAuthorized(
@@ -224,7 +227,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [manageCustomUrls] = useMutation() // TODO: Create Mutation
+    const [manageCustomUrls] = useMutation(SET_CUSTOM_URL)
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
@@ -600,16 +603,44 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 start_date: startDate,
                                 end_date: endDate,
                             },
+                            onError() {
+                                notify("Error updating custom url", {type: "error"})
+                            },
                         })
-                        const customUrls = (parsedValue.presentation as IElectionEventPresentation)?.custom_urls
-                        if(customUrls?.login || customUrls?.enrollment){
-                            await manageCustomUrls({
-                                variables:{
-                                    electionEventId: record.id,
-                                    login: customUrls.login,
-                                    enrollment: customUrls.enrollment
+                        const customUrls = (parsedValue.presentation as IElectionEventPresentation)
+                            ?.custom_urls
+                        if (customUrls) {
+                            const urlEntries = [
+                                {
+                                    key: "login",
+                                    origin: customUrls.login,
+                                    redirect_to: getLoginUrl(
+                                        globalSettings.VOTING_PORTAL_URL,
+                                        tenantId ?? "",
+                                        record.id
+                                    ),
+                                },
+                                {
+                                    key: "enrollment",
+                                    origin: customUrls.enrollment,
+                                    redirect_to: getLoginUrl(
+                                        globalSettings.VOTING_PORTAL_URL,
+                                        tenantId ?? "",
+                                        record.id
+                                    ),
+                                },
+                            ]
+                            for (const {origin, redirect_to} of urlEntries) {
+                                if (origin) {
+                                    await manageCustomUrls({
+                                        variables: {
+                                            tenantId: tenantId ?? "",
+                                            origin: origin,
+                                            redirect_to: redirect_to,
+                                        },
+                                    })
                                 }
-                            })
+                            }
                         }
                     }
                     return (
@@ -860,7 +891,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    {/* TODO: */}
                                     <TextInput
                                         source={`presentation.custom_urls.login`}
                                         label={t("electionEventScreen.customUrls.login")}

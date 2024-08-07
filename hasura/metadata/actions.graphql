@@ -315,6 +315,14 @@ type Mutation {
 }
 
 type Mutation {
+  set_custom_url (
+    tenant_id: String!
+    origin: String!
+    redirect_to: String!
+  ): String!
+}
+
+type Mutation {
   set_role_permission (
     tenant_id: String!
     role_id: String!

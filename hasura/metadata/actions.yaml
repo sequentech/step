@@ -644,6 +644,20 @@ actions:
   permissions:
   - role: trustee-ceremony
   - role: admin-user
+- name: set_custom_url
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/update-custom-url
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-event-write
+  - role: admin-user
+  comment: set_custom_url
 - name: set_role_permission
   definition:
     kind: synchronous
