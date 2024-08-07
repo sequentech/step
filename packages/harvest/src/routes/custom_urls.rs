@@ -24,7 +24,7 @@ pub struct UpdateCustomUrlInput {
 pub struct GetCustomUrlInput {
     pub redirect_to: String,
 }
-// TODO: Fix env for cloudflare auth + add env for local / remote
+// TODO: Add env for cloudflare auth + add env for local / remote
 #[instrument(skip(claims))]
 #[post("/update-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
@@ -73,13 +73,13 @@ pub async fn get_custom_url(
             let origin = r
                 .targets
                 .get(0)
-                .map(|target| target.target.clone())
+                .map(|target| target.constraint.value.clone()) // The origin domain url
                 .ok_or_else(|| {
-                (
-                    Status::InternalServerError,
-                    "Error extracting page rule".to_string(),
-                )
-            })?;
+                    (
+                        Status::InternalServerError,
+                        "Error extracting page rule".to_string(),
+                    )
+                })?;
             Ok(Json(origin))
         }
         None => Err((
