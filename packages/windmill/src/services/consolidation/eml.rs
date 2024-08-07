@@ -57,7 +57,15 @@ pub struct EMLContest {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct EMLCandidate {}
+pub struct EMLStatusItem {
+    pub setting: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLCandidate {
+    pub identifier: EMLIdentifier,
+    pub status_details: Vec<EMLStatusItem>,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct EMLSelection {
