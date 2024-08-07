@@ -24,6 +24,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
                             </div>
                             <div class="${properties.kcInputWrapperClass!}">
+                                <#--  You can add a custom passwordHelperTextBefore to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
+                                <#if attribute.annotations.passwordHelperTextBefore??>
+                                    <div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextBefore))?no_esc}</div>
+                                </#if>
+
                                 <div class="${properties.kcInputGroup!}">
                                     <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
                                            autocomplete="new-password"
@@ -41,6 +46,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                                     <span id="input-error-password" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 		                                ${kcSanitize(messagesPerField.get('password'))?no_esc}
 		                            </span>
+                                </#if>
+
+                                <#--  You can add a custom passwordHelperTextAfter to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
+                                <#if attribute.annotations.passwordHelperTextAfter??>
+                                    <div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextAfter))?no_esc}</div>
                                 </#if>
                             </div>
                         </div>
@@ -107,7 +117,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <script type="text/javascript" src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
 
         <#--  Timezone country code data  -->
-
         <script type="text/javascript" src="${url.resourcesPath}/js/timezone-countrycode-data.js"></script>
 
         <#-- jQuery -->
