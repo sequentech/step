@@ -63,6 +63,15 @@ pub fn convert_to_eml_file(
         .clone()
         .ok_or(anyhow!("Missing election event annotations"))?;
 
+    let election_event_id =
+        find_miru_annotation(MIRU_ELECTION_EVENT_ID, &Some(election_annotations.clone()))
+            .with_context(|| "")?;
+    let election_event_name = find_miru_annotation(
+        MIRU_ELECTION_EVENT_NAME,
+        &Some(election_annotations.clone()),
+    )
+    .with_context(|| "")?;
+
     //let time_zone = get_system_timezone();
 
     //let now_utc = Utc::now();
@@ -88,7 +97,13 @@ pub fn convert_to_eml_file(
                 status_date: official_status_date,
             },
         },
-        counts: vec![],
+        counts: vec![EMLCount {
+            identifier: EMLIdentifier {
+                id_number: election_event_id,
+                name: election_event_name,
+            },
+            elections: vec![],
+        }],
     };
     Ok(eml_file)
 }
