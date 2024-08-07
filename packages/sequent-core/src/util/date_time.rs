@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::date_time::{DateFormat, TimeZone};
-use chrono::{Duration, FixedOffset, Local, TimeZone as ChronoTimeZone, Utc};
+use chrono::{
+    DateTime, Duration, FixedOffset, Local, TimeZone as ChronoTimeZone, Utc,
+};
 
 pub fn get_system_timezone() -> TimeZone {
     let now = Local::now();
@@ -20,11 +22,12 @@ pub fn get_system_timezone() -> TimeZone {
 pub fn generate_timestamp(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
+    date_time: Option<DateTime<Utc>>,
 ) -> String {
     let time_zone = time_zone.unwrap_or_default();
     let date_format = date_format.unwrap_or_default().to_format_string();
 
-    let now = Utc::now();
+    let now = date_time.unwrap_or(Utc::now());
 
     match time_zone {
         TimeZone::UTC => now.format(&date_format).to_string(),

@@ -163,7 +163,7 @@ impl GenerateReports {
         variables_map.insert("reports".to_owned(), json_reports.clone());
 
         // Adding current timestamp to variables_map
-        let timestamp = generate_timestamp(time_zone, date_format);
+        let timestamp = generate_timestamp(time_zone, date_format, None);
         variables_map.insert("timestamp".to_owned(), serde_json::json!(timestamp));
 
         let mut template_map = HashMap::new();

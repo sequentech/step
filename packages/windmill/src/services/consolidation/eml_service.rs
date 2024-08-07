@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_types::*;
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Utc};
 use sequent_core::{
     ballot::Annotations,
-    types::date_time::DateFormat,
+    types::date_time::*,
     util::date_time::{generate_timestamp, get_system_timezone},
 };
 use tracing::{info, instrument};
@@ -47,7 +48,10 @@ pub fn find_miru_annotation(data: &str, annotations_opt: &Option<Annotations>) -
 
 #[instrument(err)]
 pub fn convert_to_eml_file(
-    tally_id: &str,
+    tally_id: i64,
+    transaction_id: i64,
+    time_zone: TimeZone,
+    date_time: DateTime<Utc>,
     election_event_annotations_opt: &Option<Annotations>,
     election_annotations_opt: &Option<Annotations>,
     report: &ReportData,
@@ -59,21 +63,25 @@ pub fn convert_to_eml_file(
         .clone()
         .ok_or(anyhow!("Missing election event annotations"))?;
 
-    let time_zone = get_system_timezone();
+    //let time_zone = get_system_timezone();
+
+    //let now_utc = Utc::now();
 
     let issue_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
+        Some(date_time.clone()),
     );
     let official_status_date = generate_timestamp(
-        Some(time_zone),
+        Some(time_zone.clone()),
         Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
+        Some(date_time.clone()),
     );
 
     let eml_file = EMLFile {
-        id: 1.to_string(),
+        id: tally_id.to_string(),
         header: EMLHeader {
-            transaction_id: 1.to_string(),
+            transaction_id: transaction_id.to_string(),
             issue_date: issue_date,
             official_status_detail: EMLOfficialStatusDetail {
                 official_status: "official".to_string(),
