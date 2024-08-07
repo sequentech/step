@@ -4,64 +4,58 @@ SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 --}}
 
-<EML Id="510" SchemaVersion="7.0" xmlns="urn:oasis:names:tc:evs:schema:eml">
-   <EMLHeader>
-      <TransactionId>1721184531864</TransactionId>
-      <IssueDate>2024-07-17T10:48:51</IssueDate>
-      <OfficialStatusDetail>
-         <OfficialStatus>official</OfficialStatus>
-         <StatusDate>2024-07-17</StatusDate>
-      </OfficialStatusDetail>
-   </EMLHeader>
-   <Count>
-      <EventIdentifier IdNumber="10">
-         <EventName>2024 LAB Test</EventName>
+<EML Id="{{data.id}}" SchemaVersion="7.0" xmlns="urn:oasis:names:tc:evs:schema:eml">
+  <EMLHeader>
+    <TransactionId>{{data.header.transaction_id}}</TransactionId>
+    <IssueDate>{{data.header.issue_date}}</IssueDate>
+    <OfficialStatusDetail>
+      <OfficialStatus>{{data.header.official_status_detail.official_status}}</OfficialStatus>
+      <StatusDate>{{data.header.official_status_detail.status_date}}</StatusDate>
+    </OfficialStatusDetail>
+  </EMLHeader>
+  {{#each data.counts as |count|}}
+    <Count>
+      <EventIdentifier IdNumber="{{count.identifier.id_number}}">
+        <EventName>{{count.identifier.name}}</EventName>
       </EventIdentifier>
-      <Election>
-         <ElectionIdentifier IdNumber="1"/>
-         <Contests>
-            <Contest>
-               <ContestIdentifier IdNumber="00399000">
-                  <ContestName>SENATOR of PHILIPPINES</ContestName>
-               </ContestIdentifier>
-               <TotalVotes>
-                  <CountMetric Type="Total Number of Over Votes" Id="OV">0</CountMetric>
-                  <CountMetric Type="Total Number of Under Votes" Id="UV">0</CountMetric>
-                  <CountMetric Type="Total Number of Votes Actually" Id="VV">120</CountMetric>
-                  <CountMetric Type="Total Number of Registered Voters" Id="RV">15</CountMetric>
-                  <CountMetric Type="Total Number of Expected Votes" Id="EV">120</CountMetric>
-                  <CountMetric Type="Number of Zero Outs Executed" Id="RZ">0</CountMetric>
-                  <CountMetric Type="Total Number of Scanned Ballots" Id="TB">10</CountMetric>
-                  <CountMetric Type="Total Number of Valid Ballots" Id="VB">10</CountMetric>
-                  <CountMetric Type="Total Number of Stamped Ballots" Id="SB">0</CountMetric>
-                  <CountMetric Type="Total Number of Ballots In Ballot Box" Id="BB">10</CountMetric>
-                  <CountMetric Type="Abstentions" Id="AB">0</CountMetric>
-                  <CountMetric Type="Total Number of Invalid Ballots" Id="IB">0</CountMetric>
-                  <CountMetric Type="Total Number of Misread Ballots" Id="MB">0</CountMetric>
-                  <CountMetric Type="Total Number of Fake Ballots" Id="FB">0</CountMetric>
-                  <CountMetric Type="Total Number of Previously Casted Ballots" Id="PB">0</CountMetric>
-                  <CountMetric Type="Total Number of Returned Ballots" Id="RB">0</CountMetric>
-                  <CountMetric Type="Total Number of Rejected Ballots" Id="JB">0</CountMetric>
-                  <Selection>
-                     <Candidate>
-                        <CandidateIdentifier IdNumber="9900030013">
-                           <CandidateName>AROYO, JENNIFER (HUGPONG)</CandidateName>
-                        </CandidateIdentifier>
-                        <StatusDetails>
-                           <StatusItem setting="candidate"/>
-                        </StatusDetails>
-                        <Affiliation>
-                           <AffiliationIdentifier IdNumber="109">
-                              <RegisteredName>HUGPONG SA TAWONG LUNGSOD</RegisteredName>
-                           </AffiliationIdentifier>
-                           <Type>Party</Type>
-                        </Affiliation>
-                     </Candidate>
-                     <ValidVotes>5</ValidVotes>
-                  </Selection>
-               </TotalVotes>
-            </Contest>
-            </Contests>
-         </Election>
-      </Count>
-   </EML>
+      {{#each count.elections as |election|}}
+        <Election>
+          <ElectionIdentifier IdNumber="{{election.identifier.id_number}}">
+            <ElectionName>{{election.identifier.name}}</ElectionName>
+          </ElectionIdentifier>
+          <Contests>
+            {{#each election.contests as |contest|}}
+              <Contest>
+                <ContestIdentifier IdNumber="{{contest.identifier.id_number}}">
+                  <ContestName>{{contest.identifier.name}}</ContestName>
+                </ContestIdentifier>
+                <TotalVotes>
+                  {{#each contest.total_votes.count_metrics as |metric|}}
+                    <CountMetric Type="{{metric.kind}}" Id="{{metric.id}}">{{metric.datum}}</CountMetric>
+                  {{/each}}
+                  {{#each contest.total_votes.selections as |selection|}}
+                    <Selection>
+                      {{#each selection.candidates as |candidate|}}
+                        <Candidate>
+                          <CandidateIdentifier IdNumber="{{candidate.identifier.id_number}}">
+                            <CandidateName>{{candidate.identifier.name}}</CandidateName>
+                          </CandidateIdentifier>
+                          <StatusDetails>
+                            {{#each candidate.status_details as |status|}}
+                              <StatusItem setting="{{status.setting}}" />
+                            {{/each}}
+                          </StatusDetails>
+                        </Candidate>
+                      {{/each}}
+                      <ValidVotes>{{selection.valid_votes}}</ValidVotes>
+                    </Selection>
+                  {{/each}}
+                </TotalVotes>
+              </Contest>
+            {{/each}}
+          </Contests>
+        </Election>
+      {{/each}}
+    </Count>
+  {{/each}}
+</EML>

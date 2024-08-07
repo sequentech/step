@@ -53,7 +53,7 @@ pub struct EMLIdentifier {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct EMLContest {
     pub identifier: EMLIdentifier,
-    pub contests: Vec<EMLContest>,
+    pub total_votes: EMLTotalVotes,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -69,7 +69,7 @@ pub struct EMLCandidate {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct EMLSelection {
-    pub candidates: EMLCandidate,
+    pub candidates: Vec<EMLCandidate>,
     pub valid_votes: i64,
 }
 
@@ -89,7 +89,7 @@ pub struct EMLTotalVotes {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct EMLElection {
     pub identifier: EMLIdentifier,
-    pub total_votes: EMLTotalVotes,
+    pub contests: Vec<EMLContest>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
