@@ -13,7 +13,6 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
-mod pdf;
 mod routes;
 mod services;
 mod types;
