@@ -5,6 +5,7 @@
 pub mod immudb;
 pub mod local;
 pub mod pgsql;
+pub mod grpc;
 
 use anyhow::Result;
 use board_messages::braid::message::Message;

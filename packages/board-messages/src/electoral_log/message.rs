@@ -188,7 +188,7 @@ impl TryFrom<Message> for immu_board::BoardMessage {
             statement_kind: message.statement.head.kind.to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
-            version: crate::getSchemaVersion(),
+            version: crate::get_schema_version(),
         })
     }
 }

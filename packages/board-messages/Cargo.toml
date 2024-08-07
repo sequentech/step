@@ -34,12 +34,18 @@ base64 = "0.21.0"
 serde = "1.0.152"
 toml = "0.6.0"
 
+tonic = "0.12.1"
+prost = "0.13.1"
+tokio = { version = "1.38.1", features = ["full"] }
+tokio-postgres = "0.7.10"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [features]
 
+[build-dependencies]
+tonic-build = "0.12.1"
+
 [dev-dependencies]
 serial_test = "2.0.0"
-tokio = { version = "1.31.0", features = ["rt-multi-thread"]}
-

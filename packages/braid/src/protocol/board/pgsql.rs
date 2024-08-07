@@ -15,7 +15,7 @@ use tracing::{info, warn};
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 
-/// A bulletin board implemented on immudb
+/// A bulletin board implemented on postgresql
 pub struct PgsqlBoard {
     pub(crate) board_client: BoardClient,
     pub(crate) board_name: String,
@@ -139,11 +139,6 @@ impl super::Board for PgsqlBoard {
             // When using a store, only the messages not previously received will be requested
             self.store_and_get_messages(last_id).await?
         } else {
-            // When not using a store, we get all messages, one at a time
-            // If last_id is None, use 0 as last_id: immudb sequences start with 1
-            /* let messages = self
-            .get_remote_messages_consecutively(last_id.unwrap_or(0))
-            .await?;*/
             // If last_id is None, use -1 as last_id
             let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
 
@@ -294,6 +289,34 @@ pub struct Board {
     pub is_archived: bool,
 }
 
+impl TryFrom<&Row> for Board {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let id = row.get("id");
+        let board_name = row.get("board_name");
+        let is_archived = row.get("is_archived");
+
+        Ok(Board {
+            id,
+            board_name,
+            is_archived,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoardMessage {
+    pub id: i64,
+    pub created: SystemTime,
+    // Base64 encoded spki der representation.
+    pub sender_pk: String,
+    pub statement_timestamp: SystemTime,
+    pub statement_kind: String,
+    pub message: Vec<u8>,
+    pub version: String,
+}
+
 impl TryFrom<&Row> for BoardMessage {
     type Error = anyhow::Error;
 
@@ -318,22 +341,6 @@ impl TryFrom<&Row> for BoardMessage {
     }
 }
 
-impl TryFrom<&Row> for Board {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let id = row.get("id");
-        let board_name = row.get("board_name");
-        let is_archived = row.get("is_archived");
-
-        Ok(Board {
-            id,
-            board_name,
-            is_archived,
-        })
-    }
-}
-
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
 
@@ -350,7 +357,7 @@ impl TryFrom<Message> for BoardMessage {
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
-            version: board_messages::getSchemaVersion(),
+            version: board_messages::get_schema_version(),
         })
     }
 }
@@ -854,16 +861,4 @@ pub(crate) async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Re
         .unwrap();
 
     Ok(())
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BoardMessage {
-    pub id: i64,
-    pub created: SystemTime,
-    // Base64 encoded spki der representation.
-    pub sender_pk: String,
-    pub statement_timestamp: SystemTime,
-    pub statement_kind: String,
-    pub message: Vec<u8>,
-    pub version: String,
 }
