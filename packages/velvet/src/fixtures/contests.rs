@@ -56,6 +56,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             sort_order: None,
             under_vote_alert: Some(false),
         }),
+        annotations: None,
     }
 }
 
@@ -113,5 +114,6 @@ pub fn get_contest_min_max_votes(
             sort_order: None,
             under_vote_alert: Some(false),
         }),
+        annotations: None,
     }
 }

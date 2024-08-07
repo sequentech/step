@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_types::*;
 use anyhow::{anyhow, Context, Result};
+use sequent_core::ballot::Annotations;
+use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
 const MIRU_PLUGIN_PREPEND: &str = "miru";
@@ -19,10 +21,12 @@ const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
 const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
 
+#[instrument]
 pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }
 
+#[instrument(err)]
 pub fn find_miru_annotation(data: &str, annotations_opt: &Option<Annotations>) -> Result<String> {
     let key = prepend_miru_annotation(data);
     let annotations = annotations_opt
@@ -31,12 +35,22 @@ pub fn find_miru_annotation(data: &str, annotations_opt: &Option<Annotations>) -
     annotations
         .get(&key)
         .ok_or(anyhow!("Can't find annotation key {}", key))
+        .cloned()
 }
 
+#[instrument(err)]
 pub fn convert_to_eml_file(
-    election_event_annotations: Option<Annotations>,
-    election_annotations: Option<Annotations>,
-    report: ReportData,
+    tally_id: &str,
+    election_event_annotations_opt: &Option<Annotations>,
+    election_annotations_opt: &Option<Annotations>,
+    report: &ReportData,
 ) -> Result<EMLFile> {
+    let election_event_annotations = election_event_annotations_opt
+        .clone()
+        .ok_or(anyhow!("Missing election event annotations"))?;
+    let election_annotations = election_annotations_opt
+        .clone()
+        .ok_or(anyhow!("Missing election event annotations"))?;
+
     Err(anyhow!("not implemented"))
 }
