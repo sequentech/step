@@ -42,6 +42,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                                     </button>
                                 </div>
 
+                                <div class="pf-c-progress pf-m-sm" id="password-progress">
+                                    <div class="pf-c-progress__bar" id="password-progress-aria" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="password-progress">
+                                        <div class="pf-c-progress__indicator" id="password-progress-indicator"></div>
+                                    </div>
+                                </div>
+
                                 <#if messagesPerField.existsError('password')>
                                     <span id="input-error-password" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 		                                ${kcSanitize(messagesPerField.get('password'))?no_esc}
@@ -122,13 +128,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#-- jQuery -->
         <script type="text/javascript" src="${url.resourcesPath}/js/jquery-3.7.1.slim.min.js"></script>
 
-        <#-- Strengthify -->
-        <#-- https://github.com/nextcloud/strengthify -->
-        <script src="${url.resourcesPath}/js/jquery.strengthify.min.js"></script>
-        <script src="${url.resourcesPath}/js/bootstrap.min.js"></script>
-        <link rel="stylesheet" href="${url.resourcesPath}/css/strengthify.min.css" type="text/css">
-        <link rel="stylesheet" href="${url.resourcesPath}/css/bootstrap.min.css" type="text/css">
-
         <script>
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
@@ -182,10 +181,30 @@ SPDX-License-Identifier: AGPL-3.0-only
             }
         </script>
 
+        <#--  Password strength  -->
+        <#--  https://github.com/dropbox/zxcvbn  -->
+        <script type="text/javascript" src="${url.resourcesPath}/js/zxcvbn.js"></script>
+
         <script>
-            $('#password').strengthify({
-                zxcvbn: '${url.resourcesPath}/js/zxcvbn.js',
-            })
+            $(document).ready(function(){
+                $('#password').on("keyup", function(){
+                    let result = zxcvbn(this.value, user_inputs=[]);
+                    let classes = ['pf-m-danger', 'pf-m-warning', 'pf-m-warning', 'pf-m-success', 'pf-m-success']
+
+                    for (const element of classes) {
+                        $('#password-progress').removeClass(element);
+                    }
+
+                    let score = (result.score + 1) * 20;
+                    
+                    if(this.value == null | this.value == "") {
+                        $('#password-progress-indicator').attr('aria-valuenow', 0).css('width', '0%');
+                    } else {
+                        $('#password-progress').addClass(classes[result.score]);
+                        $('#password-progress-indicator').attr('aria-valuenow', score).css('width', score + '%');
+                    }
+                });
+            });
         </script>
     </#if>
 </@layout.registrationLayout>
