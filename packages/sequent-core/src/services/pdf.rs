@@ -20,6 +20,11 @@ fn print_to_pdf(
 ) -> Result<Vec<u8>> {
     let options = LaunchOptionsBuilder::default()
         .sandbox(false)
+        // <WTF> Why? well this:
+        // https://github.com/rust-headless-chrome/rust-headless-chrome/issues/500
+        .devtools(false)
+        .headless(true)
+        // </WTF>
         .enable_logging(true)
         .build()
         .expect("Default should not panic");
