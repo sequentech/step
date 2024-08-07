@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_types::*;
 use anyhow::{anyhow, Context, Result};
-use sequent_core::ballot::Annotations;
+use sequent_core::{
+    ballot::Annotations,
+    types::date_time::DateFormat,
+    util::date_time::{generate_timestamp, get_system_timezone},
+};
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
@@ -20,6 +24,9 @@ const MIRU_CANDIDATE_SETTING: &str = "candidate-setting";
 const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
 const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
+
+const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
+const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";
 
 #[instrument]
 pub fn prepend_miru_annotation(data: &str) -> String {
@@ -52,5 +59,28 @@ pub fn convert_to_eml_file(
         .clone()
         .ok_or(anyhow!("Missing election event annotations"))?;
 
-    Err(anyhow!("not implemented"))
+    let time_zone = get_system_timezone();
+
+    let issue_date = generate_timestamp(
+        Some(time_zone.clone()),
+        Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
+    );
+    let official_status_date = generate_timestamp(
+        Some(time_zone),
+        Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
+    );
+
+    let eml_file = EMLFile {
+        id: 1.to_string(),
+        header: EMLHeader {
+            transaction_id: 1.to_string(),
+            issue_date: issue_date,
+            official_status_detail: EMLOfficialStatusDetail {
+                official_status: "official".to_string(),
+                status_date: official_status_date,
+            },
+        },
+        counts: vec![],
+    };
+    Ok(eml_file)
 }

@@ -2,9 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use chrono::{FixedOffset, TimeZone as ChronoTimeZone, Utc};
-
 use crate::types::date_time::{DateFormat, TimeZone};
+use chrono::{Duration, FixedOffset, Local, TimeZone as ChronoTimeZone, Utc};
+
+pub fn get_system_timezone() -> TimeZone {
+    let now = Local::now();
+    let offset = now.offset();
+    let duration = Duration::seconds(offset.local_minus_utc() as i64);
+    let hours = duration.num_hours() as i32;
+    if hours == 0 {
+        TimeZone::UTC
+    } else {
+        TimeZone::Offset(hours)
+    }
+}
 
 pub fn generate_timestamp(
     time_zone: Option<TimeZone>,
@@ -18,7 +29,9 @@ pub fn generate_timestamp(
     match time_zone {
         TimeZone::UTC => now.format(&date_format).to_string(),
         TimeZone::Offset(offset) => {
-            let fixed_offset = FixedOffset::east_opt(offset * 3600);
+            let duration = Duration::hours(offset as i64);
+            let fixed_offset =
+                FixedOffset::east_opt(duration.num_seconds() as i32);
             match fixed_offset {
                 Some(fixed) => fixed
                     .from_utc_datetime(&now.naive_utc())
