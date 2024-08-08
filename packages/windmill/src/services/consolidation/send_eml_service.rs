@@ -6,6 +6,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::database::get_hasura_pool;
 
 pub async fn send_eml_service(
@@ -26,6 +27,25 @@ pub async fn send_eml_service(
         get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Error fetching election event")?;
+
+    let tally_session_executions = get_tally_session_executions(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session executions")?;
+
+    // the first execution is the latest one
+    let tally_session_execution = tally_session_executions
+        .first()
+        .ok_or_else(|| anyhow!("No tally session executions found"))?;
+
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .clone()
+        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
 
     hasura_transaction
         .commit()

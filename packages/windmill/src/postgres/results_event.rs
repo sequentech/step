@@ -63,3 +63,50 @@ pub async fn update_results_event_documents(
         Err(anyhow!("Rows not found in table results_event"))
     }
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_results_event_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+) -> Result<ElectionEventData> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.results_event
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(results_event_id)?,
+            ],
+        )
+        .await?;
+
+    let results_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    results_events
+        .get(0)
+        .map(|results_event| results_event.clone())
+        .ok_or(anyhow!("Results event {results_event_id} not found"))
+}
