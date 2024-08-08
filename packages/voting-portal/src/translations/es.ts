@@ -174,20 +174,23 @@ const spanishTranslation: TranslationType = {
             },
             errors: {
                 noVotingArea:
-                    "Área electoral no asignada al votante. Por favor, contacte a su administrador para asistencia.",
-                networkError: "Hubo un problema de red. Por favor, intente nuevamente más tarde.",
+                    "Área electoral no asignada al votante. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                networkError:
+                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 unableToFetchData:
-                    "Hubo un problema al recuperar los datos. Por favor, intente nuevamente más tarde.",
-                noElectionEvent: "El evento electoral no existe. Por favor, contacte a soporte.",
+                    "Hubo un problema al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                noElectionEvent:
+                    "El evento electoral no existe. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 ballotStylesEmlError:
-                    "Hubo un error con el estilo de publicación de las papeletas. Por favor, contacte a soporte.",
+                    "Hubo un error con la publicación del estilo de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 obtainingElectionFromID:
-                    "Hubo un error al obtener las elecciones asociadas a los siguientes IDs: {{electionId}}. Por favor, contacte a soporte.",
+                    "Hubo un error al obtener las elecciones asociadas con los siguientes IDs de elecciones: {{electionIds}}. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
             alerts: {
                 noElections:
-                    "No hay elecciones para votar. Esto podría deberse a que el área no tiene concursos asociados.",
-                electionEventNotPublished: "El evento electoral aún no ha sido publicado.",
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                electionEventNotPublished:
+                    "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
         },
         errors: {

@@ -174,22 +174,23 @@ const catalanTranslation: TranslationType = {
             },
             errors: {
                 noVotingArea:
-                    "Àrea electoral no assignada a l'elector. Si us plau, contacteu amb el vostre administrador per obtenir ajuda.",
+                    "Àrea de votació no assignada al votant. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 networkError:
-                    "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a provar més tard.",
+                    "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 unableToFetchData:
-                    "Hi ha hagut un problema en recuperar les dades. Si us plau, torneu-ho a provar més tard.",
+                    "Hi ha hagut un problema a l'obtenció de les dades. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 noElectionEvent:
-                    "L'esdeveniment electoral no existeix. Si us plau, contacteu amb el suport.",
+                    "L'esdeveniment electoral no existeix. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 ballotStylesEmlError:
-                    "Hi ha hagut un error amb l'estil de publicació de les paperetes. Si us plau, contacteu amb el suport.",
+                    "Hi ha hagut un error amb la publicació de l'estil de la papereta. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 obtainingElectionFromID:
-                    "Hi ha hagut un error en obtenir les eleccions associades als següents IDs: {{electionId}}. Si us plau, contacteu amb el suport.",
+                    "Hi ha hagut un error a l'obtenció de les eleccions associades amb les següents IDs d'eleccions: {{electionIds}}. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
             alerts: {
                 noElections:
-                    "No hi ha eleccions per votar. Això podria ser perquè la zona no té cap concurs associat.",
-                electionEventNotPublished: "L'esdeveniment electoral encara no s'ha publicat.",
+                    "No hi ha eleccions en les quals pugueu votar. Això podria ser perquè l'àrea no té cap concurs associat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                electionEventNotPublished:
+                    "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
         },
         errors: {

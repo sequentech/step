@@ -173,21 +173,23 @@ const frenchTranslation: TranslationType = {
             },
             errors: {
                 noVotingArea:
-                    "Zone électorale non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
-                networkError: "Il y a eu un problème de réseau. Veuillez réessayer plus tard.",
+                    "Zone de vote non assignée à l'électeur. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                networkError:
+                    "Il y a eu un problème de réseau. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 unableToFetchData:
-                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard.",
+                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 noElectionEvent:
-                    "L'événement électoral n'existe pas. Veuillez contacter le support.",
+                    "L'événement électoral n'existe pas. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 ballotStylesEmlError:
-                    "Il y a eu une erreur avec le style de publication des bulletins. Veuillez contacter le support.",
+                    "Il y a eu une erreur avec la publication du style de bulletin. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 obtainingElectionFromID:
-                    "Il y a eu une erreur lors de l'obtention des élections associées aux identifiants suivants : {{electionId}}. Veuillez contacter le support.",
+                    "Il y a eu une erreur pour obtenir les élections associées aux identifiants d'élection suivants : {{electionIds}}. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
             alerts: {
                 noElections:
-                    "Il n'y a pas d'élections pour voter. Cela pourrait être dû au fait que la zone n'a pas de concours associés.",
-                electionEventNotPublished: "L'événement électoral n'a pas encore été publié.",
+                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                electionEventNotPublished:
+                    "L'événement électoral n'a pas encore été publié. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
         },
         errors: {

@@ -5,7 +5,14 @@
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+import {
+    Dialog,
+    IconButton,
+    PageLimit,
+    SelectElection,
+    theme,
+    WarnBox,
+} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -75,17 +82,6 @@ const ElectionContainer = styled(Box)`
     flex-direction: column;
     gap: 30px;
     margin-bottom: 30px;
-`
-
-const StyledMsg = styled(Box)`
-    width: max-content;
-    max-width: 800px;
-    display: flex;
-    border: 1px solid #ccc;
-    padding: 20px;
-    justify-content: center;
-    margin: auto;
-    color: firebrick;
 `
 
 interface ElectionWrapperProps {
@@ -302,7 +298,8 @@ const ElectionSelectionScreen: React.FC = () => {
             if (electionIds.length > 0) {
                 setErrorMsg(
                     t(
-                        `electionSelectionScreen.errors.${ElectionScreenErrorType.OBTAINING_ELECTION}`
+                        `electionSelectionScreen.errors.${ElectionScreenErrorType.OBTAINING_ELECTION}`,
+                        {electionIds: JSON.stringify(electionIds)}
                     )
                 )
             } else {
@@ -429,7 +426,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     minHeight: "100px",
                 }}
             >
-                <Box>
+                <Box sx={{width: "100%"}}>
                     <StyledTitle variant="h1">
                         <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
@@ -457,15 +454,23 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {stringToHtml(t("electionSelectionScreen.description"))}
-                    </Typography>
+                    {errorMsg || alertMsg ? (
+                        <WarnBox variant={errorMsg ? "error" : "warning"}>
+                            {errorMsg || alertMsg}
+                        </WarnBox>
+                    ) : (
+                        <Typography
+                            variant="body1"
+                            sx={{color: theme.palette.customGrey.contrastText}}
+                        >
+                            {stringToHtml(t("electionSelectionScreen.description"))}
+                        </Typography>
+                    )}
                 </Box>
                 {isMaterialsActivated ? (
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
-            {(errorMsg || alertMsg) && <StyledMsg>{errorMsg || alertMsg}</StyledMsg>}
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
