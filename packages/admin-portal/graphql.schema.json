@@ -12976,14 +12976,14 @@
             "description": "send_eml",
             "args": [
               {
-                "name": "document_id",
+                "name": "election_event_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "uuid",
                     "ofType": null
                   }
                 },
@@ -12992,14 +12992,14 @@
                 "deprecationReason": null
               },
               {
-                "name": "election_event_id",
+                "name": "tally_session_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "uuid",
                     "ofType": null
                   }
                 },
