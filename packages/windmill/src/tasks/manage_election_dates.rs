@@ -7,8 +7,11 @@ use crate::postgres::election_event::{get_election_event_by_id, update_election_
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::pg_lock::PgLock;
+use crate::services::voting_status::update_board_on_status_change;
 use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::{CronConfig, EventProcessors};
 use anyhow::{anyhow, Context};
@@ -91,30 +94,52 @@ pub async fn manage_election_date(
         VotingStatus::CLOSED
     };
 
+    election_status.voting_status = match event_processor {
+        EventProcessors::START_ELECTION => {
+            VotingStatus::OPEN
+        }
+        EventProcessors::END_ELECTION => {
+            VotingStatus::CLOSED
+        }
+        _ => {
+            lock.release().await?;
+            return Err(Error::Anyhow(anyhow!(
+                "Invalid scheduled event type: {event_processor:?}"
+            )));
+        }
+    };
+
     // update the database
     update_election_voting_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &election_id,
-        serde_json::to_value(election_status)?,
+        serde_json::to_value(&election_status)?,
     )
     .await?;
-    let mut elsection_event_status: ElectionEventStatus =
+    let mut election_event_status: ElectionEventStatus =
         get_election_event_status(election_event.status).unwrap_or(Default::default());
 
     if (event_processor == EventProcessors::START_ELECTION
-        && elsection_event_status.voting_status == VotingStatus::NOT_STARTED)
+        && election_event_status.voting_status == VotingStatus::NOT_STARTED)
     {
-        elsection_event_status.voting_status = VotingStatus::OPEN;
+        election_event_status.voting_status = VotingStatus::OPEN;
         update_election_event_status(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
-            serde_json::to_value(elsection_event_status)?,
+            serde_json::to_value(election_event_status)?,
         )
         .await?;
     }
+
+    update_board_on_status_change(
+        election_event_id.clone(),
+        election_event.bulletin_board_reference.clone(),
+        election_status.voting_status.clone(),
+        Some(election_id.clone()),
+    ).await?;
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 

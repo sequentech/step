@@ -13,6 +13,7 @@ use crate::services::{
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::date_time::{DateFormat, TimeZone};

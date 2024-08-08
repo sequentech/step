@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
-use crate::hasura::election::{get_election, update_election_status};
+use crate::hasura::election::{get_election};
 use crate::hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent;
-use crate::hasura::election_event::{get_election_event, update_election_event_status};
+use crate::hasura::election_event::{get_election_event};
 use crate::postgres::election::update_election_voting_status;
 use crate::postgres::election_event::{
-    get_election_event_by_id, update_elections_status_by_election_event,
+    get_election_event_by_id, update_election_event_status, update_elections_status_by_election_event
 };
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client;
@@ -79,6 +79,13 @@ pub async fn update_event_voting_status(
 
     status.voting_status = new_status.clone();
 
+    update_election_event_status(
+        &hasura_transaction,
+        &&tenant_id,
+        election_event_id,
+        serde_json::to_value(&status)?,
+    ).await?;
+
     if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
         update_elections_status_by_election_event(
@@ -98,14 +105,9 @@ pub async fn update_election_voting_status_impl(
     election_event_id: String,
     election_id: String,
     new_status: VotingStatus,
+    hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
-    let mut hasura_db_client: Client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
     let data = get_election(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -163,11 +165,6 @@ pub async fn update_election_voting_status_impl(
         status_js,
     )
     .await?;
-
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| anyhow!("Commit failed update election status: {}", e));
 
     Ok(())
 }

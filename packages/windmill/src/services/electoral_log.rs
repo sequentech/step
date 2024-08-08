@@ -114,8 +114,7 @@ impl ElectoralLog {
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
-
+        let election = election_id.map(|id| ElectionIdString(Some(id)));
         let message = Message::election_open_message(event, election, &self.sd)?;
 
         self.post(message).await
@@ -128,7 +127,7 @@ impl ElectoralLog {
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election = election_id.map(|id| ElectionIdString(Some(id)));
 
         let message = Message::election_pause_message(event, election, &self.sd)?;
 
@@ -142,7 +141,7 @@ impl ElectoralLog {
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election = election_id.map(|id| ElectionIdString(Some(id)));;
 
         let message = Message::election_close_message(event, election, &self.sd)?;
 

@@ -89,9 +89,30 @@ pub async fn update_election_status(
     )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let result = voting_status::update_election_status(input, tenant_id)
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura client {:?}", e),
+            )
+        })?;
+
+    let hasura_transaction: deadpool_postgres::Transaction = hasura_db_client
+        .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(result))
+    voting_status::update_election_status(tenant_id, &hasura_transaction, &input.election_event_id, &input.election_id, &input.voting_status)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(voting_status::UpdateElectionVotingStatusOutput {
+        election_id: input.election_id.clone(),
+    }))
 }

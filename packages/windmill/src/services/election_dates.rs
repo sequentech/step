@@ -90,7 +90,7 @@ pub async fn manage_dates(
                     event_processor,
                     &start_task_id,
                     cron_config,
-                    deserialize_value(payload)?,
+                    deserialize_value(serde_json::to_value(payload)?)?,
                 )
                 .await?;
             }

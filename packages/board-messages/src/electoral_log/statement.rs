@@ -35,6 +35,9 @@ impl StatementHead {
             StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
             StatementBody::ElectionPeriodPause(_) => StatementType::ElectionPeriodPause,
             StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
+            StatementBody::ElectionEventPeriodOpen(_) => StatementType::ElectionEventPeriodOpen,
+            StatementBody::ElectionEventPeriodPause(_) => StatementType::ElectionEventPeriodPause,
+            StatementBody::ElectionEventPeriodClose(_) => StatementType::ElectionEventPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
             StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
             StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
@@ -73,6 +76,9 @@ pub enum StatementBody {
     ElectionPeriodOpen(ElectionIdString),
     ElectionPeriodPause(ElectionIdString),
     ElectionPeriodClose(ElectionIdString),
+    ElectionEventPeriodOpen(EventIdString),
+    ElectionEventPeriodPause(EventIdString),
+    ElectionEventPeriodClose(EventIdString),
     // /workspaces/step/packages/windmill/src/celery_app.rs
     // create_keys
     //
@@ -106,6 +112,9 @@ pub enum StatementType {
     ElectionPeriodOpen,
     ElectionPeriodClose,
     ElectionPeriodPause,
+    ElectionEventPeriodOpen,
+    ElectionEventPeriodClose,
+    ElectionEventPeriodPause,
     KeyGeneration,
     KeyInsertionStart,
     KeyInsertionCeremony,
