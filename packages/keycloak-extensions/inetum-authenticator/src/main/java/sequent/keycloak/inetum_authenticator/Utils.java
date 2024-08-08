@@ -41,8 +41,8 @@ public class Utils {
   public final String DOC_ID_ATTRIBUTE = "doc-id";
   public final String DOC_ID_TYPE_ATTRIBUTE = "doc-id-type";
   public final String USER_STATUS_ATTRIBUTE = "user-status";
-  public final String USER_STATUS_VERIFIED = "VERFIED";
-  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERFIED";
+  public final String USER_STATUS_VERIFIED = "VERIFIED";
+  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERIFIED";
   public final String SDK_ATTRIBUTE = "sdk";
   public final String API_KEY_ATTRIBUTE = "api-key";
   public final String APP_ID_ATTRIBUTE = "app-id";
