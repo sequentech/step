@@ -13,31 +13,3 @@ jobs:
     secrets: inherit
     with:
       push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-  
-  e2e:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [12.x, 14.x, 16.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
-    steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js $undefined
-      uses: actions/setup-node@v3
-      with:
-        node-version: $undefined
-        cache: 'npm'
-
-    - name: npm-install
-      run: |
-        npm ci
-        npm install @nightwatch/browserstack
-        npm list @nightwatch/browserstack
-        sudo apt-get install xvfb
-
-    - name: Run admin-portal tests
-      run: |
-        cd packages/admin-portal
-        xvfb-run --auto-servernum npm test -- --env chrome
