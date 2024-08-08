@@ -16,6 +16,7 @@ import {
     DateField,
     useGetList,
     useNotify,
+    useRefresh,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Alert, Button, Drawer, Typography} from "@mui/material"
@@ -80,6 +81,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const notify = useNotify()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const refresh = useRefresh()
 
     const [tenantId] = useTenantStore()
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
@@ -173,10 +175,20 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             icon: <DoNotDisturbOnIcon />,
             action: cancelAdminTally,
             showAction: (id: Identifier) =>
-                canAdminCeremony && record.execution_status === ITallyExecutionStatus.STARTED,
+                canAdminCeremony &&
+                (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                    record.execution_status === ITallyExecutionStatus.STARTED ||
+                    record.execution_status === ITallyExecutionStatus.CONNECTED),
         },
         {
-            icon: <TrusteeKeyIcon />,
+            icon:
+                record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                record.execution_status === ITallyExecutionStatus.STARTED ||
+                record.execution_status === ITallyExecutionStatus.CONNECTED ? (
+                    <TrusteeKeyIcon />
+                ) : (
+                    <DescriptionIcon />
+                ),
             action: viewTrusteeTally,
             showAction: (id: Identifier) => canTrusteeCeremony,
         },
@@ -199,6 +211,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             if (nextStatus) {
                 notify(t("tally.cancelTallyCeremonySuccess"), {type: "success"})
                 setCreatingFlag(false)
+                refresh()
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmCeremonyAction :: error", error)

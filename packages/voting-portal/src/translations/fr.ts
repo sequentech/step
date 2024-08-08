@@ -185,8 +185,26 @@ const frenchTranslation: TranslationType = {
                     "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera PAS compté.</strong> Ce bureau de vote est uniquement destiné à des fins de démonstration.",
                 ok: "J'accepte que mon vote ne sera pas compté",
             },
-            noVotingAreaError:
-                "Zone de vote non attribuée à l'électeur. Veuillez contacter votre administrateur pour obtenir de l'aide.",
+            errors: {
+                noVotingArea:
+                    "Zone de vote non assignée à l'électeur. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                networkError:
+                    "Il y a eu un problème de réseau. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                unableToFetchData:
+                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                noElectionEvent:
+                    "L'événement électoral n'existe pas. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                ballotStylesEmlError:
+                    "Il y a eu une erreur avec la publication du style de bulletin. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                obtainingElectionFromID:
+                    "Il y a eu une erreur pour obtenir les élections associées aux identifiants d'élection suivants : {{electionIds}}. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+            },
+            alerts: {
+                noElections:
+                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                electionEventNotPublished:
+                    "L'événement électoral n'a pas encore été publié. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+            },
         },
         errors: {
             encoding: {
