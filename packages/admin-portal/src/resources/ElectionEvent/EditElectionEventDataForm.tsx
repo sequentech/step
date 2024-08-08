@@ -62,6 +62,7 @@ import {
     Sequent_Backend_Election,
     ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
+    SetCustomUrlMutation,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -227,7 +228,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [manageCustomUrls] = useMutation(SET_CUSTOM_URL)
+    const [manageCustomUrls] = useMutation<SetCustomUrlMutation>(SET_CUSTOM_URL)
     const [startDate, setStartDate] = useState<string | undefined>(undefined)
     const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const notify = useNotify()
@@ -578,7 +579,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 if (origin) {
                     await manageCustomUrls({
                         variables: {
-                            tenantId: tenantId ?? "",
                             origin: origin,
                             redirect_to: redirect_to ?? "",
                         },

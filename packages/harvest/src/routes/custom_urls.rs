@@ -9,7 +9,7 @@ use crate::services::{
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt;
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -24,11 +24,11 @@ pub struct UpdateCustomUrlInput {
 pub struct GetCustomUrlInput {
     pub redirect_to: String,
 }
-// TODO: Add env for cloudflare auth + add env for local / remote
+// TODO: Add env for cloudflare auth + for local / remote
 #[instrument(skip(claims))]
 #[post("/update-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
-    claims: jwt::JwtClaims,
+    claims: JwtClaims,
     input: Json<UpdateCustomUrlInput>,
 ) -> Result<Json<String>, (Status, String)> {
     let body = input.into_inner();
@@ -51,7 +51,7 @@ pub async fn update_custom_url(
 #[instrument(skip(claims))]
 #[post("/get-custom-url", format = "json", data = "<input>")]
 pub async fn get_custom_url(
-    claims: jwt::JwtClaims,
+    claims: JwtClaims,
     input: Json<GetCustomUrlInput>,
 ) -> Result<Json<String>, (Status, String)> {
     let body = input.into_inner();

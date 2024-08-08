@@ -316,7 +316,6 @@ type Mutation {
 
 type Mutation {
   set_custom_url (
-    tenant_id: String!
     origin: String!
     redirect_to: String!
   ): String!
