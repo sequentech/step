@@ -1,0 +1,464 @@
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use super::eml_types::*;
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Utc};
+use sequent_core::{
+    ballot::*,
+    serialization::deserialize_with_path::deserialize_value,
+    types::{date_time::*, hasura::core::ElectionEvent},
+    util::date_time::{generate_timestamp, get_system_timezone},
+};
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString, ToString};
+use tracing::{info, instrument};
+use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
+
+const MIRU_PLUGIN_PREPEND: &str = "miru";
+const MIRU_ELECTION_EVENT_ID: &str = "election-event-id";
+const MIRU_ELECTION_EVENT_NAME: &str = "election-event-name";
+const MIRU_ELECTION_ID: &str = "election-id";
+const MIRU_ELECTION_NAME: &str = "election-name";
+const MIRU_CONTEST_ID: &str = "contest-id";
+const MIRU_CONTEST_NAME: &str = "contest-name";
+const MIRU_CANDIDATE_ID: &str = "candidate-id";
+const MIRU_CANDIDATE_NAME: &str = "candidate-name";
+const MIRU_CANDIDATE_SETTING: &str = "candidate-setting";
+const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
+const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
+const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
+
+const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
+const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum OfficialStatus {
+    OFFICIAL,
+}
+
+pub trait GetMetrics {
+    fn get_metrics(&self) -> Vec<EMLCountMetric>;
+}
+
+// TODO: review
+impl GetMetrics for ContestResult {
+    fn get_metrics(&self) -> Vec<EMLCountMetric> {
+        vec![
+            EMLCountMetric {
+                kind: "Total Number of Over Votes".into(),
+                id: "OV".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Under Votes".into(),
+                id: "UV".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Votes Actually".into(),
+                id: "VV".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Registered Voters".into(),
+                id: "RV".into(),
+                datum: self.census as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Expected Votes".into(),
+                id: "EV".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Number of Zero Outs Executed".into(),
+                id: "RZ".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Scanned Ballots".into(),
+                id: "TB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Valid Ballots".into(),
+                id: "VB".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Stamped Ballots".into(),
+                id: "SB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Ballots In Ballot Box".into(),
+                id: "BB".into(),
+                datum: self.total_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Abstentions".into(),
+                id: "AB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Invalid Ballots".into(),
+                id: "IB".into(),
+                datum: self.total_invalid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Misread Ballots".into(),
+                id: "MB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Fake Ballots".into(),
+                id: "FB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Previously Casted Ballots".into(),
+                id: "PB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Returned Ballots".into(),
+                id: "RB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Rejected Ballots".into(),
+                id: "JB".into(),
+                datum: 0,
+            },
+        ]
+    }
+}
+
+pub trait ValidateAnnotations {
+    fn get_valid_annotations(&self) -> Result<Annotations>;
+}
+
+fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
+    for key in keys {
+        if !annotations.contains_key(&key) {
+            return Err(anyhow!("Annotation: missing key {}", key));
+        }
+    }
+    Ok(())
+}
+
+impl ValidateAnnotations for ElectionEvent {
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_ELECTION_EVENT_ID),
+                prepend_miru_annotation(MIRU_ELECTION_EVENT_NAME),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Election Event: ")?;
+        Ok(annotations)
+    }
+}
+
+impl ValidateAnnotations for Election {
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_ELECTION_ID),
+                prepend_miru_annotation(MIRU_ELECTION_NAME),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Contest: ")?;
+        Ok(annotations)
+    }
+}
+
+impl ValidateAnnotations for Contest {
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_CONTEST_NAME),
+                prepend_miru_annotation(MIRU_CONTEST_ID),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Contest: ")?;
+        Ok(annotations)
+    }
+}
+
+impl ValidateAnnotations for Candidate {
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing candidate annotations"))?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_CANDIDATE_ID),
+                prepend_miru_annotation(MIRU_CANDIDATE_NAME),
+                prepend_miru_annotation(MIRU_CANDIDATE_SETTING),
+                prepend_miru_annotation(MIRU_CANDIDATE_AFFILIATION_ID),
+                prepend_miru_annotation(MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME),
+                prepend_miru_annotation(MIRU_CANDIDATE_AFFILIATION_PARTY),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Candidate: ")?;
+        Ok(annotations)
+    }
+}
+
+#[instrument]
+pub fn prepend_miru_annotation(data: &str) -> String {
+    format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
+}
+
+#[instrument(err)]
+pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<String> {
+    let key = prepend_miru_annotation(data);
+    annotations
+        .get(&key)
+        .ok_or(anyhow!("Can't find annotation key {}", key))
+        .cloned()
+}
+
+#[instrument(err)]
+pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
+    // Extract contest annotations
+    let contest_annotations = report
+        .contest
+        .get_valid_annotations()
+        .with_context(|| "render_eml_contest: ")?;
+
+    // Retrieve contest name and ID from annotations
+    let contest_name =
+        find_miru_annotation(MIRU_CONTEST_NAME, &contest_annotations).with_context(|| {
+            format!(
+                "Missing contest annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_CONTEST_NAME
+            )
+        })?;
+    let contest_id =
+        find_miru_annotation(MIRU_CONTEST_ID, &contest_annotations).with_context(|| {
+            format!(
+                "Missing contest annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_CONTEST_ID
+            )
+        })?;
+    let count_metrics = report.contest_result.get_metrics();
+
+    let selections: Vec<EMLSelection> = report
+        .contest_result
+        .candidate_result
+        .iter()
+        .map(|candidate_result| -> Result<EMLSelection> {
+            // Retrieve candidate annotations
+            let candidate_annotations = candidate_result
+                .candidate
+                .get_valid_annotations()
+                .with_context(|| "render_eml_contest: ")?;
+
+            // Retrieve candidate name and ID from annotations
+            let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &candidate_annotations)
+                .with_context(|| {
+                    format!(
+                        "Missing candidate annotation: '{}:{}'",
+                        MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                    )
+                })?;
+            let candidate_id = find_miru_annotation(MIRU_CANDIDATE_ID, &candidate_annotations)
+                .with_context(|| {
+                    format!(
+                        "Missing candidate annotation: '{}:{}'",
+                        MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_ID
+                    )
+                })?;
+            let candidate_setting =
+                find_miru_annotation(MIRU_CANDIDATE_SETTING, &candidate_annotations).with_context(
+                    || {
+                        format!(
+                            "Missing candidate annotation: '{}:{}'",
+                            MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_SETTING
+                        )
+                    },
+                )?;
+            let candidate_affiliation_id =
+                find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_ID, &candidate_annotations)
+                    .with_context(|| {
+                        format!(
+                            "Missing candidate annotation: '{}:{}'",
+                            MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_ID
+                        )
+                    })?;
+            let candidate_affiliation_registered_name = find_miru_annotation(
+                MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME,
+                &candidate_annotations,
+            )
+            .with_context(|| {
+                format!(
+                    "Missing candidate annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME
+                )
+            })?;
+            let candidate_affiliation_party =
+                find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_PARTY, &candidate_annotations)
+                    .with_context(|| {
+                        format!(
+                            "Missing candidate annotation: '{}:{}'",
+                            MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_PARTY
+                        )
+                    })?;
+
+            let candidate = EMLCandidate {
+                identifier: EMLIdentifier {
+                    id_number: candidate_id,
+                    name: candidate_name,
+                },
+                status_details: vec![EMLStatusItem {
+                    setting: candidate_setting.clone(),
+                }],
+                affiliation: EMLAffiliation {
+                    identifier: EMLIdentifier {
+                        id_number: candidate_affiliation_id,
+                        name: candidate_affiliation_registered_name,
+                    },
+                    party: candidate_affiliation_party,
+                },
+            };
+            Ok(EMLSelection {
+                candidates: vec![candidate.clone()],
+                valid_votes: candidate_result.total_count as i64,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let contests = EMLContest {
+        identifier: EMLIdentifier {
+            id_number: contest_id,
+            name: contest_name,
+        },
+        total_votes: EMLTotalVotes {
+            count_metrics,
+            selections,
+        },
+    };
+
+    Ok(contests)
+}
+
+#[instrument(err)]
+pub fn render_eml_file(
+    tally_id: i64,
+    transaction_id: i64,
+    time_zone: TimeZone,
+    date_time: DateTime<Utc>,
+    election_event_annotations_opt: &Option<Annotations>,
+    election_annotations_opt: &Option<Annotations>,
+    report: &ReportData,
+) -> Result<EMLFile> {
+    let election_event_annotations = election_event_annotations_opt
+        .clone()
+        .ok_or(anyhow!("Missing election event annotations"))?;
+    let election_annotations = election_annotations_opt
+        .clone()
+        .ok_or(anyhow!("Missing election event annotations"))?;
+
+    let election_event_id =
+        find_miru_annotation(MIRU_ELECTION_EVENT_ID, &election_event_annotations).with_context(
+            || {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
+                )
+            },
+        )?;
+    let election_event_name =
+        find_miru_annotation(MIRU_ELECTION_EVENT_NAME, &election_event_annotations).with_context(
+            || {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
+                )
+            },
+        )?;
+
+    let election_name = find_miru_annotation(MIRU_ELECTION_NAME, &election_annotations)
+        .with_context(|| {
+            format!(
+                "Missing election annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
+            )
+        })?;
+
+    let election_id =
+        find_miru_annotation(MIRU_ELECTION_ID, &election_annotations).with_context(|| {
+            format!(
+                "Missing election annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
+            )
+        })?;
+
+    //let time_zone = get_system_timezone();
+
+    //let now_utc = Utc::now();
+
+    let issue_date = generate_timestamp(
+        Some(time_zone.clone()),
+        Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
+        Some(date_time.clone()),
+    );
+    let official_status_date = generate_timestamp(
+        Some(time_zone.clone()),
+        Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
+        Some(date_time.clone()),
+    );
+
+    let eml_file = EMLFile {
+        id: tally_id.to_string(),
+        header: EMLHeader {
+            transaction_id: transaction_id.to_string(),
+            issue_date: issue_date,
+            official_status_detail: EMLOfficialStatusDetail {
+                official_status: OfficialStatus::OFFICIAL.to_string(),
+                status_date: official_status_date,
+            },
+        },
+        counts: vec![EMLCount {
+            identifier: EMLIdentifier {
+                id_number: election_event_id,
+                name: election_event_name,
+            },
+            elections: vec![EMLElection {
+                identifier: EMLIdentifier {
+                    id_number: election_id,
+                    name: election_name,
+                },
+                contests: vec![render_eml_contest(report)?],
+            }],
+        }],
+    };
+    Ok(eml_file)
+}

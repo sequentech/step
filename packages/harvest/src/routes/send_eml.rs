@@ -45,7 +45,7 @@ pub async fn send_eml(
         .map_err(|error| {
             (
                 Status::InternalServerError,
-                format!("Error importing areas: {error:?}"),
+                format!("Error sending send_eml task: {error:?}"),
             )
         })?;
     info!("Sent send_eml task {}", task.task_id);
