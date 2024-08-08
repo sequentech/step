@@ -14,6 +14,8 @@ import {
     MenuItem,
     Select,
     FormControl,
+    Button,
+    Box,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
@@ -33,6 +35,7 @@ import {useMutation} from "@apollo/client"
 import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     CreateTallyCeremonyMutation,
+    SendEmlMutation,
     Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
@@ -50,6 +53,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
 import {ICommunicationType} from "@/types/communications"
+import { SEND_EML } from "@/queries/SendEml"
 
 const WizardSteps = {
     Start: 0,
@@ -87,6 +91,8 @@ export const TallyCeremony: React.FC = () => {
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
+    const [SendEmlMutation] =
+        useMutation<SendEmlMutation>(SEND_EML)
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -294,6 +300,29 @@ export const TallyCeremony: React.FC = () => {
     )
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
+    const sendEmlAction = async () => {
+        try {
+            const {data: nextStatus, errors} = await SendEmlMutation({
+                variables: {
+                    election_event_id: record?.id,
+                    tally_session_id: tallyId,
+                },
+            })
+
+            if (errors) {
+                notify("Error sending EML", {type: "error"})
+                return
+            }
+
+            if (nextStatus) {
+                notify("Success sending EML", {type: "success"})
+                setCreatingFlag(false)
+            }
+        } catch (error) {
+            notify("Error sending EML", {type: "error"})
+        }
+    }
+
     return (
         <>
             <WizardStyles.WizardWrapper>
@@ -460,6 +489,11 @@ export const TallyCeremony: React.FC = () => {
 
                 {page === WizardSteps.Results && (
                     <>
+                        <Box>
+                            <Button onClick={sendEmlAction}>
+                                Send EML
+                            </Button>
+                        </Box>
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expandedData["tally-results-progress"]}
