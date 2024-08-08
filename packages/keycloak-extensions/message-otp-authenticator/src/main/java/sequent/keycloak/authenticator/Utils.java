@@ -100,6 +100,10 @@ public class Utils {
     RealmModel realm = authSession.getRealm();
     String realmName = getRealmName(realm);
 
+    log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
+    log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
+    log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
+
     if (mobileNumber != null
         && mobileNumber.trim().length() > 0
         && (messageCourier == MessageCourier.SMS || messageCourier == MessageCourier.BOTH)) {
@@ -131,7 +135,6 @@ public class Utils {
 
       try {
         if (deferredUser) {
-          // TODO, doesn't work
           sendEmail(
               session,
               realm,
@@ -157,7 +160,7 @@ public class Utils {
         throw error;
       }
     } else {
-      log.infov("sendCode(): NOT Sending meail to=`{0}`", emailAddress);
+      log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
     }
   }
 
@@ -230,7 +233,7 @@ public class Utils {
       Map<String, Object> attributes)
       throws EmailException {
     try {
-      Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+      Theme theme = session.theme().getTheme(Theme.Type.EMAIL);
       Locale locale = session.getContext().resolveLocale(user);
       attributes.put("locale", locale);
 
@@ -240,7 +243,7 @@ public class Utils {
       attributes.put("properties", theme.getProperties());
       attributes.put("realmName", realm.getName());
       if (user != null) {
-        attributes.put("user", new ProfileBean(user));
+        attributes.put("user", new ProfileBean(user, session));
       }
       KeycloakUriInfo uriInfo = session.getContext().getUri();
       attributes.put("url", new UrlBean(realm, theme, uriInfo.getBaseUri(), null));
@@ -293,10 +296,10 @@ public class Utils {
 
       emailSender.send(
           realm.getSmtpConfig(),
+          address,
           emailTemplate.getSubject(),
           emailTemplate.getTextBody(),
-          emailTemplate.getHtmlBody(),
-          address);
+          emailTemplate.getHtmlBody());
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {

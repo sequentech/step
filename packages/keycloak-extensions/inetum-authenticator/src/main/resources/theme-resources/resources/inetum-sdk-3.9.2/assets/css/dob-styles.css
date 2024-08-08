@@ -37,6 +37,16 @@ body {
   min-height: -webkit-fill-available;
 }
 
+@media (min-width: 768px) {
+  .login-pf-page .login-pf-page-header {
+    margin-bottom: 20px !important;
+  }
+}
+
+#kc-title {
+  display: none;
+}
+
 .inetum-header {
   width: 100%;
   height: 8vh;
@@ -60,7 +70,7 @@ body {
 }
 
 .dob-container {
-  height: 700px;
+  height: max(80vh, 572px);
   width: 1170px;
   position: relative;
   margin: 0 auto;
@@ -68,16 +78,25 @@ body {
   border: 2px solid rgba(0, 0, 0, 0.05);
 }
 
+.dob-button {
+  border-radius: 4px !important;
+}
+
 @media (max-width: 1200px) {
   .dob-container {
-    height: calc(100vh - 25vh);
-    max-height: 500px;
+    height: max(80vh, 572px);
     width: 100%;
     position: relative;
     max-width: 1170px;
     margin: 0 auto;
     margin-bottom: auto;
     border: 0;
+  }
+}
+
+@media (min-width: 992px) {
+  .dob-informative-step-layout {
+      grid-template-rows: auto auto 1fr !important;
   }
 }
 
@@ -123,6 +142,18 @@ body {
  */
 #dob-initial-information-layout .dob-title-text {
   font-family: "Dob-Font-Bold";
+}
+
+@media (min-width: 992px) {
+  .dob-informative-step-layout {
+      grid-template-columns: 1fr clamp(200px, 100%, 300px) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .dob-informative-step-layout__header {
+    padding: 1rem !important;
+  }
 }
 
 #dob-initial-information-layout .dob-subtitle-text {

@@ -27,7 +27,8 @@ import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {isNull, Dialog} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
+import {isNull} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 
 export interface ConfigureStepProps {

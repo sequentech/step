@@ -13,6 +13,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -41,6 +43,9 @@ import org.keycloak.util.JsonSerialization;
 @UtilityClass
 @JBossLog
 public class Utils {
+  public static final String USERNAME_ATTRIBUTES = "usernameAttributes";
+  public static final List<String> USERNAME_ATTRIBUTES_DEFAULT =
+      Collections.unmodifiableList(Arrays.asList("username"));
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String PASSWORD_CHARS = "passwordChars";
   public final String PASSWORD_CHARS_DEFAULT =
@@ -87,6 +92,27 @@ public class Utils {
       return defaultValue;
     }
     return mapConfig.get(configKey);
+  }
+
+  public List<String> getMultivalueString(
+      AuthenticatorConfigModel config, String configKey, List<String> defaultValue) {
+    log.debugv("getMultivalueString(configKey={0}, defaultValue={1})", configKey, defaultValue);
+    if (config == null) {
+      log.debugv("getMultivalueString(): NULL config={0}", config);
+      return defaultValue;
+    }
+
+    Map<String, String> mapConfig = config.getConfig();
+    if (mapConfig == null
+        || !mapConfig.containsKey(configKey)
+        || mapConfig.get(configKey).strip().length() == 0) {
+      log.debugv("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      return defaultValue;
+    }
+
+    log.debugv("getMultivalueString(): value={0}", mapConfig.get(configKey));
+
+    return Arrays.asList(mapConfig.get(configKey).split("##"));
   }
 
   public int getInt(AuthenticatorConfigModel config, String configKey, String defaultValue) {

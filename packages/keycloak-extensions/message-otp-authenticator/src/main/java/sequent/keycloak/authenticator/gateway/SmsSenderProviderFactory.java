@@ -4,8 +4,6 @@
 
 package sequent.keycloak.authenticator.gateway;
 
-import com.google.auto.service.AutoService;
 import org.keycloak.provider.ProviderFactory;
 
-@AutoService(ProviderFactory.class)
 public interface SmsSenderProviderFactory extends ProviderFactory<SmsSenderProvider> {}

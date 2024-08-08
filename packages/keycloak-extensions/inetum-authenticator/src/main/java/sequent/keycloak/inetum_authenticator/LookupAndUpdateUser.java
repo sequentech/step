@@ -5,13 +5,10 @@
 package sequent.keycloak.inetum_authenticator;
 
 import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -26,7 +23,6 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
@@ -42,6 +38,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
+  public static final String AUTO_LOGIN = "auto-login";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -54,6 +51,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String searchAttributes = configMap.get(SEARCH_ATTRIBUTES);
     String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     String updateAttributes = configMap.get(UPDATE_ATTRIBUTES);
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -150,40 +148,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       context.getEvent().detail(Details.AUTH_TYPE, authType);
     }
     log.info("authenticate(): success");
-    context.success();
+
+    if (autoLogin) {
+      context.success();
+    } else {
+      context.clearUser();
+      Response form = context.form().createForm("registration-finish.ftl");
+      context.challenge(form);
+    }
   }
 
   private UserModel lookupUserByAuthNotes(
       AuthenticationFlowContext context, List<String> attributes) {
     log.info("lookupUserByAuthNotes(): start");
-    KeycloakSession session = context.getSession();
-    RealmModel realm = context.getRealm();
-    Stream<UserModel> userStream = null;
 
-    for (String attribute : attributes) {
-      String value = context.getAuthenticationSession().getAuthNote(attribute);
-      if (value != null) {
-        Stream<UserModel> currentStream =
-            session.users().searchForUserByUserAttributeStream(realm, attribute, value);
-
-        if (userStream == null) {
-          userStream = currentStream;
-        } else {
-          // Intersect the current stream with the accumulated stream
-          // to match users on all attributes
-          Set<String> userIds = userStream.map(UserModel::getId).collect(Collectors.toSet());
-          userStream = currentStream.filter(user -> userIds.contains(user.getId()));
-        }
-      }
-    }
-
-    if (userStream != null) {
-      // Return the first user that matches all attributes, if any
-      Optional<UserModel> userOptional = userStream.findFirst();
-      return userOptional.orElse(null);
-    }
-
-    return null;
+    return Utils.lookupUserByAuthNotes(context);
   }
 
   private boolean checkUnsetAttributes(
@@ -217,14 +196,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     for (String attribute : attributes) {
-      String value = context.getAuthenticationSession().getAuthNote(attribute);
-      if (value != null) {
+      List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
+      if (values != null && !values.isEmpty()) {
         if (attribute.equals("username")) {
-          user.setUsername(value);
+          user.setUsername(values.get(0));
         } else if (attribute.equals("email")) {
-          user.setEmail(value);
+          user.setEmail(values.get(0));
         }
-        user.setSingleAttribute(attribute, value);
+        user.setAttribute(attribute, values);
       }
     }
   }
@@ -239,7 +218,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action(): start");
-    // No action required
+
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+
+    if (autoLogin) {
+      context.success();
+    }
   }
 
   @Override
@@ -313,7 +300,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "Update Attributes",
             "Comma-separated list of attributes to update for the user from auth notes.",
             ProviderConfigProperty.STRING_TYPE,
-            ""));
+            ""),
+        new ProviderConfigProperty(
+            AUTO_LOGIN,
+            "Login after registration",
+            "If enabled the user will automatically login after registration.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            true));
   }
 
   @Override

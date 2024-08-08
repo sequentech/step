@@ -16,6 +16,10 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -23,6 +27,7 @@ import org.keycloak.authentication.FormContext;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -36,8 +41,8 @@ public class Utils {
   public final String DOC_ID_ATTRIBUTE = "doc-id";
   public final String DOC_ID_TYPE_ATTRIBUTE = "doc-id-type";
   public final String USER_STATUS_ATTRIBUTE = "user-status";
-  public final String USER_STATUS_VERIFIED = "VERFIED";
-  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERFIED";
+  public final String USER_STATUS_VERIFIED = "VERIFIED";
+  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERIFIED";
   public final String SDK_ATTRIBUTE = "sdk";
   public final String API_KEY_ATTRIBUTE = "api-key";
   public final String APP_ID_ATTRIBUTE = "app-id";
@@ -47,6 +52,7 @@ public class Utils {
   public final String TRANSACTION_NEW_ATTRIBUTE = "transaction-new";
   public final String INETUM_FORM = "inetum-authenticator.ftl";
   public final String INETUM_ERROR = "inetum-error.ftl";
+  public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
 
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
@@ -68,15 +74,22 @@ public class Utils {
   private static final String KEYS_USERDATA_SEPARATOR = ";";
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
+  private static final String USER_ID = "userId";
+  public static final String MULTIVALUE_SEPARATOR = "##";
+  public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
    * will later be retrieved to create a user account.
    */
-  static void storeUserDataInAuthSessionNotes(FormContext context) {
+  static void storeUserDataInAuthSessionNotes(
+      FormContext context, List<String> searchAttributesList) {
     log.info("storeUserDataInAuthSessionNotes: start");
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
+
+    // Lookup user by attributes using form data
+    UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
     // We store each key
     String keys = Utils.serializeUserdataKeys(formData.keySet());
@@ -87,14 +100,12 @@ public class Utils {
 
     formData.forEach(
         (key, value) -> {
-          log.info(
-              "storeUserDataInAuthSessionNotes: setAuthNote("
-                  + key
-                  + ", "
-                  + formData.getFirst(key)
-                  + ")");
-          sessionModel.setAuthNote(key, formData.getFirst(key));
+          String values = Utils.serializeUserdataKeys(formData.get(key));
+          log.info("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
+          sessionModel.setAuthNote(key, values);
         });
+
+    sessionModel.setAuthNote(USER_ID, user.getId());
   }
 
   /** We retrieve the user data stored in the session notes and create a new user in this realm. */
@@ -162,6 +173,24 @@ public class Utils {
     }
   }
 
+  static UserModel lookupUserByFormData(
+      FormContext context, List<String> attributes, MultivaluedMap<String, String> formData) {
+    log.info("lookupUserByFormData(): start");
+    KeycloakSession session = context.getSession();
+    RealmModel realm = context.getRealm();
+
+    Map<String, String> firstValueFormData =
+        formData.entrySet().stream()
+            .filter(e -> attributes.contains(e.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
+
+    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+
+    // Return the first user that matches all attributes, if any
+    Optional<UserModel> userOptional = userStream.findFirst();
+    return userOptional.orElse(null);
+  }
+
   /**
    * Processes a string template with FreeMarker library.
    *
@@ -181,8 +210,8 @@ public class Utils {
 
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
     final StringBuilder key = new StringBuilder();
-    keys.forEach((s -> key.append(s + separator)));
-    return key.toString();
+    keys.forEach((s -> key.append(separator).append(s)));
+    return key.deleteCharAt(0).toString();
   }
 
   private static String serializeUserdataKeys(Collection<String> keys) {
@@ -198,5 +227,24 @@ public class Utils {
 
   private static List<String> deserializeUserdataKeys(String key) {
     return deserializeUserdataKeys(key, KEYS_USERDATA_SEPARATOR);
+  }
+
+  /**
+   * Recovers the values of an attribute stored in the auth notes.
+   *
+   * @param context
+   * @param attribute attribute to recover the values from
+   * @return a collection of values in string format
+   */
+  public static List<String> getAttributeValuesFromAuthNote(
+      AuthenticationFlowContext context, String attribute) {
+    return Utils.deserializeUserdataKeys(context.getAuthenticationSession().getAuthNote(attribute));
+  }
+
+  /** Recovers the user stored in the auth notes. */
+  public static UserModel lookupUserByAuthNotes(AuthenticationFlowContext context) {
+    String userId = context.getAuthenticationSession().getAuthNote(USER_ID);
+
+    return context.getSession().users().getUserById(context.getRealm(), userId);
   }
 }

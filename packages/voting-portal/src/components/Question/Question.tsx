@@ -4,16 +4,14 @@
 import React, {useState} from "react"
 import {Box} from "@mui/material"
 import {
-    theme,
     stringToHtml,
     splitList,
     keyBy,
     translate,
     IContest,
-    sortCandidatesInContest,
     CandidatesOrder,
-    BlankAnswer,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
@@ -35,10 +33,10 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest, IInvalidPlaintextError} from "sequent-core"
+import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
-import {checkIsBlank} from "../../services/BallotService"
+import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

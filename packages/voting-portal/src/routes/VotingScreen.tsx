@@ -6,17 +6,14 @@ import React, {useContext, useEffect, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
+import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
+    check_voting_error_dialog_bool,
+    check_voting_not_allowed_next_bool,
     stringToHtml,
     isUndefined,
-    Dialog,
     translateElection,
-    sortContestList,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -29,11 +26,7 @@ import {
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
-import {
-    check_voting_error_dialog_bool,
-    check_voting_not_allowed_next_bool,
-    provideBallotService,
-} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -43,7 +36,8 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {IDecodedVoteContest} from "sequent-core"
+import {IDecodedVoteContest} from "@sequentech/ui-core"
+import {sortContestList} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -282,7 +276,8 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = sortContestList(ballotStyle.ballot_eml.contests)
+    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
+    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     const warnAllowContinue = (value: boolean) => {
         setOpenNonVoted(false)

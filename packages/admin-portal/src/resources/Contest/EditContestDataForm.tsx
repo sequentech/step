@@ -47,26 +47,25 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
     CandidatesOrder,
-    DropFile,
     EInvalidVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
-    ILanguageConf,
     IElectionEventPresentation,
     isArray,
     ICandidatePresentation,
     IElectionPresentation,
     EBlankVotePolicy,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
-import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 
 type FieldValues = Record<string, any>
 
@@ -124,7 +123,6 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
     const [value, setValue] = useState(0)
     const {t} = useTranslation()
 
-    let presentation = formData?.presentation as IContestPresentation | undefined
     let types = candidates?.map((candidate) => candidate.type!!).filter((type) => type) ?? []
     types = uniqueArray(types)
 
@@ -663,7 +661,7 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <CandidatesInput source="candidatesOrder"></CandidatesInput>
+                                                <CustomOrderInput source="candidatesOrder" />
                                                 <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </CandidateRows>
                                         ) : null

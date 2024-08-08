@@ -4,13 +4,8 @@
 import React, {useContext, useEffect, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {
-    Footer,
-    Header,
-    IElectionEventPresentation,
-    NotFoundScreen,
-    PageBanner,
-} from "@sequentech/ui-essentials"
+import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation} from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"

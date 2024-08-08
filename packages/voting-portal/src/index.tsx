@@ -13,7 +13,7 @@ import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
@@ -35,7 +35,7 @@ const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScree
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
-SequentCoreLibInit().then(set_hooks)
+initCore()
 
 export type TenantEventType = {
     tenantId: string
