@@ -10,3 +10,4 @@ pub mod normalize_vote;
 pub mod init_log;
 #[cfg(feature = "reports")]
 pub mod path;
+pub mod voting_screen;
