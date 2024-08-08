@@ -5858,20 +5858,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "836fa6a3e1e547f9a2c4040802ec865b5d85f4014efe00555d7090a3dcaa1090"
 
 [[package]]
-name = "sequent-cli"
-version = "0.1.0"
-dependencies = [
- "clap 4.5.8",
- "graphql_client",
- "reqwest 0.12.5",
- "sequent-core",
- "serde",
- "serde_json",
- "strum 0.25.0",
- "strum_macros 0.25.3",
-]
-
-[[package]]
 name = "sequent-core"
 version = "0.1.0"
 dependencies = [
@@ -6323,6 +6309,20 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "step-cli"
+version = "0.1.0"
+dependencies = [
+ "clap 4.5.8",
+ "graphql_client",
+ "reqwest 0.12.5",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
 
 [[package]]
 name = "strand"

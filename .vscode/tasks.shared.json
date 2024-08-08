@@ -499,7 +499,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd /workspaces/step/packages/sequent-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
+                "cd /workspaces/step/packages/step-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
             ],
             "presentation": {
                 "echo": true,

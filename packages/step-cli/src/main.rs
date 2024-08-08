@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
-    name = "sequent-cli",
+    name = "step-cli",
     version = "1.0",
     about = "CLI tool for managing Sequent tasks"
 )]

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 
-ENV_FILE="/workspaces/step/packages/sequent-cli/.env.example"
+ENV_FILE="/workspaces/step/packages/step-cli/.env.example"
 
 # Check if the .env file exists
 if [ -f "$ENV_FILE" ]; then

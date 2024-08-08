@@ -58,7 +58,7 @@
   enterShell = ''
     set -a
     source .devcontainer/.env
-    export PATH=/workspaces/step/packages/sequent-cli/rust-local-target/release:$PATH
+    export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
   '';
 

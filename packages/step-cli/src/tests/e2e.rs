@@ -43,7 +43,7 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
 
     // Step 1: Import Election event
     let test_event_path = env::var("TEST_ELECTION_EVENT_PATH").unwrap_or(
-        "/workspaces/step/packages/sequent-cli/data/test-election-template.json".to_string(),
+        "/workspaces/step/packages/step-cli/data/test-election-template.json".to_string(),
     );
     let election_event_id = import(test_event_path.as_str(), false)?;
 

@@ -91,7 +91,7 @@ Run ```sequent -- update-election-status --election-event-id <ELECTION_EVENT_ID>
 ## Import election event from .json file
 Run ```sequent -- import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>```
 
-- file-path - Path to file - required* (Example - /workspaces/step/packages/sequent-cli/data/mock.json)
+- file-path - Path to file - required* (Example - /workspaces/step/packages/step-cli/data/mock.json)
 - is-local - If run locally add this flag
 
 ## Create Voter

@@ -266,7 +266,7 @@ fn replace_placeholder(template: &str, placeholder: &str, replacement: &str) -> 
 
 fn generate_script(url: &str, voter_count: u64) -> Result<String, Box<dyn std::error::Error>> {
     // Read the template file
-    let template_path = "/workspaces/step/packages/sequent-cli/src/tests/template_script.txt";
+    let template_path = "/workspaces/step/packages/step-cli/src/tests/template_script.txt";
     let template_content = fs::read_to_string(template_path)?;
 
     // Replace placeholders with actual values
