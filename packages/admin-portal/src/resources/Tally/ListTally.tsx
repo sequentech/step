@@ -175,10 +175,20 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             icon: <DoNotDisturbOnIcon />,
             action: cancelAdminTally,
             showAction: (id: Identifier) =>
-                canAdminCeremony && record.execution_status === ITallyExecutionStatus.STARTED,
+                canAdminCeremony &&
+                (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                    record.execution_status === ITallyExecutionStatus.STARTED ||
+                    record.execution_status === ITallyExecutionStatus.CONNECTED),
         },
         {
-            icon: <TrusteeKeyIcon />,
+            icon:
+                record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                record.execution_status === ITallyExecutionStatus.STARTED ||
+                record.execution_status === ITallyExecutionStatus.CONNECTED ? (
+                    <TrusteeKeyIcon />
+                ) : (
+                    <DescriptionIcon />
+                ),
             action: viewTrusteeTally,
             showAction: (id: Identifier) => canTrusteeCeremony,
         },

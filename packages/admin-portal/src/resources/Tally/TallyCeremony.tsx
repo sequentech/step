@@ -179,12 +179,12 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            // if (tally?.last_updated_at !== data.last_updated_at) {
             setPage(
-                !tallyId
+                !tallyId && data.execution_status !== ITallyExecutionStatus.CANCELLED
                     ? WizardSteps.Start
                     : data.execution_status === ITallyExecutionStatus.STARTED ||
-                      data.execution_status === ITallyExecutionStatus.CONNECTED
+                      data.execution_status === ITallyExecutionStatus.CONNECTED ||
+                      data.execution_status === ITallyExecutionStatus.CANCELLED
                     ? WizardSteps.Ceremony
                     : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
                     ? WizardSteps.Tally
@@ -193,7 +193,6 @@ export const TallyCeremony: React.FC = () => {
                     : WizardSteps.Start
             )
             setTally(data)
-            // }
         }
     }, [data])
 
