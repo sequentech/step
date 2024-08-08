@@ -112,8 +112,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
 
       // Display what the user set in formData for the search attributes
-      for (String attribute: searchAttributesList) {
-        log.errorv("validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
+      for (String attribute : searchAttributesList) {
+        log.errorv(
+            "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
       }
       context.error(Utils.ERROR_USER_NOT_FOUND);
       List<FormMessage> errors = new ArrayList<>();
