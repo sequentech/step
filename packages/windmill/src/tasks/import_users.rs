@@ -253,7 +253,7 @@ impl ImportUsersBody {
                         } else {
                             "'TRUE'::boolean".to_string()
                         }
-                    },
+                    }
                     // empty as default, lowercase required in keycloak
                     "email" => {
                         if voters_table_columns.contains(&col_name) {
@@ -261,7 +261,7 @@ impl ImportUsersBody {
                         } else {
                             "''".to_string()
                         }
-                    },
+                    }
                     // empty as default
                     _ => {
                         if voters_table_columns.contains(&col_name) {
@@ -269,7 +269,7 @@ impl ImportUsersBody {
                         } else {
                             "''".to_string()
                         }
-                    },
+                    }
                 }
             })
             .collect();
