@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::{serialization::deserialize_with_path::deserialize_value, types::{
-    ceremonies::TallyExecutionStatus,
-    hasura::core::{TallySession, TallySessionConfiguration},
-}};
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_value,
+    types::{
+        ceremonies::TallyExecutionStatus,
+        hasura::core::{TallySession, TallySessionConfiguration},
+    },
+};
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};

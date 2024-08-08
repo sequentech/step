@@ -95,12 +95,8 @@ pub async fn manage_election_date(
     };
 
     election_status.voting_status = match event_processor {
-        EventProcessors::START_ELECTION => {
-            VotingStatus::OPEN
-        }
-        EventProcessors::END_ELECTION => {
-            VotingStatus::CLOSED
-        }
+        EventProcessors::START_ELECTION => VotingStatus::OPEN,
+        EventProcessors::END_ELECTION => VotingStatus::CLOSED,
         _ => {
             lock.release().await?;
             return Err(Error::Anyhow(anyhow!(
@@ -139,7 +135,8 @@ pub async fn manage_election_date(
         election_event.bulletin_board_reference.clone(),
         election_status.voting_status.clone(),
         Some(election_id.clone()),
-    ).await?;
+    )
+    .await?;
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 

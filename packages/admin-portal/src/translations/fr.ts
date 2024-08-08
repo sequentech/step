@@ -139,6 +139,7 @@ const frenchTranslation: TranslationType = {
                     'Bienvenue dans le bureau de vote, cet écran affiche la liste des élections dans lesquelles vous pouvez émettre votre vote. Les élections qui apparaissent dans cette liste peuvent être ouvertes à la votation, programmées ou fermées. Vous ne pourrez accéder à la votation que si la période de votation est ouverte. Dans le cas où une élection est fermée et que son administrateur électoral a publié le résultat, vous verrez un bouton "Résultat électoral" qui vous mènera à la page publique des résultats.',
                 ok: "OK",
             },
+            closedEventError: "L'événement électoral est actuellement fermé",
         },
         areas: {
             common: {
@@ -234,6 +235,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                votingPeriod: "Période de vote",
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
@@ -1014,9 +1016,9 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                start: "Commencer élection",
-                stop: "Arrêter élection",
-                pause: "pauser",
+                startVotingPeriod: "Commencer la période de vote",
+                stopVotingPeriod: "Arrêter la période de vote",
+                pauseVotingPeriod: "Mettre en pause la période de vote",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
@@ -1028,6 +1030,12 @@ const frenchTranslation: TranslationType = {
             dialog: {
                 title: "Confirmer Action",
                 info: "Vous avez cliqué sur une action sensible, nous avons donc besoin que vous la confirmiez pour pouvoir continuer.",
+                startInfo:
+                    "Vous êtes sur le point de commencer la période de vote. Êtes-vous sûr de vouloir continuer?",
+                stopInfo:
+                    "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
+                pauseInfo:
+                    "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",

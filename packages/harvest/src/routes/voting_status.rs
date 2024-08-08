@@ -103,9 +103,15 @@ pub async fn update_election_status(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    voting_status::update_election_status(tenant_id, &hasura_transaction, &input.election_event_id, &input.election_id, &input.voting_status)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    voting_status::update_election_status(
+        tenant_id,
+        &hasura_transaction,
+        &input.election_event_id,
+        &input.election_id,
+        &input.voting_status,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let _commit = hasura_transaction
         .commit()

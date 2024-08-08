@@ -137,6 +137,7 @@ const englishTranslation = {
                     'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
                 ok: "OK",
             },
+            closedEventError: "Election event is currently closed",
         },
         areas: {
             common: {
@@ -232,6 +233,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
@@ -1005,9 +1007,9 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                start: "Start Election",
-                stop: "Stop Election",
-                pause: "Pause",
+                startVotingPeriod: "Start Voting",
+                stopVotingPeriod: "Stop Voting",
+                pauseVotingPeriod: "Pause Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -1025,6 +1027,11 @@ const englishTranslation = {
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                startInfo:
+                    "You are about to start voting period. Are you sure you want to continue?",
+                stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                pauseInfo:
+                    "You are about to pause voting period. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",

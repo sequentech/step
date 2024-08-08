@@ -18,9 +18,8 @@ impl TryFrom<Row> for TallySheetWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         let content_val: Option<Value> = item.try_get("content")?;
-        let content: Option<AreaContestResults> = content_val
-            .map(|val| deserialize_value(val))
-            .transpose()?;
+        let content: Option<AreaContestResults> =
+            content_val.map(|val| deserialize_value(val)).transpose()?;
         Ok(TallySheetWrapper(TallySheet {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),

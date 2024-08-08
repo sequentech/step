@@ -5,7 +5,14 @@
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+import {
+    Dialog,
+    IconButton,
+    PageLimit,
+    SelectElection,
+    theme,
+    WarnBox,
+} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -44,6 +51,7 @@ import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {
+    IElectionEvent,
     selectElectionEventById,
     setElectionEvent,
 } from "../store/electionEvents/electionEventsSlice"
@@ -78,6 +86,13 @@ interface ElectionWrapperProps {
     canVoteTest: boolean
 }
 
+const isElectionEventOpen = (electionEvent?: IElectionEvent): boolean => {
+    return (
+        ((electionEvent?.status as IElectionEventStatus | null)?.voting_status ??
+            EVotingStatus.CLOSED) === EVotingStatus.OPEN
+    )
+}
+
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     bypassChooser,
@@ -99,7 +114,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const electionStatus = election?.status as IElectionEventStatus | null
-    const isVotingOpen = electionStatus?.voting_status === EVotingStatus.OPEN
+    const isVotingOpen =
+        electionStatus?.voting_status === EVotingStatus.OPEN && isElectionEventOpen(electionEvent)
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false
@@ -109,7 +125,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const onClickToVote = () => {
-        if (!canVote()) {
+        console.log("onClickToVote")
+        if (!canVote() || !isElectionEventOpen(electionEvent)) {
+            console.log("cannot vote")
             return
         }
         navigate(
@@ -136,9 +154,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
 
     useEffect(() => {
         if (visitedBypassChooser) {
+            console.log("visitedBypassChooser")
             return
         }
         if (bypassChooser && ballotStyle) {
+            console.log("setVisitedBypassChooser")
             setVisitedBypassChooser(true)
             onClickToVote()
         }
@@ -216,6 +236,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const isDemo = useMemo(() => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
+
     const bypassChooser = useAppSelector(selectBypassChooser())
     const {
         error: errorBallotStyles,
@@ -320,6 +341,7 @@ const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         const skipPolicy =
             oneBallotStyle?.ballot_eml.election_event_presentation?.skip_election_list ?? false
+        console.log("skipPolicy", skipPolicy)
         const newBypassChooser =
             skipPolicy &&
             1 === electionIds.length &&
@@ -327,7 +349,9 @@ const ElectionSelectionScreen: React.FC = () => {
             !isUndefined(castVotes) &&
             !!electionEvent &&
             !!dataElections
+
         if (newBypassChooser && !bypassChooser) {
+            console.log("new baypass chooser", newBypassChooser)
             dispatch(setBypassChooser(newBypassChooser))
         }
     }, [
@@ -348,9 +372,15 @@ const ElectionSelectionScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
+            {!isElectionEventOpen(electionEvent) && (
+                <Box marginTop={"48px"}>
+                    <WarnBox variant="error">{"Election event is currently closed"}</WarnBox>
+                </Box>
+            )}
             <Box marginTop="48px">
                 <Stepper selected={0} />
             </Box>
+
             <Box
                 sx={{
                     display: "flex",

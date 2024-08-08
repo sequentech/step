@@ -33,7 +33,13 @@ pub async fn update_event_status(
     )
     .await?;
 
-    update_board_on_status_change(election_event.id.to_string(), election_event.bulletin_board_reference.clone(), voting_status.clone(), None).await?;
+    update_board_on_status_change(
+        election_event.id.to_string(),
+        election_event.bulletin_board_reference.clone(),
+        voting_status.clone(),
+        None,
+    )
+    .await?;
 
     Ok(())
 }
@@ -67,13 +73,16 @@ pub async fn update_election_status(
     )
     .await?;
 
-    let election_event = get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
-        .await
-        .with_context(|| "error getting election event")?;
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
+            .await
+            .with_context(|| "error getting election event")?;
     let mut election_event_status: ElectionEventStatus =
         get_election_event_status(election_event.status).unwrap_or(Default::default());
     info!("voting_status: {:?}", voting_status);
-    if voting_status.clone() == VotingStatus::OPEN && election_event_status.voting_status == VotingStatus::NOT_STARTED {
+    if voting_status.clone() == VotingStatus::OPEN
+        && election_event_status.voting_status == VotingStatus::NOT_STARTED
+    {
         info!("Updating election event status to OPEN");
         election_event_status.voting_status = VotingStatus::OPEN;
         update_election_event_status(
@@ -83,17 +92,34 @@ pub async fn update_election_status(
             serde_json::to_value(election_event_status)?,
         )
         .await?;
-        update_board_on_status_change(election_event.id.to_string(), election_event.bulletin_board_reference.clone(), voting_status.clone(), None).await?;
+        update_board_on_status_change(
+            election_event.id.to_string(),
+            election_event.bulletin_board_reference.clone(),
+            voting_status.clone(),
+            None,
+        )
+        .await?;
     }
-    update_board_on_status_change(election_event.id.to_string(), election_event.bulletin_board_reference.clone(), voting_status.clone(), Some(election_id.to_string())).await?;
+    update_board_on_status_change(
+        election_event.id.to_string(),
+        election_event.bulletin_board_reference.clone(),
+        voting_status.clone(),
+        Some(election_id.to_string()),
+    )
+    .await?;
 
     Ok(())
 }
 
 #[instrument(err)]
-pub async fn update_board_on_status_change(election_event_id: String, board_reference: Option<Value>, voting_status: VotingStatus, election_id: Option<String>) -> Result<()> {
-    let board_name = get_election_event_board(board_reference)
-        .with_context(|| "missing bulletin board")?;
+pub async fn update_board_on_status_change(
+    election_event_id: String,
+    board_reference: Option<Value>,
+    voting_status: VotingStatus,
+    election_id: Option<String>,
+) -> Result<()> {
+    let board_name =
+        get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
     let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let maybe_election_id = match election_id {
         Some(election_id) => Some(election_id),
