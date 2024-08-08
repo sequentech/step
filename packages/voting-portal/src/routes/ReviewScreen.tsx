@@ -7,14 +7,21 @@ import {
     Link as RouterLink,
     useNavigate,
     useParams,
-    useSubmit,
     redirect,
     useLocation,
 } from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, BallotHash, Dialog} from "@sequentech/ui-essentials"
+import {
+    PageLimit,
+    Icon,
+    IconButton,
+    theme,
+    BallotHash,
+    Dialog,
+    WarnBox,
+} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     EVotingStatus,
@@ -51,6 +58,7 @@ import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {sortContestList, hashBallot} from "@sequentech/ui-core"
+import {IErrorStatus} from "../types/errors"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -112,7 +120,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
-    const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
 
     const {refetch: refetchElectionEvent, error: errorFetchingElectionEvent} =
@@ -156,12 +163,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        if (isDemo) {
-            console.log("faking casting demo vote")
-            const newCastVote = fakeCastVote()
-            dispatch(addCastVotes([newCastVote]))
-            return submit(null, {method: "post"})
-        }
+        // if (isDemo) {
+        //     console.log("faking casting demo vote")
+        //     const newCastVote = fakeCastVote()
+        //     dispatch(addCastVotes([newCastVote]))
+        //     return submit(null, {method: "post"})
+        // }
         setIsCastingBallot(true)
 
         try {
@@ -171,7 +178,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setIsCastingBallot(false)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
                 console.error(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
-                return submit({error: errorType}, {method: "post"})
+                return
             }
 
             const record = data?.sequent_backend_election_event?.[0]
@@ -180,10 +187,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 setIsCastingBallot(false)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
-                console.error(
-                    t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`)
-                )
-                return submit({error: errorType.toString()}, {method: "post"})
+                return
             }
 
             const hashableBallot = toHashableBallot(auditableBallot)
@@ -200,16 +204,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 dispatch(addCastVotes([newCastVote]))
             }
 
-            return submit(null, {method: "post"})
+            return redirect(`../confirmation`)
         } catch (error) {
             setIsCastingBallot(false)
             // dispatch(clearBallot())
             if (errorFetchingElectionEvent) {
-                console.error(t(VotingPortalErrorType.UNABLE_TO_FETCH_DATA))
+                setErrorMsg(t(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)) //TODO: create translations
             }
-            console.log(`error casting vote: ${error}`)
+            console.log(error)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
-            return submit({error: errorType}, {method: "post"})
+            return
         }
     }
 
@@ -289,7 +293,6 @@ export const ReviewScreen: React.FC = () => {
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const submit = useSubmit()
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
 
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
@@ -327,7 +330,6 @@ export const ReviewScreen: React.FC = () => {
                 )
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
-                return submit({error: CastBallotsErrorType.NO_BALLOT_STYLE}, {method: "post"}) //TODO: understand to where it returns
             }
         }
     }
@@ -357,6 +359,7 @@ export const ReviewScreen: React.FC = () => {
             {hideAudit ? null : (
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
+            {errorMsg && <WarnBox variant="warning">{errorMsg}</WarnBox>}
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
@@ -415,17 +418,3 @@ export const ReviewScreen: React.FC = () => {
 }
 
 export default ReviewScreen
-
-export async function action({request}: {request: Request}) {
-    console.log({request})
-    const data = await request.formData()
-    const error = data.get("error")
-
-    if (error) {
-        throw new VotingPortalError(
-            VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
-        )
-    }
-
-    return redirect(`../confirmation`)
-}

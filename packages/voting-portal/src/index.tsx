@@ -19,7 +19,6 @@ import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvi
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
-import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
 
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
@@ -120,7 +119,6 @@ const router = createBrowserRouter(
                                             <ReviewScreen />
                                         </Suspense>
                                     ),
-                                    action: castBallotAction,
                                 },
                                 {
                                     path: "confirmation",
