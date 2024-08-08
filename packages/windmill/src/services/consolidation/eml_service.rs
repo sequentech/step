@@ -10,6 +10,8 @@ use sequent_core::{
     types::{date_time::*, hasura::core::ElectionEvent},
     util::date_time::{generate_timestamp, get_system_timezone},
 };
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString, ToString};
 use tracing::{info, instrument};
 use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
 
@@ -29,6 +31,13 @@ const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
 
 const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum OfficialStatus {
+    OFFICIAL,
+}
 
 pub trait GetMetrics {
     fn get_metrics(&self) -> Vec<EMLCountMetric>;
@@ -433,7 +442,7 @@ pub fn render_eml_file(
             transaction_id: transaction_id.to_string(),
             issue_date: issue_date,
             official_status_detail: EMLOfficialStatusDetail {
-                official_status: "official".to_string(),
+                official_status: OfficialStatus::OFFICIAL.to_string(),
                 status_date: official_status_date,
             },
         },
