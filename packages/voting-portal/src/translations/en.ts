@@ -170,8 +170,26 @@ const englishTranslation = {
                     "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
                 ok: "I accept my vote will Not be cast",
             },
-            noVotingAreaError:
-                "Election Area not assigned to voter. Kindly contact your administrator for assistance",
+            errors: {
+                noVotingArea:
+                    "Election area not assigned to voter. Please try again later or contact support for assistance.",
+                networkError:
+                    "There was a network problem. Please try again later or contact support for assistance.",
+                unableToFetchData:
+                    "There was a problem fetching the data. Please try again later or contact support for assistance.",
+                noElectionEvent:
+                    "Election event doesn’t exist. Please try again later or contact support for assistance.",
+                ballotStylesEmlError:
+                    "There was an error with the publish ballot style. Please try again later or contact support for assistance.",
+                obtainingElectionFromID:
+                    "There was an error obtaining elections associated with the following election IDs: {{electionIds}}. Please try again later or contact support for assistance.",
+            },
+            alerts: {
+                noElections:
+                    "There are no elections you can vote for. This could be because the area doesn’t have any contest associated. Please try again later or contact support for assistance.",
+                electionEventNotPublished:
+                    "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
+            },
         },
         errors: {
             encoding: {
