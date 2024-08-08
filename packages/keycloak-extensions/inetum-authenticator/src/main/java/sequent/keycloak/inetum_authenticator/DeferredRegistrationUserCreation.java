@@ -136,7 +136,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     if (!uniqueAttributesChecked) {
       String sessionId = context.getAuthenticationSession().getParentSession().getId();
-      log.errorv("validate(): Unique attributes present in more than one user. Session id: {0}", sessionId);
+      log.errorv(
+          "validate(): Unique attributes present in more than one user. Session id: {0}",
+          sessionId);
       context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE);
       List<FormMessage> errors = new ArrayList<>();
       errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
