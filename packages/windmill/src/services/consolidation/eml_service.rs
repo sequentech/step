@@ -48,7 +48,130 @@ pub fn find_miru_annotation(data: &str, annotations_opt: &Option<Annotations>) -
 
 #[instrument(err)]
 pub fn render_eml_contests(report: &ReportData) -> Result<Vec<EMLContest>> {
-    Ok(vec![])
+    // Extract contest annotations
+    let contest_annotations = report
+        .contest
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+
+    // Retrieve contest name and ID from annotations
+    let contest_name = find_miru_annotation(MIRU_CONTEST_NAME, &Some(contest_annotations.clone()))
+        .with_context(|| {
+            format!(
+                "Missing contest annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_CONTEST_NAME
+            )
+        })?;
+    let contest_id = find_miru_annotation(MIRU_CONTEST_ID, &Some(contest_annotations.clone()))
+        .with_context(|| {
+            format!(
+                "Missing contest annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_CONTEST_ID
+            )
+        })?;
+
+    let candidates: Vec<EMLCandidate> = report
+        .contest_result
+        .candidate_result
+        .iter()
+        .map(|candidate_result| -> Result<EMLCandidate> {
+            // Retrieve candidate annotations
+            let candidate_annotations = candidate_result
+                .candidate
+                .annotations
+                .clone()
+                .ok_or_else(|| anyhow!("Missing candidate annotations"))?;
+
+            // Retrieve candidate name and ID from annotations
+            let candidate_name =
+                find_miru_annotation(MIRU_CANDIDATE_NAME, &Some(candidate_annotations.clone()))
+                    .with_context(|| {
+                        format!(
+                            "Missing candidate annotation: '{}:{}'",
+                            MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                        )
+                    })?;
+            let candidate_id =
+                find_miru_annotation(MIRU_CANDIDATE_ID, &Some(candidate_annotations.clone()))
+                    .with_context(|| {
+                        format!(
+                            "Missing candidate annotation: '{}:{}'",
+                            MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_ID
+                        )
+                    })?;
+
+            // Build EMLCandidate structure
+            Ok(EMLCandidate {
+                identifier: EMLIdentifier {
+                    id_number: candidate_id,
+                    name: candidate_name,
+                },
+                status_details: candidate_annotations
+                    .iter()
+                    .map(|(key, _value)| EMLStatusItem {
+                        setting: key.clone(),
+                    })
+                    .collect(),
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let selections: Vec<EMLSelection> = candidates
+        .iter()
+        .map(|candidate| -> Result<EMLSelection> {
+            let candidate_result = report
+                .contest_result
+                .candidate_result
+                .iter()
+                .find(|cr| cr.candidate.id == candidate.identifier.id_number)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Missing candidate result for candidate ID: {}",
+                        candidate.identifier.id_number
+                    )
+                })?;
+
+            Ok(EMLSelection {
+                candidates: vec![candidate.clone()],
+                valid_votes: candidate_result.total_count as i64,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let contests = vec![EMLContest {
+        identifier: EMLIdentifier {
+            id_number: contest_id,
+            name: contest_name,
+        },
+        total_votes: EMLTotalVotes {
+            count_metrics: vec![
+                EMLCountMetric {
+                    kind: "totalVotes".to_string(),
+                    id: "total".to_string(),
+                    datum: report.contest_result.total_votes as i64,
+                },
+                EMLCountMetric {
+                    kind: "validVotes".to_string(),
+                    id: "valid".to_string(),
+                    datum: report.contest_result.total_valid_votes as i64,
+                },
+                EMLCountMetric {
+                    kind: "invalidVotes".to_string(),
+                    id: "invalid".to_string(),
+                    datum: report.contest_result.total_invalid_votes as i64,
+                },
+                EMLCountMetric {
+                    kind: "blankVotes".to_string(),
+                    id: "blank".to_string(),
+                    datum: report.contest_result.total_blank_votes as i64,
+                },
+            ],
+            selections,
+        },
+    }];
+
+    Ok(contests)
 }
 
 #[instrument(err)]
