@@ -316,8 +316,8 @@ type Mutation {
 
 type Mutation {
   send_eml(
-    election_event_id: String!
-    tally_session_id: String!
+    election_event_id: uuid!
+    tally_session_id: uuid!
   ): OptionalId
 }
 

@@ -656,6 +656,7 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
+      - role: admin-user
       - role: tally-write
     comment: send_eml
   - name: set_role_permission
