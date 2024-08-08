@@ -912,6 +912,8 @@ export type Mutation_Root = {
   /** publish_tally_sheet */
   publish_tally_sheet?: Maybe<PublishTallyOutput>;
   restore_private_key?: Maybe<RestorePrivateKeyOutput>;
+  /** send_eml */
+  send_eml?: Maybe<OptionalId>;
   set_role_permission?: Maybe<SetRolePermissionOutput>;
   set_user_role?: Maybe<SetUserRoleOutput>;
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
@@ -2175,6 +2177,13 @@ export type Mutation_RootPublish_Tally_SheetArgs = {
 /** mutation root */
 export type Mutation_RootRestore_Private_KeyArgs = {
   object: RestorePrivateKeyInput;
+};
+
+
+/** mutation root */
+export type Mutation_RootSend_EmlArgs = {
+  document_id: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
 };
 
 
