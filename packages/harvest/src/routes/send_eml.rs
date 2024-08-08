@@ -9,6 +9,9 @@ use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use windmill::{
+    services::celery_app::get_celery_app, tasks::send_eml::send_eml_task,
+};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SendEmlInput {
     election_event_id: String,
@@ -22,7 +25,7 @@ pub struct SendEmlOutput {}
 #[post("/send-eml", format = "json", data = "<input>")]
 pub async fn send_eml(
     claims: jwt::JwtClaims,
-    input: Json<SendEmlOutput>,
+    input: Json<SendEmlInput>,
 ) -> Result<Json<SendEmlOutput>, (Status, String)> {
     let body = input.into_inner();
     authorize(
@@ -31,20 +34,21 @@ pub async fn send_eml(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TALLY_WRITE],
     )?;
-    /*
-    upsert_areas_task(
-        claims.hasura_claims.tenant_id.clone(),
-        body.election_event_id.clone(),
-        body.document_id.clone(),
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error importing areas: {error:?}"),
-        )
-    })?;
-    */
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(send_eml_task::new(
+            claims.hasura_claims.tenant_id.clone(),
+            body.election_event_id.clone(),
+            body.tally_session_id.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error importing areas: {error:?}"),
+            )
+        })?;
+    info!("Sent send_eml task {}", task.task_id);
 
     Ok(Json(SendEmlOutput {}))
 }

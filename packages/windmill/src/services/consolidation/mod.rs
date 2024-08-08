@@ -2,5 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod eml_service;
+pub mod eml_generator;
 pub mod eml_types;
+pub mod send_eml_service;
