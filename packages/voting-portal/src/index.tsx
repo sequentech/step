@@ -25,6 +25,7 @@ import Loader from "./components/Loader"
 const TenantEvent = lazy(() => import("./routes/TenantEvent"))
 const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
 const LoginScreen = lazy(() => import("./routes/LoginScreen"))
+const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
 const StartScreen = lazy(() => import("./routes/StartScreen"))
 const VotingScreen = lazy(() => import("./routes/VotingScreen"))
 const ReviewScreen = lazy(() => import("./routes/ReviewScreen"))
@@ -90,6 +91,14 @@ const router = createBrowserRouter(
                             element: (
                                 <Suspense fallback={<Loader />}>
                                     <LoginScreen />
+                                </Suspense>
+                            ),
+                        },
+                        {
+                            path: "enroll",
+                            element: (
+                                <Suspense fallback={<Loader />}>
+                                    <RegisterScreen />
                                 </Suspense>
                             ),
                         },

@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
@@ -102,7 +102,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         setSelected(Math.max(...data))
     }, [record?.status])
 
-    const loginUrl = useMemo(() => {
+    const loginUrl = useCallback(() => {
         return getLoginUrl(globalSettings.VOTING_PORTAL_URL, tenantId ?? "", record?.id ?? "")
     }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
@@ -169,9 +169,20 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                         />
                     </Container>
                 </Box>
-                <Box sx={{display: "flex", justifyContent: "center"}}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "20px",
+                        paddingTop: "10px",
+                    }}
+                >
                     <a href={loginUrl ?? ""} target="_blank">
                         {t("dashboard.voterLoginURL")}
+                    </a>
+                    <p>|</p>
+                    <a href={loginUrl ? loginUrl.replace("/login", "/enroll") : ""} target="_blank">
+                        {t("dashboard.voterEnrollURL")}
                     </a>
                 </Box>
             </Box>

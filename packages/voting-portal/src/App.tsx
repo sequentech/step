@@ -96,7 +96,11 @@ const App = () => {
 
     useEffect(() => {
         if (!isAuthenticated && !!tenantId && !!eventId) {
-            setTenantEvent(tenantId, eventId)
+            setTenantEvent(
+                tenantId,
+                eventId,
+                location.pathname.includes("/enroll") ? "register" : "login"
+            )
         }
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 
