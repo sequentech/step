@@ -62,9 +62,16 @@ pub struct EMLStatusItem {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct EMLAffiliation {
+    pub identifier: EMLIdentifier,
+    pub party: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct EMLCandidate {
     pub identifier: EMLIdentifier,
     pub status_details: Vec<EMLStatusItem>,
+    pub affiliation: EMLAffiliation,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

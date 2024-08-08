@@ -47,7 +47,7 @@ pub fn find_miru_annotation(data: &str, annotations_opt: &Option<Annotations>) -
 }
 
 #[instrument(err)]
-pub fn render_eml_contests(report: &ReportData) -> Result<Vec<EMLContest>> {
+pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
     // Extract contest annotations
     let contest_annotations = report
         .contest
@@ -70,12 +70,34 @@ pub fn render_eml_contests(report: &ReportData) -> Result<Vec<EMLContest>> {
                 MIRU_PLUGIN_PREPEND, MIRU_CONTEST_ID
             )
         })?;
+    let count_metrics = vec![
+        EMLCountMetric {
+            kind: "totalVotes".to_string(),
+            id: "total".to_string(),
+            datum: report.contest_result.total_votes as i64,
+        },
+        EMLCountMetric {
+            kind: "validVotes".to_string(),
+            id: "valid".to_string(),
+            datum: report.contest_result.total_valid_votes as i64,
+        },
+        EMLCountMetric {
+            kind: "invalidVotes".to_string(),
+            id: "invalid".to_string(),
+            datum: report.contest_result.total_invalid_votes as i64,
+        },
+        EMLCountMetric {
+            kind: "blankVotes".to_string(),
+            id: "blank".to_string(),
+            datum: report.contest_result.total_blank_votes as i64,
+        },
+    ];
 
-    let candidates: Vec<EMLCandidate> = report
+    let selections: Vec<EMLSelection> = report
         .contest_result
         .candidate_result
         .iter()
-        .map(|candidate_result| -> Result<EMLCandidate> {
+        .map(|candidate_result| -> Result<EMLSelection> {
             // Retrieve candidate annotations
             let candidate_annotations = candidate_result
                 .candidate
@@ -100,38 +122,61 @@ pub fn render_eml_contests(report: &ReportData) -> Result<Vec<EMLContest>> {
                             MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_ID
                         )
                     })?;
+            let candidate_setting =
+                find_miru_annotation(MIRU_CANDIDATE_SETTING, &Some(candidate_annotations.clone()))
+                    .with_context(|| {
+                        format!(
+                            "Missing candidate annotation: '{}:{}'",
+                            MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_SETTING
+                        )
+                    })?;
+            let candidate_affiliation_id = find_miru_annotation(
+                MIRU_CANDIDATE_AFFILIATION_ID,
+                &Some(candidate_annotations.clone()),
+            )
+            .with_context(|| {
+                format!(
+                    "Missing candidate annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_ID
+                )
+            })?;
+            let candidate_affiliation_registered_name = find_miru_annotation(
+                MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME,
+                &Some(candidate_annotations.clone()),
+            )
+            .with_context(|| {
+                format!(
+                    "Missing candidate annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME
+                )
+            })?;
+            let candidate_affiliation_party = find_miru_annotation(
+                MIRU_CANDIDATE_AFFILIATION_PARTY,
+                &Some(candidate_annotations.clone()),
+            )
+            .with_context(|| {
+                format!(
+                    "Missing candidate annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_PARTY
+                )
+            })?;
 
-            // Build EMLCandidate structure
-            Ok(EMLCandidate {
+            let candidate = EMLCandidate {
                 identifier: EMLIdentifier {
                     id_number: candidate_id,
                     name: candidate_name,
                 },
-                status_details: candidate_annotations
-                    .iter()
-                    .map(|(key, _value)| EMLStatusItem {
-                        setting: key.clone(),
-                    })
-                    .collect(),
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let selections: Vec<EMLSelection> = candidates
-        .iter()
-        .map(|candidate| -> Result<EMLSelection> {
-            let candidate_result = report
-                .contest_result
-                .candidate_result
-                .iter()
-                .find(|cr| cr.candidate.id == candidate.identifier.id_number)
-                .ok_or_else(|| {
-                    anyhow!(
-                        "Missing candidate result for candidate ID: {}",
-                        candidate.identifier.id_number
-                    )
-                })?;
-
+                status_details: vec![EMLStatusItem {
+                    setting: candidate_setting.clone(),
+                }],
+                affiliation: EMLAffiliation {
+                    identifier: EMLIdentifier {
+                        id_number: candidate_affiliation_id,
+                        name: candidate_affiliation_registered_name,
+                    },
+                    party: candidate_affiliation_party,
+                },
+            };
             Ok(EMLSelection {
                 candidates: vec![candidate.clone()],
                 valid_votes: candidate_result.total_count as i64,
@@ -139,37 +184,16 @@ pub fn render_eml_contests(report: &ReportData) -> Result<Vec<EMLContest>> {
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let contests = vec![EMLContest {
+    let contests = EMLContest {
         identifier: EMLIdentifier {
             id_number: contest_id,
             name: contest_name,
         },
         total_votes: EMLTotalVotes {
-            count_metrics: vec![
-                EMLCountMetric {
-                    kind: "totalVotes".to_string(),
-                    id: "total".to_string(),
-                    datum: report.contest_result.total_votes as i64,
-                },
-                EMLCountMetric {
-                    kind: "validVotes".to_string(),
-                    id: "valid".to_string(),
-                    datum: report.contest_result.total_valid_votes as i64,
-                },
-                EMLCountMetric {
-                    kind: "invalidVotes".to_string(),
-                    id: "invalid".to_string(),
-                    datum: report.contest_result.total_invalid_votes as i64,
-                },
-                EMLCountMetric {
-                    kind: "blankVotes".to_string(),
-                    id: "blank".to_string(),
-                    datum: report.contest_result.total_blank_votes as i64,
-                },
-            ],
+            count_metrics,
             selections,
         },
-    }];
+    };
 
     Ok(contests)
 }
@@ -264,7 +288,7 @@ pub fn render_eml_file(
                     id_number: election_id,
                     name: election_name,
                 },
-                contests: render_eml_contests(report)?,
+                contests: vec![render_eml_contest(report)?],
             }],
         }],
     };

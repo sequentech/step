@@ -45,6 +45,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                               <StatusItem setting="{{status.setting}}" />
                             {{/each}}
                           </StatusDetails>
+                          <Affiliation>
+                            <AffiliationIdentifier IdNumber="{{candidate.affiliation.identifier.id_number}}">
+                                <RegisteredName>{{candidate.affiliation.identifier.name}}</RegisteredName>
+                            </AffiliationIdentifier>
+                            <Type>{{candidate.affiliation.party}}</Type>
+                          </Affiliation>
                         </Candidate>
                       {{/each}}
                       <ValidVotes>{{selection.valid_votes}}</ValidVotes>
