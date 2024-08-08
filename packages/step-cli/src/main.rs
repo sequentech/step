@@ -11,17 +11,23 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
-    name = "step-cli",
+    name = "seq",
     version = "1.0",
     about = "CLI tool for managing Sequent tasks"
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: MainCommand,
 }
 
 #[derive(Subcommand)]
-enum Commands {
+enum MainCommand {
+    #[command(subcommand)]
+    Step(StepCommands),
+}
+
+#[derive(Subcommand)]
+enum StepCommands {
     Config(commands::configure::Config),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
@@ -47,24 +53,26 @@ fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Config(cmd) => cmd.run(),
-        Commands::CreateElectionEvent(create_event) => create_event.run(),
-        Commands::CreateElection(create_election) => create_election.run(),
-        Commands::CreateContest(create_contest) => create_contest.run(),
-        Commands::CreateCandidate(create_candidate) => create_candidate.run(),
-        Commands::CreateArea(create_area) => create_area.run(),
-        Commands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
-        Commands::UpdateElectionEventStatus(update_event) => update_event.run(),
-        Commands::UpdateElectionStatus(update_election) => update_election.run(),
-        Commands::ImportElection(import) => import.run(),
-        Commands::CreateVoter(create_voter) => create_voter.run(),
-        Commands::UpdateVoter(update_voter) => update_voter.run(),
-        Commands::Publish(publish_ballot) => publish_ballot.run(),
-        Commands::RefreshToken(refresh) => refresh.run(),
-        Commands::StartKeyCeremony(start) => start.run(),
-        Commands::CompleteKeyCeremony(complete) => complete.run(),
-        Commands::StartTally(start) => start.run(),
-        Commands::UpdateTally(update) => update.run(),
-        Commands::ConfirmKeyTally(confirm) => confirm.run(),
+        MainCommand::Step(step_cmd) => match step_cmd {
+            StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::CreateElectionEvent(create_event) => create_event.run(),
+            StepCommands::CreateElection(create_election) => create_election.run(),
+            StepCommands::CreateContest(create_contest) => create_contest.run(),
+            StepCommands::CreateCandidate(create_candidate) => create_candidate.run(),
+            StepCommands::CreateArea(create_area) => create_area.run(),
+            StepCommands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
+            StepCommands::UpdateElectionEventStatus(update_event) => update_event.run(),
+            StepCommands::UpdateElectionStatus(update_election) => update_election.run(),
+            StepCommands::ImportElection(import) => import.run(),
+            StepCommands::CreateVoter(create_voter) => create_voter.run(),
+            StepCommands::UpdateVoter(update_voter) => update_voter.run(),
+            StepCommands::Publish(publish_ballot) => publish_ballot.run(),
+            StepCommands::RefreshToken(refresh) => refresh.run(),
+            StepCommands::StartKeyCeremony(start) => start.run(),
+            StepCommands::CompleteKeyCeremony(complete) => complete.run(),
+            StepCommands::StartTally(start) => start.run(),
+            StepCommands::UpdateTally(update) => update.run(),
+            StepCommands::ConfirmKeyTally(confirm) => confirm.run(),
+        },
     }
 }

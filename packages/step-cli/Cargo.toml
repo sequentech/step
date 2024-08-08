@@ -18,5 +18,5 @@ graphql_client = "0.13.0"
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe"] }
 
 [[bin]]
-name = "sequent"
+name = "seq"
 path = "src/main.rs"
