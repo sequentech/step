@@ -6,7 +6,8 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use sequent_core::{
     ballot::*,
-    types::date_time::*,
+    serialization::deserialize_with_path::deserialize_value,
+    types::{date_time::*, hasura::core::ElectionEvent},
     util::date_time::{generate_timestamp, get_system_timezone},
 };
 use tracing::{info, instrument};
@@ -130,13 +131,53 @@ pub trait ValidateAnnotations {
     fn get_valid_annotations(&self) -> Result<Annotations>;
 }
 
-pub fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
+fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
     for key in keys {
         if !annotations.contains_key(&key) {
             return Err(anyhow!("Annotation: missing key {}", key));
         }
     }
     Ok(())
+}
+
+impl ValidateAnnotations for ElectionEvent {
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_ELECTION_EVENT_ID),
+                prepend_miru_annotation(MIRU_ELECTION_EVENT_NAME),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Election Event: ")?;
+        Ok(annotations)
+    }
+}
+
+impl ValidateAnnotations for Election {
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+
+        check_annotations_exist(
+            vec![
+                prepend_miru_annotation(MIRU_ELECTION_ID),
+                prepend_miru_annotation(MIRU_ELECTION_NAME),
+            ],
+            &annotations,
+        )
+        .with_context(|| "Contest: ")?;
+        Ok(annotations)
+    }
 }
 
 impl ValidateAnnotations for Contest {
@@ -200,9 +241,8 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
     // Extract contest annotations
     let contest_annotations = report
         .contest
-        .annotations
-        .clone()
-        .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+        .get_valid_annotations()
+        .with_context(|| "render_eml_contest: ")?;
 
     // Retrieve contest name and ID from annotations
     let contest_name =
@@ -229,9 +269,8 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
             // Retrieve candidate annotations
             let candidate_annotations = candidate_result
                 .candidate
-                .annotations
-                .clone()
-                .ok_or_else(|| anyhow!("Missing candidate annotations"))?;
+                .get_valid_annotations()
+                .with_context(|| "render_eml_contest: ")?;
 
             // Retrieve candidate name and ID from annotations
             let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &candidate_annotations)
