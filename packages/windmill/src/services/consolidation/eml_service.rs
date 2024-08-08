@@ -10,7 +10,7 @@ use sequent_core::{
     util::date_time::{generate_timestamp, get_system_timezone},
 };
 use tracing::{info, instrument};
-use velvet::pipes::generate_reports::ReportData;
+use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
 
 const MIRU_PLUGIN_PREPEND: &str = "miru";
 const MIRU_ELECTION_EVENT_ID: &str = "election-event-id";
@@ -28,6 +28,103 @@ const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
 
 const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";
+
+pub trait GetMetrics {
+    fn get_metrics(&self) -> Vec<EMLCountMetric>;
+}
+
+// TODO: review
+impl GetMetrics for ContestResult {
+    fn get_metrics(&self) -> Vec<EMLCountMetric> {
+        vec![
+            EMLCountMetric {
+                kind: "Total Number of Over Votes".into(),
+                id: "OV".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Under Votes".into(),
+                id: "UV".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Votes Actually".into(),
+                id: "VV".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Registered Voters".into(),
+                id: "RV".into(),
+                datum: self.census as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Expected Votes".into(),
+                id: "EV".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Number of Zero Outs Executed".into(),
+                id: "RZ".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Scanned Ballots".into(),
+                id: "TB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Valid Ballots".into(),
+                id: "VB".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Stamped Ballots".into(),
+                id: "SB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Ballots In Ballot Box".into(),
+                id: "BB".into(),
+                datum: self.total_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Abstentions".into(),
+                id: "AB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Invalid Ballots".into(),
+                id: "IB".into(),
+                datum: self.total_invalid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Misread Ballots".into(),
+                id: "MB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Fake Ballots".into(),
+                id: "FB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Previously Casted Ballots".into(),
+                id: "PB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Returned Ballots".into(),
+                id: "RB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Rejected Ballots".into(),
+                id: "JB".into(),
+                datum: 0,
+            },
+        ]
+    }
+}
 
 #[instrument]
 pub fn prepend_miru_annotation(data: &str) -> String {
@@ -70,28 +167,7 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
                 MIRU_PLUGIN_PREPEND, MIRU_CONTEST_ID
             )
         })?;
-    let count_metrics = vec![
-        EMLCountMetric {
-            kind: "totalVotes".to_string(),
-            id: "total".to_string(),
-            datum: report.contest_result.total_votes as i64,
-        },
-        EMLCountMetric {
-            kind: "validVotes".to_string(),
-            id: "valid".to_string(),
-            datum: report.contest_result.total_valid_votes as i64,
-        },
-        EMLCountMetric {
-            kind: "invalidVotes".to_string(),
-            id: "invalid".to_string(),
-            datum: report.contest_result.total_invalid_votes as i64,
-        },
-        EMLCountMetric {
-            kind: "blankVotes".to_string(),
-            id: "blank".to_string(),
-            datum: report.contest_result.total_blank_votes as i64,
-        },
-    ];
+    let count_metrics = report.contest_result.get_metrics();
 
     let selections: Vec<EMLSelection> = report
         .contest_result
