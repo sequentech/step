@@ -47,7 +47,12 @@ pub fn find_miru_annotation(data: &str, annotations_opt: &Option<Annotations>) -
 }
 
 #[instrument(err)]
-pub fn convert_to_eml_file(
+pub fn render_eml_contests(report: &ReportData) -> Result<Vec<EMLContest>> {
+    Ok(vec![])
+}
+
+#[instrument(err)]
+pub fn render_eml_file(
     tally_id: i64,
     transaction_id: i64,
     time_zone: TimeZone,
@@ -63,14 +68,43 @@ pub fn convert_to_eml_file(
         .clone()
         .ok_or(anyhow!("Missing election event annotations"))?;
 
-    let election_event_id =
-        find_miru_annotation(MIRU_ELECTION_EVENT_ID, &Some(election_annotations.clone()))
-            .with_context(|| "")?;
+    let election_event_id = find_miru_annotation(
+        MIRU_ELECTION_EVENT_ID,
+        &Some(election_event_annotations.clone()),
+    )
+    .with_context(|| {
+        format!(
+            "Missing election event annotation: '{}:{}'",
+            MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
+        )
+    })?;
     let election_event_name = find_miru_annotation(
         MIRU_ELECTION_EVENT_NAME,
-        &Some(election_annotations.clone()),
+        &Some(election_event_annotations.clone()),
     )
-    .with_context(|| "")?;
+    .with_context(|| {
+        format!(
+            "Missing election event annotation: '{}:{}'",
+            MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
+        )
+    })?;
+
+    let election_name =
+        find_miru_annotation(MIRU_ELECTION_NAME, &Some(election_annotations.clone()))
+            .with_context(|| {
+                format!(
+                    "Missing election annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
+                )
+            })?;
+
+    let election_id = find_miru_annotation(MIRU_ELECTION_ID, &Some(election_annotations.clone()))
+        .with_context(|| {
+        format!(
+            "Missing election annotation: '{}:{}'",
+            MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
+        )
+    })?;
 
     //let time_zone = get_system_timezone();
 
@@ -102,7 +136,13 @@ pub fn convert_to_eml_file(
                 id_number: election_event_id,
                 name: election_event_name,
             },
-            elections: vec![],
+            elections: vec![EMLElection {
+                identifier: EMLIdentifier {
+                    id_number: election_id,
+                    name: election_name,
+                },
+                contests: render_eml_contests(report)?,
+            }],
         }],
     };
     Ok(eml_file)
