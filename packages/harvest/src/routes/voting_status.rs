@@ -12,6 +12,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use tracing::{error, info};
 use windmill::services::database::get_hasura_pool;
 use windmill::services::voting_status;
 
@@ -102,7 +103,6 @@ pub async fn update_election_status(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
     voting_status::update_election_status(tenant_id, &hasura_transaction, &input.election_event_id, &input.election_id, &input.voting_status)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

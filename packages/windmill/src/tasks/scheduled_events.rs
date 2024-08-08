@@ -47,6 +47,7 @@ pub async fn scheduled_events() -> Result<()> {
     let hasura_transaction = hasura_db_client.transaction().await?;
 
     let scheduled_events = find_all_active_events(&hasura_transaction).await?;
+    info!("Found {} scheduled events", scheduled_events.len());
     let to_be_run_now = scheduled_events
         .iter()
         .filter(|event| {
@@ -56,6 +57,7 @@ pub async fn scheduled_events() -> Result<()> {
             formatted_date < one_minute_later
         })
         .collect::<Vec<_>>();
+    info!("Found {} events to be run now", to_be_run_now.len());
     for scheduled_event in to_be_run_now {
         let Some(event_processor) = scheduled_event.event_processor.clone() else {
             continue;

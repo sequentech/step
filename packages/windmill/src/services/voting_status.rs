@@ -1,4 +1,5 @@
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::update_election_event_status;
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
@@ -8,10 +9,14 @@ use crate::services::election_event_status;
 use crate::services::electoral_log::*;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::info;
 use tracing::instrument;
+
+use super::election_event_status::get_election_event_status;
 
 #[instrument(err)]
 pub async fn update_event_status(
@@ -52,25 +57,37 @@ pub async fn update_election_status(
     election_event_id: &str,
     election_id: &str,
     voting_status: &VotingStatus,
-) -> Result<UpdateElectionVotingStatusOutput> {
+) -> Result<()> {
     election_event_status::update_election_voting_status_impl(
         tenant_id.clone(),
         election_event_id.to_string(),
         election_id.to_string(),
         voting_status.clone(),
-        hasura_transaction,
+        &hasura_transaction,
     )
     .await?;
 
-    let election_event = get_election_event_by_id(hasura_transaction, &tenant_id, election_event_id)
+    let election_event = get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
         .await
         .with_context(|| "error getting election event")?;
-
+    let mut election_event_status: ElectionEventStatus =
+        get_election_event_status(election_event.status).unwrap_or(Default::default());
+    info!("voting_status: {:?}", voting_status);
+    if voting_status.clone() == VotingStatus::OPEN && election_event_status.voting_status == VotingStatus::NOT_STARTED {
+        info!("Updating election event status to OPEN");
+        election_event_status.voting_status = VotingStatus::OPEN;
+        update_election_event_status(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            serde_json::to_value(election_event_status)?,
+        )
+        .await?;
+        update_board_on_status_change(election_event.id.to_string(), election_event.bulletin_board_reference.clone(), voting_status.clone(), None).await?;
+    }
     update_board_on_status_change(election_event.id.to_string(), election_event.bulletin_board_reference.clone(), voting_status.clone(), Some(election_id.to_string())).await?;
 
-    Ok(UpdateElectionVotingStatusOutput {
-        election_id: election_id.to_string(),
-    })
+    Ok(())
 }
 
 #[instrument(err)]
