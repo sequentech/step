@@ -5,10 +5,7 @@ import {gql} from "@apollo/client"
 
 export const SEND_EML = gql`
     mutation SendEml($electionEventId: uuid!, $tallySessionId: uuid!) {
-        send_eml(
-            election_event_id: $electionEventId
-            tally_session_id: $tallySessionId
-        ) {
+        send_eml(election_event_id: $electionEventId, tally_session_id: $tallySessionId) {
             id
         }
     }

@@ -53,7 +53,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
 import {ICommunicationType} from "@/types/communications"
-import { SEND_EML } from "@/queries/SendEml"
+import {SEND_EML} from "@/queries/SendEml"
 
 const WizardSteps = {
     Start: 0,
@@ -91,8 +91,7 @@ export const TallyCeremony: React.FC = () => {
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
-    const [SendEmlMutation] =
-        useMutation<SendEmlMutation>(SEND_EML)
+    const [SendEmlMutation] = useMutation<SendEmlMutation>(SEND_EML)
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -304,8 +303,8 @@ export const TallyCeremony: React.FC = () => {
         try {
             const {data: nextStatus, errors} = await SendEmlMutation({
                 variables: {
-                    election_event_id: record?.id,
-                    tally_session_id: tallyId,
+                    electionEventId: record?.id,
+                    tallySessionId: tallyId,
                 },
             })
 
@@ -490,9 +489,7 @@ export const TallyCeremony: React.FC = () => {
                 {page === WizardSteps.Results && (
                     <>
                         <Box>
-                            <Button onClick={sendEmlAction}>
-                                Send EML
-                            </Button>
+                            <Button onClick={sendEmlAction}>Send EML</Button>
                         </Box>
                         <Accordion
                             sx={{width: "100%"}}
