@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 
 pub fn generate_random_password(bytes_length: usize) -> String {
     // Define the character set: ASCII letters, numbers, and common symbols
