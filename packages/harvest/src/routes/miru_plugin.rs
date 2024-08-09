@@ -57,14 +57,25 @@ pub async fn send_transmission_package(
     input: Json<SendTransmissionPackageInput>,
 ) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_WRITE],
-    )?;
+    let authorizations = vec![
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::TALLY_WRITE],
+        ),
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::TRUSTEE_WRITE],
+        )
+    ];
+    if !authorizations.iter().any(|val| val.is_ok()) {
+        authorizations[0].clone()?;
+    }
 
-    Ok(Json(CreateTransmissionPackageOutput {}))
+    Ok(Json(SendTransmissionPackageOutput {}))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -88,8 +99,8 @@ pub async fn upload_signature(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_WRITE],
+        vec![Permissions::TRUSTEE_WRITE],
     )?;
 
-    Ok(Json(CreateTransmissionPackageOutput {}))
+    Ok(Json(UploadSignatureOutput {}))
 }
