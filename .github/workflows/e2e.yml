@@ -35,7 +35,7 @@ jobs:
     - name: Run admin-portal tests
       run: |
         cd packages/admin-portal
-        npm ci
+        npm install
         npm install @nightwatch/browserstack
         npm list @nightwatch/browserstack
         sudo apt-get install xvfb
