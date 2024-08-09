@@ -26,6 +26,7 @@ use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::send_communication::send_communication;
+use crate::tasks::send_eml::send_eml_task;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
@@ -120,6 +121,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_date,
             export_election_event,
             export_election_event_logs,
+            send_eml_task,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -143,7 +145,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "import_election_event" => "import_export_queue",
             "scheduled_events" => "beat",
             "manage_election_date" => "beat",
-            "manage_election_event_date" => "beat"
+            "manage_election_event_date" => "beat",
+            "send_eml_task" => "short_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
