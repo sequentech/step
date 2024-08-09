@@ -43,6 +43,7 @@ fn get_variables(
     user: &User,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: String,
+	auth_action: &str
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
     variables.insert(
@@ -65,12 +66,13 @@ fn get_variables(
         );
         variables.insert(
             "vote_url".to_string(),
-            json!(get_login_url(
+            json!(get_auth_url(
                 std::env::var("VOTING_PORTAL_URL")
                     .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?
                     .as_str(),
                 &tenant_id,
                 &election_event.id,
+				auth_action
             )),
         );
     }
