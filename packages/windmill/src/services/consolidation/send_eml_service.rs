@@ -1,10 +1,11 @@
-use crate::postgres::document::get_document;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
+use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
@@ -95,6 +96,10 @@ pub async fn send_eml_service(
     .await?;
 
     let tally_path = decompress_file(tar_gz_file.path())?;
+
+    let state = generate_initial_state(&tally_path.into_path())?;
+
+    let results = state.get_results()?;
 
     hasura_transaction
         .commit()
