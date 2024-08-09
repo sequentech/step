@@ -6,8 +6,62 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::get_document_url;
+
+pub async fn download_to_file(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<()> {
+    let tally_session_executions = get_tally_session_executions(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session executions")?;
+
+    // the first execution is the latest one
+    let tally_session_execution = tally_session_executions
+        .first()
+        .ok_or_else(|| anyhow!("No tally session executions found"))?;
+
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .clone()
+        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
+
+    let results_event = get_results_event_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &results_event_id,
+    )
+    .await
+    .with_context(|| "Error fetching results event")?;
+
+    let document_id = results_event
+        .documents
+        .ok_or_else(|| anyhow!("Missing documents in results_event"))?
+        .tar_gz
+        .ok_or_else(|| anyhow!("Missing tar_gz in results_event"))?;
+
+    let download_url = get_document_url(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &document_id,
+    )
+    .await
+    .with_context(|| "Error generating tar_gz download url")?;
+
+    Ok(())
+}
 
 pub async fn send_eml_service(
     tenant_id: String,
@@ -27,25 +81,13 @@ pub async fn send_eml_service(
         get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Error fetching election event")?;
-
-    let tally_session_executions = get_tally_session_executions(
+    let tar_gz_file = download_to_file(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session_id,
     )
-    .await
-    .with_context(|| "Error fetching tally session executions")?;
-
-    // the first execution is the latest one
-    let tally_session_execution = tally_session_executions
-        .first()
-        .ok_or_else(|| anyhow!("No tally session executions found"))?;
-
-    let results_event_id = tally_session_execution
-        .results_event_id
-        .clone()
-        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
+    .await?;
 
     hasura_transaction
         .commit()

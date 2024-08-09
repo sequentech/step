@@ -3,10 +3,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::results::ResultDocuments;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::results::*;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+pub struct ResultsEventWrapper(pub ResultsEvent);
+
+impl TryFrom<Row> for ResultsEventWrapper {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        let documents_value: Option<Value> = item.try_get("documents")?;
+        let documents: Option<ResultDocuments> = documents_value
+            .map(|value| deserialize_value(value))
+            .transpose()?;
+
+        Ok(ResultsEventWrapper(ResultsEvent {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            name: item.try_get("name")?,
+            labels: item.try_get("labels")?,
+            annotations: item.try_get("annotations")?,
+            created_at: item.get("created_at"),
+            last_updated_at: item.get("last_updated_at"),
+            documents,
+        }))
+    }
+}
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_event_documents(
@@ -64,13 +90,13 @@ pub async fn update_results_event_documents(
     }
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn get_results_event_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     results_event_id: &str,
-) -> Result<ElectionEventData> {
+) -> Result<ResultsEvent> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -97,13 +123,13 @@ pub async fn get_results_event_by_id(
         )
         .await?;
 
-    let results_events: Vec<ElectionEventData> = rows
+    let results_events: Vec<ResultsEvent> = rows
         .into_iter()
-        .map(|row| -> Result<ElectionEventData> {
+        .map(|row| -> Result<ResultsEvent> {
             row.try_into()
-                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+                .map(|res: ResultsEventWrapper| -> ResultsEvent { res.0 })
         })
-        .collect::<Result<Vec<ElectionEventData>>>()?;
+        .collect::<Result<Vec<ResultsEvent>>>()?;
 
     results_events
         .get(0)
