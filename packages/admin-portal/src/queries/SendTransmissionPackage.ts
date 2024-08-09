@@ -4,8 +4,8 @@
 import {gql} from "@apollo/client"
 
 export const SEND_TRANSMISSION_PACKAGE = gql`
-    mutation SendTransmissionPackage($electionEventId: uuid!, $tallySessionId: uuid!, $areaId: uuid!) {
-        send_transmission_package(election_event_id: $electionEventId, tally_session_id: $tallySessionId, area_id: $areaId) {
+    mutation SendTransmissionPackage($electionId: uuid!, $tallySessionId: uuid!, $areaId: uuid!) {
+        send_transmission_package(election_id: $electionId, tally_session_id: $tallySessionId, area_id: $areaId) {
             id
         }
     }
