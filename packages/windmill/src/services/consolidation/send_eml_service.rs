@@ -16,8 +16,6 @@ use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::BallotStyle;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::util::date_time::get_system_timezone;
 use std::collections::HashMap;
