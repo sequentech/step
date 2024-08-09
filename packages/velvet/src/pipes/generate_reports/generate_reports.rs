@@ -790,10 +790,40 @@ pub struct ReportDataComputed {
     pub channel_type: Option<String>,
 }
 
+impl From<ReportDataComputed> for ReportData {
+    fn from(item: ReportDataComputed) -> Self {
+        ReportData {
+            election_name: item.election_name.clone(),
+            contest: item.contest.clone(),
+            area: item.area.clone(),
+            contest_result: item.contest_result.clone(),
+            winners: item
+                .candidate_result
+                .into_iter()
+                .filter_map(|winner| winner.into())
+                .collect(),
+            channel_type: item.channel_type.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
     pub percentage_votes: f64,
     pub winning_position: Option<usize>,
+}
+
+impl From<CandidateResultForReport> for Option<WinnerResult> {
+    fn from(item: CandidateResultForReport) -> Self {
+        let Some(winning_position) = item.winning_position.clone() else {
+            return None;
+        };
+        Some(WinnerResult {
+            candidate: item.candidate,
+            total_count: item.total_count,
+            winning_position,
+        })
+    }
 }

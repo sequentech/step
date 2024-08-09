@@ -23,6 +23,7 @@ use sequent_core::util::date_time::get_system_timezone;
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::instrument;
+use velvet::pipes::generate_reports::ReportData;
 
 use super::eml_generator::render_eml_file;
 
@@ -131,15 +132,18 @@ pub async fn send_eml_service(
             .get(&result.election_id)
             .ok_or_else(|| anyhow!("Can't find election {}", &result.election_id))?;
         let election_annotations = election.get_valid_annotations()?;
-        let eml_data = render_eml_file(
-            tally_id,
-            transaction_id,
-            time_zone,
-            now_utc,
-            &election_event_annotations,
-            &election_annotations,
-            result.reports[0],
-        );
+        for report_computed in result.reports {
+            let report: ReportData = report_computed.into();
+            let eml_data = render_eml_file(
+                tally_id,
+                transaction_id,
+                time_zone.clone(),
+                now_utc.clone(),
+                &election_event_annotations,
+                &election_annotations,
+                &report,
+            );
+        }
     }
 
     hasura_transaction
