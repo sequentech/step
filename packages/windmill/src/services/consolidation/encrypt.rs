@@ -12,7 +12,6 @@ const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
 const OPENSSL_SALT_BYTES: usize = 8;
 const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
 
-
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
 fn encrypt_file(input_file_path: &str, output_file_path: &str, password: &str) -> Result<()> {
