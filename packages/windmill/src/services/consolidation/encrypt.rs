@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use openssl::hash::MessageDigest;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
@@ -32,6 +32,22 @@ fn encrypt_file(input_file_path: &str, output_file_path: &str, password: &str) -
 
     let key = key_iv.key;
     let iv = key_iv.iv.context("Failed to derive IV")?;
+
+    if key.len() != cipher.key_len() {
+        return Err(anyhow!(
+            "key len {} doesn't match cipher key len {}",
+            key.len(),
+            cipher.key_len()
+        ));
+    }
+
+    if Some(iv.len()) != cipher.iv_len() {
+        return Err(anyhow!(
+            "iv len {} doesn't match cipher iv len {:?}",
+            iv.len(),
+            cipher.iv_len()
+        ));
+    }
 
     // Create a Crypter for encryption
     let mut crypter =
