@@ -43,6 +43,14 @@ type Mutation {
 }
 
 type Mutation {
+  create_transmission_package(
+    election_id: uuid!
+    area_id: uuid!
+    tally_session_id: uuid!
+  ): OptionalId
+}
+
+type Mutation {
   create_user(
     tenant_id: String!
     election_event_id: String
@@ -315,8 +323,9 @@ type Mutation {
 }
 
 type Mutation {
-  send_eml(
-    election_event_id: uuid!
+  send_transmission_package(
+    election_id: uuid!
+    area_id: uuid!
     tally_session_id: uuid!
   ): OptionalId
 }
@@ -358,6 +367,14 @@ type Mutation {
     tally_session_id: uuid!
     status: String!
   ): StartTallyOutput
+}
+
+type Mutation {
+  upload_signature(
+    election_id: uuid!
+    area_id: uuid!
+    tally_session_id: uuid!
+  ): OptionalId
 }
 
 type Mutation {

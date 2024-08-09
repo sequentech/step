@@ -92,6 +92,20 @@ actions:
     permissions:
       - role: admin-user
       - role: admin-ceremony
+  - name: create_transmission_package
+    definition:
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/miru/create-transmission-package
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: tally-write
+      - role: admin-user
   - name: create_user
     definition:
       kind: synchronous
@@ -644,10 +658,10 @@ actions:
     permissions:
       - role: trustee-ceremony
       - role: admin-user
-  - name: send_eml
+  - name: send_transmission_package
     definition:
       kind: synchronous
-      handler: http://{{HARVEST_DOMAIN}}/send-eml
+      handler: http://{{HARVEST_DOMAIN}}/miru/send-transmission-package
       forward_client_headers: true
       request_transform:
         body:
@@ -656,9 +670,9 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: admin-user
+      - role: trustee-write
       - role: tally-write
-    comment: send_eml
+      - role: admin-user
   - name: set_role_permission
     definition:
       kind: synchronous
@@ -726,6 +740,20 @@ actions:
         version: 2
     permissions:
       - role: trustee-read
+      - role: admin-user
+  - name: upload_signature
+    definition:
+      kind: synchronous
+      handler: http://{{HARVEST_DOMAIN}}/miru/upload-signature
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: trustee-write
       - role: admin-user
   - name: upsert_areas
     definition:
