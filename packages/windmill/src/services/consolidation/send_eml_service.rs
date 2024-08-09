@@ -12,7 +12,9 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use tempfile::NamedTempFile;
+use tracing::instrument;
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn download_to_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -65,6 +67,7 @@ pub async fn download_to_file(
     get_document_as_temp_file(tenant_id, &document).await
 }
 
+#[instrument(err)]
 pub async fn send_eml_service(
     tenant_id: String,
     election_event_id: String,
