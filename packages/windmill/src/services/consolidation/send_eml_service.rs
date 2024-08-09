@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::postgres::ballot_publication::get_latest_ballot_publication;
+use crate::postgres::election::export_elections;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -12,6 +16,7 @@ use crate::services::documents::get_document_as_temp_file;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::Election;
 use tempfile::NamedTempFile;
 use tracing::instrument;
 
@@ -70,9 +75,9 @@ pub async fn download_to_file(
 
 #[instrument(err)]
 pub async fn send_eml_service(
-    tenant_id: String,
-    election_event_id: String,
-    tally_session_id: String,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -83,15 +88,15 @@ pub async fn send_eml_service(
         .transaction()
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
-    let _election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
             .with_context(|| "Error fetching election event")?;
     let tar_gz_file = download_to_file(
         &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
     )
     .await?;
 
@@ -100,6 +105,11 @@ pub async fn send_eml_service(
     let state = generate_initial_state(&tally_path.into_path())?;
 
     let results = state.get_results()?;
+
+    let ballot_publication =
+        get_latest_ballot_publication(&hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .ok_or_else(|| anyhow!("Election Event has no ballot publication"))?;
 
     hasura_transaction
         .commit()

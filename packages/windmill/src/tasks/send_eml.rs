@@ -19,7 +19,7 @@ pub async fn send_eml_task(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                send_eml_service(tenant_id, election_event_id, tally_session_id)
+                send_eml_service(&tenant_id, &election_event_id, &tally_session_id)
                     .await
                     .map_err(|err| anyhow!("{}", err))
             })
