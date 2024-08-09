@@ -4,6 +4,7 @@
 
 use crate::postgres::document::get_document;
 use crate::postgres::election::export_elections;
+use crate::postgres::election_event::get_election_event_by_election_area;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
@@ -81,7 +82,8 @@ pub async fn download_to_file(
 #[instrument(err)]
 pub async fn send_eml_service(
     tenant_id: &str,
-    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
     tally_session_id: &str,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -94,13 +96,13 @@ pub async fn send_eml_service(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
     let election_event =
-        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
+        get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
             .await
             .with_context(|| "Error fetching election event")?;
     let tar_gz_file = download_to_file(
         &hasura_transaction,
         tenant_id,
-        election_event_id,
+        &election_event.id,
         tally_session_id,
     )
     .await?;
@@ -118,7 +120,7 @@ pub async fn send_eml_service(
 
     let election_event_annotations = election_event.get_valid_annotations()?;
     let elections_map: HashMap<String, Election> =
-        export_elections(&hasura_transaction, tenant_id, election_event_id)
+        export_elections(&hasura_transaction, tenant_id, &election_event.id)
             .await
             .with_context(|| "Error fetching elections")?
             .into_iter()
@@ -126,6 +128,15 @@ pub async fn send_eml_service(
             .collect();
 
     for result in results {
+        if result.election_id != election_id {
+            continue;
+        }
+        let Some(basic_area) = result.area.clone() else {
+            continue;
+        };
+        if basic_area.id != area_id {
+            continue;
+        }
         let election = elections_map
             .get(&result.election_id)
             .ok_or_else(|| anyhow!("Can't find election {}", &result.election_id))?;

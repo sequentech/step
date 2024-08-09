@@ -12,14 +12,15 @@ use tracing::{info, instrument};
 #[celery::task(max_retries = 0)]
 pub async fn send_eml_task(
     tenant_id: String,
-    election_event_id: String,
+    election_id: String,
+    area_id: String,
     tally_session_id: String,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                send_eml_service(&tenant_id, &election_event_id, &tally_session_id)
+                send_eml_service(&tenant_id, &election_id, &area_id, &tally_session_id)
                     .await
                     .map_err(|err| anyhow!("{}", err))
             })

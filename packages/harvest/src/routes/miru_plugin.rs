@@ -69,11 +69,27 @@ pub async fn send_transmission_package(
             true,
             Some(claims.hasura_claims.tenant_id.clone()),
             vec![Permissions::TRUSTEE_WRITE],
-        )
+        ),
     ];
     if !authorizations.iter().any(|val| val.is_ok()) {
         authorizations[0].clone()?;
     }
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(send_eml_task::new(
+            claims.hasura_claims.tenant_id.clone(),
+            body.election_id.clone(),
+            body.area_id.clone(),
+            body.tally_session_id.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending send_eml task: {error:?}"),
+            )
+        })?;
+    info!("Sent send_eml task {}", task.task_id);
 
     Ok(Json(SendTransmissionPackageOutput {}))
 }

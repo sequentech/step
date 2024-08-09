@@ -238,3 +238,60 @@ pub async fn update_election_event_status(
 
     Ok(())
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_election_event_by_election_area(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<ElectionEventData> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    election_event.*
+                FROM
+                    sequent_backend.area_contest AS area_contest
+                INNER JOIN
+                    sequent_backend.contest AS contest
+                ON
+                    contest.id = area_contest.contest_id
+                INNER JOIN
+                    sequent_backend.election_event AS election_event
+                ON
+                    election_event.id = area_contest.election_event_id
+                WHERE
+                    area_contest.tenant_id = $1 AND
+                    area_contest.area_id =$3 AND
+                    contest.tenant_id = $1 AND
+                    contest.election_id = $2
+                    election_event.tenant_id = $1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_id)?,
+                &Uuid::parse_str(area_id)?,
+            ],
+        )
+        .await?;
+
+    let election_events: Vec<ElectionEventData> = rows
+        .into_iter()
+        .map(|row| -> Result<ElectionEventData> {
+            row.try_into()
+                .map(|res: ElectionEventWrapper| -> ElectionEventData { res.0 })
+        })
+        .collect::<Result<Vec<ElectionEventData>>>()?;
+
+    election_events
+        .get(0)
+        .map(|election_event| election_event.clone())
+        .ok_or(anyhow!("Election event not found"))
+}
