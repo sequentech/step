@@ -1,22 +1,23 @@
+use crate::postgres::document::get_document;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::Transaction;
-
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_url;
+use crate::services::documents::get_document_as_temp_file;
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
+use tempfile::NamedTempFile;
 
 pub async fn download_to_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-) -> Result<()> {
+) -> Result<NamedTempFile> {
     let tally_session_executions = get_tally_session_executions(
         hasura_transaction,
         tenant_id,
@@ -51,16 +52,16 @@ pub async fn download_to_file(
         .tar_gz
         .ok_or_else(|| anyhow!("Missing tar_gz in results_event"))?;
 
-    let download_url = get_document_url(
+    let document = get_document(
         hasura_transaction,
         tenant_id,
-        Some(election_event_id),
+        Some(election_event_id.to_string()),
         &document_id,
     )
-    .await
-    .with_context(|| "Error generating tar_gz download url")?;
+    .await?
+    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
 
-    Ok(())
+    get_document_as_temp_file(tenant_id, &document).await
 }
 
 pub async fn send_eml_service(
@@ -77,7 +78,7 @@ pub async fn send_eml_service(
         .transaction()
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
-    let election_event =
+    let _election_event =
         get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Error fetching election event")?;
