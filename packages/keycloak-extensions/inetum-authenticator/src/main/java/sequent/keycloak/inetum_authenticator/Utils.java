@@ -8,6 +8,7 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import freemarker.template.Template;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -75,8 +76,9 @@ public class Utils {
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
   private static final String USER_ID = "userId";
-  public static final String MULTIVALUE_SEPARATOR = "##";
-  public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
+
+  private static final String INETUM_PATH_SEPARATOR = ".";
+  private static JsonNode asJson;
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
