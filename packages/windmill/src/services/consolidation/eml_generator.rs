@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use sequent_core::{
     ballot::*,
     serialization::deserialize_with_path::deserialize_value,
-    types::{date_time::*, hasura::core::ElectionEvent},
+    types::{date_time::*, hasura::core, hasura::core::ElectionEvent},
     util::date_time::{generate_timestamp, get_system_timezone},
 };
 use serde::{Deserialize, Serialize};
@@ -170,12 +170,14 @@ impl ValidateAnnotations for ElectionEvent {
     }
 }
 
-impl ValidateAnnotations for Election {
+impl ValidateAnnotations for core::Election {
     fn get_valid_annotations(&self) -> Result<Annotations> {
-        let annotations = self
+        let annotations_js = self
             .annotations
             .clone()
-            .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+            .ok_or_else(|| anyhow!("Missing election annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
 
         check_annotations_exist(
             vec![
@@ -375,19 +377,12 @@ pub fn render_eml_file(
     transaction_id: i64,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
-    election_event_annotations_opt: &Option<Annotations>,
-    election_annotations_opt: &Option<Annotations>,
+    election_event_annotations: &Annotations,
+    election_annotations: &Annotations,
     report: &ReportData,
 ) -> Result<EMLFile> {
-    let election_event_annotations = election_event_annotations_opt
-        .clone()
-        .ok_or(anyhow!("Missing election event annotations"))?;
-    let election_annotations = election_annotations_opt
-        .clone()
-        .ok_or(anyhow!("Missing election event annotations"))?;
-
     let election_event_id =
-        find_miru_annotation(MIRU_ELECTION_EVENT_ID, &election_event_annotations).with_context(
+        find_miru_annotation(MIRU_ELECTION_EVENT_ID, election_event_annotations).with_context(
             || {
                 format!(
                     "Missing election event annotation: '{}:{}'",
@@ -396,7 +391,7 @@ pub fn render_eml_file(
             },
         )?;
     let election_event_name =
-        find_miru_annotation(MIRU_ELECTION_EVENT_NAME, &election_event_annotations).with_context(
+        find_miru_annotation(MIRU_ELECTION_EVENT_NAME, election_event_annotations).with_context(
             || {
                 format!(
                     "Missing election event annotation: '{}:{}'",
@@ -405,7 +400,7 @@ pub fn render_eml_file(
             },
         )?;
 
-    let election_name = find_miru_annotation(MIRU_ELECTION_NAME, &election_annotations)
+    let election_name = find_miru_annotation(MIRU_ELECTION_NAME, election_annotations)
         .with_context(|| {
             format!(
                 "Missing election annotation: '{}:{}'",
@@ -414,16 +409,12 @@ pub fn render_eml_file(
         })?;
 
     let election_id =
-        find_miru_annotation(MIRU_ELECTION_ID, &election_annotations).with_context(|| {
+        find_miru_annotation(MIRU_ELECTION_ID, election_annotations).with_context(|| {
             format!(
                 "Missing election annotation: '{}:{}'",
                 MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
             )
         })?;
-
-    //let time_zone = get_system_timezone();
-
-    //let now_utc = Utc::now();
 
     let issue_date = generate_timestamp(
         Some(time_zone.clone()),

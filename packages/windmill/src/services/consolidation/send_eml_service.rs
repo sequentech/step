@@ -1,24 +1,30 @@
-use std::collections::HashMap;
-
-use crate::postgres::ballot_publication::get_latest_ballot_publication;
-use crate::postgres::election::export_elections;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::postgres::document::get_document;
+use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use anyhow::{anyhow, Context, Result};
+use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::BallotStyle;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::Election;
+use sequent_core::util::date_time::get_system_timezone;
+use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::instrument;
+
+use super::eml_generator::render_eml_file;
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_to_file(
@@ -106,10 +112,35 @@ pub async fn send_eml_service(
 
     let results = state.get_results()?;
 
-    let ballot_publication =
-        get_latest_ballot_publication(&hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .ok_or_else(|| anyhow!("Election Event has no ballot publication"))?;
+    let tally_id = 1;
+    let transaction_id = 1;
+    let time_zone = get_system_timezone();
+    let now_utc = Utc::now();
+
+    let election_event_annotations = election_event.get_valid_annotations()?;
+    let elections_map: HashMap<String, Election> =
+        export_elections(&hasura_transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "Error fetching elections")?
+            .into_iter()
+            .map(|election| (election.id.clone(), election))
+            .collect();
+
+    for result in results {
+        let election = elections_map
+            .get(&result.election_id)
+            .ok_or_else(|| anyhow!("Can't find election {}", &result.election_id))?;
+        let election_annotations = election.get_valid_annotations()?;
+        let eml_data = render_eml_file(
+            tally_id,
+            transaction_id,
+            time_zone,
+            now_utc,
+            &election_event_annotations,
+            &election_annotations,
+            result.reports[0],
+        );
+    }
 
     hasura_transaction
         .commit()
