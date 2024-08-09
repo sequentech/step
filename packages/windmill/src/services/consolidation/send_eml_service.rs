@@ -5,6 +5,7 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
+use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use anyhow::{anyhow, Context, Result};
@@ -89,6 +90,8 @@ pub async fn send_eml_service(
         &tally_session_id,
     )
     .await?;
+
+    let tally_path = decompress_file(tar_gz_file.path())?;
 
     hasura_transaction
         .commit()
