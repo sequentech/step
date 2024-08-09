@@ -10,6 +10,7 @@ use std::io::{Read, Write};
 
 const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
 const OPENSSL_SALT_BYTES: usize = 8;
+const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
 
 fn encrypt_file(input_file_path: &str, output_file_path: &str, password: &str) -> Result<()> {
     // Initialize the cipher
@@ -57,7 +58,7 @@ fn encrypt_file(input_file_path: &str, output_file_path: &str, password: &str) -
     // Write the salt and encrypted data to the output file
     let mut output_file = File::create(output_file_path).context("Failed to create output file")?;
     output_file
-        .write_all(b"Salted__")
+        .write_all(OPENSSL_SALT_HEADER)
         .context("Failed to write salt header")?; // Write OpenSSL's salt header
     output_file
         .write_all(&salt)
