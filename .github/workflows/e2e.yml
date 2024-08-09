@@ -6,7 +6,7 @@ name: E2E Tests
 
 on:
   push:
-    branches: [ 'feat/meta-474b/jorge' ]
+    branches: [ 'feat/meta-474b/devops' ]
 
 jobs:
   e2e:
