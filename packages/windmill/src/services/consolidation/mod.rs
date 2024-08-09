@@ -4,4 +4,5 @@
 
 pub mod eml_generator;
 pub mod eml_types;
+pub mod encrypt;
 pub mod send_eml_service;
