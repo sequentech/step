@@ -25,6 +25,7 @@ use tracing::instrument;
 use velvet::pipes::generate_reports::ReportData;
 
 use super::eml_generator::render_eml_file;
+use super::transmission_package::create_transmission_package;
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_to_file(
@@ -143,7 +144,7 @@ pub async fn send_eml_service(
         let election_annotations = election.get_valid_annotations()?;
         for report_computed in result.reports {
             let report: ReportData = report_computed.into();
-            let eml_data = render_eml_file(
+            create_transmission_package(
                 tally_id,
                 transaction_id,
                 time_zone.clone(),
@@ -151,7 +152,8 @@ pub async fn send_eml_service(
                 &election_event_annotations,
                 &election_annotations,
                 &report,
-            );
+            )
+            .await?;
         }
     }
 
