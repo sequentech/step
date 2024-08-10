@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
+    acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
     ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, generate_ecies_key_pair},
     eml_generator::render_eml_file,
@@ -113,6 +114,13 @@ pub async fn create_transmission_package(
     let (private_key_pem_str, public_key_pem_str) = generate_ecies_key_pair()?;
     let (exz_hash_base64, signed_exz_base64) =
         ecies_sign_data(&public_key_pem_str, &exz_temp_file_bytes)?;
+
+    let json = generate_acm_json(
+        &exz_hash_base64,
+        &encrypted_random_pass,
+        &signed_exz_base64,
+        &public_key_pem_str,
+    );
 
     Ok(())
 }

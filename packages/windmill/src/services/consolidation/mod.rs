@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod acm_json;
 pub mod aes_256_cbc_encrypt;
 pub mod ecies_encrypt;
 pub mod eml_generator;
