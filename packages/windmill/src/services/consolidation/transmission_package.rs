@@ -12,12 +12,16 @@ use crate::services::{
     temp_path::{generate_temp_file, write_into_named_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::{DateTime, Utc};
-use sequent_core::ballot::Annotations;
 use sequent_core::services::reports;
 use sequent_core::types::date_time::TimeZone;
+use sequent_core::{ballot::Annotations, encrypt::hash_ballot};
 use serde_json::{Map, Value};
 use std::env;
+use std::io::{self, Read, Seek};
+use strand::hash::hash_sha256;
+use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
@@ -26,6 +30,16 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEViVmM6/r024Bt71ZYT17OhPJHrIx
 HqzGxXsLJBrJDxQGIZTXBCpJ49tpj/+Xp1nkf6NYNMjmV8I7vy5F3ShnCQ==
 -----END PUBLIC KEY-----
 ";
+
+pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
+    // Rewind the file to the beginning to read its contents
+    temp_file.rewind()?;
+
+    // Read the file's contents into a Vec<u8>
+    let mut file_bytes = Vec::new();
+    temp_file.read_to_end(&mut file_bytes)?;
+    Ok(file_bytes)
+}
 
 #[instrument(skip(report), err)]
 pub async fn create_transmission_package(
@@ -62,11 +76,15 @@ pub async fn create_transmission_package(
     let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&compressed_xml, "template", ".xml")
             .with_context(|| "Error writing to file")?;
-    let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
+    let mut exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
     let encrypted_random_pass = encrypt_password(EXAMPLE_PUBLIC_KEY_PEM, &random_pass)?;
+
+    let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
+    let exz_hash_bytes = hash_sha256(exz_temp_file_bytes.as_slice())?;
+    let exz_hash_base64 = STANDARD.encode(exz_hash_bytes);
 
     Ok(())
 }
