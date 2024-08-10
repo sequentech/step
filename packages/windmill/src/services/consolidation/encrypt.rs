@@ -7,6 +7,10 @@ use ecies::encrypt;
 use openssl::hash::MessageDigest;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
+use openssl::ec::{EcGroup, EcKey};
+use openssl::nid::Nid;
+use openssl::pkey::Private;
+use openssl::error::ErrorStack;
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -119,4 +123,28 @@ pub fn encrypt_password(public_key_pem: &str, password: &str) -> Result<String> 
     let encrypted_base64 = STANDARD.encode(&encrypted_data);
 
     Ok(encrypted_base64)
+}
+
+pub fn generate_ecies_key_pair() -> Result<(String, String)> {
+    // Create an elliptic curve group using the secp256k1 curve
+    let group = EcGroup::from_curve_name(Nid::SECP256K1)
+        .with_context(|| "Failed to create elliptic curve group for secp256k1")?;
+
+    // Generate an EC key pair
+    let ec_key = EcKey::generate(&group)
+        .with_context(|| "Failed to generate EC key pair")?;
+
+    // Convert the private key to PEM format
+    let private_key_pem = ec_key.private_key_to_pem()
+        .with_context(|| "Failed to convert private key to PEM format")?;
+    let private_key_pem_str = String::from_utf8(private_key_pem)
+        .with_context(|| "Failed to convert private key PEM to UTF-8 string")?;
+
+    // Convert the public key to PEM format
+    let public_key_pem = ec_key.public_key_to_pem()
+        .with_context(|| "Failed to convert public key to PEM format")?;
+    let public_key_pem_str = String::from_utf8(public_key_pem)
+        .with_context(|| "Failed to convert public key PEM to UTF-8 string")?;
+
+    Ok((private_key_pem_str, public_key_pem_str))
 }
