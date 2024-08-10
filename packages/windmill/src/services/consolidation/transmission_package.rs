@@ -128,8 +128,8 @@ pub async fn create_transmission_package(
     let (mut exz_temp_file, encrypted_random_pass) = generate_encrypted_compressed_xml(
         tally_id,
         transaction_id,
-        time_zone,
-        date_time,
+        time_zone.clone(),
+        date_time.clone(),
         election_event_annotations,
         election_annotations,
         report,
@@ -147,6 +147,8 @@ pub async fn create_transmission_package(
         &encrypted_random_pass,
         &signed_exz_base64,
         &public_key_pem_str,
+        time_zone,
+        date_time,
         election_event_annotations,
     )?;
     let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json)?;
