@@ -7744,7 +7744,6 @@ dependencies = [
  "lazy_static",
  "lettre",
  "openssl",
- "p256",
  "postgres-openssl",
  "quick-error",
  "rand 0.8.5",
