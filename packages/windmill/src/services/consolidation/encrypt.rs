@@ -138,3 +138,11 @@ pub fn generate_ecies_key_pair() -> Result<(String, String)> {
 
     Ok((private_key_pem_str, public_key_pem_str))
 }
+
+pub fn ecies_sign_data(public_key_pem_str: &str, data: &str) -> Result<String> {
+    let encrypted_data = encrypt_password(public_key_pem_str, data)?;
+    // Encode the encrypted data in base64
+    let encrypted_base64 = STANDARD.encode(&encrypted_data);
+
+    Ok(encrypted_base64)
+}
