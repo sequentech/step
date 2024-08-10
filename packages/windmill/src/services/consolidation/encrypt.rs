@@ -4,21 +4,18 @@
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use ecies::encrypt;
+use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
+use openssl::nid::Nid;
+use openssl::pkey::PKey;
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
-use openssl::ec::{EcGroup, EcKey};
-use openssl::nid::Nid;
-use openssl::pkey::Private;
-use openssl::error::ErrorStack;
 use std::fs::File;
 use std::io::{Read, Write};
 
 const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
 const OPENSSL_SALT_BYTES: usize = 8;
 const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
-const BEGIN_PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----";
-const END_PUBLIC_KEY: &str = "-----END PUBLIC KEY-----";
 
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
@@ -101,23 +98,15 @@ pub fn encrypt_file_aes_256_cbc(
 }
 
 pub fn encrypt_password(public_key_pem: &str, password: &str) -> Result<String> {
-    // Remove the PEM headers and footers
-    let public_key_str = public_key_pem
-        .replace(BEGIN_PUBLIC_KEY, "")
-        .replace(END_PUBLIC_KEY, "")
-        .replace("\n", "")
-        .replace("\r", "")
-        .trim()
-        .to_string();
+    // Parse the PEM file and extract the public key
+    let public_key = PKey::public_key_from_pem(public_key_pem.as_bytes())
+        .context("Failed to parse PEM and extract public key")?;
 
-    // Decode the base64-encoded public key
-    let public_key_bytes = STANDARD
-        .decode(&public_key_str)
-        .context("Failed to decode base64 public key")?;
+    let public_key_der = public_key.public_key_to_der()?;
 
     // Encrypt the password
-    let encrypted_data = encrypt(&public_key_bytes, password.as_bytes())
-        .context("Failed to encrypt the password")?;
+    let encrypted_data =
+        encrypt(&public_key_der, password.as_bytes()).context("Failed to encrypt the password")?;
 
     // Encode the encrypted data in base64
     let encrypted_base64 = STANDARD.encode(&encrypted_data);
@@ -131,17 +120,18 @@ pub fn generate_ecies_key_pair() -> Result<(String, String)> {
         .with_context(|| "Failed to create elliptic curve group for secp256k1")?;
 
     // Generate an EC key pair
-    let ec_key = EcKey::generate(&group)
-        .with_context(|| "Failed to generate EC key pair")?;
+    let ec_key = EcKey::generate(&group).with_context(|| "Failed to generate EC key pair")?;
 
     // Convert the private key to PEM format
-    let private_key_pem = ec_key.private_key_to_pem()
+    let private_key_pem = ec_key
+        .private_key_to_pem()
         .with_context(|| "Failed to convert private key to PEM format")?;
     let private_key_pem_str = String::from_utf8(private_key_pem)
         .with_context(|| "Failed to convert private key PEM to UTF-8 string")?;
 
     // Convert the public key to PEM format
-    let public_key_pem = ec_key.public_key_to_pem()
+    let public_key_pem = ec_key
+        .public_key_to_pem()
         .with_context(|| "Failed to convert public key to PEM format")?;
     let public_key_pem_str = String::from_utf8(public_key_pem)
         .with_context(|| "Failed to convert public key PEM to UTF-8 string")?;
