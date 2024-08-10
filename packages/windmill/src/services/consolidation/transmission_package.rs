@@ -43,7 +43,7 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
 }
 
 #[instrument(skip(report), err)]
-pub async fn create_transmission_package(
+async fn generate_compressed_xml(
     tally_id: i64,
     transaction_id: i64,
     time_zone: TimeZone,
@@ -51,7 +51,7 @@ pub async fn create_transmission_package(
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
     report: &ReportData,
-) -> Result<()> {
+) -> Result<Vec<u8>> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -71,6 +71,29 @@ pub async fn create_transmission_package(
     let render_xml = reports::render_template_text(&template_string, variables_map)
         .map_err(|err| anyhow!("{}", err))?;
     let compressed_xml = xz_compress(render_xml.as_bytes())?;
+    Ok(compressed_xml)
+}
+
+#[instrument(skip(report), err)]
+pub async fn create_transmission_package(
+    tally_id: i64,
+    transaction_id: i64,
+    time_zone: TimeZone,
+    date_time: DateTime<Utc>,
+    election_event_annotations: &Annotations,
+    election_annotations: &Annotations,
+    report: &ReportData,
+) -> Result<()> {
+    let compressed_xml = generate_compressed_xml(
+        tally_id,
+        transaction_id,
+        time_zone,
+        date_time,
+        election_event_annotations,
+        election_annotations,
+        report,
+    )
+    .await?;
 
     let random_pass = generate_random_password(64);
 
