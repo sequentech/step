@@ -81,14 +81,16 @@ pub async fn create_transmission_package(
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
-    let encrypted_random_pass = ecies_encrypt_string(EXAMPLE_PUBLIC_KEY_PEM, &random_pass)?;
+    let encrypted_random_pass =
+        ecies_encrypt_string(EXAMPLE_PUBLIC_KEY_PEM, random_pass.as_bytes())?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
     let exz_hash_bytes = hash_sha256(exz_temp_file_bytes.as_slice())?;
     let exz_hash_base64 = STANDARD.encode(exz_hash_bytes);
 
     let (private_key_pem_str, public_key_pem_str) = generate_ecies_key_pair()?;
-    let signed_exz = ecies_sign_data(&public_key_pem_str, &exz_hash_base64)?;
+    let (exz_hash_base64, signed_exz_base64) =
+        ecies_sign_data(&public_key_pem_str, &exz_hash_base64)?;
 
     Ok(())
 }
