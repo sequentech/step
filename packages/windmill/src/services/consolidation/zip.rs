@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
 use std::fs::File;
 use std::io::{self, Write};

@@ -124,7 +124,7 @@ pub async fn create_transmission_package(
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
     report: &ReportData,
-) -> Result<()> {
+) -> Result<NamedTempFile> {
     let (mut exz_temp_file, encrypted_random_pass) = generate_encrypted_compressed_xml(
         tally_id,
         transaction_id,
@@ -150,5 +150,5 @@ pub async fn create_transmission_package(
     );
     let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json)?;
 
-    Ok(())
+    Ok(zip_tmp_file)
 }

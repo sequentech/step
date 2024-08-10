@@ -5,7 +5,6 @@
 use crate::postgres::document::get_document;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_election_area;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
@@ -24,7 +23,6 @@ use tempfile::NamedTempFile;
 use tracing::instrument;
 use velvet::pipes::generate_reports::ReportData;
 
-use super::eml_generator::render_eml_file;
 use super::transmission_package::create_transmission_package;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -144,7 +142,7 @@ pub async fn send_eml_service(
         let election_annotations = election.get_valid_annotations()?;
         for report_computed in result.reports {
             let report: ReportData = report_computed.into();
-            create_transmission_package(
+            let transmission_package_file = create_transmission_package(
                 tally_id,
                 transaction_id,
                 time_zone.clone(),
