@@ -43,7 +43,7 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
 }
 
 #[instrument(skip(report), err)]
-async fn generate_compressed_xml(
+async fn generate_encrypted_compressed_xml(
     tally_id: i64,
     transaction_id: i64,
     time_zone: TimeZone,
@@ -51,7 +51,8 @@ async fn generate_compressed_xml(
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
     report: &ReportData,
-) -> Result<Vec<u8>> {
+    public_key_pem: &str,
+) -> Result<(NamedTempFile, String)> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -71,7 +72,19 @@ async fn generate_compressed_xml(
     let render_xml = reports::render_template_text(&template_string, variables_map)
         .map_err(|err| anyhow!("{}", err))?;
     let compressed_xml = xz_compress(render_xml.as_bytes())?;
-    Ok(compressed_xml)
+
+    let random_pass = generate_random_password(64);
+
+    let (_temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&compressed_xml, "template", ".xz")
+            .with_context(|| "Error writing to file")?;
+    let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
+    let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
+    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
+
+    let encrypted_random_pass =
+        ecies_encrypt_string(EXAMPLE_PUBLIC_KEY_PEM, random_pass.as_bytes())?;
+    Ok((exz_temp_file, encrypted_random_pass))
 }
 
 #[instrument(skip(report), err)]
@@ -84,7 +97,7 @@ pub async fn create_transmission_package(
     election_annotations: &Annotations,
     report: &ReportData,
 ) -> Result<()> {
-    let compressed_xml = generate_compressed_xml(
+    let (mut exz_temp_file, encrypted_random_pass) = generate_encrypted_compressed_xml(
         tally_id,
         transaction_id,
         time_zone,
@@ -92,28 +105,14 @@ pub async fn create_transmission_package(
         election_event_annotations,
         election_annotations,
         report,
+        EXAMPLE_PUBLIC_KEY_PEM,
     )
     .await?;
 
-    let random_pass = generate_random_password(64);
-
-    let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&compressed_xml, "template", ".xml")
-            .with_context(|| "Error writing to file")?;
-    let mut exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
-    let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
-    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
-
-    let encrypted_random_pass =
-        ecies_encrypt_string(EXAMPLE_PUBLIC_KEY_PEM, random_pass.as_bytes())?;
-
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
-    let exz_hash_bytes = hash_sha256(exz_temp_file_bytes.as_slice())?;
-    let exz_hash_base64 = STANDARD.encode(exz_hash_bytes);
-
     let (private_key_pem_str, public_key_pem_str) = generate_ecies_key_pair()?;
     let (exz_hash_base64, signed_exz_base64) =
-        ecies_sign_data(&public_key_pem_str, &exz_hash_base64)?;
+        ecies_sign_data(&public_key_pem_str, &exz_temp_file_bytes)?;
 
     Ok(())
 }

@@ -51,9 +51,8 @@ pub fn generate_ecies_key_pair() -> Result<(String, String)> {
     Ok((private_key_pem_str, public_key_pem_str))
 }
 
-pub fn ecies_sign_data(public_key_pem_str: &str, data: &str) -> Result<(String, String)> {
-    let data_string = data.to_string();
-    let hash_bytes = hash_sha256(data_string.as_bytes())?;
+pub fn ecies_sign_data(public_key_pem_str: &str, data: &[u8]) -> Result<(String, String)> {
+    let hash_bytes = hash_sha256(data)?;
     let sha256_hash_base64 = STANDARD.encode(hash_bytes.clone());
 
     let encrypted_data = ecies_encrypt_string(public_key_pem_str, &hash_bytes)?;
