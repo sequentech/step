@@ -6,6 +6,7 @@ use super::{
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
     ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, generate_ecies_key_pair},
     eml_generator::render_eml_file,
+    eml_types::ACMJson,
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
@@ -89,6 +90,31 @@ async fn generate_encrypted_compressed_xml(
     Ok((exz_temp_file, encrypted_random_pass))
 }
 
+fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Result<NamedTempFile> {
+    // Create a temporary directory
+    let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
+    let temp_dir_path = temp_dir.path();
+
+    let exz_xml_path = temp_dir_path.join("er_24020111.xml");
+    let mut exz_xml_file = File::create(&exz_xml_path)
+        .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
+    exz_xml_file
+        .write_all(&exz_temp_file_bytes)
+        .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+
+    let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
+    let exz_json_path = temp_dir_path.join("er_24020111.json");
+    let mut exz_json_file = File::create(&exz_json_path)
+        .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
+    exz_json_file
+        .write_all(acm_json_stringified.as_bytes())
+        .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+
+    let dst_file = generate_temp_file("er_24020166", ".zip")?;
+    compress_folder_to_zip(temp_dir_path, dst_file.path())?;
+    Ok(dst_file)
+}
+
 #[instrument(skip(report), err)]
 pub async fn create_transmission_package(
     tally_id: i64,
@@ -122,27 +148,7 @@ pub async fn create_transmission_package(
         &signed_exz_base64,
         &public_key_pem_str,
     );
-    // Create a temporary directory
-    let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
-    let temp_dir_path = temp_dir.path();
-
-    let exz_xml_path = temp_dir_path.join("er_24020111.xml");
-    let mut exz_xml_file = File::create(&exz_xml_path)
-        .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
-    exz_xml_file
-        .write_all(&exz_temp_file_bytes)
-        .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
-
-    let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
-    let exz_json_path = temp_dir_path.join("er_24020111.json");
-    let mut exz_json_file = File::create(&exz_json_path)
-        .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
-    exz_json_file
-        .write_all(acm_json_stringified.as_bytes())
-        .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
-
-    let dst_file = generate_temp_file("er_24020166", ".zip")?;
-    compress_folder_to_zip(temp_dir_path, dst_file.path())?;
+    let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json)?;
 
     Ok(())
 }
