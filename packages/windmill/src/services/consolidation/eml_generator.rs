@@ -15,9 +15,9 @@ use strum_macros::{Display, EnumString, ToString};
 use tracing::{info, instrument};
 use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
 
-const MIRU_PLUGIN_PREPEND: &str = "miru";
-const MIRU_ELECTION_EVENT_ID: &str = "election-event-id";
-const MIRU_ELECTION_EVENT_NAME: &str = "election-event-name";
+pub const MIRU_PLUGIN_PREPEND: &str = "miru";
+pub const MIRU_ELECTION_EVENT_ID: &str = "election-event-id";
+pub const MIRU_ELECTION_EVENT_NAME: &str = "election-event-name";
 const MIRU_ELECTION_ID: &str = "election-id";
 const MIRU_ELECTION_NAME: &str = "election-name";
 const MIRU_CONTEST_ID: &str = "contest-id";

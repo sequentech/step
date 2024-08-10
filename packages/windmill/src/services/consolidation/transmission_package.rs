@@ -147,7 +147,8 @@ pub async fn create_transmission_package(
         &encrypted_random_pass,
         &signed_exz_base64,
         &public_key_pem_str,
-    );
+        election_event_annotations,
+    )?;
     let zip_tmp_file = generate_er_final_zip(exz_temp_file_bytes, acm_json)?;
 
     Ok(zip_tmp_file)
