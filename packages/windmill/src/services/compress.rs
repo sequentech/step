@@ -10,7 +10,6 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::fs::File;
 use std::path::Path;
-use tar;
 use tempfile::{tempdir, TempDir, TempPath};
 use tracing::{event, instrument, Level};
 

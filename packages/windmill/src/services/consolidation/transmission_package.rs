@@ -4,6 +4,7 @@
 use super::{
     eml_generator::render_eml_file,
     encrypt::{encrypt_file_aes_256_cbc, encrypt_password},
+    xz_compress::xz_compress,
 };
 use crate::services::{
     password::generate_random_password,
@@ -19,6 +20,12 @@ use serde_json::{Map, Value};
 use std::env;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
+
+const EXAMPLE_PUBLIC_KEY_PEM: &str = "-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEViVmM6/r024Bt71ZYT17OhPJHrIx
+HqzGxXsLJBrJDxQGIZTXBCpJ49tpj/+Xp1nkf6NYNMjmV8I7vy5F3ShnCQ==
+-----END PUBLIC KEY-----
+";
 
 #[instrument(skip(report), err)]
 pub async fn create_transmission_package(
@@ -48,20 +55,18 @@ pub async fn create_transmission_package(
     // render handlebars template
     let render_xml = reports::render_template_text(&template_string, variables_map)
         .map_err(|err| anyhow!("{}", err))?;
-    let render_xml_bytes = render_xml.into_bytes();
+    let compressed_xml = xz_compress(render_xml.as_bytes())?;
 
     let random_pass = generate_random_password(64);
 
     let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&render_xml_bytes, "template", ".xml")
+        write_into_named_temp_file(&compressed_xml, "template", ".xml")
             .with_context(|| "Error writing to file")?;
     let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
-    let public_key_pem = "";
-
-    let encrypted_random_pass = encrypt_password(public_key_pem, &random_pass)?;
+    let encrypted_random_pass = encrypt_password(EXAMPLE_PUBLIC_KEY_PEM, &random_pass)?;
 
     Ok(())
 }

@@ -48,6 +48,7 @@ quick-error = "2.0.1"
 keycloak = "24.0.301"
 encoding_rs = "0.8.34"
 encoding_rs_io = "0.1.7"
+xz2 = "0.1.7"
 
 # logging
 tracing = "0.1"
