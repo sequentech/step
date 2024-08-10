@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use base64::{decode, encode};
+use base64::{engine::general_purpose::STANDARD, Engine};
 use ecies::encrypt;
 use openssl::hash::MessageDigest;
 use openssl::rand::rand_bytes;
@@ -107,14 +107,16 @@ fn encrypt_password(public_key_pem: &str, password: &str) -> Result<String> {
         .to_string();
 
     // Decode the base64-encoded public key
-    let public_key_bytes = decode(&public_key_str).context("Failed to decode base64 public key")?;
+    let public_key_bytes = STANDARD
+        .decode(&public_key_str)
+        .context("Failed to decode base64 public key")?;
 
     // Encrypt the password
     let encrypted_data = encrypt(&public_key_bytes, password.as_bytes())
         .context("Failed to encrypt the password")?;
 
     // Encode the encrypted data in base64
-    let encrypted_base64 = encode(&encrypted_data);
+    let encrypted_base64 = STANDARD.encode(&encrypted_data);
 
     Ok(encrypted_base64)
 }

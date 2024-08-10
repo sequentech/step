@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::eml_generator::render_eml_file;
 use crate::services::s3::{download_s3_file_to_string, get_public_asset_file_path};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
@@ -9,9 +10,8 @@ use sequent_core::services::reports;
 use sequent_core::types::date_time::TimeZone;
 use serde_json::{Map, Value};
 use std::env;
-use velvet::pipes::generate_reports::ReportData;
 use tracing::{info, instrument};
-use super::eml_generator::render_eml_file;
+use velvet::pipes::generate_reports::ReportData;
 
 #[instrument(skip(report), err)]
 pub async fn create_transmission_package(
