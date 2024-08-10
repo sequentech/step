@@ -140,6 +140,7 @@ pub trait ValidateAnnotations {
     fn get_valid_annotations(&self) -> Result<Annotations>;
 }
 
+#[instrument(err)]
 fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
     for key in keys {
         if !annotations.contains_key(&key) {
@@ -150,6 +151,7 @@ fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Resu
 }
 
 impl ValidateAnnotations for ElectionEvent {
+    #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations_js = self
             .annotations
@@ -171,6 +173,7 @@ impl ValidateAnnotations for ElectionEvent {
 }
 
 impl ValidateAnnotations for core::Election {
+    #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations_js = self
             .annotations
@@ -192,6 +195,7 @@ impl ValidateAnnotations for core::Election {
 }
 
 impl ValidateAnnotations for Contest {
+    #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations = self
             .annotations
@@ -211,6 +215,7 @@ impl ValidateAnnotations for Contest {
 }
 
 impl ValidateAnnotations for Candidate {
+    #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations = self
             .annotations
