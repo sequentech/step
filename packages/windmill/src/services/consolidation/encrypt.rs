@@ -7,14 +7,19 @@ use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs::File;
 use std::io::{Read, Write};
+use p256::PublicKey;
+use ecies::encrypt;
+use base64::{decode, encode};
 
 const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
 const OPENSSL_SALT_BYTES: usize = 8;
 const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
+const BEGIN_PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----";
+const END_PUBLIC_KEY: &str = "-----END PUBLIC KEY-----";
 
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
-fn encrypt_file(input_file_path: &str, output_file_path: &str, password: &str) -> Result<()> {
+fn encrypt_file_aes_256_cbc(input_file_path: &str, output_file_path: &str, password: &str) -> Result<()> {
     // Initialize the cipher
     let cipher = Cipher::aes_256_cbc();
 
@@ -86,4 +91,31 @@ fn encrypt_file(input_file_path: &str, output_file_path: &str, password: &str) -
         .context("Failed to write encrypted data")?;
 
     Ok(())
+}
+
+fn encrypt_password(public_key_pem: &str, password: &str) -> Result<String> {
+    // Remove the PEM headers and footers
+    let public_key_str = public_key_pem
+        .replace(BEGIN_PUBLIC_KEY, "")
+        .replace(END_PUBLIC_KEY, "")
+        .replace("\n", "")
+        .replace("\r", "")
+        .trim()
+        .to_string();
+
+    // Decode the base64-encoded public key
+    let public_key_bytes = decode(&public_key_str).context("Failed to decode base64 public key")?;
+
+    // Parse the public key
+    let public_key = PublicKey::from_sec1_bytes(&public_key_bytes)
+        .context("Failed to parse the public key")?;
+
+    // Encrypt the password
+    let encrypted_data = encrypt(&public_key, password.as_bytes())
+        .context("Failed to encrypt the password")?;
+
+    // Encode the encrypted data in base64
+    let encrypted_base64 = encode(&encrypted_data);
+
+    Ok(encrypted_base64)
 }
