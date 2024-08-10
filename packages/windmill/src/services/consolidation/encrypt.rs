@@ -18,7 +18,7 @@ const END_PUBLIC_KEY: &str = "-----END PUBLIC KEY-----";
 
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
-fn encrypt_file_aes_256_cbc(
+pub fn encrypt_file_aes_256_cbc(
     input_file_path: &str,
     output_file_path: &str,
     password: &str,
@@ -96,7 +96,7 @@ fn encrypt_file_aes_256_cbc(
     Ok(())
 }
 
-fn encrypt_password(public_key_pem: &str, password: &str) -> Result<String> {
+pub fn encrypt_password(public_key_pem: &str, password: &str) -> Result<String> {
     // Remove the PEM headers and footers
     let public_key_str = public_key_pem
         .replace(BEGIN_PUBLIC_KEY, "")
