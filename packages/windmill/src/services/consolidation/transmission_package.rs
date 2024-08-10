@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
+    aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
+    ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, generate_ecies_key_pair},
     eml_generator::render_eml_file,
-    encrypt::{ecies_sign_data, encrypt_file_aes_256_cbc, encrypt_password, generate_ecies_key_pair},
     xz_compress::xz_compress,
 };
 use crate::services::{
@@ -80,7 +81,7 @@ pub async fn create_transmission_package(
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
-    let encrypted_random_pass = encrypt_password(EXAMPLE_PUBLIC_KEY_PEM, &random_pass)?;
+    let encrypted_random_pass = ecies_encrypt_string(EXAMPLE_PUBLIC_KEY_PEM, &random_pass)?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
     let exz_hash_bytes = hash_sha256(exz_temp_file_bytes.as_slice())?;
