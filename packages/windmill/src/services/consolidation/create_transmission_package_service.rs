@@ -13,6 +13,7 @@ use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
+use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::temp_path::write_into_named_temp_file;
 use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData};
@@ -21,7 +22,7 @@ use crate::{
     types::miru_plugin::MiruTallySessionData,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::Utc;
+use chrono::{Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::util::date_time::get_system_timezone;
@@ -116,6 +117,7 @@ pub async fn create_transmission_package_service(
     let transaction_id = 1;
     let time_zone = get_system_timezone();
     let now_utc = Utc::now();
+    let now_local = now_utc.with_timezone(&Local);
 
     let election_event_annotations = election_event.get_valid_annotations()?;
     let Some(result) = results.into_iter().find(|result| {
@@ -154,7 +156,7 @@ pub async fn create_transmission_package_service(
         &hasura_transaction,
         &temp_path_string,
         file_size,
-        "applization/zip",
+        "applization/xml",
         tenant_id,
         &election_event.id,
         &name,
@@ -170,7 +172,7 @@ pub async fn create_transmission_package_service(
         documents: vec![MiruDocument {
             document_id: document.id.clone(),
             servers_sent_to: vec![],
-            created_at: "".into(),
+            created_at: ISO8601::to_string(&now_local),
             signatures: vec![],
         }],
         logs: vec![],
