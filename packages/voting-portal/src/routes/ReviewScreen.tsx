@@ -2,8 +2,15 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
-import {Link as RouterLink, useNavigate, useParams, redirect, useLocation} from "react-router-dom"
+import React, {useEffect, useState} from "react"
+import {
+    Link as RouterLink,
+    useNavigate,
+    useParams,
+    redirect,
+    useLocation,
+    useSubmit,
+} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -44,7 +51,6 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {
     CastBallotsErrorType,
-    VotingPortalError,
     VotingPortalErrorType,
     WasmCastBallotsErrorType,
 } from "../services/VotingPortalError"
@@ -52,7 +58,6 @@ import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
-import {AuthContext} from "../providers/AuthContextProvider"
 import {sortContestList, hashBallot} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
@@ -115,15 +120,22 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot} = provideBallotService()
+    const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
 
-    const {refetch: refetchElectionEvent, error: errorFetchingElectionEvent} =
-        useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-            variables: {
-                electionEventId: eventId,
-                tenantId,
-            },
-        })
+    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+        onError: (error) => {
+            if (error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            }
+        },
+    })
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -157,11 +169,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     })
 
     const castBallotAction = async () => {
+        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         if (isDemo) {
             console.log("faking casting demo vote")
             const newCastVote = fakeCastVote()
             dispatch(addCastVotes([newCastVote]))
-            return
+            return submit(null, {method: "post"})
         }
         setIsCastingBallot(true)
 
@@ -171,8 +184,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             if (!(data && data.sequent_backend_election_event.length > 0)) {
                 setIsCastingBallot(false)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
-                console.error(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
-                return
+                return submit({error: errorType}, {method: "post"})
             }
 
             const record = data?.sequent_backend_election_event?.[0]
@@ -181,10 +193,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 setIsCastingBallot(false)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
-                return
+                return submit({error: errorType.toString()}, {method: "post"})
             }
 
-            const hashableBallot = toHashableBallot({...auditableBallot, contests: ["sdfdfssdf"]})
+            const hashableBallot = toHashableBallot(auditableBallot)
 
             let result = await insertCastVote({
                 variables: {
@@ -193,25 +205,30 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     content: JSON.stringify(hashableBallot),
                 },
             })
+            if (result.errors) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+            }
+
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
             }
 
-            return redirect(`../confirmation`)
+            return submit(null, {method: "post"})
         } catch (error) {
             setIsCastingBallot(false)
             // dispatch(clearBallot())
             const ballotError = error as IBallotError
-            if (errorFetchingElectionEvent) {
-                setErrorMsg(t(VotingPortalErrorType.UNABLE_TO_FETCH_DATA))
-            }
             if (ballotError.error_type) {
-                setErrorMsg(t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`))
+                setErrorMsg(
+                    t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`)
+                )
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNKNOWN_ERROR}`))
             }
-            console.log(ballotError?.error_msg || error)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
-            return
+            console.log(ballotError?.error_msg || error)
+            return submit({error: errorType}, {method: "post"})
         }
     }
 
@@ -290,7 +307,7 @@ export const ReviewScreen: React.FC = () => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-    const {logout} = useContext(AuthContext)
+    const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
 
@@ -300,12 +317,6 @@ export const ReviewScreen: React.FC = () => {
     const ballotId = auditableBallot && hashBallot(auditableBallot)
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
-        console.error(
-            t("errors.encoding.writeInCharsExceeded", {
-                ballotId,
-                auditableBallotHash: auditableBallot.ballot_hash,
-            })
-        )
         setErrorMsg(
             t("errors.encoding.writeInCharsExceeded", {
                 ballotId,
@@ -328,6 +339,7 @@ export const ReviewScreen: React.FC = () => {
                 )
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
+                return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
             }
         }
     }
@@ -335,18 +347,36 @@ export const ReviewScreen: React.FC = () => {
     useEffect(() => {
         if (!ballotStyle) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
-            //TODO: on confirm dialog - navigate(backLink)
         } else if (!auditableBallot) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
-            //TODO: on confirm dialog - navigate(backLink)
         } else if (!selectionState) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_SELECTION}`))
-            //TODO: on confirm dialog - logout()
         }
-    })
+    }, [])
 
     if (!ballotStyle || !auditableBallot) {
-        return <CircularProgress />
+        return errorMsg ? (
+            <Box sx={{margin: "auto 0"}}>
+                <WarnBox variant="error">{errorMsg}</WarnBox>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        width: "100%",
+                        marginTop: "16px",
+                    }}
+                >
+                    <StyledLink to={backLink} sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                            <Icon icon={faAngleLeft} size="sm" />
+                            <Box>{t("reviewScreen.backButton")}</Box>
+                        </StyledButton>
+                    </StyledLink>
+                </Box>
+            </Box>
+        ) : (
+            <CircularProgress />
+        )
     }
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
@@ -357,7 +387,6 @@ export const ReviewScreen: React.FC = () => {
             {hideAudit ? null : (
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}
-            {errorMsg && <WarnBox variant="warning">{errorMsg}</WarnBox>}
             <Dialog
                 handleClose={handleCloseDialog}
                 open={openBallotIdHelp}
@@ -389,6 +418,7 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
+            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
@@ -416,3 +446,14 @@ export const ReviewScreen: React.FC = () => {
 }
 
 export default ReviewScreen
+
+export async function action({request}: {request: Request}) {
+    const data = await request.formData()
+    const error = data.get("error")
+
+    if (!error) {
+        return redirect("../confirmation")
+    }
+
+    return null
+}

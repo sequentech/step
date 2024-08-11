@@ -84,28 +84,36 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
             error: {
+                NETWORK_ERROR:
+                    "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                UNABLE_TO_FETCH_DATA:
+                    "Hubo un problema al recuperar los datos. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 LOAD_ELECTION_EVENT:
-                    "No se puede cargar el evento electoral. Inténtelo de nuevo más tarde.",
+                    "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
+                CAST_VOTE:
+                    "Hubo un error con GraphQL al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 NO_BALLOT_SELECTION:
-                    "El estado de selección para esta elección no está presente. Asegúrese de haber seleccionado correctamente sus opciones o contacte con el soporte.",
+                    "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
                 NO_BALLOT_STYLE:
-                    "El estilo de la papeleta no está disponible. Contacte con el soporte.",
+                    "El estilo de la papeleta no está disponible. Por favor, contacta con el soporte.",
                 NO_AUDITABLE_BALLOT:
-                    "No hay ninguna papeleta auditable disponible. Contacte con el soporte.",
+                    "No hay una papeleta verificable disponible. Por favor, contacta con el soporte.",
                 INCONSISTENT_HASH:
-                    "Hubo un error relacionado con el proceso de hash de la papeleta. BallotId: {{ballotId}} no es consistente con el hash de la papeleta auditable: {{auditableBallotHash}}. Informe de este problema al soporte.",
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informa de este problema al soporte.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "El evento electoral está cerrado. Contacte con el soporte.",
+                    "El evento electoral está cerrado. Por favor, contacta con el soporte.",
                 PARSE_ERROR:
-                    "Hubo un error al analizar la papeleta. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "Hubo un error al analizar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 DESERIALIZE_AUDITABLE_ERROR:
-                    "Hubo un error al deserializar la papeleta auditable. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "Hubo un error al deserializar la papeleta verificable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 DESERIALIZE_HASHABLE_ERROR:
-                    "Hubo un error al deserializar la papeleta hashable. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "Hubo un error al deserializar la papeleta hashable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 CONVERT_ERROR:
-                    "Hubo un error al convertir la papeleta. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "Hubo un error al convertir la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 SERIALIZE_ERROR:
-                    "Hubo un error al serializar la papeleta. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                UNKNOWN_ERROR:
+                    "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
             },
         },
         confirmationScreen: {

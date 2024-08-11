@@ -84,28 +84,36 @@ const catalanTranslation: TranslationType = {
                 cancel: "Cancel·lar",
             },
             error: {
+                NETWORK_ERROR:
+                    "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                UNABLE_TO_FETCH_DATA:
+                    "Hi ha hagut un problema en recuperar les dades. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 LOAD_ELECTION_EVENT:
-                    "No es pot carregar l'esdeveniment electoral. Torneu-ho a provar més tard.",
+                    "No es pot carregar l'esdeveniment electoral. Si us plau, torna-ho a intentar més tard.",
+                CAST_VOTE:
+                    "Hi ha hagut un error amb GraphQL durant l'emissió del vot. Si us plau, torni-ho a intentar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
-                    "L'estat de selecció per a aquesta elecció no està present. Assegureu-vos d'haver seleccionat correctament les vostres opcions o contacteu amb el suport.",
+                    "No es troba l'estat de selecció per aquesta elecció. Si us plau, assegura't d'haver seleccionat les teves opcions correctament o contacta amb el servei d'assistència.",
                 NO_BALLOT_STYLE:
-                    "L'estil de la papereta no està disponible. Contacteu amb el suport.",
+                    "L'estil de la papereta no està disponible. Si us plau, contacta amb el servei d'assistència.",
                 NO_AUDITABLE_BALLOT:
-                    "No hi ha cap papereta auditable disponible. Contacteu amb el suport.",
+                    "No hi ha cap papereta auditable disponible. Si us plau, contacta amb el servei d'assistència.",
                 INCONSISTENT_HASH:
-                    "Hi ha hagut un error relacionat amb el procés de hash de la papereta. BallotId: {{ballotId}} no és consistent amb el hash de la papereta auditable: {{auditableBallotHash}}. Informeu d'aquest problema al suport.",
+                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informa d'aquest problema al servei d'assistència.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "L'esdeveniment electoral està tancat. Contacteu amb el suport.",
+                    "L'esdeveniment electoral està tancat. Si us plau, contacta amb el servei d'assistència.",
                 PARSE_ERROR:
-                    "Hi ha hagut un error en analitzar la papereta. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                    "Hi ha hagut un error en analitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 DESERIALIZE_AUDITABLE_ERROR:
-                    "Hi ha hagut un error en deserialitzar la papereta auditable. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                    "Hi ha hagut un error en deserialitzar la papereta auditable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 DESERIALIZE_HASHABLE_ERROR:
-                    "Hi ha hagut un error en deserialitzar la papereta hashable. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                    "Hi ha hagut un error en deserialitzar la papereta hashable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 CONVERT_ERROR:
-                    "Hi ha hagut un error en convertir la papereta. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                    "Hi ha hagut un error en convertir la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 SERIALIZE_ERROR:
-                    "Hi ha hagut un error en serialitzar la papereta. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                    "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                UNKNOWN_ERROR:
+                    "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
             },
         },
         confirmationScreen: {
