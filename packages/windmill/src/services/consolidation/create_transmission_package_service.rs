@@ -81,7 +81,7 @@ pub async fn create_transmission_package_service(
     let ccs_servers: Vec<MiruCcsServer> =
         deserialize_str(&ccs_servers_js).with_context(|| "error deserializing MiruCcsServer")?;
 
-    let None = transmission_data.into_iter().find(|data| {
+    let None = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
     }) else {
         info!("transmission package already found, skipping");
@@ -177,6 +177,15 @@ pub async fn create_transmission_package_service(
         }],
         logs: vec![],
     };
+    let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
+        .clone()
+        .into_iter()
+        .filter(|data| {
+            data.area_id != area_id.to_string() && data.election_id != election_id.to_string()
+        })
+        .collect();
+    new_transmission_data.push(new_transmission_package_data);
+    let new_transmission_data_js = serde_json::to_value(new_transmission_data);
 
     hasura_transaction
         .commit()
