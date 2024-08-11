@@ -4,6 +4,8 @@
 
 package sequent.keycloak.authenticator.forgot_password;
 
+import static org.keycloak.services.validation.Validation.FIELD_USERNAME;
+
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -18,6 +20,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
+import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -30,6 +33,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
@@ -201,12 +205,16 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   private UserModel getUser(
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
-    UserModel user = context.getUser();
-    if (user != null) {
-      log.info("getUser(): User is set");
+    if (isUserAlreadySetBeforeUsernamePasswordAuth(context)) {
+      // Get user from the authentication context in case he was already set before this
+      // authenticator
+      UserModel user = context.getUser();
+      testInvalidUser(context, user);
       return user;
     } else {
-      log.info("getUser(): User is null");
+      // Normal login. In this case this authenticator is supposed to establish identity of the user
+      // from the provided username
+      context.clearUser();
       return getUserFromForm(context, inputData);
     }
   }
@@ -215,12 +223,21 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
     log.info("getUserFromForm(): start");
     String username = inputData.getFirst(AuthenticationManager.FORM_USERNAME);
-    if (username == null) {
+    if (username == null || username.isEmpty()) {
+      context.getEvent().error(Errors.USER_NOT_FOUND);
+      Response challengeResponse =
+          challenge(context, getDefaultChallengeMessage(context), FIELD_USERNAME);
+      context.failureChallenge(AuthenticationFlowError.INVALID_USER, challengeResponse);
       return null;
     }
 
     // remove leading and trailing whitespace
     username = username.trim();
+
+    context.getEvent().detail(Details.USERNAME, username);
+    context
+        .getAuthenticationSession()
+        .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, username);
 
     UserModel user = null;
     try {
@@ -231,9 +248,28 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
               Utils.USERNAME_ATTRIBUTES_DEFAULT);
       user = findUser(context.getSession(), context.getRealm(), username, usernameAttributes);
     } catch (ModelDuplicateException mde) {
+      ServicesLogger.LOGGER.modelDuplicateException(mde);
+
+      // Could happen during federation import
+      if (mde.getDuplicateFieldName() != null
+          && mde.getDuplicateFieldName().equals(UserModel.EMAIL)) {
+        setDuplicateUserChallenge(
+            context,
+            Errors.EMAIL_IN_USE,
+            Messages.EMAIL_EXISTS,
+            AuthenticationFlowError.INVALID_USER);
+      } else {
+        setDuplicateUserChallenge(
+            context,
+            Errors.USERNAME_IN_USE,
+            Messages.USERNAME_EXISTS,
+            AuthenticationFlowError.INVALID_USER);
+      }
+
       return user;
     }
 
+    testInvalidUser(context, user);
     return user;
   }
 
