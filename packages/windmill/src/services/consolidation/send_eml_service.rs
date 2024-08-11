@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::area::get_area_by_id;
 use crate::postgres::document::get_document;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_election_area;
@@ -16,6 +17,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::util::date_time::get_system_timezone;
 use std::collections::HashMap;
@@ -125,7 +127,11 @@ pub async fn send_eml_service(
             .into_iter()
             .map(|election| (election.id.clone(), election))
             .collect();
-
+    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+        .await
+        .with_context(|| format!("Error fetching area {}", area_id))?
+        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+    let area_annotations = area.get_valid_annotations()?;
     for result in results {
         if result.election_id != election_id {
             continue;

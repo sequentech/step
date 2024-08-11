@@ -1,3 +1,5 @@
+use crate::types::miru_plugin::{MiruCcsServer, MiruTallySessionData};
+
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -6,8 +8,11 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use sequent_core::{
     ballot::*,
-    serialization::deserialize_with_path::deserialize_value,
-    types::{date_time::*, hasura::core, hasura::core::ElectionEvent},
+    serialization::deserialize_with_path::{deserialize_str, deserialize_value},
+    types::{
+        date_time::*,
+        hasura::core::{self, ElectionEvent},
+    },
     util::date_time::{generate_timestamp, get_system_timezone},
 };
 use serde::{Deserialize, Serialize};
@@ -28,6 +33,8 @@ const MIRU_CANDIDATE_SETTING: &str = "candidate-setting";
 const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
 const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
+const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
+const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 
 const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";
@@ -190,6 +197,65 @@ impl ValidateAnnotations for core::Election {
             &annotations,
         )
         .with_context(|| "Contest: ")?;
+        Ok(annotations)
+    }
+}
+
+impl ValidateAnnotations for core::Area {
+    #[instrument(err)]
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing area annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        check_annotations_exist(
+            vec![prepend_miru_annotation(MIRU_AREA_CCS_SERVERS)],
+            &annotations,
+        )
+        .with_context(|| "Area: ")?;
+
+        let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
+                )
+            })?;
+        let _ccs_servers: Vec<MiruCcsServer> = deserialize_str(&ccs_servers_js)
+            .with_context(|| "error deserializing MiruCcsServer")?;
+        Ok(annotations)
+    }
+}
+
+impl ValidateAnnotations for core::TallySession {
+    #[instrument(err)]
+    fn get_valid_annotations(&self) -> Result<Annotations> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        check_annotations_exist(
+            vec![prepend_miru_annotation(MIRU_TALLY_SESSION_DATA)],
+            &annotations,
+        )
+        .with_context(|| "Tally Session: ")?;
+
+        let tally_session_data_js = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                )
+            })?;
+        let _ccs_servers: MiruTallySessionData = deserialize_str(&tally_session_data_js)
+            .with_context(|| "error deserializing MiruTallySessionData")?;
+
         Ok(annotations)
     }
 }
