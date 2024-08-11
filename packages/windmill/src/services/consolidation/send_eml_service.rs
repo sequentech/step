@@ -13,10 +13,12 @@ use crate::services::compress::decompress_file;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
+use crate::types::miru_plugin::MiruCcsServer;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::util::date_time::get_system_timezone;
@@ -25,7 +27,11 @@ use tempfile::NamedTempFile;
 use tracing::instrument;
 use velvet::pipes::generate_reports::ReportData;
 
+use super::ecies_encrypt::generate_ecies_key_pair;
+use super::eml_generator::find_miru_annotation;
+use super::eml_generator::{MIRU_AREA_CCS_SERVERS, MIRU_PLUGIN_PREPEND};
 use super::transmission_package::create_transmission_package;
+use super::transmission_package::generate_base_compressed_xml;
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_to_file(
@@ -132,6 +138,16 @@ pub async fn send_eml_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_annotations = area.get_valid_annotations()?;
+
+    let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
+        .with_context(|| {
+            format!(
+                "Missing area annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
+            )
+        })?;
+    let ccs_servers: Vec<MiruCcsServer> =
+        deserialize_str(&ccs_servers_js).with_context(|| "error deserializing MiruCcsServer")?;
     for result in results {
         if result.election_id != election_id {
             continue;
@@ -148,7 +164,7 @@ pub async fn send_eml_service(
         let election_annotations = election.get_valid_annotations()?;
         for report_computed in result.reports {
             let report: ReportData = report_computed.into();
-            let transmission_package_file = create_transmission_package(
+            let base_compressed_xml = generate_base_compressed_xml(
                 tally_id,
                 transaction_id,
                 time_zone.clone(),
@@ -158,6 +174,18 @@ pub async fn send_eml_service(
                 &report,
             )
             .await?;
+            let (private_key_pem_str, acm_public_key_pem_str) = generate_ecies_key_pair()?;
+            for ccs_server in &ccs_servers {
+                create_transmission_package(
+                    time_zone.clone(),
+                    now_utc.clone(),
+                    &election_event_annotations,
+                    base_compressed_xml.clone(),
+                    &acm_public_key_pem_str,
+                    &ccs_server.publick_key_pem,
+                )
+                .await?;
+            }
         }
     }
 

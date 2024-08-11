@@ -33,8 +33,8 @@ const MIRU_CANDIDATE_SETTING: &str = "candidate-setting";
 const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
 const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
-const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
-const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
+pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
+pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 
 const ISSUE_DATE_FORMAT: &str = "%y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%y-%m-%d";

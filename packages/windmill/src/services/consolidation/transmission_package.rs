@@ -46,7 +46,7 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
 }
 
 #[instrument(skip(report), err)]
-async fn generate_base_compressed_xml(
+pub async fn generate_base_compressed_xml(
     tally_id: i64,
     transaction_id: i64,
     time_zone: TimeZone,
@@ -120,39 +120,27 @@ fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Res
     Ok(dst_file)
 }
 
-#[instrument(skip(report), err)]
+#[instrument(skip(compressed_xml), err)]
 pub async fn create_transmission_package(
-    tally_id: i64,
-    transaction_id: i64,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
-    election_annotations: &Annotations,
-    report: &ReportData,
+    compressed_xml: Vec<u8>,
+    acm_public_key_pem_str: &str,
+    ccs_public_key_pem_str: &str,
 ) -> Result<NamedTempFile> {
-    let compressed_xml: Vec<u8> = generate_base_compressed_xml(
-        tally_id,
-        transaction_id,
-        time_zone.clone(),
-        date_time.clone(),
-        election_event_annotations,
-        election_annotations,
-        report,
-    )
-    .await?;
     let (mut exz_temp_file, encrypted_random_pass) =
-        generate_encrypted_compressed_xml(compressed_xml, EXAMPLE_PUBLIC_KEY_PEM).await?;
+        generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
-    let (private_key_pem_str, public_key_pem_str) = generate_ecies_key_pair()?;
     let (exz_hash_base64, signed_exz_base64) =
-        ecies_sign_data(&public_key_pem_str, &exz_temp_file_bytes)?;
+        ecies_sign_data(ccs_public_key_pem_str, &exz_temp_file_bytes)?;
 
     let acm_json = generate_acm_json(
         &exz_hash_base64,
         &encrypted_random_pass,
         &signed_exz_base64,
-        &public_key_pem_str,
+        ccs_public_key_pem_str,
         time_zone,
         date_time,
         election_event_annotations,
