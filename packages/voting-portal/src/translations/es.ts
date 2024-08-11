@@ -85,17 +85,27 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 LOAD_ELECTION_EVENT:
-                    "No se puede cargar el evento electoral. Por favor, inténtelo de nuevo más tarde.",
+                    "No se puede cargar el evento electoral. Inténtelo de nuevo más tarde.",
                 NO_BALLOT_SELECTION:
-                    "El estado de selección para esta elección no está presente. Por favor, asegúrese de haber seleccionado sus opciones correctamente.",
+                    "El estado de selección para esta elección no está presente. Asegúrese de haber seleccionado correctamente sus opciones o contacte con el soporte.",
                 NO_BALLOT_STYLE:
-                    "El estilo de la papeleta no está disponible. Por favor, contacte con soporte.",
+                    "El estilo de la papeleta no está disponible. Contacte con el soporte.",
                 NO_AUDITABLE_BALLOT:
-                    "No hay papeleta auditable disponible. Por favor, contacte con soporte.",
+                    "No hay ninguna papeleta auditable disponible. Contacte con el soporte.",
                 INCONSISTENT_HASH:
-                    "Hubo un error relacionado con el proceso de hash de la papeleta. ballotId: {{ballotId}} no es consistente con el Hash de la Papeleta Auditable: {{auditableBallotHash}}. Por favor, reporte este problema a soporte.",
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. BallotId: {{ballotId}} no es consistente con el hash de la papeleta auditable: {{auditableBallotHash}}. Informe de este problema al soporte.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "El evento electoral está cerrado. Por favor, contacte con soporte.",
+                    "El evento electoral está cerrado. Contacte con el soporte.",
+                PARSE_ERROR:
+                    "Hubo un error al analizar la papeleta. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Hubo un error al deserializar la papeleta auditable. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Hubo un error al deserializar la papeleta hashable. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                CONVERT_ERROR:
+                    "Hubo un error al convertir la papeleta. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                SERIALIZE_ERROR:
+                    "Hubo un error al serializar la papeleta. Inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
         },
         confirmationScreen: {

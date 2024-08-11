@@ -46,7 +46,9 @@ import {
     CastBallotsErrorType,
     VotingPortalError,
     VotingPortalErrorType,
+    WasmCastBallotsErrorType,
 } from "../services/VotingPortalError"
+import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -182,7 +184,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 return
             }
 
-            const hashableBallot = toHashableBallot(auditableBallot)
+            const hashableBallot = toHashableBallot({...auditableBallot, contests: ["sdfdfssdf"]})
 
             let result = await insertCastVote({
                 variables: {
@@ -200,10 +202,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         } catch (error) {
             setIsCastingBallot(false)
             // dispatch(clearBallot())
+            const ballotError = error as IBallotError
             if (errorFetchingElectionEvent) {
                 setErrorMsg(t(VotingPortalErrorType.UNABLE_TO_FETCH_DATA))
             }
-            console.log(error)
+            if (ballotError.error_type) {
+                setErrorMsg(t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`))
+            }
+            console.log(ballotError?.error_msg || error)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
             return
         }

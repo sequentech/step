@@ -85,17 +85,27 @@ const catalanTranslation: TranslationType = {
             },
             error: {
                 LOAD_ELECTION_EVENT:
-                    "No es pot carregar l'esdeveniment electoral. Torneu-ho a intentar més tard.",
+                    "No es pot carregar l'esdeveniment electoral. Torneu-ho a provar més tard.",
                 NO_BALLOT_SELECTION:
-                    "L'estat de selecció per a aquesta elecció no està present. Si us plau, assegureu-vos que heu seleccionat les vostres opcions correctament.",
+                    "L'estat de selecció per a aquesta elecció no està present. Assegureu-vos d'haver seleccionat correctament les vostres opcions o contacteu amb el suport.",
                 NO_BALLOT_STYLE:
-                    "L'estil de la papereta no està disponible. Si us plau, contacteu amb el suport.",
+                    "L'estil de la papereta no està disponible. Contacteu amb el suport.",
                 NO_AUDITABLE_BALLOT:
-                    "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el suport.",
+                    "No hi ha cap papereta auditable disponible. Contacteu amb el suport.",
                 INCONSISTENT_HASH:
-                    "Hi ha hagut un error relacionat amb el procés de hash de la papereta. ballotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al suport.",
+                    "Hi ha hagut un error relacionat amb el procés de hash de la papereta. BallotId: {{ballotId}} no és consistent amb el hash de la papereta auditable: {{auditableBallotHash}}. Informeu d'aquest problema al suport.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "L'esdeveniment electoral està tancat. Si us plau, contacteu amb el suport.",
+                    "L'esdeveniment electoral està tancat. Contacteu amb el suport.",
+                PARSE_ERROR:
+                    "Hi ha hagut un error en analitzar la papereta. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Hi ha hagut un error en deserialitzar la papereta auditable. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Hi ha hagut un error en deserialitzar la papereta hashable. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                CONVERT_ERROR:
+                    "Hi ha hagut un error en convertir la papereta. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
+                SERIALIZE_ERROR:
+                    "Hi ha hagut un error en serialitzar la papereta. Torneu-ho a provar més tard o contacteu amb el suport per obtenir assistència.",
             },
         },
         confirmationScreen: {

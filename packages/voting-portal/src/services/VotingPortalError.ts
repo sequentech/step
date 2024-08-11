@@ -12,15 +12,6 @@ export enum VotingPortalErrorType {
     INCONSISTENT_HASH = "INCONSISTENT_HASH",
 }
 
-export enum CastBallotsErrorType {
-    LOAD_ELECTION_EVENT = "LOAD_ELECTION_EVENT",
-    NO_BALLOT_SELECTION = "NO_BALLOT_SELECTION",
-    NO_BALLOT_STYLE = "NO_BALLOT_STYLE",
-    NO_AUDITABLE_BALLOT = "NO_AUDITABLE_BALLOT",
-    INCONSISTENT_HASH = "INCONSISTENT_HASH",
-    ELECTION_EVENT_NOT_OPEN = "ELECTION_EVENT_NOT_OPEN",
-}
-
 export enum ElectionScreenErrorType {
     FETCH_DATA = "unableToFetchData",
     NO_AREA = "noVotingArea",
@@ -33,6 +24,23 @@ export enum ElectionScreenErrorType {
 export enum ElectionScreenMsgType {
     NOT_PUBLISHED = "electionEventNotPublished",
     NO_ELECTIONS = "noElections",
+}
+
+export enum CastBallotsErrorType {
+    LOAD_ELECTION_EVENT = "LOAD_ELECTION_EVENT",
+    NO_BALLOT_SELECTION = "NO_BALLOT_SELECTION",
+    NO_BALLOT_STYLE = "NO_BALLOT_STYLE",
+    NO_AUDITABLE_BALLOT = "NO_AUDITABLE_BALLOT",
+    INCONSISTENT_HASH = "INCONSISTENT_HASH",
+    ELECTION_EVENT_NOT_OPEN = "ELECTION_EVENT_NOT_OPEN",
+}
+
+export enum WasmCastBallotsErrorType {
+    PARSE_ERROR = "PARSE_ERROR",
+    DESERIALIZE_AUDITABLE_ERROR = "DESERIALIZE_AUDITABLE_ERROR",
+    DESERIALIZE_HASHABLE_ERROR = "DESERIALIZE_HASHABLE_ERROR",
+    CONVERT_ERROR = "CONVERT_ERROR",
+    SERIALIZE_ERROR = "SERIALIZE_ERROR",
 }
 
 export class VotingPortalError extends Error {

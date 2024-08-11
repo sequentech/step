@@ -1,3 +1,5 @@
+import { WasmCastBallotsErrorType } from "../services/VotingPortalError"
+
 export enum EBallotError {
     PARSE_ERROR,
     DESERIALIZE_AUDITABLE_ERROR,
@@ -6,7 +8,7 @@ export enum EBallotError {
     SERIALIZE_ERROR,
 }
 
-export type IErrorStatus = {
-    type: EBallotError
-    msg: String
+export interface IBallotError {
+    error_type: WasmCastBallotsErrorType
+    error_msg: string
 }
