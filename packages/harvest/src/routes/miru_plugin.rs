@@ -10,7 +10,11 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use windmill::{
-    services::celery_app::get_celery_app, tasks::send_eml::send_eml_task,
+    services::celery_app::get_celery_app,
+    tasks::{
+        miru_plugin_tasks::create_transmission_package_task,
+        send_eml::send_eml_task,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,6 +40,22 @@ pub async fn create_transmission_package(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TALLY_WRITE],
     )?;
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(create_transmission_package_task::new(
+            claims.hasura_claims.tenant_id.clone(),
+            body.election_id.clone(),
+            body.area_id.clone(),
+            body.tally_session_id.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending create_transmission_package_task task: {error:?}"),
+            )
+        })?;
+    info!("Sent send_eml task {}", task.task_id);
 
     Ok(Json(CreateTransmissionPackageOutput {}))
 }
@@ -73,6 +93,7 @@ pub async fn send_transmission_package(
     ];
     if !authorizations.iter().any(|val| val.is_ok()) {
         authorizations[0].clone()?;
+        authorizations[1].clone()?;
     }
     let celery_app = get_celery_app().await;
     let task = celery_app
