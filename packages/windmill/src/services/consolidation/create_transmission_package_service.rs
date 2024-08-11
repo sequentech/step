@@ -9,7 +9,7 @@ use super::send_eml_service::download_to_file;
 use super::transmission_package::generate_base_compressed_xml;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
@@ -190,6 +190,16 @@ pub async fn create_transmission_package_service(
     let mut new_tally_annotations = tally_annotations.clone();
     let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
     new_tally_annotations.insert(annotation_key, new_transmission_data_str);
+    let new_tally_annotations_value = serde_json::to_value(new_tally_annotations)?;
+
+    update_tally_session_annotation(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        tally_session_id,
+        new_tally_annotations_value,
+    )
+    .await?;
 
     hasura_transaction
         .commit()
