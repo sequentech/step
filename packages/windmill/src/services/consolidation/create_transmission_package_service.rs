@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::{
-    find_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_PLUGIN_PREPEND,
-    MIRU_TALLY_SESSION_DATA,
+    find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
+    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::send_eml_service::download_to_file;
 use super::transmission_package::generate_base_compressed_xml;
@@ -185,7 +185,11 @@ pub async fn create_transmission_package_service(
         })
         .collect();
     new_transmission_data.push(new_transmission_package_data);
-    let new_transmission_data_js = serde_json::to_value(new_transmission_data);
+    let new_transmission_data_str = serde_json::to_string(&new_transmission_data)?;
+
+    let mut new_tally_annotations = tally_annotations.clone();
+    let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
+    new_tally_annotations.insert(annotation_key, new_transmission_data_str);
 
     hasura_transaction
         .commit()
