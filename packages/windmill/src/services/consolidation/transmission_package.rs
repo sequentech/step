@@ -46,7 +46,7 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
 }
 
 #[instrument(skip(report), err)]
-async fn generate_encrypted_compressed_xml(
+async fn generate_base_compressed_xml(
     tally_id: i64,
     transaction_id: i64,
     time_zone: TimeZone,
@@ -54,8 +54,7 @@ async fn generate_encrypted_compressed_xml(
     election_event_annotations: &Annotations,
     election_annotations: &Annotations,
     report: &ReportData,
-    public_key_pem: &str,
-) -> Result<(NamedTempFile, String)> {
+) -> Result<Vec<u8>> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -75,7 +74,14 @@ async fn generate_encrypted_compressed_xml(
     let render_xml = reports::render_template_text(&template_string, variables_map)
         .map_err(|err| anyhow!("{}", err))?;
     let compressed_xml = xz_compress(render_xml.as_bytes())?;
+    Ok(compressed_xml)
+}
 
+#[instrument(skip(compressed_xml), err)]
+async fn generate_encrypted_compressed_xml(
+    compressed_xml: Vec<u8>,
+    public_key_pem: &str,
+) -> Result<(NamedTempFile, String)> {
     let random_pass = generate_random_password(64);
 
     let (_temp_path, temp_path_string, file_size) =
@@ -85,8 +91,7 @@ async fn generate_encrypted_compressed_xml(
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
 
-    let encrypted_random_pass =
-        ecies_encrypt_string(EXAMPLE_PUBLIC_KEY_PEM, random_pass.as_bytes())?;
+    let encrypted_random_pass = ecies_encrypt_string(public_key_pem, random_pass.as_bytes())?;
     Ok((exz_temp_file, encrypted_random_pass))
 }
 
@@ -125,7 +130,7 @@ pub async fn create_transmission_package(
     election_annotations: &Annotations,
     report: &ReportData,
 ) -> Result<NamedTempFile> {
-    let (mut exz_temp_file, encrypted_random_pass) = generate_encrypted_compressed_xml(
+    let compressed_xml: Vec<u8> = generate_base_compressed_xml(
         tally_id,
         transaction_id,
         time_zone.clone(),
@@ -133,9 +138,10 @@ pub async fn create_transmission_package(
         election_event_annotations,
         election_annotations,
         report,
-        EXAMPLE_PUBLIC_KEY_PEM,
     )
     .await?;
+    let (mut exz_temp_file, encrypted_random_pass) =
+        generate_encrypted_compressed_xml(compressed_xml, EXAMPLE_PUBLIC_KEY_PEM).await?;
 
     let exz_temp_file_bytes = read_temp_file(exz_temp_file)?;
     let (private_key_pem_str, public_key_pem_str) = generate_ecies_key_pair()?;
