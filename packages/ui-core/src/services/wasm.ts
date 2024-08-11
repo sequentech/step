@@ -102,7 +102,7 @@ export const sortCandidatesInContest = (
 
 export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBallot => {
     try {
-        return to_hashable_ballot_js(auditableBallot)
+        return to_hashable_ballot_js({...auditableBallot, contests: ["Sdfgsdf"]})
     } catch (error) {
         console.log(error)
         throw error

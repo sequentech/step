@@ -3,13 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
-import {
-    Link as RouterLink,
-    useNavigate,
-    useParams,
-    redirect,
-    useLocation,
-} from "react-router-dom"
+import {Link as RouterLink, useNavigate, useParams, redirect, useLocation} from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
@@ -58,7 +52,6 @@ import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {sortContestList, hashBallot} from "@sequentech/ui-core"
-import {IErrorStatus} from "../types/errors"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -162,13 +155,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     })
 
     const castBallotAction = async () => {
-        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        // if (isDemo) {
-        //     console.log("faking casting demo vote")
-        //     const newCastVote = fakeCastVote()
-        //     dispatch(addCastVotes([newCastVote]))
-        //     return submit(null, {method: "post"})
-        // }
+        if (isDemo) {
+            console.log("faking casting demo vote")
+            const newCastVote = fakeCastVote()
+            dispatch(addCastVotes([newCastVote]))
+            return
+        }
         setIsCastingBallot(true)
 
         try {
@@ -209,7 +201,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             setIsCastingBallot(false)
             // dispatch(clearBallot())
             if (errorFetchingElectionEvent) {
-                setErrorMsg(t(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)) //TODO: create translations
+                setErrorMsg(t(VotingPortalErrorType.UNABLE_TO_FETCH_DATA))
             }
             console.log(error)
             console.log(`error casting vote: ${ballotStyle.election_id}`)
@@ -292,13 +284,13 @@ export const ReviewScreen: React.FC = () => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
+    const {logout} = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
 
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
-    const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {

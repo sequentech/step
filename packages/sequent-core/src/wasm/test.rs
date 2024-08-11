@@ -93,7 +93,7 @@ pub fn to_hashable_ballot_js(
         JsValue::from(ErrorStatus {
             error_type: BallotError::PARSE_ERROR,
             error_msg: format!("{}", err),
-        }) //Error reading javascript auditable ballot
+        }) // Error reading javascript auditable ballot
     })?;
 
     // test deserializing auditable ballot contests
@@ -104,7 +104,7 @@ pub fn to_hashable_ballot_js(
                 error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
                 error_msg: format!("{}", err),
             })
-        })?; //Error deserializing auditable ballot contests
+        })?; // Error deserializing auditable ballot contests
 
     let deserialized_ballot: HashableBallot =
         HashableBallot::try_from(&auditable_ballot).map_err(|err| {
@@ -112,7 +112,7 @@ pub fn to_hashable_ballot_js(
                 error_type: BallotError::CONVERT_ERROR,
                 error_msg: format!("{}", err),
             }
-        })?; //Error converting auditable ballot to hashable ballot
+        })?; // Error converting auditable ballot to hashable ballot
 
     // test deserializing hashable ballot contests
     let _hashable_ballot_contests = deserialized_ballot
@@ -122,7 +122,7 @@ pub fn to_hashable_ballot_js(
                 error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
                 error_msg: format!("{}", err),
             })
-        })?; //Error deserializing hashable ballot contests:
+        })?; // Error deserializing hashable ballot contests
     let serializer = Serializer::json_compatible();
     deserialized_ballot.serialize(&serializer).map_err(|err| {
         JsValue::from(ErrorStatus {
