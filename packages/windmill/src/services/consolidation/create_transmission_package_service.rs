@@ -13,7 +13,9 @@ use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
-use crate::types::miru_plugin::{MiruCcsServer, MiruTransmissionPackageData};
+use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::temp_path::write_into_named_temp_file;
+use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData};
 use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
@@ -144,11 +146,33 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    let mut new_transmission_package_data = MiruTransmissionPackageData {
+    let name = format!("er_{}", transaction_id);
+    let (temp_path, temp_path_string, file_size) =
+        write_into_named_temp_file(&base_compressed_xml, &name, ".xz")?;
+
+    let document = upload_and_return_document_postgres(
+        &hasura_transaction,
+        &temp_path_string,
+        file_size,
+        "applization/zip",
+        tenant_id,
+        &election_event.id,
+        &name,
+        None,
+        false,
+    )
+    .await?;
+
+    let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
         area_id: area_id.to_string(),
         servers: ccs_servers.clone(),
-        documents: vec![],
+        documents: vec![MiruDocument {
+            document_id: document.id.clone(),
+            servers_sent_to: vec![],
+            created_at: "".into(),
+            signatures: vec![],
+        }],
         logs: vec![],
     };
 
