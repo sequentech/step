@@ -23,11 +23,33 @@ use crate::util::voting_screen::{
 };
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct ErrorStatus {
+    pub error_type: BallotError,
+    pub error_msg: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, JsonSchema, Clone, Eq)]
+pub enum BallotError {
+    PARSE_ERROR,
+    DESERIALIZE_AUDITABLE_ERROR,
+    DESERIALIZE_HASHABLE_ERROR,
+    CONVERT_ERROR,
+    SERIALIZE_ERROR,
+}
+
+impl From<ErrorStatus> for JsValue {
+    fn from(error: ErrorStatus) -> JsValue {
+        serde_wasm_bindgen::to_value(&error).unwrap()
+    }
+}
 
 pub trait IntoResult<T> {
     fn into_json(self) -> Result<T, JsValue>;
@@ -64,38 +86,63 @@ pub fn set_hooks() {
 pub fn to_hashable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
-    // parse input
-    let auditable_ballot: AuditableBallot =
-        serde_wasm_bindgen::from_value(auditable_ballot_json).map_err(
-            |err| format!("Error reading javascript auditable ballot: {}", err),
-        )?;
-    // test deserializing auditable ballot contests
+    // Parse input
+    let auditable_ballot: AuditableBallot = serde_wasm_bindgen::from_value(
+        auditable_ballot_json,
+    )
+    .map_err(|err| {
+        JsValue::from(ErrorStatus {
+            error_type: BallotError::PARSE_ERROR,
+            error_msg: format!("Failed to parse auditable ballot: {}", err),
+        })
+    })?;
+
+    // Test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
-            format!("Error deserializing auditable ballot contests: {:?}", err)
-        })
-        .into_json()?;
-    let deserialized_ballot: HashableBallot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
-            format!(
-                "Error converting auditable ballot to hashable ballot: {:?}",
-                err
-            )
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize auditable ballot contests: {}",
+                    err
+                ),
+            })
         })?;
 
-    // test deserializing hashable ballot contests
+    // Convert auditable ballot to hashable ballot
+    let deserialized_ballot: HashableBallot =
+        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::CONVERT_ERROR,
+                error_msg: format!(
+                    "Failed to convert auditable ballot to hashable ballot: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Test deserializing hashable ballot contests
     let _hashable_ballot_contests = deserialized_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
-            format!("Error deserializing hashable ballot contests: {:?}", err)
-        })
-        .into_json()?;
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize hashable ballot contests: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Serialize the hashable ballot
     let serializer = Serializer::json_compatible();
-    deserialized_ballot
-        .serialize(&serializer)
-        .map_err(|err| format!("{:?}", err))
-        .into_json()
+    deserialized_ballot.serialize(&serializer).map_err(|err| {
+        JsValue::from(ErrorStatus {
+            error_type: BallotError::SERIALIZE_ERROR,
+            error_msg: format!("Failed to serialize hashable ballot: {}", err),
+        })
+    })
 }
 
 #[allow(clippy::all)]
