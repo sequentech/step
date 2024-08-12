@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[derive(Debug)]
 pub enum AuthAction {
     Login,
     Enroll,
