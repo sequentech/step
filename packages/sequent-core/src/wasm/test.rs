@@ -85,49 +85,51 @@ pub fn set_hooks() {
 pub fn to_hashable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
-    // parse input
+    // Parse input
     let auditable_ballot: AuditableBallot = serde_wasm_bindgen::from_value(
         auditable_ballot_json,
-    )
-    .map_err(|err| {
+    ).map_err(|err| {
         JsValue::from(ErrorStatus {
             error_type: BallotError::PARSE_ERROR,
-            error_msg: format!("{}", err),
+            error_msg: format!("Failed to parse auditable ballot: {}", err),
         })
     })?;
 
-    // test deserializing auditable ballot contests
+    // Test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
-                error_msg: format!("{}", err),
+                error_msg: format!("Failed to deserialize auditable ballot contests: {}", err),
             })
         })?;
 
+    // Convert auditable ballot to hashable ballot
     let deserialized_ballot: HashableBallot =
         HashableBallot::try_from(&auditable_ballot).map_err(|err| {
-            ErrorStatus {
+            JsValue::from(ErrorStatus {
                 error_type: BallotError::CONVERT_ERROR,
-                error_msg: format!("{}", err),
-            }
+                error_msg: format!("Failed to convert auditable ballot to hashable ballot: {}", err),
+            })
         })?;
 
-    // test deserializing hashable ballot contests
+    // Test deserializing hashable ballot contests
     let _hashable_ballot_contests = deserialized_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
-                error_msg: format!("{}", err),
+                error_msg: format!("Failed to deserialize hashable ballot contests: {}", err),
             })
         })?;
+
+    // Serialize the hashable ballot
     let serializer = Serializer::json_compatible();
     deserialized_ballot.serialize(&serializer).map_err(|err| {
         JsValue::from(ErrorStatus {
             error_type: BallotError::SERIALIZE_ERROR,
-            error_msg: format!("{}", err),
+            error_msg: format!("Failed to serialize hashable ballot: {}", err),
         })
     })
 }
