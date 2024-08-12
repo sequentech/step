@@ -5,6 +5,7 @@ use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
     MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
+use super::logs::create_transmission_package_log;
 use super::send_eml_service::download_to_file;
 use super::transmission_package::generate_base_compressed_xml;
 use crate::postgres::area::get_area_by_id;
@@ -165,6 +166,7 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
+    let area_name = area.name.clone().unwrap_or("".into());
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
         area_id: area_id.to_string(),
@@ -175,7 +177,13 @@ pub async fn create_transmission_package_service(
             created_at: ISO8601::to_string(&now_local),
             signatures: vec![],
         }],
-        logs: vec![],
+        logs: vec![create_transmission_package_log(
+            &now_local,
+            election_id,
+            &election.name,
+            area_id,
+            &area_name,
+        )],
     };
     let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
         .clone()
