@@ -31,13 +31,17 @@ jobs:
     #    npm install @nightwatch/browserstack
     #    npm list @nightwatch/browserstack
     #    sudo apt-get install xvfb
-
+    - name: Set the correct Node version using nvm
+      shell: bash -l {0} 
+      run: nvm install v18.13.0
+    - name: Install Dependencies
+      run: | 
+        npm install
+        npm install yarn --global
+        yarn
     - name: Run admin-portal tests
       run: |
         cd packages/admin-portal
-        npm install
-        npm install @nightwatch/browserstack
-        npm list @nightwatch/browserstack
         sudo apt-get install xvfb
         export TEST_URL="https://admin-portal-dev.sequent.vote/"
         xvfb-run --auto-servernum npx nightwatch test/e2e/area.test.ts -c nightwatch.conf-dev.js  --env chrome
