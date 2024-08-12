@@ -25,7 +25,8 @@ use celery::error::TaskError;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
-use sequent_core::services::generate_urls::get_login_url;
+use sequent_core::services::generate_urls::get_auth_url;
+use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::communications::{
@@ -43,7 +44,7 @@ fn get_variables(
     user: &User,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: String,
-	auth_action: &str
+    auth_action: AuthAction
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
     variables.insert(
@@ -72,7 +73,7 @@ fn get_variables(
                     .as_str(),
                 &tenant_id,
                 &election_event.id,
-				auth_action
+        		auth_action
             )),
         );
     }
@@ -558,7 +559,9 @@ pub async fn send_communication(
                 email = user.email,
             );
             let variables: Map<String, Value> =
-                get_variables(user, election_event.clone(), tenant_id.clone())?;
+                get_variables(user, election_event.clone(), tenant_id.clone(), 
+			            AuthAction::Login
+			)?;
             let success = match communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(

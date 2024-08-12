@@ -102,7 +102,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         setSelected(Math.max(...data))
     }, [record?.status])
 
-    const loginUrl = useCallback(() => {
+    const loginUrl = useMemo(() => {
         return getLoginUrl(globalSettings.VOTING_PORTAL_URL, tenantId ?? "", record?.id ?? "")
     }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
