@@ -12,6 +12,20 @@ export enum VotingPortalErrorType {
     INCONSISTENT_HASH = "INCONSISTENT_HASH",
 }
 
+export enum ElectionScreenErrorType {
+    FETCH_DATA = "unableToFetchData",
+    NO_AREA = "noVotingArea",
+    NETWORK = "networkError",
+    NO_ELECTION_EVENT = "noElectionEvent",
+    OBTAINING_ELECTION = "obtainingElectionFromID",
+    BALLOT_STYLES_EML = "ballotStylesEmlError",
+}
+
+export enum ElectionScreenMsgType {
+    NOT_PUBLISHED = "electionEventNotPublished",
+    NO_ELECTIONS = "noElections",
+}
+
 export class VotingPortalError extends Error {
     type: VotingPortalErrorType
 
