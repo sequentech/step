@@ -37,7 +37,6 @@ jobs:
     - name: Install Dependencies
       run: | 
         cd packages
-        npm install
         npm install yarn --global
         yarn
     - name: Run admin-portal tests
