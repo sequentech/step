@@ -49,7 +49,12 @@ import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
-import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {
+    ElectionScreenErrorType,
+    ElectionScreenMsgType,
+    VotingPortalError,
+    VotingPortalErrorType,
+} from "../services/VotingPortalError"
 import {
     IElectionEvent,
     selectElectionEventById,
@@ -238,13 +243,15 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [oneBallotStyle])
 
     const bypassChooser = useAppSelector(selectBypassChooser())
+    const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
+    const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+
     const {
         error: errorBallotStyles,
         data: dataBallotStyles,
-        networkStatus,
+        loading: loadingBallotStyles,
     } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
-    const [hasLoadElections, setHasLoadElections] = useState<boolean>(false)
     const {
         error: errorElections,
         data: dataElections,
@@ -255,35 +262,88 @@ const ElectionSelectionScreen: React.FC = () => {
         },
     })
 
-    const {error: errorElectionEvent, data: dataElectionEvent} = useQuery<GetElectionEventQuery>(
-        GET_ELECTION_EVENT,
-        {
-            variables: {
-                electionEventId: eventId,
-                tenantId,
-            },
-        }
-    )
+    const {
+        error: errorElectionEvent,
+        data: dataElectionEvent,
+        loading: loadingElectionEvent,
+    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+        variables: {
+            electionEventId: eventId,
+            tenantId,
+        },
+    })
 
     const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
-
-    const hasNoResults = hasLoadElections && electionIds.length === 0
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
+    const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
+    const isPublished = useMemo(
+        () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
+        [dataElectionEvent?.sequent_backend_election_event]
+    )
+
+    // Errors handling
     useEffect(() => {
-        if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-            throw new Error(t("electionSelectionScreen.noVotingAreaError"))
-        } else if (errorElections || errorElectionEvent || errorBallotStyles) {
-            throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_FETCH_DATA)
+        if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
+            if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
+                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
+            } else if (
+                errorElections?.networkError ||
+                errorElectionEvent?.networkError ||
+                errorBallotStyles?.networkError ||
+                errorCastVote?.networkError
+            ) {
+                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
+            } else {
+                setErrorMsg(
+                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`)
+                )
+            }
+        } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
+            setErrorMsg(
+                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
+            )
+        } else if (!isPublished) {
+            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+        } else if (hasNoElections) {
+            if (electionIds.length > 0) {
+                setErrorMsg(
+                    t(
+                        `electionSelectionScreen.errors.${ElectionScreenErrorType.OBTAINING_ELECTION}`,
+                        {electionIds: JSON.stringify(electionIds)}
+                    )
+                )
+            } else {
+                setAlertMsg(
+                    t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`)
+                )
+            }
+        } else {
+            setAlertMsg(undefined)
+            setErrorMsg(undefined)
         }
-    }, [errorElections, errorBallotStyles, errorElectionEvent])
+    }, [
+        errorBallotStyles,
+        errorCastVote,
+        errorElectionEvent,
+        errorElections,
+        isPublished,
+        hasNoElections,
+        dataElectionEvent,
+    ])
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+            try {
+                updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+            } catch {
+                setErrorMsg(
+                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+                )
+            }
         } else if (globalSettings.DISABLE_AUTH) {
             fakeUpdateBallotStyleAndSelection(dispatch)
         }
@@ -301,8 +361,6 @@ const ElectionSelectionScreen: React.FC = () => {
                     })
                 )
             }
-
-            setHasLoadElections(true)
 
             let foundTestElection = dataElections.sequent_backend_election.find((election) =>
                 election.name.includes("TEST")
@@ -325,7 +383,6 @@ const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         const record = dataElectionEvent?.sequent_backend_election_event?.[0]
-
         if (record) {
             dispatch(setElectionEvent(record))
             setIsMaterialsActivated(record?.presentation?.materials?.activated || false)
@@ -370,6 +427,8 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [isDemo])
 
+    if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
+
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
             {!isElectionEventOpen(electionEvent) && (
@@ -390,7 +449,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     minHeight: "100px",
                 }}
             >
-                <Box>
+                <Box sx={{width: "100%"}}>
                     <StyledTitle variant="h1">
                         <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
@@ -418,16 +477,25 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {stringToHtml(t("electionSelectionScreen.description"))}
-                    </Typography>
+                    {errorMsg || alertMsg ? (
+                        <WarnBox variant={errorMsg ? "error" : "warning"}>
+                            {errorMsg || alertMsg}
+                        </WarnBox>
+                    ) : (
+                        <Typography
+                            variant="body1"
+                            sx={{color: theme.palette.customGrey.contrastText}}
+                        >
+                            {stringToHtml(t("electionSelectionScreen.description"))}
+                        </Typography>
+                    )}
                 </Box>
                 {isMaterialsActivated ? (
                     <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
                 ) : null}
             </Box>
             <ElectionContainer className="elections-list">
-                {!hasNoResults ? (
+                {!hasNoElections ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper
                             electionId={electionId}
@@ -441,8 +509,6 @@ const ElectionSelectionScreen: React.FC = () => {
                         <Typography>{t("electionSelectionScreen.noResults")}</Typography>
                     </Box>
                 )}
-
-                {loadingElections && <CircularProgress />}
             </ElectionContainer>
         </PageLimit>
     )
