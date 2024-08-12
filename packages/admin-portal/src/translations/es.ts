@@ -910,6 +910,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
             ceremonyTitle: "Elecciones para el Recuento",

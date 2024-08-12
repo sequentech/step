@@ -911,6 +911,7 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+            exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             ceremonyTitle: "Eleccions per al Recompte",

@@ -914,6 +914,7 @@ const frenchTranslation: TranslationType = {
             },
         },
         tally: {
+            exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
             ceremonyTitle: "Élections pour le Comptage",
