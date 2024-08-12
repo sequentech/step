@@ -38,6 +38,7 @@ jobs:
       run: | 
         cd packages
         npm install yarn --global
+        npm install @nightwatch/browserstack
         yarn
     - name: Run admin-portal tests
       run: |

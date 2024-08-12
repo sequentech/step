@@ -30,7 +30,7 @@ module.exports = {
     custom_assertions_path: [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-plugins.html
-    plugins: [],
+    plugins: ['@nightwatch/browserstack'],
 
     // See https://nightwatchjs.org/guide/concepts/test-globals.html
     globals_path: "",
@@ -101,5 +101,15 @@ module.exports = {
                 ],
             },
         },
+    },
+    '@nightwatch/browserstack': {
+        test_observability: {
+            enabled: true,
+            user: 'eduardorobles_wOBrsX' || process.env.BROWSERSTACK_USERNAME,
+            key: 'tTctpoyoeA7XBGLwNwx3' || process.env.BROWSERSTACK_ACCESS_KEY,
+            projectName: "Sequent Admin Portal",
+            buildName: "Sequent Admin Portal",
+            buildTag: ["nightwatch","admin-portal"]
+        }
     },
 }
