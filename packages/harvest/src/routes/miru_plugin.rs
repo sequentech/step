@@ -55,7 +55,7 @@ pub async fn create_transmission_package(
                 format!("Error sending create_transmission_package_task task: {error:?}"),
             )
         })?;
-    info!("Sent send_eml task {}", task.task_id);
+    info!("Sent create_transmission_package_task task {}", task.task_id);
 
     Ok(Json(CreateTransmissionPackageOutput {}))
 }
@@ -97,7 +97,7 @@ pub async fn send_transmission_package(
     }
     let celery_app = get_celery_app().await;
     let task = celery_app
-        .send_task(send_eml_task::new(
+        .send_task(create_transmission_package_task::new(
             claims.hasura_claims.tenant_id.clone(),
             body.election_id.clone(),
             body.area_id.clone(),
