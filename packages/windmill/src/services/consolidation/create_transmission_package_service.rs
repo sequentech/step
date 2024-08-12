@@ -70,8 +70,7 @@ pub async fn create_transmission_package_service(
                 )
             })
             .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js)
-                    .with_context(|| "error deserializing MiruTallySessionData")
+                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
             })
             .flatten()
             .unwrap_or(vec![]);
@@ -89,7 +88,8 @@ pub async fn create_transmission_package_service(
             )
         })?;
     let ccs_servers: Vec<MiruCcsServer> =
-        deserialize_str(&ccs_servers_js).with_context(|| "error deserializing MiruCcsServer")?;
+        deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+    //.with_context(|| "error deserializing MiruCcsServer")?;
 
     let None = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()

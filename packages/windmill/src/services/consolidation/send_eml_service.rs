@@ -147,7 +147,7 @@ pub async fn send_eml_service(
             )
         })?;
     let ccs_servers: Vec<MiruCcsServer> =
-        deserialize_str(&ccs_servers_js).with_context(|| "error deserializing MiruCcsServer")?;
+        deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
     for result in results {
         if result.election_id != election_id {
             continue;
@@ -182,7 +182,7 @@ pub async fn send_eml_service(
                     &election_event_annotations,
                     base_compressed_xml.clone(),
                     &acm_public_key_pem_str,
-                    &ccs_server.publick_key_pem,
+                    &ccs_server.public_key_pem,
                 )
                 .await?;
             }

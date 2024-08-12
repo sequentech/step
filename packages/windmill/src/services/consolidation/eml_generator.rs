@@ -225,8 +225,8 @@ impl ValidateAnnotations for core::Area {
                     MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
                 )
             })?;
-        let _ccs_servers: Vec<MiruCcsServer> = deserialize_str(&ccs_servers_js)
-            .with_context(|| "error deserializing MiruCcsServer")?;
+        let _ccs_servers: Vec<MiruCcsServer> =
+            deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
         Ok(annotations)
     }
 }
@@ -261,8 +261,8 @@ impl ValidateAnnotations for core::TallySession {
             info!("Tally session doesn't have miru annotations yet");
             return Ok(annotations);
         };
-        let _ccs_servers: MiruTallySessionData = deserialize_str(&tally_session_data_js)
-            .with_context(|| "error deserializing MiruTallySessionData")?;
+        let _ccs_servers: MiruTallySessionData =
+            deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))?;
 
         Ok(annotations)
     }
