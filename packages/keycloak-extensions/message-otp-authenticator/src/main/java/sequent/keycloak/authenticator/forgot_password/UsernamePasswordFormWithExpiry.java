@@ -214,7 +214,6 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     } else {
       // Normal login. In this case this authenticator is supposed to establish identity of the user
       // from the provided username
-      context.clearUser();
       return getUserFromForm(context, inputData);
     }
   }
