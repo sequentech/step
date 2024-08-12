@@ -146,7 +146,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             itemName={resultsElection?.[0]?.name ?? "election"}
                         />
                     ) : null}
-                    <MiruExport electionId={electionId} />
+                    <MiruExport electionId={electionId} tally={tally} />
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>

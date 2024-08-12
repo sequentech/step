@@ -36,3 +36,5 @@ export interface IMiruTransmissionPackageData {
 
 // MiruTallySessionData type alias
 export type IMiruTallySessionData = Array<IMiruTransmissionPackageData>
+
+export const MIRU_TALLY_SESSION_ANNOTATION_KEY = "miru:tally-session-data"
