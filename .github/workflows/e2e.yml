@@ -36,6 +36,7 @@ jobs:
       run: nvm install v18.13.0
     - name: Install Dependencies
       run: | 
+        cd packages
         npm install
         npm install yarn --global
         yarn
