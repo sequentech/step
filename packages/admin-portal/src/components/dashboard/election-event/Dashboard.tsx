@@ -23,7 +23,7 @@ import {useRecordContext} from "react-admin"
 import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
-import {getLoginUrl} from "@/services/UrlGeneration"
+import {getAuthUrl} from "@/services/UrlGeneration"
 
 const Container = styled(Box)`
     display: flex;
@@ -103,7 +103,21 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     }, [record?.status])
 
     const loginUrl = useMemo(() => {
-        return getLoginUrl(globalSettings.VOTING_PORTAL_URL, tenantId ?? "", record?.id ?? "")
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "login"
+        )
+    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
+
+    const enrollUrl = useMemo(() => {
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "enroll"
+        )
     }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
     if (loading) {
@@ -181,7 +195,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                         {t("dashboard.voterLoginURL")}
                     </a>
                     <p>|</p>
-                    <a href={loginUrl ? loginUrl.replace("/login", "/enroll") : ""} target="_blank">
+                    <a href={enrollUrl ?? ""} target="_blank">
                         {t("dashboard.voterEnrollURL")}
                     </a>
                 </Box>

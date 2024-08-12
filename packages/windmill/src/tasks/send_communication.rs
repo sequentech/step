@@ -44,7 +44,7 @@ fn get_variables(
     user: &User,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     tenant_id: String,
-    auth_action: AuthAction
+    auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
     variables.insert(
@@ -73,7 +73,7 @@ fn get_variables(
                     .as_str(),
                 &tenant_id,
                 &election_event.id,
-        		auth_action
+                auth_action
             )),
         );
     }
@@ -558,10 +558,12 @@ pub async fn send_communication(
                 id = user.id,
                 email = user.email,
             );
-            let variables: Map<String, Value> =
-                get_variables(user, election_event.clone(), tenant_id.clone(), 
-			            AuthAction::Login
-			)?;
+            let variables: Map<String, Value> = get_variables(
+                user,
+                election_event.clone(),
+                tenant_id.clone(),
+                AuthAction::Login,
+            )?;
             let success = match communication_method {
                 CommunicationMethod::EMAIL => {
                     let sending_result = send_communication_email(

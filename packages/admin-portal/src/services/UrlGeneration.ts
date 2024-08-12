@@ -4,7 +4,12 @@
 
 import {get_auth_url_js} from "sequent-core"
 
-export const getLoginUrl = (baseUrl: string, tenantId: string, eventId: string, authAction: 'login' | 'enroll'): string | null => {
+export const getAuthUrl = (
+    baseUrl: string,
+    tenantId: string,
+    eventId: string,
+    authAction: "login" | "enroll"
+): string | null => {
     try {
         return get_auth_url_js(baseUrl, tenantId, eventId, authAction)
     } catch (error) {
