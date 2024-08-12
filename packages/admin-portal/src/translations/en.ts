@@ -287,8 +287,9 @@ const englishTranslation = {
             },
             error: {
                 endDate: "End date must be after start date",
-                noResult: "No Election Event yet",
                 startDate: "Start date must be in the future",
+                noResult: "No Election Event yet",
+                endDateInvalid: "End date must be in the future",
             },
             voters: {
                 title: "Voters",
@@ -410,6 +411,7 @@ const englishTranslation = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
@@ -433,9 +435,11 @@ const englishTranslation = {
                 description: "Description",
             },
             error: {
-                endDate: "End date must be after start date",
                 fileError: "Error uploading file",
                 fileLoaded: "File loaded",
+                endDate: "End date must be after start date",
+                startDate: "Start date must be in the future",
+                endDateInvalid: "End date must be in the future",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",

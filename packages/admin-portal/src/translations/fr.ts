@@ -293,6 +293,7 @@ const frenchTranslation: TranslationType = {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 noResult: "Pas encore d'Événement Électoral",
                 startDate: "La date de début doit être dans le futur",
+                endDateInvalid: "La date de fin doit être dans le futur",
             },
             voters: {
                 title: "Électeurs",
@@ -416,6 +417,7 @@ const frenchTranslation: TranslationType = {
             edit: {
                 general: "Général",
                 dates: "Dates",
+                votingPeriod: "Période de vote",
                 language: "Langue",
                 allowed: "Canaux de Vote Permis",
                 default: "Par défaut",
@@ -442,6 +444,8 @@ const frenchTranslation: TranslationType = {
                 endDate: "La date de fin doit être postérieure à la date de début",
                 fileError: "Erreur lors du chargement du fichier",
                 fileLoaded: "Fichier chargé",
+                startDate: "La date de début doit être dans le futur",
+                endDateInvalid: "La date de fin doit être dans le futur"
             },
             createElectionEventSuccess: "Élection créée",
             createElectionEventError: "Erreur lors de la création de l'élection",

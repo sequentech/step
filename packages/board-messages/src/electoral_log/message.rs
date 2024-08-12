@@ -68,11 +68,11 @@ impl Message {
     ) -> Result<Self> {
         match election {
             Some(election) => {
-                let body = StatementBody::ElectionPeriodOpen(election);
+                let body = StatementBody::ElectionVotingPeriodOpen(election);
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventPeriodOpen(event.clone());
+                let body = StatementBody::ElectionEventVotingPeriodOpen(event.clone());
                 Self::from_body(event, body, sd)
             }
         }
@@ -85,11 +85,11 @@ impl Message {
     ) -> Result<Self> {
         match election {
             Some(election) => {
-                let body = StatementBody::ElectionPeriodPause(election);
+                let body = StatementBody::ElectionVotingPeriodPause(election);
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventPeriodPause(event.clone());
+                let body = StatementBody::ElectionEventVotingPeriodPause(event.clone());
                 Self::from_body(event, body, sd)
             }
         }
@@ -102,11 +102,11 @@ impl Message {
     ) -> Result<Self> {
         match election {
             Some(election) => {
-                let body = StatementBody::ElectionPeriodClose(election);
+                let body = StatementBody::ElectionVotingPeriodClose(election);
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventPeriodClose(event.clone());
+                let body = StatementBody::ElectionEventVotingPeriodClose(event.clone());
                 Self::from_body(event, body, sd)
             }
         }

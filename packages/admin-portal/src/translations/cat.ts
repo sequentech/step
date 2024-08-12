@@ -291,8 +291,9 @@ const catalanTranslation: TranslationType = {
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
-                noResult: "Encara no hi ha Esdeveniment Electoral",
                 startDate: "La data d'inici ha de ser en el futur",
+                noResult: "Encara no hi ha Esdeveniment Electoral",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             voters: {
                 title: "Votants",
@@ -415,6 +416,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Període de votació",
                 language: "Idioma",
                 allowed: "Canals de Vot Permesos",
                 default: "Per defecte",
@@ -438,9 +440,11 @@ const catalanTranslation: TranslationType = {
                 description: "Descripció",
             },
             error: {
-                endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 fileError: "Error al carregar el fitxer",
                 fileLoaded: "Fitxer carregat",
+                endDate: "La data de finalització ha de ser posterior a la data d'inici",
+                startDate: "La data d'inici ha de ser en el futur",
+                endDateInvalid: "La data de finalització ha de ser en el futur"
             },
             createElectionEventSuccess: "Creada l'elecció",
             createElectionEventError: "Error Creant l'elecció",
