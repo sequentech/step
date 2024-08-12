@@ -443,7 +443,7 @@ const spanishTranslation: TranslationType = {
                 fileError: "Error al cargar el archivo",
                 fileLoaded: "Archivo cargado",
                 startDate: "La fecha de inicio debe ser en el futuro",
-                endDateInvalid: "La fecha de finalización debe estar en el futuro"
+                endDateInvalid: "La fecha de finalización debe estar en el futuro",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",

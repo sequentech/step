@@ -444,7 +444,7 @@ const catalanTranslation: TranslationType = {
                 fileLoaded: "Fitxer carregat",
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 startDate: "La data d'inici ha de ser en el futur",
-                endDateInvalid: "La data de finalització ha de ser en el futur"
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             createElectionEventSuccess: "Creada l'elecció",
             createElectionEventError: "Error Creant l'elecció",

@@ -369,9 +369,15 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (!values?.dates?.start_date && new Date(values?.dates?.end_date) <= new Date(Date.now())) {
+        if (
+            !values?.dates?.start_date &&
+            new Date(values?.dates?.end_date) <= new Date(Date.now())
+        ) {
             errors.dates.end_date = t("electionScreen.error.endDateInvalid")
-        } else if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
+        } else if (
+            values?.dates?.start_date &&
+            values?.dates?.end_date <= values?.dates?.start_date
+        ) {
             errors.dates.end_date = t("electionScreen.error.endDate")
         } else if (new Date(values?.dates?.start_date) <= new Date(Date.now())) {
             errors.dates.start_date = t("electionScreen.error.startDate")
@@ -662,9 +668,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             display: {xs: "none", sm: "block"},
                                         }}
                                     >
-                                        {t(
-                                            "electionEventScreen.edit.votingPeriod"
-                                        )}
+                                        {t("electionEventScreen.edit.votingPeriod")}
                                     </Typography>
                                     <Grid container spacing={4}>
                                         <Grid item xs={12} md={6}>

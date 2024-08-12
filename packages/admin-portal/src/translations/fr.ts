@@ -445,7 +445,7 @@ const frenchTranslation: TranslationType = {
                 fileError: "Erreur lors du chargement du fichier",
                 fileLoaded: "Fichier chargé",
                 startDate: "La date de début doit être dans le futur",
-                endDateInvalid: "La date de fin doit être dans le futur"
+                endDateInvalid: "La date de fin doit être dans le futur",
             },
             createElectionEventSuccess: "Élection créée",
             createElectionEventError: "Erreur lors de la création de l'élection",
