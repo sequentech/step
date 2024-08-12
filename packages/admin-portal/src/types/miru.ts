@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { ILog } from "./ceremonies"
+import {ILog} from "./ceremonies"
 
 // MiruSignature interface
 export interface IMiruSignature {

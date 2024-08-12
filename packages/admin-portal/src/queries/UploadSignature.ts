@@ -4,8 +4,18 @@
 import {gql} from "@apollo/client"
 
 export const UPLOAD_SIGNATURE = gql`
-    mutation UploadSignature($electionId: uuid!, $tallySessionId: uuid!, $areaId: uuid!, $signature: String!) {
-        upload_signature(election_id: $electionId, tally_session_id: $tallySessionId, area_id: $areaId, signature: $signature) {
+    mutation UploadSignature(
+        $electionId: uuid!
+        $tallySessionId: uuid!
+        $areaId: uuid!
+        $signature: String!
+    ) {
+        upload_signature(
+            election_id: $electionId
+            tally_session_id: $tallySessionId
+            area_id: $areaId
+            signature: $signature
+        ) {
             id
         }
     }

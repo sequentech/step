@@ -14,10 +14,10 @@ import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {MiruExport} from "@/components/MiruExport"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -29,7 +29,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const {tally, resultsEventId} = props
 
         const {t} = useTranslation()
-        const {globalSettings} = useContext(SettingsContext)
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
@@ -147,6 +146,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             itemName={resultsElection?.[0]?.name ?? "election"}
                         />
                     ) : null}
+                    <MiruExport electionId={electionId} />
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>
