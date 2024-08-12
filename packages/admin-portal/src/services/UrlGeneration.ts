@@ -2,11 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {get_login_url_js} from "sequent-core"
+import {get_auth_url_js} from "sequent-core"
 
-export const getLoginUrl = (baseUrl: string, tenantId: string, eventId: string): string | null => {
+export const getAuthUrl = (
+    baseUrl: string,
+    tenantId: string,
+    eventId: string,
+    authAction: "login" | "enroll"
+): string | null => {
     try {
-        return get_login_url_js(baseUrl, tenantId, eventId)
+        return get_auth_url_js(baseUrl, tenantId, eventId, authAction)
     } catch (error) {
         console.log(error)
         throw error

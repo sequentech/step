@@ -222,6 +222,7 @@ const englishTranslation = {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
+            voterEnrollURL: "Voter Enroll URL",
         },
         electionEventScreen: {
             common: {
