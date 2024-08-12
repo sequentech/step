@@ -108,12 +108,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
     if (user == null) {
-      log.error("validate(): user could not be found");
-      // TODO: Change error code
-      context.error(Errors.INVALID_REQUEST);
+      String sessionId = context.getAuthenticationSession().getParentSession().getId();
+      log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
+
+      // Display what the user set in formData for the search attributes
+      for (String attribute : searchAttributesList) {
+        log.errorv(
+            "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
+      }
+      context.error(Utils.ERROR_USER_NOT_FOUND);
       List<FormMessage> errors = new ArrayList<>();
-      // TODO Set a better form message
-      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
       context.validationError(formData, errors);
       return;
     }
@@ -122,12 +127,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     boolean unsetAttributesChecked = checkUnsetAttributes(user, unsetAttributesList);
 
     if (!unsetAttributesChecked) {
-      log.error("validate(): some user unset attributes are set");
-      // TODO: Change error code
-      context.error(Errors.INVALID_REQUEST);
+      String sessionId = context.getAuthenticationSession().getParentSession().getId();
+      log.errorv("validate(): Some user unset attributes are set. Error code: {0}", sessionId);
+      context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET);
       List<FormMessage> errors = new ArrayList<>();
-      // TODO Set a better form message
-      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
       context.validationError(formData, errors);
       return;
     }
@@ -137,14 +141,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         checkUniqueAttributes(context, uniqueAttributesList, formData);
 
     if (!uniqueAttributesChecked) {
-      log.error("validate(): unique attributes present in other users");
-      // TODO: Change error code
-      context.error(Errors.INVALID_REQUEST);
+      String sessionId = context.getAuthenticationSession().getParentSession().getId();
+      log.errorv(
+          "validate(): Unique attributes present in more than one user. Error code: {0}",
+          sessionId);
+      context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE);
       List<FormMessage> errors = new ArrayList<>();
-      // TODO Set a better form message
-      errors.add(new FormMessage(Messages.UNEXPECTED_ERROR_HANDLING_REQUEST));
+      errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
       context.validationError(formData, errors);
-      return;
     }
 
     UserProfile profile = getOrCreateUserProfile(context, formData);
@@ -287,7 +291,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                 .users()
                 .searchForUserStream(realm, Collections.singletonMap(attribute, value.trim()));
 
-        if (currentStream.count() > 0) {
+        // Invalid if there's more than one user with specified attributes.
+        if (currentStream.count() > 1) {
           log.infov(
               "lookupUserByFormData(): checkUniqueAttributes attribute {0} with value {0} present in other users",
               attribute, value);
