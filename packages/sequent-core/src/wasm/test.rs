@@ -88,7 +88,8 @@ pub fn to_hashable_ballot_js(
     // Parse input
     let auditable_ballot: AuditableBallot = serde_wasm_bindgen::from_value(
         auditable_ballot_json,
-    ).map_err(|err| {
+    )
+    .map_err(|err| {
         JsValue::from(ErrorStatus {
             error_type: BallotError::PARSE_ERROR,
             error_msg: format!("Failed to parse auditable ballot: {}", err),
@@ -101,7 +102,10 @@ pub fn to_hashable_ballot_js(
         .map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
-                error_msg: format!("Failed to deserialize auditable ballot contests: {}", err),
+                error_msg: format!(
+                    "Failed to deserialize auditable ballot contests: {}",
+                    err
+                ),
             })
         })?;
 
@@ -110,7 +114,10 @@ pub fn to_hashable_ballot_js(
         HashableBallot::try_from(&auditable_ballot).map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::CONVERT_ERROR,
-                error_msg: format!("Failed to convert auditable ballot to hashable ballot: {}", err),
+                error_msg: format!(
+                    "Failed to convert auditable ballot to hashable ballot: {}",
+                    err
+                ),
             })
         })?;
 
@@ -120,7 +127,10 @@ pub fn to_hashable_ballot_js(
         .map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
-                error_msg: format!("Failed to deserialize hashable ballot contests: {}", err),
+                error_msg: format!(
+                    "Failed to deserialize hashable ballot contests: {}",
+                    err
+                ),
             })
         })?;
 
