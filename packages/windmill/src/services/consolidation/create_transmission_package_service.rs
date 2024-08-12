@@ -51,21 +51,30 @@ pub async fn create_transmission_package_service(
             .await
             .with_context(|| "Error fetching election event")?;
 
-    let tally_session =
-        get_tally_session_by_id(&hasura_transaction, tenant_id, election_id, area_id)
-            .await
-            .with_context(|| "Error fetching tally session")?;
+    let tally_session = get_tally_session_by_id(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session")?;
     let tally_annotations = tally_session.get_valid_annotations()?;
 
-    let tally_session_data_js = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-        .with_context(|| {
-        format!(
-            "Missing tally session annotation: '{}:{}'",
-            MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-        )
-    })?;
-    let transmission_data: MiruTallySessionData = deserialize_str(&tally_session_data_js)
-        .with_context(|| "error deserializing MiruTallySessionData")?;
+    let transmission_data: MiruTallySessionData =
+        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
+            .with_context(|| {
+                format!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                )
+            })
+            .map(|tally_session_data_js| {
+                deserialize_str(&tally_session_data_js)
+                    .with_context(|| "error deserializing MiruTallySessionData")
+            })
+            .flatten()
+            .unwrap_or(vec![]);
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?

@@ -16,6 +16,7 @@ use sequent_core::{
     util::date_time::{generate_timestamp, get_system_timezone},
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use strum_macros::{Display, EnumString, ToString};
 use tracing::{info, instrument};
 use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
@@ -233,26 +234,33 @@ impl ValidateAnnotations for core::Area {
 impl ValidateAnnotations for core::TallySession {
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
-        let annotations_js = self
-            .annotations
-            .clone()
-            .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+        let Some(annotations_js) = self.annotations.clone() else {
+            info!("Tally session has empty annotations");
+            return Ok(HashMap::new());
+        };
 
         let annotations: Annotations = deserialize_value(annotations_js)?;
 
-        check_annotations_exist(
+        let Ok(_) = check_annotations_exist(
             vec![prepend_miru_annotation(MIRU_TALLY_SESSION_DATA)],
             &annotations,
         )
-        .with_context(|| "Tally Session: ")?;
+        .with_context(|| "Tally Session: ") else {
+            info!("Tally session doesn't have miru annotations yet");
+            return Ok(annotations);
+        };
 
-        let tally_session_data_js = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &annotations)
+        let Ok(tally_session_data_js) = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &annotations)
             .with_context(|| {
                 format!(
                     "Missing tally session annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
                 )
-            })?;
+            })
+        else {
+            info!("Tally session doesn't have miru annotations yet");
+            return Ok(annotations);
+        };
         let _ccs_servers: MiruTallySessionData = deserialize_str(&tally_session_data_js)
             .with_context(|| "error deserializing MiruTallySessionData")?;
 

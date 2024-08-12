@@ -265,7 +265,7 @@ pub async fn get_election_event_by_election_area(
                     area_contest.tenant_id = $1 AND
                     area_contest.area_id =$3 AND
                     contest.tenant_id = $1 AND
-                    contest.election_id = $2
+                    contest.election_id = $2 AND
                     election_event.tenant_id = $1;
             "#,
         )

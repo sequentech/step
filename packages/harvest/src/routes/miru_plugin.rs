@@ -55,7 +55,10 @@ pub async fn create_transmission_package(
                 format!("Error sending create_transmission_package_task task: {error:?}"),
             )
         })?;
-    info!("Sent create_transmission_package_task task {}", task.task_id);
+    info!(
+        "Sent create_transmission_package_task task {}",
+        task.task_id
+    );
 
     Ok(Json(CreateTransmissionPackageOutput {}))
 }
