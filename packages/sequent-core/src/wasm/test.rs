@@ -11,7 +11,8 @@ use crate::interpret_plaintext::{
     check_is_blank, get_layout_properties, get_points,
 };
 use crate::plaintext::*;
-use crate::services::generate_urls::get_login_url;
+use crate::services::generate_urls::get_auth_url;
+use crate::services::generate_urls::AuthAction;
 //use crate::serialization::base64::Base64Deserialize;
 use crate::util::normalize_vote::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
@@ -657,10 +658,11 @@ pub fn check_voting_error_dialog(
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn get_login_url_js(
+pub fn get_auth_url_js(
     base_url_json: JsValue,
     tenant_id_json: JsValue,
     event_id_json: JsValue,
+    auth_action_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse input
     let base_url: String = serde_wasm_bindgen::from_value(base_url_json)
@@ -672,9 +674,21 @@ pub fn get_login_url_js(
     let event_id: String = serde_wasm_bindgen::from_value(event_id_json)
         .map_err(|err| format!("Error deserializing event_id: {err}",))
         .into_json()?;
+    let auth_action_str: String =
+        serde_wasm_bindgen::from_value(auth_action_json)
+            .map_err(|err| format!("Error deserializing auth_action: {err}",))
+            .into_json()?;
+
+    let auth_action = match auth_action_str.as_str() {
+        "login" => AuthAction::Login,
+        "enroll" => AuthAction::Enroll,
+        _ => return Err(JsValue::from_str("Invalid auth action")),
+    };
+
     // return result
-    let login_url: String = get_login_url(&base_url, &tenant_id, &event_id);
-    serde_wasm_bindgen::to_value(&login_url)
+    let auth_url: String =
+        get_auth_url(&base_url, &tenant_id, &event_id, auth_action);
+    serde_wasm_bindgen::to_value(&auth_url)
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

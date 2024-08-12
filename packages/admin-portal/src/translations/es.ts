@@ -224,6 +224,7 @@ const spanishTranslation: TranslationType = {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
+            voterEnrollURL: "URL de inscripción de votantes",
         },
         electionEventScreen: {
             common: {
