@@ -172,8 +172,26 @@ const spanishTranslation: TranslationType = {
                     "Está entrando en una cabina de votación de demostración. <strong>Su voto NO será registrado.</strong> Esta cabina de votación es solo para fines de demostración.",
                 ok: "Acepto que mi voto NO será registrado",
             },
-            noVotingAreaError:
-                "Área de votación no asignada al votante. Por favor, contacte con su administrador para obtener asistencia.",
+            errors: {
+                noVotingArea:
+                    "Área electoral no asignada al votante. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                networkError:
+                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                unableToFetchData:
+                    "Hubo un problema al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                noElectionEvent:
+                    "El evento electoral no existe. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                ballotStylesEmlError:
+                    "Hubo un error con la publicación del estilo de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                obtainingElectionFromID:
+                    "Hubo un error al obtener las elecciones asociadas con los siguientes IDs de elecciones: {{electionIds}}. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+            },
+            alerts: {
+                noElections:
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                electionEventNotPublished:
+                    "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+            },
         },
         errors: {
             encoding: {
