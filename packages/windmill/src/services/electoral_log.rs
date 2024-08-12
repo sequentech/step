@@ -112,10 +112,11 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        elections_ids: Option<Vec<String>>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
-        let message = Message::election_open_message(event, election, &self.sd)?;
+        let message = Message::election_open_message(event, election,elections_ids, &self.sd)?;
 
         self.post(message).await
     }
@@ -139,11 +140,12 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        elections_ids: Option<Vec<String>>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_close_message(event, election, &self.sd)?;
+        let message = Message::election_close_message(event, election, elections_ids, &self.sd)?;
 
         self.post(message).await
     }

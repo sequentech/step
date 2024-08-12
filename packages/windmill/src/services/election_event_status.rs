@@ -23,6 +23,7 @@ use std::default::Default;
 use tracing::{info, instrument};
 
 use super::database::get_hasura_pool;
+use super::voting_status::update_board_on_status_change;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
@@ -87,10 +88,10 @@ pub async fn update_event_voting_status(
         serde_json::to_value(&status)?,
     )
     .await?;
-
+    let mut elections_ids: Vec<String> = Vec::new();
     if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
-        update_elections_status_by_election_event(
+        elections_ids = update_elections_status_by_election_event(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
@@ -98,6 +99,15 @@ pub async fn update_event_voting_status(
         )
         .await?;
     }
+
+    update_board_on_status_change(
+        election_event.id.to_string(),
+        election_event.bulletin_board_reference.clone(),
+        new_status.clone(),
+        None,
+        Some(elections_ids),
+    )
+    .await?;
     Ok(election_event)
 }
 

@@ -128,6 +128,15 @@ pub async fn manage_election_date(
             serde_json::to_value(election_event_status)?,
         )
         .await?;
+
+        update_board_on_status_change(
+            election_event_id.clone(),
+            election_event.bulletin_board_reference.clone(),
+            election_status.voting_status.clone(),
+            None,
+            Some(vec![election_id.clone()]),
+        )
+        .await?;
     }
 
     update_board_on_status_change(
@@ -135,6 +144,7 @@ pub async fn manage_election_date(
         election_event.bulletin_board_reference.clone(),
         election_status.voting_status.clone(),
         Some(election_id.clone()),
+        None,
     )
     .await?;
 

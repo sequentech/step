@@ -94,7 +94,7 @@ pub async fn manage_election_event_date(
         }
     };
     // update the database
-    update_elections_status_by_election_event(
+    let elections_ids = update_elections_status_by_election_event(
         &hasura_transaction,
         &tenant_id.to_string(),
         &election_event_id.to_string(),
@@ -107,6 +107,7 @@ pub async fn manage_election_event_date(
         election_event.bulletin_board_reference.clone(),
         status.voting_status.clone(),
         None,
+        Some(elections_ids),
     )
     .await?;
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;

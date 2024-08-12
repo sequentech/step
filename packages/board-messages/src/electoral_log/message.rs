@@ -64,6 +64,7 @@ impl Message {
     pub fn election_open_message(
         event: EventIdString,
         election: Option<ElectionIdString>,
+        election_ids: Option<Vec<String>>,
         sd: &SigningData,
     ) -> Result<Self> {
         match election {
@@ -72,7 +73,7 @@ impl Message {
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventVotingPeriodOpen(event.clone());
+                let body = StatementBody::ElectionEventVotingPeriodOpen(event.clone(), ElectionsIdsString(election_ids.clone()));
                 Self::from_body(event, body, sd)
             }
         }
@@ -98,6 +99,7 @@ impl Message {
     pub fn election_close_message(
         event: EventIdString,
         election: Option<ElectionIdString>,
+        election_ids: Option<Vec<String>>,
         sd: &SigningData,
     ) -> Result<Self> {
         match election {
@@ -106,7 +108,7 @@ impl Message {
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventVotingPeriodClose(event.clone());
+                let body = StatementBody::ElectionEventVotingPeriodClose(event.clone(), ElectionsIdsString(election_ids.clone()));
                 Self::from_body(event, body, sd)
             }
         }

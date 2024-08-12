@@ -35,9 +35,9 @@ impl StatementHead {
             StatementBody::ElectionVotingPeriodOpen(_) => StatementType::ElectionVotingPeriodOpen,
             StatementBody::ElectionVotingPeriodPause(_) => StatementType::ElectionVotingPeriodPause,
             StatementBody::ElectionVotingPeriodClose(_) => StatementType::ElectionVotingPeriodClose,
-            StatementBody::ElectionEventVotingPeriodOpen(_) => StatementType::ElectionEventVotingPeriodOpen,
+            StatementBody::ElectionEventVotingPeriodOpen(_, _) => StatementType::ElectionEventVotingPeriodOpen,
             StatementBody::ElectionEventVotingPeriodPause(_) => StatementType::ElectionEventVotingPeriodPause,
-            StatementBody::ElectionEventVotingPeriodClose(_) => StatementType::ElectionEventVotingPeriodClose,
+            StatementBody::ElectionEventVotingPeriodClose(_, _) => StatementType::ElectionEventVotingPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
             StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
             StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
@@ -76,9 +76,9 @@ pub enum StatementBody {
     ElectionVotingPeriodOpen(ElectionIdString),
     ElectionVotingPeriodPause(ElectionIdString),
     ElectionVotingPeriodClose(ElectionIdString),
-    ElectionEventVotingPeriodOpen(EventIdString),
+    ElectionEventVotingPeriodOpen(EventIdString, ElectionsIdsString),
     ElectionEventVotingPeriodPause(EventIdString),
-    ElectionEventVotingPeriodClose(EventIdString),
+    ElectionEventVotingPeriodClose(EventIdString, ElectionsIdsString),
     // /workspaces/step/packages/windmill/src/celery_app.rs
     // create_keys
     //

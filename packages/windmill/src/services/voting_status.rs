@@ -32,15 +32,6 @@ pub async fn update_event_status(
         voting_status,
     )
     .await?;
-
-    update_board_on_status_change(
-        election_event.id.to_string(),
-        election_event.bulletin_board_reference.clone(),
-        voting_status.clone(),
-        None,
-    )
-    .await?;
-
     Ok(())
 }
 
@@ -97,6 +88,7 @@ pub async fn update_election_status(
             election_event.bulletin_board_reference.clone(),
             voting_status.clone(),
             None,
+            Some(vec![election_id.to_string()]),
         )
         .await?;
     }
@@ -105,6 +97,7 @@ pub async fn update_election_status(
         election_event.bulletin_board_reference.clone(),
         voting_status.clone(),
         Some(election_id.to_string()),
+        None,
     )
     .await?;
 
@@ -117,6 +110,7 @@ pub async fn update_board_on_status_change(
     board_reference: Option<Value>,
     voting_status: VotingStatus,
     election_id: Option<String>,
+    elections_ids: Option<Vec<String>>
 ) -> Result<()> {
     let board_name =
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
@@ -131,7 +125,7 @@ pub async fn update_board_on_status_change(
         }
         VotingStatus::OPEN => {
             electoral_log
-                .post_election_open(election_event_id, maybe_election_id)
+                .post_election_open(election_event_id, maybe_election_id, elections_ids)
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
@@ -143,7 +137,7 @@ pub async fn update_board_on_status_change(
         }
         VotingStatus::CLOSED => {
             electoral_log
-                .post_election_close(election_event_id, maybe_election_id)
+                .post_election_close(election_event_id, maybe_election_id, elections_ids)
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
