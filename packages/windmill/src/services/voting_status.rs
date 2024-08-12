@@ -110,7 +110,7 @@ pub async fn update_board_on_status_change(
     board_reference: Option<Value>,
     voting_status: VotingStatus,
     election_id: Option<String>,
-    elections_ids: Option<Vec<String>>
+    elections_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let board_name =
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;

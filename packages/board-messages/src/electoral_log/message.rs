@@ -73,7 +73,10 @@ impl Message {
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventVotingPeriodOpen(event.clone(), ElectionsIdsString(election_ids.clone()));
+                let body = StatementBody::ElectionEventVotingPeriodOpen(
+                    event.clone(),
+                    ElectionsIdsString(election_ids.clone()),
+                );
                 Self::from_body(event, body, sd)
             }
         }
@@ -108,7 +111,10 @@ impl Message {
                 Self::from_body(event, body, sd)
             }
             None => {
-                let body = StatementBody::ElectionEventVotingPeriodClose(event.clone(), ElectionsIdsString(election_ids.clone()));
+                let body = StatementBody::ElectionEventVotingPeriodClose(
+                    event.clone(),
+                    ElectionsIdsString(election_ids.clone()),
+                );
                 Self::from_body(event, body, sd)
             }
         }

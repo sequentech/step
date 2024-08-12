@@ -35,9 +35,15 @@ impl StatementHead {
             StatementBody::ElectionVotingPeriodOpen(_) => StatementType::ElectionVotingPeriodOpen,
             StatementBody::ElectionVotingPeriodPause(_) => StatementType::ElectionVotingPeriodPause,
             StatementBody::ElectionVotingPeriodClose(_) => StatementType::ElectionVotingPeriodClose,
-            StatementBody::ElectionEventVotingPeriodOpen(_, _) => StatementType::ElectionEventVotingPeriodOpen,
-            StatementBody::ElectionEventVotingPeriodPause(_) => StatementType::ElectionEventVotingPeriodPause,
-            StatementBody::ElectionEventVotingPeriodClose(_, _) => StatementType::ElectionEventVotingPeriodClose,
+            StatementBody::ElectionEventVotingPeriodOpen(_, _) => {
+                StatementType::ElectionEventVotingPeriodOpen
+            }
+            StatementBody::ElectionEventVotingPeriodPause(_) => {
+                StatementType::ElectionEventVotingPeriodPause
+            }
+            StatementBody::ElectionEventVotingPeriodClose(_, _) => {
+                StatementType::ElectionEventVotingPeriodClose
+            }
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
             StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
             StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
