@@ -205,18 +205,17 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   private UserModel getUser(
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
-    if (isUserAlreadySetBeforeUsernamePasswordAuth(context)) {
-      // Get user from the authentication context in case he was already set before this
-      // authenticator
-      UserModel user = context.getUser();
-      testInvalidUser(context, user);
-      return user;
-    } else {
-      // Normal login. In this case this authenticator is supposed to establish identity of the user
-      // from the provided username
-      context.clearUser();
-      return getUserFromForm(context, inputData);
-    }
+        if (isUserAlreadySetBeforeUsernamePasswordAuth(context)) {
+          // Get user from the authentication context in case he was already set before this
+          // authenticator
+          UserModel user = context.getUser();
+          testInvalidUser(context, user);
+          return user;
+        } else {
+          // Normal login. In this case this authenticator is supposed to establish identity of the user
+          // from the provided username
+          return getUserFromForm(context, inputData);
+        }
   }
 
   private UserModel getUserFromForm(
