@@ -40,9 +40,4 @@ jobs:
         cd ..
         sudo apt-get install xvfb
         export TEST_URL="https://admin-portal-dev.sequent.vote/"
-        for file in "test/e2e/"*".ts"; do
-            if [[ -f "$file" ]]; then
-                echo "$file"
-                xvfb-run --auto-servernum npx nightwatch $file -c nightwatch.conf-dev.js  --env chrome
-            fi
-        done
+        xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-dev.js  --env chrome
