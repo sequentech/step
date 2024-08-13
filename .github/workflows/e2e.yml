@@ -21,28 +21,28 @@ jobs:
     - uses: actions/checkout@v3
     - name: Use Node.js
       uses: actions/setup-node@v3
-      #with:
-      #  node-version: $undefined
-      #∫  cache: 'npm'
-
-    #- name: npm-install
-    #  run: |
-    #    npm ci
-    #    npm install @nightwatch/browserstack
-    #    npm list @nightwatch/browserstack
-    #    sudo apt-get install xvfb
-    - name: Set the correct Node version using nvm
-      shell: bash -l {0} 
-      run: nvm install v18.13.0
+      with:
+        node-version: '18.13.0'
+        cache: 'yarn'
+    #- name: Set the correct Node version using nvm
+    #  shell: bash -l {0} 
+    #  run: nvm install v18.13.0
     - name: Install Dependencies
       run: | 
         cd packages
-        npm install yarn --global
         yarn
         npm install @nightwatch/browserstack
     - name: Run admin-portal tests
       run: |
-        cd packages/admin-portal
+        cd packages/admin-portal/node_modules
+        cp -r ../../node_modules/@nightwatch .
+        cp -r ../../node_modules/nightwatch .
+        cd ..
         sudo apt-get install xvfb
         export TEST_URL="https://admin-portal-dev.sequent.vote/"
-        xvfb-run --auto-servernum npx nightwatch test/e2e/area.test.ts -c nightwatch.conf-dev.js  --env chrome
+        for file in "test/e2e/"*".ts"; do
+            if [[ -f "$file" ]]; then
+                echo "$file"
+                xvfb-run --auto-servernum npx nightwatch $file -c nightwatch.conf-dev.js  --env chrome
+            fi
+        done
