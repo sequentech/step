@@ -5,16 +5,16 @@ import {ILog} from "./ceremonies"
 
 // MiruSignature interface
 export interface IMiruSignature {
-    trusteeName: string
-    pubKey: string
+    trustee_name: string
+    pub_key: string
     signature: string
 }
 
 // MiruDocument interface
 export interface IMiruDocument {
-    documentId: string
-    serversSentTo: Array<string>
-    createdAt: string
+    document_id: string
+    servers_sent_to: Array<string>
+    created_at: string
     signatures: Array<IMiruSignature>
 }
 
@@ -27,8 +27,8 @@ export interface IMiruCcsServer {
 
 // MiruTransmissionPackageData interface
 export interface IMiruTransmissionPackageData {
-    electionId: string
-    areaId: string
+    election_id: string
+    area_id: string
     servers: Array<IMiruCcsServer>
     documents: Array<IMiruDocument>
     logs: Array<ILog>
