@@ -42,7 +42,7 @@ use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::{Ciphertext, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
-use crate::serialization::{StrandVectorC, StrandVectorE, StrandVectorX};
+use crate::serialization::StrandVector;
 use crate::util::{Par, StrandError};
 use crate::zkp::ChallengeInput;
 
@@ -62,7 +62,7 @@ pub struct Commitments<C: Ctx> {
     pub t3: C::E,
     pub t4_1: C::E,
     pub t4_2: C::E,
-    pub t_hats: StrandVectorE<C>,
+    pub t_hats: StrandVector<C::E>,
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
@@ -72,8 +72,8 @@ pub struct Responses<C: Ctx> {
     pub(crate) s2: C::X,
     pub(crate) s3: C::X,
     pub(crate) s4: C::X,
-    pub(crate) s_hats: StrandVectorX<C>,
-    pub(crate) s_primes: StrandVectorX<C>,
+    pub(crate) s_hats: StrandVector<C::X>,
+    pub(crate) s_primes: StrandVector<C::X>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
@@ -84,9 +84,9 @@ pub struct ShuffleProof<C: Ctx> {
     // proof response
     pub(crate) s: Responses<C>,
     // permutation commitment
-    pub(crate) cs: StrandVectorE<C>,
+    pub(crate) cs: StrandVector<C::E>,
     // commitment chain
-    pub(crate) c_hats: StrandVectorE<C>,
+    pub(crate) c_hats: StrandVector<C::E>,
 }
 
 pub(super) struct PermutationData<'a, C: Ctx> {
@@ -333,7 +333,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             t3,
             t4_1,
             t4_2,
-            t_hats: StrandVectorE(t_hats),
+            t_hats: StrandVector(t_hats),
         };
 
         // let now = Instant::now();
@@ -365,8 +365,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             s2,
             s3,
             s4,
-            s_hats: StrandVectorX(s_hats),
-            s_primes: StrandVectorX(s_primes),
+            s_hats: StrandVector(s_hats),
+            s_primes: StrandVector(s_primes),
         };
 
         let cs = cs.to_vec();
@@ -377,8 +377,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             ShuffleProof {
                 t,
                 s,
-                cs: StrandVectorE(cs),
-                c_hats: StrandVectorE(c_hats),
+                cs: StrandVector(cs),
+                c_hats: StrandVector(c_hats),
             },
             us,
             c,
@@ -602,10 +602,10 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         label: &[u8],
     ) -> Result<Vec<C::X>, StrandError> {
         let mut prefix_challenge_input = ChallengeInput::from(&[
-            ("es", &StrandVectorC(es.to_vec())),
-            ("e_primes", &StrandVectorC(e_primes.to_vec())),
+            ("es", &StrandVector(es.to_vec())),
+            ("e_primes", &StrandVector(e_primes.to_vec())),
         ])?;
-        prefix_challenge_input.add("cs", &StrandVectorE::<C>(cs.to_vec()))?;
+        prefix_challenge_input.add("cs", &StrandVector::<C::E>(cs.to_vec()))?;
         prefix_challenge_input.add("label", &label.to_vec())?;
 
         let prefix_bytes = prefix_challenge_input.strand_serialize()?;
@@ -650,18 +650,18 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         ])?;
 
         challenge_input
-            .add_bytes("es", StrandVectorC(y.es.to_vec()).strand_serialize()?);
+            .add_bytes("es", StrandVector(y.es.to_vec()).strand_serialize()?);
         challenge_input.add_bytes(
             "e_primes",
-            StrandVectorC(y.e_primes.to_vec()).strand_serialize()?,
+            StrandVector(y.e_primes.to_vec()).strand_serialize()?,
         );
         challenge_input.add_bytes(
             "cs",
-            StrandVectorE::<C>(y.cs.to_vec()).strand_serialize()?,
+            StrandVector::<C::E>(y.cs.to_vec()).strand_serialize()?,
         );
         challenge_input.add_bytes(
             "c_hats",
-            StrandVectorE::<C>(y.c_hats.to_vec()).strand_serialize()?,
+            StrandVector::<C::E>(y.c_hats.to_vec()).strand_serialize()?,
         );
         challenge_input
             .add_bytes("pk.element", y.pk.element.strand_serialize()?);

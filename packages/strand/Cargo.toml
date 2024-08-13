@@ -28,6 +28,7 @@ openssl_core = ["dep:openssl", "dep:rand_core"]
 openssl_full = ["dep:openssl", "dep:rand_core"]
 fips_core = ["openssl_core"]
 fips_full = ["openssl_full"]
+rustcrypto_interop_test = []
 
 [dependencies]
 

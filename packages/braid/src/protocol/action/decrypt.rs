@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use rayon::prelude::*;
-use strand::{serialization::StrandVectorCP, serialization::StrandVectorP, zkp::ChaumPedersen};
+use strand::{serialization::StrandVector, zkp::ChaumPedersen};
 
 pub(super) fn compute_decryption_factors<C: Ctx>(
     cfg_h: &ConfigurationHash,
@@ -83,7 +83,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = result?.into_iter().unzip();
 
-    let df = DecryptionFactors::new(factors, StrandVectorCP(proofs));
+    let df = DecryptionFactors::new(factors, StrandVector(proofs));
     let m = Message::decryption_factors_msg(cfg, *batch, df, *ciphertexts_h, *shares_hs, trustee)?;
     Ok(vec![m])
 }
@@ -284,5 +284,5 @@ fn compute_plaintexts_<C: Ctx>(
         })
         .collect();
 
-    Ok(Plaintexts(StrandVectorP(ps)))
+    Ok(Plaintexts(StrandVector(ps)))
 }

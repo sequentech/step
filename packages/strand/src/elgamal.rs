@@ -78,6 +78,24 @@ impl<C: Ctx> Ciphertext<C> {
     }
 }
 
+#[derive(Clone, Eq, PartialEq, Debug, BorshSerialize, BorshDeserialize)]
+pub struct ProductCiphertext<C: Ctx> {
+    ciphertexts: Vec<Ciphertext<C>>,
+}
+impl<C: Ctx> ProductCiphertext<C> {
+    pub fn new(c: Vec<Ciphertext<C>>) -> Self {
+        ProductCiphertext {
+            ciphertexts: c,
+        }
+    }
+    pub fn ciphertexts(&self) -> &Vec<Ciphertext<C>> {
+        &self.ciphertexts
+    }
+    pub fn width(&self) -> usize {
+        self.ciphertexts.len()
+    }
+}
+
 /// An ElGamal public key.
 #[derive(Eq, PartialEq, Debug, BorshSerialize, BorshDeserialize)]
 pub struct PublicKey<C: Ctx> {

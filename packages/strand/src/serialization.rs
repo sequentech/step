@@ -33,10 +33,11 @@
 //! let plaintext_ = ctx.decode(&decrypted);
 //! assert_eq!(plaintext, plaintext_);
 //! ```
-
-use crate::elgamal::Ciphertext;
+use std::io::{Error, ErrorKind};
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::elgamal::{Ciphertext, ProductCiphertext};
+use crate::shuffler_product::CiphertextRectangle;
 use crate::context::Ctx;
 use crate::zkp::ChaumPedersen;
 
@@ -58,10 +59,57 @@ pub trait StrandDeserialize {
         Self: Sized;
 }
 
+impl<T: BorshSerialize> StrandSerialize for T {
+    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
+        self.try_to_vec().map_err(|e| e.into())
+    }
+}
+
+impl<T: BorshDeserialize> StrandDeserialize for T {
+    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError>
+    where
+        Self: Sized,
+    {
+        let value = T::try_from_slice(bytes);
+        value.map_err(|e| e.into())
+    }
+}
+
 // Optimized (par) serialization vectors
 // See also https://github.com/rust-lang/rust/issues/31844
 // See also https://github.com/rust-lang/rust/issues/42721
 
+#[derive(Clone, Debug)]
+/// Optimized (par) serialization vectors
+pub struct StrandVector<T: BorshSerialize + BorshDeserialize>(pub Vec<T>);
+
+impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshSerialize for StrandVector<T> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let vector = &self.0;
+
+        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
+            vector.par().map(|t| t.try_to_vec()).collect();
+        let inside = vecs?;
+
+        inside.serialize(writer)
+    }
+}
+
+impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for StrandVector<T> {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+
+        let results: std::io::Result<Vec<T>> =
+            vectors.par().map(|v| T::try_from_slice(&v)).collect();
+
+        Ok(StrandVector(results?))
+    }
+}
+
+/*
 /// Parallelized serialization for plaintext vectors.
 #[derive(Clone, Debug)]
 pub struct StrandVectorP<C: Ctx>(pub Vec<C::P>);
@@ -81,22 +129,6 @@ pub struct StrandVectorC<C: Ctx>(pub Vec<Ciphertext<C>>);
 /// Parallelized serialization for ChaumPedersen proof vectors.
 #[derive(Debug)]
 pub struct StrandVectorCP<C: Ctx>(pub Vec<ChaumPedersen<C>>);
-
-impl<T: BorshSerialize> StrandSerialize for T {
-    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
-        self.try_to_vec().map_err(|e| e.into())
-    }
-}
-
-impl<T: BorshDeserialize> StrandDeserialize for T {
-    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError>
-    where
-        Self: Sized,
-    {
-        let value = T::try_from_slice(bytes);
-        value.map_err(|e| e.into())
-    }
-}
 
 impl<C: Ctx> BorshSerialize for StrandVectorP<C> {
     fn serialize<W: std::io::Write>(
@@ -228,6 +260,35 @@ impl<C: Ctx> BorshDeserialize for StrandVectorCP<C> {
             .collect();
 
         Ok(StrandVectorCP(results?))
+    }
+}*/
+
+impl<C: Ctx> BorshSerialize for CiphertextRectangle<C> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let vector = self.products();
+
+        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
+            vector.par().map(|t| t.try_to_vec()).collect();
+        let inside = vecs?;
+
+        inside.serialize(writer)
+    }
+}
+
+impl<C: Ctx> BorshDeserialize for CiphertextRectangle<C> {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
+        let results: std::io::Result<Vec<ProductCiphertext<C>>> = vectors
+            .par()
+            .map(|v| ProductCiphertext::<C>::try_from_slice(&v))
+            .collect();
+
+        CiphertextRectangle::new(results?).map_err(|_| {
+            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+        })
     }
 }
 

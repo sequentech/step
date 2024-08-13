@@ -7,7 +7,8 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use strand::zkp::Schnorr;
+use strand::shuffler_product::CiphertextRectangle;
+use strand::zkp::{ChaumPedersen, Schnorr};
 
 use crate::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::braid::newtypes::{BatchNumber, MixNumber};
@@ -119,26 +120,39 @@ impl<C: Ctx> DkgPublicKey<C> {
     }
 }
 
-use strand::serialization::StrandVectorC;
+use strand::serialization::StrandVector;
+/*use strand::serialization::StrandVectorC;
 use strand::serialization::StrandVectorCP;
 use strand::serialization::StrandVectorE;
-use strand::serialization::StrandVectorP;
+use strand::serialization::StrandVectorP; */
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Ballots<C: Ctx> {
-    pub ciphertexts: StrandVectorC<C>,
+    pub ciphertexts: StrandVector<Ciphertext<C>>,
 }
 impl<C: Ctx> Ballots<C> {
     pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
         Ballots {
-            ciphertexts: StrandVectorC(ciphertexts),
+            ciphertexts: StrandVector(ciphertexts),
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct BallotsWide<C: Ctx> {
+    pub ciphertexts: CiphertextRectangle<C>,
+}
+impl<C: Ctx> BallotsWide<C> {
+    pub fn new(ciphertexts: CiphertextRectangle<C>) -> BallotsWide<C> {
+        BallotsWide {
+            ciphertexts,
         }
     }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Mix<C: Ctx> {
-    pub ciphertexts: StrandVectorC<C>,
+    pub ciphertexts: StrandVector<Ciphertext<C>>,
     pub proof: Option<ShuffleProof<C>>,
     pub mix_number: MixNumber,
 }
@@ -149,14 +163,14 @@ impl<C: Ctx> Mix<C> {
         mix_number: MixNumber,
     ) -> Mix<C> {
         Mix {
-            ciphertexts: StrandVectorC(ciphertexts),
+            ciphertexts: StrandVector(ciphertexts),
             proof: Some(proof),
             mix_number,
         }
     }
     pub fn null(mix_number: MixNumber) -> Mix<C> {
         Mix {
-            ciphertexts: StrandVectorC(vec![]),
+            ciphertexts: StrandVector(vec![]),
             proof: None,
             mix_number,
         }
@@ -165,20 +179,20 @@ impl<C: Ctx> Mix<C> {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DecryptionFactors<C: Ctx> {
-    pub factors: StrandVectorE<C>,
-    pub proofs: StrandVectorCP<C>,
+    pub factors: StrandVector<C::E>,
+    pub proofs: StrandVector<ChaumPedersen<C>>,
 }
 impl<C: Ctx> DecryptionFactors<C> {
-    pub fn new(factors: Vec<C::E>, proofs: StrandVectorCP<C>) -> DecryptionFactors<C> {
+    pub fn new(factors: Vec<C::E>, proofs: StrandVector<ChaumPedersen<C>>) -> DecryptionFactors<C> {
         DecryptionFactors {
-            factors: StrandVectorE(factors),
+            factors: StrandVector(factors),
             proofs,
         }
     }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct Plaintexts<C: Ctx>(pub StrandVectorP<C>);
+pub struct Plaintexts<C: Ctx>(pub StrandVector<C::P>);
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug

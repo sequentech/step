@@ -43,8 +43,7 @@ pub fn hash_xof(
     Ok(buf)
 }
 
-pub(crate) fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError>
-{
+pub(crate) fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError> {
     let md = MessageDigest::sha384();
     let hasher = HasherOpenSSL::new(md)?;
     Ok(hasher)
