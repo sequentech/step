@@ -55,7 +55,7 @@ export interface AuthContextValues {
      */
     keycloakAccessToken: string | undefined
 
-    setTenantEvent: (tenantId: string, eventId: string) => void
+    setTenantEvent: (tenantId: string, eventId: string, authType?: "register" | "login") => void
 
     /**
      * Open accountManagement from Keycloak
@@ -123,6 +123,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
+    const [authType, setAuthType] = useState<"register" | "login" | null>(null)
 
     useEffect(() => {
         function createKeycloak() {
@@ -214,15 +215,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // Configure that Keycloak will check if a user is already authenticated (when
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
-                    onLoad: "login-required",
                     checkLoginIframe: false,
                     locale: getLanguageFromURL(),
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
                 // If the authentication was not successfull the user is send back to the Keycloak login form
-                if (!isAuthenticatedResponse) {
-                    return await keycloak.login()
+                if (!isAuthenticatedResponse && authType) {
+                    if (authType === "register") {
+                        return await keycloak.register()
+                    } else {
+                        return await keycloak.login()
+                    }
                 }
 
                 if (!keycloak.token) {
@@ -244,7 +248,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak && !isAuthenticated && !isKeycloakInitialized) {
             initializeKeycloak()
         }
-    }, [keycloak, isAuthenticated, isKeycloakInitialized])
+    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType])
 
     useEffect(() => {
         async function loadProfile() {
@@ -280,9 +284,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (tenantId: string, eventId: string) => {
+    const setTenantEvent = (tenantId: string, eventId: string, authType?: "register" | "login") => {
         setTenantId(tenantId)
         setEventId(eventId)
+        authType && setAuthType(authType)
     }
 
     const logout = (redirectUrl?: string) => {

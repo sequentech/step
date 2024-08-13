@@ -41,8 +41,8 @@ public class Utils {
   public final String DOC_ID_ATTRIBUTE = "doc-id";
   public final String DOC_ID_TYPE_ATTRIBUTE = "doc-id-type";
   public final String USER_STATUS_ATTRIBUTE = "user-status";
-  public final String USER_STATUS_VERIFIED = "VERFIED";
-  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERFIED";
+  public final String USER_STATUS_VERIFIED = "VERIFIED";
+  public final String USER_STATUS_NOT_VERIFIED = "NOT-VERIFIED";
   public final String SDK_ATTRIBUTE = "sdk";
   public final String API_KEY_ATTRIBUTE = "api-key";
   public final String APP_ID_ATTRIBUTE = "app-id";
@@ -52,6 +52,7 @@ public class Utils {
   public final String TRANSACTION_NEW_ATTRIBUTE = "transaction-new";
   public final String INETUM_FORM = "inetum-authenticator.ftl";
   public final String INETUM_ERROR = "inetum-error.ftl";
+  public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
 
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
@@ -74,6 +75,11 @@ public class Utils {
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
   private static final String USER_ID = "userId";
+  public static final String MULTIVALUE_SEPARATOR = "##";
+  public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
+  public static final String ERROR_USER_NOT_FOUND = "userNotFound";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
 
   /**
    * We store the user data entered in the registration form in the session notes. This information

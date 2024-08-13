@@ -100,8 +100,10 @@ public class Utils {
     RealmModel realm = authSession.getRealm();
     String realmName = getRealmName(realm);
 
-    log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
-    log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
+    if (mobileNumber != null) {
+      log.infov("sendCode(): mobileNumber TRIM=`{0}`", mobileNumber.trim());
+      log.infov("sendCode(): mobileNumber LENGTH=`{0}`", mobileNumber.trim().length());
+    }
     log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
     if (mobileNumber != null
@@ -296,10 +298,10 @@ public class Utils {
 
       emailSender.send(
           realm.getSmtpConfig(),
+          address,
           emailTemplate.getSubject(),
           emailTemplate.getTextBody(),
-          emailTemplate.getHtmlBody(),
-          address);
+          emailTemplate.getHtmlBody());
     } catch (EmailException e) {
       throw e;
     } catch (Exception e) {
