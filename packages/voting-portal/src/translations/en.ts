@@ -81,6 +81,34 @@ const englishTranslation = {
                 ok: "Yes, I want to CAST my vote",
                 cancel: "Cancel",
             },
+            error: {
+                NETWORK_ERROR:
+                    "There was a network problem. Please try again later or contact support for assistance.",
+                UNABLE_TO_FETCH_DATA:
+                    "There was a problem fetching the data. Please try again later or contact support for assistance.",
+                LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
+                CAST_VOTE:
+                    "There was an error with graphQL while casting the vote. Please try again later or contact support for assistance.",
+                NO_BALLOT_SELECTION:
+                    "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
+                NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
+                NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
+                INCONSISTENT_HASH:
+                    "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
+                ELECTION_EVENT_NOT_OPEN: "The election event is closed. Please contact support.",
+                PARSE_ERROR:
+                    "There was an error parsing the ballot. Please try again later or contact support for assistance.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "There was an error deserializing the auditable ballot. Please try again later or contact support for assistance.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "There was an error deserializing the hashable ballot. Please try again later or contact support for assistance.",
+                CONVERT_ERROR:
+                    "There was an error converting the ballot. Please try again later or contact support for assistance.",
+                SERIALIZE_ERROR:
+                    "There was an error serializing the ballot. Please try again later or contact support for assistance.",
+                UNKNOWN_ERROR:
+                    "There was an error. Please try again later or contact support for assistance.",
+            },
         },
         confirmationScreen: {
             title: "Your vote has been cast",
