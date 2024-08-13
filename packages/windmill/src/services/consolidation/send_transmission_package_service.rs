@@ -8,18 +8,20 @@ use super::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
     },
+    logs::send_transmission_package_to_ccs_log,
     transmission_package::create_transmission_package,
 };
 use crate::{
     postgres::{
-        document::get_document, election_event::get_election_event_by_election_area,
+        area::get_area_by_id, document::get_document, election::get_election_by_id,
+        election_event::get_election_event_by_election_area,
         tally_session::get_tally_session_by_id,
     },
     services::{database::get_hasura_pool, date::ISO8601, documents::get_document_as_temp_file},
     types::miru_plugin::{MiruCcsServer, MiruTallySessionData, MiruTransmissionPackageData},
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::Utc;
+use chrono::{Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
 use sequent_core::{
@@ -96,6 +98,23 @@ pub async fn send_transmission_package_service(
             .with_context(|| "Error fetching election event")?;
     let election_event_annotations = election_event.get_valid_annotations()?;
 
+    let Some(election) = get_election_by_id(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        election_id,
+    )
+    .await?
+    else {
+        info!("Election not found");
+        return Ok(());
+    };
+    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+        .await
+        .with_context(|| format!("Error fetching area {}", area_id))?
+        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+    let area_name = area.name.clone().unwrap_or("".into());
+
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
         tenant_id,
@@ -167,11 +186,13 @@ pub async fn send_transmission_package_service(
 
     let (private_key_pem_str, acm_public_key_pem_str) = generate_ecies_key_pair()?;
     let mut new_miru_document = miru_document.clone();
+    let mut new_transmission_area_election = transmission_area_election.clone();
+
     for ccs_server in &transmission_area_election.servers {
         if miru_document.servers_sent_to.contains(&ccs_server.name) {
             continue;
         };
-        let mut transmission_package = create_transmission_package(
+        let transmission_package = create_transmission_package(
             time_zone.clone(),
             now_utc.clone(),
             &election_event_annotations,
@@ -180,13 +201,31 @@ pub async fn send_transmission_package_service(
             &ccs_server.public_key_pem,
         )
         .await?;
-        send_package_to_ccs_server(transmission_package, ccs_server).await?;
-        new_miru_document
-            .servers_sent_to
-            .push(ccs_server.name.clone());
+        if let Ok(_) = send_package_to_ccs_server(transmission_package, ccs_server).await {
+            new_transmission_area_election
+                .logs
+                .push(send_transmission_package_to_ccs_log(
+                    &Local::now(),
+                    election_id,
+                    &election.name,
+                    area_id,
+                    &area_name,
+                    &ccs_server.name,
+                    &ccs_server.address,
+                    new_miru_document
+                        .signatures
+                        .clone()
+                        .into_iter()
+                        .map(|signature| signature.trustee_name.clone())
+                        .collect(),
+                ));
+            new_miru_document
+                .servers_sent_to
+                .push(ccs_server.name.clone());
+        } else {
+        };
     }
 
-    let mut new_transmission_area_election = transmission_area_election.clone();
     new_transmission_area_election.documents = new_transmission_area_election
         .documents
         .into_iter()
