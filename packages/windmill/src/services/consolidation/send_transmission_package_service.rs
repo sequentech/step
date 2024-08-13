@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
+    create_transmission_package_service::update_transmission_package_annotations,
     ecies_encrypt::generate_ecies_key_pair,
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
@@ -22,6 +23,7 @@ use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
 use sequent_core::{
+    ballot::Annotations,
     serialization::deserialize_with_path::deserialize_str,
     types::hasura::core::{ElectionEvent, TallySession},
     util::date_time::get_system_timezone,
@@ -30,33 +32,6 @@ use std::cmp::Ordering;
 use std::io::{Read, Seek};
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
-
-#[instrument(err)]
-pub async fn find_transmission_area_election(
-    tally_session: &TallySession,
-    election_event: &ElectionEvent,
-    election_id: &str,
-    area_id: &str,
-) -> Result<Option<MiruTransmissionPackageData>> {
-    let tally_annotations = tally_session.get_valid_annotations()?;
-
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
-    Ok(transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }))
-}
 
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
@@ -129,16 +104,30 @@ pub async fn send_transmission_package_service(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
+    let tally_annotations = tally_session.get_valid_annotations()?;
 
-    let Some(transmission_area_election) =
-        find_transmission_area_election(&tally_session, &election_event, election_id, area_id)
-            .await?
-    else {
+    let transmission_data: MiruTallySessionData =
+        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
+            .with_context(|| {
+                format!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                )
+            })
+            .map(|tally_session_data_js| {
+                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
+            })
+            .flatten()
+            .unwrap_or(vec![]);
+
+    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
+        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
+    }) else {
         info!("transmission package not found, skipping");
         return Ok(());
     };
 
-    let mut documents = transmission_area_election.documents;
+    let mut documents = transmission_area_election.documents.clone();
     documents.sort_by(|a, b| {
         let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
             return Ordering::Equal;
@@ -177,7 +166,11 @@ pub async fn send_transmission_package_service(
     compressed_xml.read_to_end(&mut compressed_xml_bytes)?;
 
     let (private_key_pem_str, acm_public_key_pem_str) = generate_ecies_key_pair()?;
+    let mut new_miru_document = miru_document.clone();
     for ccs_server in &transmission_area_election.servers {
+        if miru_document.servers_sent_to.contains(&ccs_server.name) {
+            continue;
+        };
         let mut transmission_package = create_transmission_package(
             time_zone.clone(),
             now_utc.clone(),
@@ -188,7 +181,36 @@ pub async fn send_transmission_package_service(
         )
         .await?;
         send_package_to_ccs_server(transmission_package, ccs_server).await?;
+        new_miru_document
+            .servers_sent_to
+            .push(ccs_server.name.clone());
     }
+
+    let mut new_transmission_area_election = transmission_area_election.clone();
+    new_transmission_area_election.documents = new_transmission_area_election
+        .documents
+        .into_iter()
+        .map(|value| {
+            if value.document_id == new_miru_document.document_id {
+                new_miru_document.clone()
+            } else {
+                value
+            }
+        })
+        .collect();
+
+    update_transmission_package_annotations(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        tally_session_id,
+        area_id,
+        election_id,
+        transmission_data.clone(),
+        new_transmission_area_election,
+        tally_annotations.clone(),
+    )
+    .await?;
 
     hasura_transaction
         .commit()

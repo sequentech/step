@@ -25,11 +25,51 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::util::date_time::get_system_timezone;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_transmission_package_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    area_id: &str,
+    election_id: &str,
+    transmission_data: Vec<MiruTransmissionPackageData>,
+    new_transmission_package_data: MiruTransmissionPackageData,
+    tally_annotations: Annotations,
+) -> Result<()> {
+    let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
+        .clone()
+        .into_iter()
+        .filter(|data| {
+            data.area_id != area_id.to_string() && data.election_id != election_id.to_string()
+        })
+        .collect();
+    new_transmission_data.push(new_transmission_package_data);
+    let new_transmission_data_str = serde_json::to_string(&new_transmission_data)?;
+
+    let mut new_tally_annotations = tally_annotations.clone();
+    let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
+    new_tally_annotations.insert(annotation_key, new_transmission_data_str);
+    let new_tally_annotations_value = serde_json::to_value(new_tally_annotations)?;
+
+    update_tally_session_annotation(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        new_tally_annotations_value,
+    )
+    .await?;
+
+    Ok(())
+}
 
 #[instrument(err)]
 pub async fn create_transmission_package_service(
@@ -201,27 +241,16 @@ pub async fn create_transmission_package_service(
             &area_name,
         )],
     };
-    let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
-        .clone()
-        .into_iter()
-        .filter(|data| {
-            data.area_id != area_id.to_string() && data.election_id != election_id.to_string()
-        })
-        .collect();
-    new_transmission_data.push(new_transmission_package_data);
-    let new_transmission_data_str = serde_json::to_string(&new_transmission_data)?;
-
-    let mut new_tally_annotations = tally_annotations.clone();
-    let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
-    new_tally_annotations.insert(annotation_key, new_transmission_data_str);
-    let new_tally_annotations_value = serde_json::to_value(new_tally_annotations)?;
-
-    update_tally_session_annotation(
+    update_transmission_package_annotations(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
         tally_session_id,
-        new_tally_annotations_value,
+        area_id,
+        election_id,
+        transmission_data.clone(),
+        new_transmission_package_data,
+        tally_annotations.clone(),
     )
     .await?;
 
