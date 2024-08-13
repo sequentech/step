@@ -12,7 +12,9 @@ use tracing::{info, instrument};
 use windmill::{
     services::celery_app::get_celery_app,
     tasks::{
-        miru_plugin_tasks::create_transmission_package_task,
+        miru_plugin_tasks::{
+            create_transmission_package_task, send_transmission_package_task,
+        },
         send_eml::send_eml_task,
     },
 };
@@ -100,7 +102,7 @@ pub async fn send_transmission_package(
     }
     let celery_app = get_celery_app().await;
     let task = celery_app
-        .send_task(create_transmission_package_task::new(
+        .send_task(send_transmission_package_task::new(
             claims.hasura_claims.tenant_id.clone(),
             body.election_id.clone(),
             body.area_id.clone(),
@@ -110,10 +112,10 @@ pub async fn send_transmission_package(
         .map_err(|error| {
             (
                 Status::InternalServerError,
-                format!("Error sending send_eml task: {error:?}"),
+                format!("Error sending send_transmission_package_task task: {error:?}"),
             )
         })?;
-    info!("Sent send_eml task {}", task.task_id);
+    info!("Sent send_transmission_package_task task {}", task.task_id);
 
     Ok(Json(SendTransmissionPackageOutput {}))
 }

@@ -60,6 +60,7 @@ pub async fn create_transmission_package_service(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
+
     let tally_annotations = tally_session.get_valid_annotations()?;
 
     let transmission_data: MiruTallySessionData =
@@ -75,6 +76,13 @@ pub async fn create_transmission_package_service(
             })
             .flatten()
             .unwrap_or(vec![]);
+
+    let None = transmission_data.clone().into_iter().find(|data| {
+        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
+    }) else {
+        info!("transmission package already found, skipping");
+        return Ok(());
+    };
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
@@ -92,12 +100,6 @@ pub async fn create_transmission_package_service(
         deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
     //.with_context(|| "error deserializing MiruCcsServer")?;
 
-    let None = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
-        info!("transmission package already found, skipping");
-        return Ok(());
-    };
     let Some(election) = get_election_by_id(
         &hasura_transaction,
         tenant_id,
