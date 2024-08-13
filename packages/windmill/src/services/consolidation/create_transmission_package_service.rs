@@ -16,6 +16,7 @@ use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::folders::list_files;
 use crate::services::temp_path::write_into_named_temp_file;
 use crate::types::miru_plugin::{MiruCcsServer, MiruDocument, MiruTransmissionPackageData};
 use crate::{
@@ -119,9 +120,13 @@ pub async fn create_transmission_package_service(
 
     let tally_path = decompress_file(tar_gz_file.path())?;
 
-    let state = generate_initial_state(&tally_path.into_path())?;
+    let tally_path_path = tally_path.into_path();
 
-    let results = state.get_results()?;
+    let state = generate_initial_state(&tally_path_path)?;
+
+    list_files(&tally_path_path);
+
+    let results = state.get_results(true)?;
 
     let tally_id = 1;
     let transaction_id = 1;

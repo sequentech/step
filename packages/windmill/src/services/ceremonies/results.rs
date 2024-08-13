@@ -254,7 +254,7 @@ pub async fn populate_results_tables(
     .await?;
 
     if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
-        if let Ok(results) = state.get_results() {
+        if let Ok(results) = state.get_results(false) {
             save_results(
                 results.clone(),
                 tenant_id,

@@ -33,7 +33,7 @@ const MIRU_CANDIDATE_NAME: &str = "candidate-name";
 const MIRU_CANDIDATE_SETTING: &str = "candidate-setting";
 const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
 const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
-const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-pary";
+const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-party";
 pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 

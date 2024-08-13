@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
 use fs_extra::dir::{self, CopyOptions};
-use std::fs;
 use std::path::PathBuf;
+use std::{fs, path::Path};
 use tempfile::{tempdir, TempDir};
 use tracing::instrument;
 use walkdir::WalkDir;
@@ -37,24 +37,24 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
     Ok(temp_dir)
 }
 
+pub fn list_files(dir: &Path) {
+    for entry in fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() {
+            println!("Directory: {}", path.display());
+            list_files(&path);
+        } else {
+            println!("File: {}", path.display());
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::{fs, path::Path};
     use tempfile::tempdir;
-
-    fn list_files(dir: &Path) {
-        for entry in fs::read_dir(dir).unwrap() {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.is_dir() {
-                println!("Directory: {}", path.display());
-                list_files(&path);
-            } else {
-                println!("File: {}", path.display());
-            }
-        }
-    }
 
     #[test]
     fn test_copy_to_temp_dir() -> Result<()> {

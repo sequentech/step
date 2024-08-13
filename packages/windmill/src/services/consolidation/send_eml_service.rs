@@ -118,7 +118,7 @@ pub async fn send_eml_service(
 
     let state = generate_initial_state(&tally_path.into_path())?;
 
-    let results = state.get_results()?;
+    let results = state.get_results(true)?;
 
     let tally_id = 1;
     let transaction_id = 1;
