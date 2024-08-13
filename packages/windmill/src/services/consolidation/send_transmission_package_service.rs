@@ -20,6 +20,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
+use reqwest::multipart;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_str,
     types::hasura::core::{ElectionEvent, TallySession},
@@ -57,6 +58,8 @@ pub async fn find_transmission_area_election(
     }))
 }
 
+const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
+
 #[instrument(skip(transmission_package), err)]
 async fn send_package_to_ccs_server(
     mut transmission_package: NamedTempFile,
@@ -69,9 +72,27 @@ async fn send_package_to_ccs_server(
     let mut transmission_package_bytes = Vec::new();
     transmission_package.read_to_end(&mut transmission_package_bytes)?;
 
-    let uri = format!("{}/", ccs_server.address);
-
+    let uri = format!("{}{}", ccs_server.address, SEND_ELECTION_RESULTS_API_PATH);
     let client = reqwest::Client::new();
+
+    // Create a multipart form
+    let form = multipart::Form::new().part(
+        "zip",
+        multipart::Part::bytes(transmission_package_bytes)
+            .file_name("file.zip")
+            .mime_str("application/zip")?,
+    );
+
+    // Send the POST request
+    let response = client.post(&uri).multipart(form).send().await?;
+
+    // Check if the request was successful
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!(
+            "Failed to send package: {}",
+            response.status()
+        ));
+    }
     Ok(())
 }
 
