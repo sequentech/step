@@ -13,6 +13,7 @@ pub struct ResultDocuments {
     pub pdf: Option<String>,
     pub html: Option<String>,
     pub tar_gz: Option<String>,
+    pub tar_gz_original: Option<String>,
     pub vote_receipts_pdf: Option<String>,
 }
 

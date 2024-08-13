@@ -124,7 +124,7 @@ pub async fn create_transmission_package_service(
 
     let state = generate_initial_state(&tally_path_path)?;
 
-    list_files(&tally_path_path);
+    list_files(&tally_path_path)?;
 
     let results = state.get_results(true)?;
 

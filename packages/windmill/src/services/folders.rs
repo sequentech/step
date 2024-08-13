@@ -6,7 +6,7 @@ use fs_extra::dir::{self, CopyOptions};
 use std::path::PathBuf;
 use std::{fs, path::Path};
 use tempfile::{tempdir, TempDir};
-use tracing::instrument;
+use tracing::{info, instrument};
 use walkdir::WalkDir;
 
 #[instrument(err)]
@@ -37,17 +37,19 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
     Ok(temp_dir)
 }
 
-pub fn list_files(dir: &Path) {
-    for entry in fs::read_dir(dir).unwrap() {
-        let entry = entry.unwrap();
+#[instrument]
+pub fn list_files(dir: &Path) -> Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            println!("Directory: {}", path.display());
-            list_files(&path);
+            info!("Directory: {}", path.display());
+            list_files(&path)?;
         } else {
-            println!("File: {}", path.display());
+            info!("File: {}", path.display());
         }
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -72,7 +74,7 @@ mod tests {
 
         // Print the input directory structure
         println!("Source directory structure:");
-        list_files(src_dir_path);
+        list_files(src_dir_path)?;
 
         // Call the function
         let temp_dir = copy_to_temp_dir(&src_dir_path.to_path_buf())?;
@@ -80,7 +82,7 @@ mod tests {
 
         // Print the output directory structure
         println!("Temporary directory structure:");
-        list_files(temp_dir_path);
+        list_files(temp_dir_path)?;
 
         // Check that the contents of the source directory are copied correctly
         assert!(temp_dir_path.join("file1.txt").exists());

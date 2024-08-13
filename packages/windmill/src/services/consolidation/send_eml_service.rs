@@ -71,8 +71,8 @@ pub async fn download_to_file(
     let document_id = results_event
         .documents
         .ok_or_else(|| anyhow!("Missing documents in results_event"))?
-        .tar_gz
-        .ok_or_else(|| anyhow!("Missing tar_gz in results_event"))?;
+        .tar_gz_original
+        .ok_or_else(|| anyhow!("Missing tar_gz_original in results_event"))?;
 
     let document = get_document(
         hasura_transaction,
