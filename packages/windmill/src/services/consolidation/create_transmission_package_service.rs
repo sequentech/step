@@ -122,9 +122,9 @@ pub async fn create_transmission_package_service(
 
     let tally_path_path = tally_path.into_path();
 
-    let state = generate_initial_state(&tally_path_path)?;
-
     list_files(&tally_path_path)?;
+
+    let state = generate_initial_state(&tally_path_path)?;
 
     let results = state.get_results(true)?;
 
@@ -135,20 +135,20 @@ pub async fn create_transmission_package_service(
     let now_local = now_utc.with_timezone(&Local);
 
     let election_event_annotations = election_event.get_valid_annotations()?;
-    let Some(result) = results.into_iter().find(|result| {
-        if result.election_id != election_id {
-            return false;
-        }
+    let Some(result) = results
+        .into_iter()
+        .find(|result| result.election_id == election_id)
+    else {
+        info!("Can't find election report for election {}", election_id);
+        return Ok(());
+    };
+    let Some(report_computed) = result.reports.into_iter().find(|result| {
         let Some(basic_area) = result.area.clone() else {
             return false;
         };
         return basic_area.id == area_id;
     }) else {
-        info!("Can't find report");
-        return Ok(());
-    };
-    let Some(report_computed) = result.reports.get(0).cloned() else {
-        info!("Can't find report");
+        info!("Can't find election report for area {}", area_id);
         return Ok(());
     };
     let report: ReportData = report_computed.into();
