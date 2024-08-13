@@ -106,7 +106,7 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
 
     const handleCreateTransmissionPackage = async (areaId: string) => {
         const found = tallySessionData.find(
-            (datum) => datum.areaId === areaId && datum.electionId === electionId
+            (datum) => datum.area_id === areaId && datum.election_id === electionId
         )
 
         if (found) {
