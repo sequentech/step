@@ -174,17 +174,16 @@ pub async fn send_eml_service(
                 &report,
             )
             .await?;
-            let (private_key_pem_str, acm_public_key_pem_str) = generate_ecies_key_pair()?;
             for ccs_server in &ccs_servers {
-                create_transmission_package(
+                /*create_transmission_package(
                     time_zone.clone(),
                     now_utc.clone(),
                     &election_event_annotations,
                     base_compressed_xml.clone(),
-                    &acm_public_key_pem_str,
+                    "",
                     &ccs_server.public_key_pem,
                 )
-                .await?;
+                .await?;*/
             }
         }
     }

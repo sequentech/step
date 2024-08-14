@@ -35,8 +35,8 @@ pub fn encrypt_file_aes_256_cbc(
     let key_iv = openssl::pkcs5::bytes_to_key(
         cipher,
         MessageDigest::md5(),
-        &salt,
-        Some(password.as_bytes()),
+        password.as_bytes(),
+        Some(&salt),
         OPENSSL_ENCRYPT_ITERATION_COUNT, // Iteration count
     )
     .context("Failed to derive key and IV")?;

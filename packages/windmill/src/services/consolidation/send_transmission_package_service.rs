@@ -184,7 +184,7 @@ pub async fn send_transmission_package_service(
     let mut compressed_xml_bytes = Vec::new();
     compressed_xml.read_to_end(&mut compressed_xml_bytes)?;
 
-    let (private_key_pem_str, acm_public_key_pem_str) = generate_ecies_key_pair()?;
+    let acm_key_pair = generate_ecies_key_pair()?;
     let mut new_miru_document = miru_document.clone();
     let mut new_transmission_area_election = transmission_area_election.clone();
 
@@ -197,7 +197,7 @@ pub async fn send_transmission_package_service(
             now_utc.clone(),
             &election_event_annotations,
             compressed_xml_bytes.clone(),
-            &acm_public_key_pem_str,
+            &acm_key_pair,
             &ccs_server.public_key_pem,
         )
         .await?;
