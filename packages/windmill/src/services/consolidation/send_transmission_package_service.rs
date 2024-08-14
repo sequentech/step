@@ -42,6 +42,7 @@ async fn send_package_to_ccs_server(
     mut transmission_package: NamedTempFile,
     ccs_server: &MiruCcsServer,
 ) -> Result<()> {
+    info!("FFF A");
     // transmission_package the file to the beginning so it can be read
     transmission_package.rewind()?;
 
@@ -50,7 +51,9 @@ async fn send_package_to_ccs_server(
     transmission_package.read_to_end(&mut transmission_package_bytes)?;
 
     let uri = format!("{}{}", ccs_server.address, SEND_ELECTION_RESULTS_API_PATH);
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()?;
 
     // Create a multipart form
     let form = multipart::Form::new().part(
@@ -61,13 +64,19 @@ async fn send_package_to_ccs_server(
     );
 
     // Send the POST request
-    let response = client.post(&uri).multipart(form).send().await?;
+    info!("FFF B");
+    let response = client.post(&uri).multipart(form).send()
+        .await
+        .map_err(|err| anyhow!("{:?}", err))?;
+    info!("FFF C {:?}", response);
+    let is_success = response.status().is_success();
+    let text = response.text().await?;
+    info!("FFF D text: {}", text);
 
     // Check if the request was successful
-    if !response.status().is_success() {
+    if !is_success {
         return Err(anyhow::anyhow!(
-            "Failed to send package: {}",
-            response.status()
+            "Failed to send package"
         ));
     }
     Ok(())
@@ -201,7 +210,7 @@ pub async fn send_transmission_package_service(
             &ccs_server.public_key_pem,
         )
         .await?;
-        if let Ok(_) = send_package_to_ccs_server(transmission_package, ccs_server).await {
+        send_package_to_ccs_server(transmission_package, ccs_server).await?;
             new_transmission_area_election
                 .logs
                 .push(send_transmission_package_to_ccs_log(
@@ -222,8 +231,6 @@ pub async fn send_transmission_package_service(
             new_miru_document
                 .servers_sent_to
                 .push(ccs_server.name.clone());
-        } else {
-        };
     }
 
     new_transmission_area_election.documents = new_transmission_area_election
