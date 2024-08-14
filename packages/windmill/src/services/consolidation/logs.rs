@@ -4,7 +4,9 @@
 use crate::services::date::ISO8601;
 use chrono::{DateTime, Local};
 use sequent_core::types::ceremonies::Log;
+use tracing::{info, instrument};
 
+#[instrument(skip_all)]
 pub fn create_transmission_package_log(
     datetime: &DateTime<Local>,
     election_id: &str,
@@ -21,6 +23,7 @@ pub fn create_transmission_package_log(
     }
 }
 
+#[instrument(skip_all)]
 pub fn send_transmission_package_to_ccs_log(
     datetime: &DateTime<Local>,
     election_id: &str,

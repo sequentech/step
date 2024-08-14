@@ -13,9 +13,11 @@ use sequent_core::types::date_time::TimeZone;
 use sequent_core::{
     ballot::Annotations, types::date_time::DateFormat, util::date_time::generate_timestamp,
 };
+use tracing::instrument;
 
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
 
+#[instrument(skip(election_event_annotations), err)]
 pub fn generate_acm_json(
     sha256_hash: &str,
     encrypted_key: &str,

@@ -7,6 +7,7 @@ use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs::File;
 use std::io::{Read, Write};
+use tracing::instrument;
 
 const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
 const OPENSSL_SALT_BYTES: usize = 8;
@@ -14,6 +15,8 @@ const OPENSSL_SALT_HEADER: &[u8; 8] = b"Salted__";
 
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
+
+#[instrument(skip(password), err)]
 pub fn encrypt_file_aes_256_cbc(
     input_file_path: &str,
     output_file_path: &str,

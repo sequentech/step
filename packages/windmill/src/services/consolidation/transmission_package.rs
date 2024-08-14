@@ -29,12 +29,7 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
-const EXAMPLE_PUBLIC_KEY_PEM: &str = "-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEViVmM6/r024Bt71ZYT17OhPJHrIx
-HqzGxXsLJBrJDxQGIZTXBCpJ49tpj/+Xp1nkf6NYNMjmV8I7vy5F3ShnCQ==
------END PUBLIC KEY-----
-";
-
+#[instrument(err)]
 pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
     temp_file.rewind()?;
@@ -96,6 +91,7 @@ async fn generate_encrypted_compressed_xml(
     Ok((exz_temp_file, encrypted_random_pass))
 }
 
+#[instrument(skip_all, err)]
 fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Result<NamedTempFile> {
     // Create a temporary directory
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;

@@ -8,7 +8,9 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
 use strand::hash::hash_sha256;
+use tracing::instrument;
 
+#[instrument(skip(password), err)]
 pub fn ecies_encrypt_string(public_key_pem: &str, password: &[u8]) -> Result<String> {
     // Parse the PEM file and extract the public key
     let public_key = PKey::public_key_from_pem(public_key_pem.as_bytes())
@@ -26,6 +28,7 @@ pub fn ecies_encrypt_string(public_key_pem: &str, password: &[u8]) -> Result<Str
     Ok(encrypted_base64)
 }
 
+#[instrument(err)]
 pub fn generate_ecies_key_pair() -> Result<(String, String)> {
     // Create an elliptic curve group using the secp256k1 curve
     let group = EcGroup::from_curve_name(Nid::SECP256K1)
@@ -51,6 +54,7 @@ pub fn generate_ecies_key_pair() -> Result<(String, String)> {
     Ok((private_key_pem_str, public_key_pem_str))
 }
 
+#[instrument(skip(data), err)]
 pub fn ecies_sign_data(public_key_pem_str: &str, data: &[u8]) -> Result<(String, String)> {
     let hash_bytes = hash_sha256(data)?;
     let sha256_hash_base64 = STANDARD.encode(hash_bytes.clone());

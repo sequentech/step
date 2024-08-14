@@ -53,6 +53,7 @@ pub trait GetMetrics {
 
 // TODO: review
 impl GetMetrics for ContestResult {
+    #[instrument(skip_all)]
     fn get_metrics(&self) -> Vec<EMLCountMetric> {
         vec![
             EMLCountMetric {
