@@ -8,7 +8,7 @@ import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 
-const LoginScreen: React.FC = () => {
+const RegisterScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const navigate = useNavigate()
@@ -17,7 +17,7 @@ const LoginScreen: React.FC = () => {
 
     useEffect(() => {
         if (!isAuthenticated && tenantId && eventId) {
-            setTenantEvent(tenantId, eventId, "login")
+            setTenantEvent(tenantId, eventId, "register")
         } else if (authContext.isAuthenticated) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         }
@@ -33,4 +33,4 @@ const LoginScreen: React.FC = () => {
     )
 }
 
-export default LoginScreen
+export default RegisterScreen

@@ -225,6 +225,7 @@ const catalanTranslation: TranslationType = {
             voteByDay: "Vots per dia",
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
+            voterEnrollURL: "URL d'inscripció de votants",
         },
         electionEventScreen: {
             common: {
