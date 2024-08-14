@@ -104,7 +104,8 @@ pub async fn get_template(
     };
 
     let communication_template_value: CommunicationTemplateValue =
-        serde_json::from_value(communication_template.template)?;
+        serde_json::from_value(communication_template.template)
+            .with_context(|| "Error parsing the communication template")?;
 
     Ok(Some(communication_template_value.document))
 }

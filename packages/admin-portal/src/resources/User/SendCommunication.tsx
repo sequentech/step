@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, { useContext, useEffect, useState } from "react"
 import {
     SaveButton,
     SimpleForm,
@@ -21,27 +21,27 @@ import {
     Switch,
     Typography,
 } from "@mui/material"
-import {useMutation} from "@apollo/client"
-import {SubmitHandler} from "react-hook-form"
+import { useMutation } from "@apollo/client"
+import { SubmitHandler } from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {useTenantStore} from "@/providers/TenantContextProvider"
-import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
+import { useTenantStore } from "@/providers/TenantContextProvider"
+import { PageHeaderStyles } from "@/components/styles/PageHeaderStyles"
 import EmailEditor from "@/components/EmailEditor"
-import {useTranslation} from "react-i18next"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
-import {CreateScheduledEventMutation, Sequent_Backend_Communication_Template} from "@/gql/graphql"
-import {ScheduledEventType} from "@/services/ScheduledEvent"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
+import { useTranslation } from "react-i18next"
+import { FormStyles } from "@/components/styles/FormStyles"
+import { ElectionHeaderStyles } from "@/components/styles/ElectionHeaderStyles"
+import { CREATE_SCHEDULED_EVENT } from "@/queries/CreateScheduledEvent"
+import { CreateScheduledEventMutation, Sequent_Backend_Communication_Template } from "@/gql/graphql"
+import { ScheduledEventType } from "@/services/ScheduledEvent"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 import {
     ICommunicationMethod,
     ICommunicationType,
     IEmail,
     ISendCommunicationBody,
 } from "@/types/communications"
-import {useLocation} from "react-router"
+import { useLocation } from "react-router"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -110,10 +110,10 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     close,
     electionEventId,
 }) => {
-    const {isLoading} = useListContext()
-    const {globalSettings} = useContext(SettingsContext)
+    const { isLoading } = useListContext()
+    const { globalSettings } = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
+    const { t } = useTranslation()
     const location = useLocation()
     const notify = useNotify()
     const [errors, setErrors] = useState<String | null>(null)
@@ -168,7 +168,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         setErrors(null)
         setShowProgress(true)
         try {
-            const {errors} = await createScheduledEvent({
+            const { errors } = await createScheduledEvent({
                 variables: {
                     tenantId: tenantId,
                     electionEventId: electionEventId,
@@ -179,41 +179,41 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             })
             setShowProgress(false)
             if (errors) {
-                setErrors(t("sendCommunication.errorSending", {error: errors.toString()}))
+                setErrors(t("sendCommunication.errorSending", { error: errors.toString() }))
                 return
             } else {
-                notify(t("sendCommunication.successSending"), {type: "success"})
+                notify(t("sendCommunication.successSending"), { type: "success" })
                 close?.()
             }
         } catch (error: any) {
             setShowProgress(false)
-            setErrors(t("sendCommunication.errorSending", {error: error.toString()}))
+            setErrors(t("sendCommunication.errorSending", { error: error.toString() }))
         }
     }
 
     const handleNowChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {checked} = e.target
-        var newCommunication = {...communication}
+        const { checked } = e.target
+        var newCommunication = { ...communication }
         newCommunication.schedule.now = checked
         setCommunication(newCommunication)
     }
     const handleSmsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {value} = e.target
-        var newCommunication = {...communication}
-        newCommunication.i18n["en"].sms = {message: value}
+        const { value } = e.target
+        var newCommunication = { ...communication }
+        newCommunication.i18n["en"].sms = { message: value }
         setCommunication(newCommunication)
     }
 
     const handleSelectChange = async (e: any) => {
-        const {value} = e.target
-        var newCommunication = {...communication}
+        const { value } = e.target
+        var newCommunication = { ...communication }
         newCommunication.audience.selection = value
         setCommunication(newCommunication)
     }
 
     const handleSelectMethodChange = async (e: any) => {
-        const {value} = e.target
-        var newCommunication = {...communication}
+        const { value } = e.target
+        var newCommunication = { ...communication }
         newCommunication.communication_method = value
         setCommunication(newCommunication)
 
@@ -232,8 +232,8 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     }
 
     const handleSelectTypeChange = async (e: any) => {
-        const {value} = e.target
-        var newCommunication = {...communication}
+        const { value } = e.target
+        var newCommunication = { ...communication }
         newCommunication.communication_type = value
         setCommunication(newCommunication)
 
@@ -254,8 +254,8 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const handleSelectAliasChange = async (e: any) => {
         console.log("handleSelectAliasChange", e.target.value)
 
-        const {value} = e.target
-        var newCommunication = {...communication}
+        const { value } = e.target
+        var newCommunication = { ...communication }
         newCommunication.alias = value
         console.log("handleSelectAliasChange newCommunication", newCommunication)
         setCommunication(newCommunication)
@@ -278,8 +278,8 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 ] as IEmail
                 setEmail(newEmail, value)
             } else {
-                let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()] as string
-                let newSMSCommunication = {...communication}
+                let newSms = selectedReceipt[0]["template"][selectedMethod.toLowerCase()].message as string
+                let newSMSCommunication = { ...communication }
                 let a = newSMSCommunication.i18n?.["en"]
                 if (a?.sms?.message) {
                     a.sms.message = newSms
@@ -294,14 +294,14 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     }, [communication])
 
     const setEmail = async (newEmail: any, alias = "") => {
-        var newCommunication = {...communication, alias}
+        var newCommunication = { ...communication, alias }
         newCommunication.i18n["en"].email = newEmail
         setCommunication(newCommunication)
     }
 
     const handleLangChange = (lang: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {checked} = e.target
-        var newCommunication = {...communication}
+        const { checked } = e.target
+        var newCommunication = { ...communication }
         if (checked) {
             // Add the language if it's not already in the array
             if (!newCommunication.language_conf.enabled_languages.includes(lang)) {
@@ -336,7 +336,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         html_body: "",
     })*/
 
-    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
+    const { data: receipts } = useGetList<Sequent_Backend_Communication_Template>(
         "sequent_backend_communication_template",
         {
             filter: {
@@ -497,7 +497,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <Typography variant="body2" sx={{margin: "0"}}>
+                        <Typography variant="body2" sx={{ margin: "0" }}>
                             {t("sendCommunication.method")}
                         </Typography>{" "}
                         <FormStyles.Select
@@ -513,7 +513,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                     </MenuItem>
                                 ))}
                         </FormStyles.Select>
-                        <Typography variant="body2" sx={{margin: "0"}}>
+                        <Typography variant="body2" sx={{ margin: "0" }}>
                             {t("sendCommunication.type")}
                         </Typography>{" "}
                         <FormStyles.Select
@@ -527,7 +527,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                 </MenuItem>
                             ))}
                         </FormStyles.Select>
-                        <Typography variant="body2" sx={{margin: "0"}}>
+                        <Typography variant="body2" sx={{ margin: "0" }}>
                             {t("sendCommunication.alias")}
                         </Typography>
                         <FormStyles.Select
@@ -537,12 +537,12 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         >
                             {selectedList
                                 ? selectedList?.map(
-                                      (key: ISendCommunicationBody, index: number) => (
-                                          <MenuItem key={index} value={key.alias}>
-                                              {key.alias}
-                                          </MenuItem>
-                                      )
-                                  )
+                                    (key: ISendCommunicationBody, index: number) => (
+                                        <MenuItem key={index} value={key.alias}>
+                                            {key.alias}
+                                        </MenuItem>
+                                    )
+                                )
                                 : null}
                         </FormStyles.Select>
                         {communication.communication_method === ICommunicationMethod.EMAIL &&
