@@ -46,9 +46,10 @@ export const ExportButton = styled.div`
 interface MiruExportProps {
     electionId: string | null
     tally: Sequent_Backend_Tally_Session | undefined
+	onSuccess?: () => void
 }
 
-export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
+export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally, onSuccess}) => {
     const {t} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -105,6 +106,11 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
     }
 
     const handleCreateTransmissionPackage = async (areaId: string) => {
+
+				onSuccess?.()
+
+
+		return
         const found = tallySessionData.find(
             (datum) => datum.areaId === areaId && datum.electionId === electionId
         )
@@ -130,6 +136,7 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
 
             if (nextStatus) {
                 notify("Success creating transmission package", {type: "success"})
+				onSuccess?.()
             }
         } catch (error) {
             notify("Error creating transmission package", {type: "error"})
