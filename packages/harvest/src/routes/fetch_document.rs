@@ -46,7 +46,7 @@ pub async fn fetch_document(
                 format!("Error getting hasura db pool: {err}"),
             )
         })?;
-
+        info!("fnkdvd {:?}", input);
     let hasura_transaction = hasura_db_client.transaction().await.map_err(
         |err: tokio_postgres::Error| {
             (

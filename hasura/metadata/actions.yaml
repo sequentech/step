@@ -197,6 +197,18 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: export_all_users
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-all-users
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
 - name: export_election_event
   definition:
     kind: synchronous
@@ -820,4 +832,5 @@ custom_types:
   - name: OptionalImportEvent
   - name: ManageElectionDatesOutput
   - name: ExportLogsOutput
+  - name: ExportAllUsersOutput
   scalars: []
