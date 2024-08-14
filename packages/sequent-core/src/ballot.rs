@@ -677,6 +677,44 @@ impl Default for EBlankVotePolicy {
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EOverVotePolicy {
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    #[default]
+    ALLOWED,
+    #[strum(serialize = "allowed-with-msg")]
+    #[serde(rename = "allowed-with-msg")]
+    ALLOWED_WITH_MSG,
+    #[strum(serialize = "allowed-with-msg-and-alert")]
+    #[serde(rename = "allowed-with-msg-and-alert")]
+    ALLOWED_WITH_MSG_AND_ALERT,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "not-allowed-with-msg-and-alert")]
+    #[serde(rename = "not-allowed-with-msg-and-alert")]
+    NOT_ALLOWED_WITH_MSG_AND_ALERT,
+    #[strum(serialize = "not-allowed-with-msg-and-disable")]
+    #[serde(rename = "not-allowed-with-msg-and-disable")]
+    NOT_ALLOWED_WITH_MSG_AND_DISABLE,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
