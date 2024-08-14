@@ -99,6 +99,8 @@ pub enum Permissions {
     PUBLISH_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
+    #[strum(serialize = "tasks-read")]
+    TASKS_READ,
     #[strum(serialize = "keys-read")]
     KEYS_READ,
     #[strum(serialize = "document-upload")]
