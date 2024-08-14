@@ -783,7 +783,6 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
-
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"

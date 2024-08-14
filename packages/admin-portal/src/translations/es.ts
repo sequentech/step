@@ -820,6 +820,9 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertir",
                 "not-allowed": "No permitido",
             },
+            paginationPolicy: {
+                label: "Nombre de la página",
+            },
             error: {},
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",
