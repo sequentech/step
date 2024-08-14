@@ -816,6 +816,9 @@ const englishTranslation = {
                 "warn": "Warn",
                 "not-allowed": "Not Allowed",
             },
+            paginationPolicy: {
+                label: "Page Name",
+            },
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",
