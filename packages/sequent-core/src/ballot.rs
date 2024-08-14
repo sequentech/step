@@ -348,6 +348,7 @@ impl Candidate {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum CandidatesOrder {
     #[strum(serialize = "random")]
@@ -358,12 +359,8 @@ pub enum CandidatesOrder {
     Custom,
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
+    #[default]
     Alphabetical,
-}
-impl Default for CandidatesOrder {
-    fn default() -> Self {
-        CandidatesOrder::Alphabetical
-    }
 }
 
 #[derive(
@@ -378,6 +375,7 @@ impl Default for CandidatesOrder {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum ContestsOrder {
     #[strum(serialize = "random")]
@@ -388,12 +386,8 @@ pub enum ContestsOrder {
     Custom,
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
+    #[default]
     Alphabetical,
-}
-impl Default for ContestsOrder {
-    fn default() -> Self {
-        ContestsOrder::Alphabetical
-    }
 }
 
 #[derive(
@@ -408,6 +402,7 @@ impl Default for ContestsOrder {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum ElectionsOrder {
     #[strum(serialize = "random")]
@@ -418,12 +413,8 @@ pub enum ElectionsOrder {
     Custom,
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
+    #[default]
     Alphabetical,
-}
-impl Default for ElectionsOrder {
-    fn default() -> Self {
-        ElectionsOrder::Alphabetical
-    }
 }
 
 #[derive(
@@ -465,10 +456,12 @@ pub struct Election {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum InvalidVotePolicy {
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
+    #[default]
     ALLOWED,
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
@@ -479,12 +472,6 @@ pub enum InvalidVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
-}
-
-impl Default for InvalidVotePolicy {
-    fn default() -> Self {
-        InvalidVotePolicy::ALLOWED
-    }
 }
 
 #[derive(
@@ -658,10 +645,12 @@ pub enum ECountdownPolicy {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum EBlankVotePolicy {
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
+    #[default]
     ALLOWED,
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
@@ -669,12 +658,6 @@ pub enum EBlankVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
-}
-
-impl Default for EBlankVotePolicy {
-    fn default() -> Self {
-        EBlankVotePolicy::ALLOWED
-    }
 }
 
 #[allow(non_camel_case_types)]
