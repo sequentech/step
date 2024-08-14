@@ -61,9 +61,6 @@ pub async fn manage_election_date(
         return Ok(());
     };
 
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
-
     let Some(_election) = get_election_by_id(
         &hasura_transaction,
         &tenant_id,
