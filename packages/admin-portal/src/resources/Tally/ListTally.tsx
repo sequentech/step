@@ -45,7 +45,6 @@ import styled from "@emotion/styled"
 import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {useMutation} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
-import {IPermissions} from "@/types/keycloak"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -90,12 +89,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
-
-    const isHaveDeletePermmition = authContext.isAuthorized(
-        false,
-        authContext.tenantId,
-        IPermissions.TALLY_SHEET_DELETE
-    )
 
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
@@ -299,10 +292,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             >
                 <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
-                <DatagridConfigurable
-                    omit={OMIT_FIELDS}
-                    {...(!isHaveDeletePermmition && {bulkActionButtons: false})}
-                >
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="tenant_id" />
                     <DateField source="created_at" showTime={true} />
 
