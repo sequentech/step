@@ -823,6 +823,9 @@ const catalanTranslation: TranslationType = {
                 "warn": "Advertir",
                 "not-allowed": "No permès",
             },
+            paginationPolicy: {
+                label: "Nom de la pàgina",
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",

@@ -440,6 +440,9 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.blank_vote_policy =
                 newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
 
+            newContest.presentation.pagination_policy =
+                newContest.presentation.pagination_policy || ""
+
             return newContest
         },
         [languageConf, electionEvent, candidates]
@@ -718,6 +721,11 @@ export const ContestDataForm: React.FC = () => {
                                     label={t(`contestScreen.blankVotePolicy.label`)}
                                     defaultValue={EBlankVotePolicy.ALLOWED}
                                     validate={required()}
+                                />
+
+                                <TextInput
+                                    source={`presentation.pagination_policy`}
+                                    label={t(`contestScreen.paginationPolicy.label`)}
                                 />
                             </AccordionDetails>
                         </Accordion>

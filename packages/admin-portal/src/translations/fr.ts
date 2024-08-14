@@ -825,6 +825,9 @@ const frenchTranslation: TranslationType = {
                 "warn": "Avertir",
                 "not-allowed": "Non autorisé",
             },
+            paginationPolicy: {
+                label: "Nom de la page",
+            },
             error: {},
             createContestSuccess: "Question créée",
             createContestError: "Erreur lors de la création de la question",
