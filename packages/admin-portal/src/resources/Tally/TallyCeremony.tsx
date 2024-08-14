@@ -306,11 +306,11 @@ export const TallyCeremony: React.FC = () => {
     )
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
-	const handleMiruExportSuccess=()=>{
-		//check for task completion and fetch data
-		//set new page status(navigate to miru wizard)
-		setPage(WizardSteps.Export)
-	}
+    const handleMiruExportSuccess = () => {
+        //check for task completion and fetch data
+        //set new page status(navigate to miru wizard)
+        setPage(WizardSteps.Export)
+    }
 
     return (
         <>
@@ -568,7 +568,11 @@ export const TallyCeremony: React.FC = () => {
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} onMiruExportSuccess={handleMiruExportSuccess} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={resultsEventId}
+                                    onMiruExportSuccess={handleMiruExportSuccess}
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -613,7 +617,7 @@ export const TallyCeremony: React.FC = () => {
                             }
                         >
                             <AccordionSummary
-                            expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}
+                                expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}
                             >
                                 <WizardStyles.AccordionTitle>Servers</WizardStyles.AccordionTitle>
                             </AccordionSummary>
@@ -658,7 +662,7 @@ export const TallyCeremony: React.FC = () => {
                             }
                         >
                             <AccordionSummary
-                            expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}
+                                expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}
                             >
                                 <WizardStyles.AccordionTitle>
                                     Signatures
