@@ -18,23 +18,6 @@ use tracing::instrument;
 
 use super::election_event_status::get_election_event_status;
 
-#[instrument(err)]
-pub async fn update_event_status(
-    hasura_transaction: &Transaction<'_>,
-    election_event_id: &str,
-    voting_status: &VotingStatus,
-    tenant_id: &str,
-) -> Result<()> {
-    let election_event = election_event_status::update_event_voting_status(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        voting_status,
-    )
-    .await?;
-    Ok(())
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateElectionVotingStatusInput {
     pub election_event_id: String,

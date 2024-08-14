@@ -1,24 +1,19 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::election_event::get_election_event_helper;
 
-use crate::postgres::election_event::update_elections_status_by_election_event;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::*;
+use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
-use crate::services::voting_status::update_board_on_status_change;
 use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::EventProcessors;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow};
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
-use sequent_core::services::keycloak::get_client_credentials;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{event, Level};
@@ -46,7 +41,6 @@ pub async fn manage_election_event_date(
         ISO8601::now() + Duration::seconds(120),
     )
     .await?;
-    let auth_headers = get_client_credentials().await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -69,12 +63,6 @@ pub async fn manage_election_event_date(
         return Ok(());
     };
 
-    let election_event = get_election_event_helper(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?;
     let mut status: ElectionStatus = Default::default();
 
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
@@ -93,23 +81,14 @@ pub async fn manage_election_event_date(
             )));
         }
     };
-    // update the database
-    let elections_ids = update_elections_status_by_election_event(
+    update_event_voting_status(
         &hasura_transaction,
-        &tenant_id.to_string(),
-        &election_event_id.to_string(),
-        serde_json::to_value(status.clone())?,
+        &tenant_id,
+        &election_event_id,
+        &status.voting_status,
     )
     .await?;
 
-    update_board_on_status_change(
-        election_event_id,
-        election_event.bulletin_board_reference.clone(),
-        status.voting_status.clone(),
-        None,
-        Some(elections_ids),
-    )
-    .await?;
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 
     let _commit = hasura_transaction

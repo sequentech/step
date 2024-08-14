@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -12,9 +12,8 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use tracing::{error, info};
 use windmill::services::database::get_hasura_pool;
-use windmill::services::voting_status;
+use windmill::services::{election_event_status, voting_status};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusInput {
@@ -54,11 +53,11 @@ pub async fn update_event_status(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    voting_status::update_event_status(
+    election_event_status::update_event_voting_status(
         &hasura_transaction,
+        tenant_id,
         &input.election_event_id,
         &input.voting_status,
-        tenant_id,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
