@@ -33,6 +33,14 @@ export enum EBlankVotePolicy {
     NOT_ALLOWED = "not-allowed",
 }
 
+export enum EOverVotePolicy {
+    ALLOWED = "allowed",
+    ALLOWED_WITH_MSG = "allowed-with-msg",
+    ALLOWED_WITH_MSG_AND_ALERT = "allowed-with-msg-and-alert",
+    NOT_ALLOWED_WITH_MSG_AND_ALERT = "not-allowed-with-msg-and-alert",
+    NOT_ALLOWED_WITH_MSG_AND_DISABLE = "not-allowed-with-msg-and-disable",
+}
+
 export interface ITypePresentation {
     name?: string
     name_i18n?: Record<string, string>
@@ -46,6 +54,7 @@ export interface IContestPresentation {
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
     blank_vote_policy?: EBlankVotePolicy
+    over_vote_policy?: EOverVotePolicy
     cumulative_number_of_checkboxes?: number
     shuffle_categories?: boolean
     shuffle_category_list?: Array<string>

@@ -687,9 +687,6 @@ pub enum EOverVotePolicy {
     #[strum(serialize = "allowed-with-msg-and-alert")]
     #[serde(rename = "allowed-with-msg-and-alert")]
     ALLOWED_WITH_MSG_AND_ALERT,
-    #[strum(serialize = "warn")]
-    #[serde(rename = "warn")]
-    WARN,
     #[strum(serialize = "not-allowed-with-msg-and-alert")]
     #[serde(rename = "not-allowed-with-msg-and-alert")]
     NOT_ALLOWED_WITH_MSG_AND_ALERT,
@@ -774,6 +771,7 @@ pub struct ContestPresentation {
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub blank_vote_policy: Option<EBlankVotePolicy>,
+    pub over_vote_policy: Option<EOverVotePolicy>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -795,6 +793,7 @@ impl ContestPresentation {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,
