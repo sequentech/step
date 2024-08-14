@@ -7,7 +7,7 @@ use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs::File;
 use std::io::{Read, Write};
-use tracing::instrument;
+use tracing::{info, instrument};
 
 const OPENSSL_ENCRYPT_ITERATION_COUNT: i32 = 10000;
 const OPENSSL_SALT_BYTES: usize = 8;
@@ -27,9 +27,11 @@ pub fn encrypt_file_aes_256_cbc(
 
     // Generate a random salt
     let mut salt = [0u8; OPENSSL_SALT_BYTES];
+    info!("Generating salt");
     rand_bytes(&mut salt).context("Failed to generate random salt")?;
 
     // Derive the key and IV from the password using MD5
+    info!("Calling bytes_to_key");
     let key_iv = openssl::pkcs5::bytes_to_key(
         cipher,
         MessageDigest::md5(),
@@ -59,6 +61,7 @@ pub fn encrypt_file_aes_256_cbc(
     }
 
     // Create a Crypter for encryption
+    info!("Create a Crypter for encryption");
     let mut crypter =
         Crypter::new(cipher, Mode::Encrypt, &key, Some(&iv)).context("Failed to create Crypter")?;
     crypter.pad(true);
@@ -72,12 +75,15 @@ pub fn encrypt_file_aes_256_cbc(
 
     // Encrypt the data
     let mut output_data = vec![0; input_data.len() + cipher.block_size()];
+    info!("Encrypting: count");
     let count = crypter
         .update(&input_data, &mut output_data)
         .context("Failed to encrypt data")?;
+    info!("Encrypting: rest");
     let rest = crypter
         .finalize(&mut output_data[count..])
         .context("Failed to finalize encryption")?;
+    info!("Encrypting: truncate");
     output_data.truncate(count + rest);
 
     // Write the salt and encrypted data to the output file
