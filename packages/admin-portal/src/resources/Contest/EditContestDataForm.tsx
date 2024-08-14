@@ -55,6 +55,7 @@ import {
     ICandidatePresentation,
     IElectionPresentation,
     EBlankVotePolicy,
+    ContestPaginationPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -377,6 +378,13 @@ export const ContestDataForm: React.FC = () => {
 
     const blankVotePolicyChoices = () => {
         return Object.values(EBlankVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.blankVotePolicy.${value}`),
+        }))
+    }
+
+    const paginationPolicyChoices = () => {
+        return Object.values(ContestPaginationPolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.blankVotePolicy.${value}`),
         }))
@@ -723,8 +731,16 @@ export const ContestDataForm: React.FC = () => {
                                     validate={required()}
                                 />
 
-                                <TextInput
+                                <SelectInput
                                     source={`presentation.pagination_policy`}
+                                    choices={paginationPolicyChoices()}
+                                    label={t(`contestScreen.blankVotePolicy.label`)}
+                                    defaultValue={ContestPaginationPolicy.DEFAULT}
+                                    validate={required()}
+                                />
+
+                                <TextInput
+                                    source={`presentation.pagination_policy_page_number`}
                                     label={t(`contestScreen.paginationPolicy.label`)}
                                 />
                             </AccordionDetails>

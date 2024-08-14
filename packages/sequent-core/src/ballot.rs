@@ -677,6 +677,25 @@ impl Default for EBlankVotePolicy {
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum ContestPaginationPolicy {
+    DEFAULT,
+    PAGE_NUMBER(String),
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -753,7 +772,7 @@ pub struct ContestPresentation {
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
     pub blank_vote_policy: Option<EBlankVotePolicy>,
-    pub pagination_policy: Option<String>,
+    pub pagination_policy: Option<ContestPaginationPolicy>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
@@ -775,7 +794,7 @@ impl ContestPresentation {
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
-            pagination_policy: Some("".to_owned()),
+            pagination_policy: Some(ContestPaginationPolicy::DEFAULT),
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(false),
             shuffle_category_list: None,

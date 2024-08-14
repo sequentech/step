@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ICountingAlgorithm, IVotingType} from "@/resources/Contest/constants"
-import {IBallotStyle, EInvalidVotePolicy, EEnableCheckableLists} from "@sequentech/ui-core"
+import {IBallotStyle, EInvalidVotePolicy, EEnableCheckableLists, ContestPaginationPolicy} from "@sequentech/ui-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
@@ -152,7 +152,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                 allow_writeins: true,
                 base32_writeins: true,
                 invalid_vote_policy: EInvalidVotePolicy.ALLOWED,
-                pagination_policy: "",
+                pagination_policy: ContestPaginationPolicy.DEFAULT,
                 shuffle_categories: true,
                 shuffle_category_list: [],
                 show_points: false,
