@@ -111,8 +111,13 @@ pub async fn update_election_voting_status_impl(
     new_status: VotingStatus,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
-
-    let Some(election) = get_election_by_id(hasura_transaction, &tenant_id, &election_event_id, &election_id).await? 
+    let Some(election) = get_election_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+    )
+    .await?
     else {
         event!(Level::WARN, "Election not found");
         return Ok(());
