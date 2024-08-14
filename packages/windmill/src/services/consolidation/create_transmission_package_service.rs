@@ -138,7 +138,6 @@ pub async fn create_transmission_package_service(
         })?;
     let ccs_servers: Vec<MiruCcsServer> =
         deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
-    //.with_context(|| "error deserializing MiruCcsServer")?;
 
     let Some(election) = get_election_by_id(
         &hasura_transaction,

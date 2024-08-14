@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
-    acm_json::generate_acm_json,
+    acm_json::{generate_acm_json, MIRU_STATION_ID},
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
     ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, generate_ecies_key_pair, EciesKeyPair},
     eml_generator::render_eml_file,
@@ -99,7 +99,7 @@ fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Res
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
-    let exz_xml_path = temp_dir_path.join("er_24020111.xml");
+    let exz_xml_path = temp_dir_path.join(format!("er_{}.xml", MIRU_STATION_ID).as_str());
     let mut exz_xml_file = File::create(&exz_xml_path)
         .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
     exz_xml_file
@@ -107,14 +107,14 @@ fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Res
         .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
 
     let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
-    let exz_json_path = temp_dir_path.join("er_24020111.json");
+    let exz_json_path = temp_dir_path.join(format!("er_{}.xml", MIRU_STATION_ID).as_str());
     let mut exz_json_file = File::create(&exz_json_path)
         .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
     exz_json_file
         .write_all(acm_json_stringified.as_bytes())
         .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
 
-    let dst_file = generate_temp_file("er_24020166", ".zip")?;
+    let dst_file = generate_temp_file(format!("er_{}", MIRU_STATION_ID).as_str(), ".zip")?;
     compress_folder_to_zip(temp_dir_path, dst_file.path())?;
     Ok(dst_file)
 }

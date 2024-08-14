@@ -16,6 +16,10 @@ use sequent_core::{
 use tracing::instrument;
 
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
+const MIRU_DEVICE_ID: &str = "SQUNT420535311";
+const MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
+pub const MIRU_STATION_ID: &str = "15363610";
+const MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
 
 #[instrument(skip(election_event_annotations), err)]
 pub fn generate_acm_json(
@@ -52,10 +56,10 @@ pub fn generate_acm_json(
             },
         )?;
     Ok(ACMJson {
-        device_id: "PHACM240000011".into(),
-        serial_number: "CEM-AC-24000011".into(),
-        station_id: "24020166".into(),
-        station_name: "0651A,0652A,0670A,0673A,0674A".into(),
+        device_id: MIRU_DEVICE_ID.into(),
+        serial_number: MIRU_SERIAL_NUMBER.into(),
+        station_id: MIRU_STATION_ID.into(),
+        station_name: MIRU_STATION_NAME.into(),
         event_id: election_event_id,
         event_name: election_event_name,
         sha256_hash: sha256_hash.into(),
