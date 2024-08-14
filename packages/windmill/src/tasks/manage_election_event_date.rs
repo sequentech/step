@@ -9,7 +9,7 @@ use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
 use crate::types::scheduled_event::EventProcessors;
-use anyhow::{anyhow};
+use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;

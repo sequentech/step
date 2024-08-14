@@ -2,16 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election::{get_election_by_id};
-use crate::postgres::election_event::{get_election_event_by_id};
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::{EventProcessors};
-use anyhow::{anyhow};
+use crate::types::scheduled_event::EventProcessors;
+use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
