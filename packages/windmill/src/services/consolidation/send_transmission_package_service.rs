@@ -8,7 +8,7 @@ use super::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
     },
-    logs::send_transmission_package_to_ccs_log,
+    logs::{error_sending_transmission_package_to_ccs_log, send_transmission_package_to_ccs_log},
     transmission_package::create_transmission_package,
 };
 use crate::{
@@ -42,7 +42,6 @@ async fn send_package_to_ccs_server(
     mut transmission_package: NamedTempFile,
     ccs_server: &MiruCcsServer,
 ) -> Result<()> {
-    info!("FFF A");
     // transmission_package the file to the beginning so it can be read
     transmission_package.rewind()?;
 
@@ -64,19 +63,22 @@ async fn send_package_to_ccs_server(
     );
 
     // Send the POST request
-    info!("FFF B");
-    let response = client.post(&uri).multipart(form).send()
+    let response = client
+        .post(&uri)
+        .multipart(form)
+        .send()
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
-    info!("FFF C {:?}", response);
+    let response_str = format!("{:?}", response);
     let is_success = response.status().is_success();
     let text = response.text().await?;
-    info!("FFF D text: {}", text);
 
     // Check if the request was successful
     if !is_success {
         return Err(anyhow::anyhow!(
-            "Failed to send package"
+            "Failed to send package. Text: {}. Response: {}",
+            text,
+            response_str
         ));
     }
     Ok(())
@@ -210,27 +212,51 @@ pub async fn send_transmission_package_service(
             &ccs_server.public_key_pem,
         )
         .await?;
-        send_package_to_ccs_server(transmission_package, ccs_server).await?;
-            new_transmission_area_election
-                .logs
-                .push(send_transmission_package_to_ccs_log(
-                    &Local::now(),
-                    election_id,
-                    &election.name,
-                    area_id,
-                    &area_name,
-                    &ccs_server.name,
-                    &ccs_server.address,
-                    new_miru_document
-                        .signatures
-                        .clone()
-                        .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
-                        .collect(),
-                ));
-            new_miru_document
-                .servers_sent_to
-                .push(ccs_server.name.clone());
+        match send_package_to_ccs_server(transmission_package, ccs_server).await {
+            Ok(_) => {
+                new_transmission_area_election
+                    .logs
+                    .push(send_transmission_package_to_ccs_log(
+                        &Local::now(),
+                        election_id,
+                        &election.name,
+                        area_id,
+                        &area_name,
+                        &ccs_server.name,
+                        &ccs_server.address,
+                        new_miru_document
+                            .signatures
+                            .clone()
+                            .into_iter()
+                            .map(|signature| signature.trustee_name.clone())
+                            .collect(),
+                    ));
+                new_miru_document
+                    .servers_sent_to
+                    .push(ccs_server.name.clone());
+            }
+            Err(err) => {
+                let error_str = format!("{}", err);
+                new_transmission_area_election.logs.push(
+                    error_sending_transmission_package_to_ccs_log(
+                        &Local::now(),
+                        election_id,
+                        &election.name,
+                        area_id,
+                        &area_name,
+                        &ccs_server.name,
+                        &ccs_server.address,
+                        new_miru_document
+                            .signatures
+                            .clone()
+                            .into_iter()
+                            .map(|signature| signature.trustee_name.clone())
+                            .collect(),
+                        &error_str,
+                    ),
+                );
+            }
+        }
     }
 
     new_transmission_area_election.documents = new_transmission_area_election
