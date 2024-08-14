@@ -15359,6 +15359,8 @@ export type Sequent_Backend_Tasks_Execution = {
   name: Scalars['String']['output'];
   start_at?: Maybe<Scalars['timestamptz']['output']>;
   status: Scalars['String']['output'];
+  /** An object relationship */
+  tenant: Sequent_Backend_Tenant;
   tenant_id: Scalars['uuid']['output'];
   type: Scalars['String']['output'];
 };
@@ -15425,6 +15427,7 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
   name?: InputMaybe<String_Comparison_Exp>;
   start_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   status?: InputMaybe<String_Comparison_Exp>;
+  tenant?: InputMaybe<Sequent_Backend_Tenant_Bool_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   type?: InputMaybe<String_Comparison_Exp>;
 };
@@ -15466,6 +15469,7 @@ export type Sequent_Backend_Tasks_Execution_Insert_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
+  tenant?: InputMaybe<Sequent_Backend_Tenant_Obj_Rel_Insert_Input>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -15529,6 +15533,7 @@ export type Sequent_Backend_Tasks_Execution_Order_By = {
   name?: InputMaybe<Order_By>;
   start_at?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
+  tenant?: InputMaybe<Sequent_Backend_Tenant_Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -15843,6 +15848,13 @@ export type Sequent_Backend_Tenant_Mutation_Response = {
   affected_rows: Scalars['Int']['output'];
   /** data from the rows affected by the mutation */
   returning: Array<Sequent_Backend_Tenant>;
+};
+
+/** input type for inserting object relation for remote table "sequent_backend.tenant" */
+export type Sequent_Backend_Tenant_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Tenant_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Tenant_On_Conflict>;
 };
 
 /** on_conflict condition type for table "sequent_backend.tenant" */
