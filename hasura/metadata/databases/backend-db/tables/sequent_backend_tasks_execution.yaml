@@ -1,0 +1,3 @@
+table:
+  name: tasks_execution
+  schema: sequent_backend

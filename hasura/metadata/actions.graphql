@@ -117,6 +117,12 @@ type Mutation {
 }
 
 type Mutation {
+  export_election_event_tasks (
+    election_event_id: String
+  ): ExportTasksOutput
+}
+
+type Mutation {
   export_users (
     tenant_id: String!
     election_event_id: String
@@ -847,6 +853,11 @@ type ManageElectionDatesOutput {
 }
 
 type ExportLogsOutput {
+  task_id : String!
+  document_id : String!
+}
+
+type ExportTasksOutput {
   task_id : String!
   document_id : String!
 }

@@ -224,6 +224,17 @@ actions:
   permissions:
   - role: election-event-read
   - role: logs-read
+- name: export_election_event_tasks
+  definition:
+    kind: synchronous
+    handler: http://{{HARVEST_DOMAIN}}/export-election-event-tasks
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
 - name: export_users
   definition:
     kind: synchronous
@@ -820,4 +831,5 @@ custom_types:
   - name: OptionalImportEvent
   - name: ManageElectionDatesOutput
   - name: ExportLogsOutput
+  - name: ExportTasksOutput
   scalars: []
