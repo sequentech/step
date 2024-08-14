@@ -44,20 +44,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</#if>
 
 		<#nested "beforeField" attribute>
-		<@inputFieldWithLabel attribute=attribute name=attribute.name/>
-		<#if attribute.annotations.confirm??>
-			<@inputFieldWithLabel attribute=attribute name=attribute.name+'-confirm'/>
+		<#if attribute.annotations.hidden?? && attribute.annotations.hidden?matches("true")>
+		<#else>
+			<@inputFieldWithLabel attribute=attribute name=attribute.name/>
+			<#if attribute.annotations.confirm??>
+				<@inputFieldWithLabel attribute=attribute name=attribute.name+'-confirm'/>
+			</#if>
 		</#if>
 		<#nested "afterField" attribute>
 	</#list>
 
 	<script>
+		// Disable field function. Turns inputs into read only. Add a disableAttribute annotation to a select or multiselect user profile attribute.
+		function readOnlyElementById(e, idToSetReadOnly) {
+			e = e || window.event;
+			var target = e.target || e.srcElement;
+
+			setAllReadOnly(idToSetReadOnly, target.checked);
+		}
+
 		function setReadOnly(id, value) {
 			let element = document.getElementById(id);
 
 			if (element) {
 				element.readOnly = !value;
 				element.required = value;
+				element.value = '';
 			}
 		}
 
