@@ -13,6 +13,7 @@ import {
     Sequent_Backend_Area,
     CreateTransmissionPackageMutation,
     Sequent_Backend_Tally_Session,
+    SendTransmissionPackageMutation,
 } from "@/gql/graphql"
 import {uniq} from "lodash"
 import {IPermissions} from "@/types/keycloak"
@@ -20,6 +21,7 @@ import {useMutation} from "@apollo/client"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {IMiruTallySessionData, MIRU_TALLY_SESSION_ANNOTATION_KEY} from "@/types/miru"
 import {useNotify} from "react-admin"
+import { SEND_TRANSMISSION_PACKAGE } from "@/queries/SendTransmissionPackage"
 
 export const ExportButton = styled.div`
     cursor: pointer;
@@ -56,6 +58,17 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
 
     const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
         CREATE_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TALLY_WRITE,
+                },
+            },
+        }
+    )
+
+    const [SendTransmissionPackage] = useMutation<SendTransmissionPackageMutation>(
+        SEND_TRANSMISSION_PACKAGE,
         {
             context: {
                 headers: {
@@ -110,7 +123,26 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
         )
 
         if (found) {
-            notify("Already exists: transmission package", {type: "success"})
+            try {
+                const {data: nextStatus, errors} = await SendTransmissionPackage({
+                    variables: {
+                        electionId: electionId,
+                        tallySessionId: tally?.id,
+                        areaId,
+                    },
+                })
+    
+                if (errors) {
+                    notify("Error sending transmission package", {type: "error"})
+                    return
+                }
+    
+                if (nextStatus) {
+                    notify("Success sending transmission package", {type: "success"})
+                }
+            } catch (error) {
+                notify("Error sending transmission package", {type: "error"})
+            }
             return
         }
 
