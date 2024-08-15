@@ -276,6 +276,7 @@ pub fn get_contest_plurality(
             under_vote_alert: Some(false),
             invalid_vote_policy: Some(invalid_vote_policy),
             blank_vote_policy: Some(blank_vote_policy),
+            pagination_policy: None,
         }),
     }
 }

@@ -13,6 +13,7 @@ use crate::services::{
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::date_time::{DateFormat, TimeZone};
@@ -88,7 +89,7 @@ pub async fn get_template(
         return Ok(None);
     };
 
-    let receipts: ReceiptsRoot = serde_json::from_value(receipts_json)?;
+    let receipts: ReceiptsRoot = deserialize_value(receipts_json)?;
     let Some(template_id) = receipts.document.and_then(|document| document.template) else {
         return Ok(None);
     };
@@ -104,7 +105,7 @@ pub async fn get_template(
     };
 
     let communication_template_value: CommunicationTemplateValue =
-        serde_json::from_value(communication_template.template)
+        deserialize_value(communication_template.template)
             .with_context(|| "Error parsing the communication template")?;
 
     Ok(Some(communication_template_value.document))
