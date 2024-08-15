@@ -35,11 +35,8 @@
 //! ```
 use std::io::{Error, ErrorKind};
 use borsh::{BorshDeserialize, BorshSerialize};
+use crate::shuffler_product::StrandRectangle;
 
-use crate::elgamal::{Ciphertext, ProductCiphertext};
-use crate::shuffler_product::CiphertextRectangle;
-use crate::context::Ctx;
-use crate::zkp::ChaumPedersen;
 
 use crate::util::{Par, StrandError};
 #[cfg(feature = "rayon")]
@@ -109,33 +106,12 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize for St
     }
 }
 
-/*
-/// Parallelized serialization for plaintext vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorP<C: Ctx>(pub Vec<C::P>);
-
-/// Parallelized serialization for group element vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorE<C: Ctx>(pub Vec<C::E>);
-
-/// Parallelized serialization for "exponent" vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorX<C: Ctx>(pub Vec<C::X>);
-
-/// Parallelized serialization for ciphertext vectors.
-#[derive(Clone, Debug)]
-pub struct StrandVectorC<C: Ctx>(pub Vec<Ciphertext<C>>);
-
-/// Parallelized serialization for ChaumPedersen proof vectors.
-#[derive(Debug)]
-pub struct StrandVectorCP<C: Ctx>(pub Vec<ChaumPedersen<C>>);
-
-impl<C: Ctx> BorshSerialize for StrandVectorP<C> {
+impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
     fn serialize<W: std::io::Write>(
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let vector = &self.0;
+        let vector = self.rows();
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
             vector.par().map(|t| t.try_to_vec()).collect();
@@ -145,148 +121,15 @@ impl<C: Ctx> BorshSerialize for StrandVectorP<C> {
     }
 }
 
-impl<C: Ctx> BorshDeserialize for StrandVectorP<C> {
+impl<T: Send + Sync + BorshDeserialize> BorshDeserialize for StrandRectangle<T> {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-
-        let results: std::io::Result<Vec<C::P>> =
-            vectors.par().map(|v| C::P::try_from_slice(&v)).collect();
-
-        Ok(StrandVectorP(results?))
-    }
-}
-
-impl<C: Ctx> BorshSerialize for StrandVectorE<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for StrandVectorE<C> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-
-        let results: std::io::Result<Vec<C::E>> =
-            vectors.par().map(|v| C::E::try_from_slice(&v)).collect();
-
-        Ok(StrandVectorE(results?))
-    }
-}
-
-impl<C: Ctx> BorshSerialize for StrandVectorX<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for StrandVectorX<C> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-
-        let results: std::io::Result<Vec<C::X>> =
-            vectors.par().map(|v| C::X::try_from_slice(&v)).collect();
-
-        Ok(StrandVectorX(results?))
-    }
-}
-
-impl<C: Ctx> BorshSerialize for StrandVectorC<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for StrandVectorC<C> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-        let results: std::io::Result<Vec<Ciphertext<C>>> = vectors
+        let results: std::io::Result<Vec<Vec<T>>> = vectors
             .par()
-            .map(|v| Ciphertext::<C>::try_from_slice(&v))
+            .map(|v| Vec::<T>::try_from_slice(&v))
             .collect();
 
-        Ok(StrandVectorC(results?))
-    }
-}
-
-impl<C: Ctx> BorshSerialize for StrandVectorCP<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for StrandVectorCP<C> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-
-        let results: std::io::Result<Vec<ChaumPedersen<C>>> = vectors
-            .par()
-            .map(|v| ChaumPedersen::<C>::try_from_slice(&v))
-            .collect();
-
-        Ok(StrandVectorCP(results?))
-    }
-}*/
-
-impl<C: Ctx> BorshSerialize for CiphertextRectangle<C> {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let vector = self.products();
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| t.try_to_vec()).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl<C: Ctx> BorshDeserialize for CiphertextRectangle<C> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
-        let results: std::io::Result<Vec<ProductCiphertext<C>>> = vectors
-            .par()
-            .map(|v| ProductCiphertext::<C>::try_from_slice(&v))
-            .collect();
-
-        CiphertextRectangle::new(results?).map_err(|_| {
+        StrandRectangle::new(results?).map_err(|_| {
             Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
         })
     }

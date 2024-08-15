@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 [package]
 name = "strand"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   "David Ruescas <david@sequenttech.io>",
   "Eduardo Robles <edulix@sequenttech.io>"
@@ -102,10 +102,10 @@ rustc_version = "0.4.0"
 name = "shuffle"
 harness = false
 # remove this to run benchmark
-bench = false
+# bench = false
 
 [[bench]]
 name = "encrypt"
 harness = false
 # remove this to run benchmark
-bench = false
+# bench = false

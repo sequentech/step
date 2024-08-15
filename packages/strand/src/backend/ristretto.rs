@@ -547,9 +547,23 @@ mod tests {
 
     #[cfg(not(feature = "wasm"))]
     #[test]
+    fn test_product_shuffle() {
+        let ctx = RistrettoCtx;
+        test_product_shuffle_generic(&ctx);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
     fn test_shuffle_serialization() {
         let ctx = RistrettoCtx;
         test_shuffle_serialization_generic(&ctx);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
+    fn test_product_shuffle_serialization() {
+        let ctx = RistrettoCtx;
+        test_product_shuffle_serialization_generic(&ctx);
     }
 
     use rand::Rng;
