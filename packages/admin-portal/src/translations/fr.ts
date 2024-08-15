@@ -364,7 +364,7 @@ const frenchTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La cérémonie de comptage ne peut pas commencer tant que la cérémonie des clés n'a pas été réalisée avec succès.",
+                        "La Cérémonie de Comptage ne peut pas commencer tant que la Cérémonie de Fideicomisario n'a pas été réalisée avec succès.",
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Comptage. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
                 },

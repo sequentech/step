@@ -364,7 +364,7 @@ const spanishTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La ceremonia de conteo no puede comenzar hasta que la ceremonia de llaves se haya completado con éxito.",
+                        "La Ceremonia de Recuento no puede comenzar hasta que la Ceremonia de Claves se haya completado con éxito.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },

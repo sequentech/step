@@ -360,7 +360,7 @@ const englishTranslation = {
                 },
                 notify: {
                     noKeysTally:
-                        "The Tally ceremony cannot start until the Key ceremony has been successfully completed.",
+                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
