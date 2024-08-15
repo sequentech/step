@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useMemo} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -292,7 +292,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             >
                 <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="tenant_id" />
                     <DateField source="created_at" showTime={true} />
 
