@@ -122,7 +122,7 @@ pub struct UploadSignatureInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
-    pub_key: String,
+    public_key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
