@@ -19,6 +19,8 @@ const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
 const MIRU_DEVICE_ID: &str = "SQUNT420535311";
 const MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
 const MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
+const IP_ADDRESS: &str = "192.168.1.67";
+const MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
 
 #[instrument(skip(election_event_annotations), err)]
 pub fn generate_acm_json(
@@ -66,8 +68,8 @@ pub fn generate_acm_json(
         sha256_hash: sha256_hash.into(),
         encrypted_key: encrypted_key.into(),
         members: vec![],
-        ip_address: "192.168.1.197".into(),
-        mac_address: "10:FC:B6:10:00:0B".into(),
+        ip_address: IP_ADDRESS.into(),
+        mac_address: MAC_ADDRESS.into(),
         er_datetime: er_datetime.clone(),
         signature: signature.into(),
         publickey: publickey.into(),

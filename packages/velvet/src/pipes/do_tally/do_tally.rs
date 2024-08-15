@@ -343,6 +343,40 @@ impl InvalidVotes {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExtendedMetricsContest {
+    // Voted more candidates than the allowed amount per contest
+    pub over_votes: u64,
+    // Voted less than the number of votes allowed for each contest.
+    pub under_votes: u64,
+    // Total actual marks count of candidates in the contest. Only counted UV and fully votes.
+    pub votes_actually: u64,
+    // Total expected marks for candidates if all votes were normal
+    // (no under-votes, no over-votes) (valid-ballots X number of
+    // votes possible in the contest)
+    pub expected_votes: u64,
+}
+
+impl ExtendedMetricsContest {
+    #[instrument(skip_all)]
+    pub fn aggregate(&self, other: &ExtendedMetricsContest) -> ExtendedMetricsContest {
+        let mut result = self.clone();
+        result.over_votes += other.over_votes;
+        result.under_votes += other.under_votes;
+        result.votes_actually += other.votes_actually;
+        result.expected_votes += other.expected_votes;
+
+        result
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExtendedMetricsElection {
+    // Number of valid ballots processed by the ACM without any
+    // single mark on all contests.
+    pub abstentions: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContestResult {
     pub contest: Contest,
@@ -362,6 +396,7 @@ pub struct ContestResult {
     pub percentage_invalid_votes_explicit: f64,
     pub percentage_invalid_votes_implicit: f64,
     pub candidate_result: Vec<CandidateResult>,
+    pub extended_metrics: Option<ExtendedMetricsContest>,
 }
 
 impl ContestResult {
@@ -428,6 +463,9 @@ impl ContestResult {
         if add_census {
             aggregate.census += other.census;
         }
+        let aggregate_metrics = aggregate.extended_metrics.unwrap_or_default();
+        aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default());
+        aggregate.extended_metrics = Some(aggregate_metrics);
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;

@@ -8,12 +8,16 @@ use super::eml_generator::{
 use super::logs::create_transmission_package_log;
 use super::transmission_package::generate_base_compressed_xml;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::document::get_document;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
+use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::decompress_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
+use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::folders::list_files;
 use crate::services::temp_path::write_into_named_temp_file;
@@ -22,20 +26,16 @@ use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
 };
-use crate::postgres::document::get_document;
-use crate::postgres::results_event::get_results_event_by_id;
-use crate::postgres::tally_session_execution::get_tally_session_executions;
-use crate::services::documents::get_document_as_temp_file;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::util::date_time::get_system_timezone;
-use tracing::{info, instrument};
-use velvet::pipes::generate_reports::ReportData;
-use uuid::Uuid;
 use tempfile::NamedTempFile;
+use tracing::{info, instrument};
+use uuid::Uuid;
+use velvet::pipes::generate_reports::ReportData;
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_to_file(

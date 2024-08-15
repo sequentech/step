@@ -11,10 +11,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use windmill::{
     services::celery_app::get_celery_app,
-    tasks::{
-        miru_plugin_tasks::{
-            create_transmission_package_task, send_transmission_package_task,
-        },
+    tasks::miru_plugin_tasks::{
+        create_transmission_package_task, send_transmission_package_task,
     },
 };
 
