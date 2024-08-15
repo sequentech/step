@@ -476,7 +476,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     notify(
                         t(
                             `usersAndRolesScreen.${
-                                electionEventId ? "voters" : "users"
+                              "voters"
                             }.notifications.exportError`
                         ),
                         {type: "error"}
@@ -496,7 +496,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     notify(
                         t(
                             `usersAndRolesScreen.${
-                                electionEventId ? "voters" : "users"
+                            "users"
                             }.notifications.exportError`
                         ),
                         {type: "error"}

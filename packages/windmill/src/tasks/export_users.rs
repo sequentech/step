@@ -131,7 +131,6 @@ fn get_user_record(
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
-    info!("export_users");
     let realm = match &body {
         ExportBody::Users { tenant_id, election_event_id, .. } => {
             get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or(""))
@@ -189,7 +188,6 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         }
         ExportBody::AllUsers { .. } => (None, None),
     };
-    info!("im here ");
     let headers = get_headers(&elections);
 
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;

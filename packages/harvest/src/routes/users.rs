@@ -465,14 +465,12 @@ pub async fn export_users_f(
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     
-    // Determine required permissions based on the presence of `election_event_id`
     let required_perm = if body.election_event_id.is_some() {
         Permissions::VOTER_READ
     } else {
         Permissions::USER_READ
     };
 
-    // Authorize the request
     authorize(
         &claims,
         true,
@@ -480,19 +478,16 @@ pub async fn export_users_f(
         vec![required_perm],
     )?;
     
-    // Generate a unique document ID
     let document_id = Uuid::new_v4().to_string();
     
-    // Get the Celery application
     let celery_app = get_celery_app().await;
     
-    // Send the task to Celery
     let task = celery_app
         .send_task(export_users::export_users::new(
             export_users::ExportBody::Users {
                 tenant_id: body.tenant_id,
-                election_event_id: body.election_event_id, // Use the extracted value
-                election_id: body.election_id,             // Use the extracted value
+                election_event_id: body.election_event_id, 
+                election_id: body.election_id,          
             },
             document_id.clone(),
         ))
@@ -504,16 +499,13 @@ pub async fn export_users_f(
             )
         })?;
     
-    // Prepare the response output
     let output = export_users::ExportUsersOutput {
         document_id,
         task_id: task.task_id.clone(),
     };
     
-    // Log the task ID
     info!("Sent EXPORT_USERS task {}", task.task_id);
 
-    // Return the response as JSON
     Ok(Json(output))
 }
 
