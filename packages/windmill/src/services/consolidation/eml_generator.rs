@@ -55,21 +55,23 @@ pub trait GetMetrics {
 impl GetMetrics for ContestResult {
     #[instrument(skip_all)]
     fn get_metrics(&self) -> Vec<EMLCountMetric> {
+        let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
+
         vec![
             EMLCountMetric {
                 kind: "Total Number of Over Votes".into(),
                 id: "OV".into(),
-                datum: 0,
+                datum: extended_metrics.over_votes as i64,
             },
             EMLCountMetric {
                 kind: "Total Number of Under Votes".into(),
                 id: "UV".into(),
-                datum: 0,
+                datum: extended_metrics.under_votes as i64,
             },
             EMLCountMetric {
                 kind: "Total Number of Votes Actually".into(),
                 id: "VV".into(),
-                datum: self.total_valid_votes as i64,
+                datum: extended_metrics.votes_actually as i64,
             },
             EMLCountMetric {
                 kind: "Total Number of Registered Voters".into(),
@@ -79,7 +81,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Expected Votes".into(),
                 id: "EV".into(),
-                datum: self.total_valid_votes as i64,
+                datum: extended_metrics.expected_votes as i64,
             },
             EMLCountMetric {
                 kind: "Number of Zero Outs Executed".into(),
@@ -109,7 +111,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Abstentions".into(),
                 id: "AB".into(),
-                datum: 0,
+                datum: self.total_blank_votes,
             },
             EMLCountMetric {
                 kind: "Total Number of Invalid Ballots".into(),
