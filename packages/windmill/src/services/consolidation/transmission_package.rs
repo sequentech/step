@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
-    acm_json::{generate_acm_json, MIRU_STATION_ID},
+    acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
     ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, generate_ecies_key_pair, EciesKeyPair},
     eml_generator::render_eml_file,
@@ -95,6 +95,8 @@ async fn generate_encrypted_compressed_xml(
 
 #[instrument(skip_all, err)]
 fn generate_er_final_zip(exz_temp_file_bytes: Vec<u8>, acm_json: ACMJson) -> Result<NamedTempFile> {
+    let MIRU_STATION_ID =
+        std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
     // Create a temporary directory
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();

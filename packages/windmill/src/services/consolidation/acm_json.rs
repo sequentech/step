@@ -7,7 +7,7 @@ use super::{
     },
     eml_types::ACMJson,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::{
@@ -18,7 +18,6 @@ use tracing::instrument;
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
 const MIRU_DEVICE_ID: &str = "SQUNT420535311";
 const MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
-pub const MIRU_STATION_ID: &str = "15363610";
 const MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
 
 #[instrument(skip(election_event_annotations), err)]
@@ -31,6 +30,8 @@ pub fn generate_acm_json(
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
 ) -> Result<ACMJson> {
+    let MIRU_STATION_ID =
+        std::env::var("MIRU_STATION_ID").map_err(|_| anyhow!("MIRU_STATION_ID env var missing"))?;
     let er_datetime = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ACM_JSON_FORMAT.to_string())),
