@@ -58,7 +58,6 @@ import {EXPORT_USERS} from "@/queries/ExportUsers"
 import {EXPORT_ALL_USERS} from "@/queries/ExportAllUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
-import {useParams} from "react-router-dom"
 
 const OMIT_FIELDS: Array<string> = ["id", "email_verified"]
 
@@ -471,9 +470,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })
-                console.log("i get here", exportUsersData)
-                console.log("electionEventId", electionEventId)
-
                 if (errors || !exportUsersData) {
                     setExporting(false)
                     setOpenExport(false)
@@ -485,18 +481,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         ),
                         {type: "error"}
                     )
-                    console.log(`Error exporting users: ${errors}`)
                     return
                 }
                 let documentId = exportUsersData.export_users?.document_id
                 setExportDocumentId(documentId)
             } else {
-                console.log("tenantId", tenantId)
                 const {data: exportUsersData, errors} = await exportAllUsers({
                     variables: {tenantId},
                 })
-
-                console.log("i get to all users", exportUsersData)
 
                 if (errors || !exportUsersData) {
                     setExporting(false)
@@ -509,7 +501,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         ),
                         {type: "error"}
                     )
-                    console.log(`Error exporting users: ${errors}`)
                     return
                 }
                 let documentId = exportUsersData.export_all_users?.document_id

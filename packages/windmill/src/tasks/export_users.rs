@@ -288,7 +288,7 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
 
     let key = s3::get_document_key(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         &document_id,
         &name,
     );

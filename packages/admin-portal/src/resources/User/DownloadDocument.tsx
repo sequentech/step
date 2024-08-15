@@ -32,10 +32,8 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
-    console.log(documentId)
 
     useEffect(() => {
-        console.log(`use effect called filename=${fileName}`)
         if (!error && data?.fetchDocument?.url && !downloaded) {
             setDownloaded(true)
             downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
