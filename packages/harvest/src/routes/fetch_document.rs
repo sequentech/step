@@ -15,7 +15,7 @@ use windmill::services::{database::get_hasura_pool, documents};
 
 #[derive(Deserialize, Debug)]
 pub struct GetDocumentUrlBody {
-    election_event_id: String,
+    election_event_id: Option<String>,
     document_id: String,
 }
 
@@ -59,7 +59,8 @@ pub async fn fetch_document(
     let url = documents::get_document_url(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
-        Some(&input.election_event_id),
+        input.election_event_id.as_deref(),
+        // Some(&input.election_event_id),
         &input.document_id,
     )
     .await

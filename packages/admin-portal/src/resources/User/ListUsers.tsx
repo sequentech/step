@@ -126,7 +126,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
-    const [exportAllUsers] = useMutation<ExportAllUsersMutation>(EXPORT_ALL_USERS)
+    const [exportAllUsers] = useMutation<ExportAllUsersMutation>(EXPORT_ALL_USERS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.USER_READ,
+            },
+        },
+    })
+
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -454,45 +461,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setExportDocumentId(undefined)
         setOpenExport(true)
     }
-    // const confirmExportAction = async () => {
-    //     setExportDocumentId(undefined)
-    //     setExporting(true)
-    //     const {data: exportUsersData, errors} = await exportAllUsers({
-    //         variables: {
-    //             tenantId: tenantId,
-    //             electionEventId: electionEventId,
-    //             electionId: electionId,
-    //         },
-    //     })
-    //     if (errors || !exportUsersData) {
-    //         setExporting(false)
-    //         setOpenExport(false)
-    //         notify(
-    //             t(
-    //                 `usersAndRolesScreen.${
-    //                     electionEventId ? "voters" : "users"
-    //                 }.notifications.exportError`
-    //             ),
-    //             {type: "error"}
-    //         )
-    //         console.log(`Error exporting users: ${errors}`)
-    //         return
-    //     }
-    //     let documentId = exportUsersData.export_all_users?.document_id
-    //     setExportDocumentId(documentId)
-    // }
 
     const confirmExportAction = async () => {
         try {
             setExportDocumentId(undefined)
             setExporting(true)
-            // const {data: exportUsersData, errors} = await exportAllUsers({
-            //     variables: {
-            //         tenantId: tenantId,
-            //         // electionEventId: undefined,
-            //         // electionId: undefined,
-            //     },
-            // })
+
             if (electionEventId) {
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
@@ -517,11 +491,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 let documentId = exportUsersData.export_users?.document_id
                 setExportDocumentId(documentId)
             } else {
+                console.log("tenantId", tenantId)
                 const {data: exportUsersData, errors} = await exportAllUsers({
                     variables: {tenantId},
                 })
-                console.log("i get here", exportUsersData)
-                console.log("electionEventId", electionEventId)
+
+                console.log("i get to all users", exportUsersData)
 
                 if (errors || !exportUsersData) {
                     setExporting(false)

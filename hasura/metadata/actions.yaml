@@ -201,6 +201,7 @@ actions:
   definition:
     kind: synchronous
     handler: http://{{HARVEST_DOMAIN}}/export-all-users
+    forward_client_headers: true
     request_transform:
       body:
         action: transform
@@ -208,7 +209,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
-  - role: admin-user
+  - role: user-read
 - name: export_election_event
   definition:
     kind: synchronous

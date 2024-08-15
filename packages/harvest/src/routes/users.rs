@@ -521,19 +521,20 @@ pub async fn export_users_f(
 
 #[instrument(skip(claims))]
 #[post("/export-all-users", format = "json", data = "<input>")]
-pub async fn export_all_users(
+pub async fn export_all_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportAllUsersBody>,
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    let required_perm = Permissions::ADMIN_USER;
+    let required_perm = Permissions::USER_READ;
+    info!("input-users {:?}", body);
+    
     authorize(
         &claims,
         true,
         Some(body.tenant_id.clone()),
-        vec![required_perm],
+        vec![Permissions::USER_READ],
     )?;
-    info!("input-users {:?}", body);
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let task = celery_app
