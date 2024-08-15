@@ -5,6 +5,7 @@ use crate::types::scheduled_event::{CronConfig, EventProcessors};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -41,7 +42,7 @@ impl TryFrom<Row> for PostgresScheduledEvent {
             .try_get("cron_config")
             .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
         let cron_config: Option<CronConfig> =
-            cron_config_js.map(|val| serde_json::from_value(val).unwrap());
+            cron_config_js.map(|val| deserialize_value(val).unwrap());
 
         Ok(PostgresScheduledEvent {
             id: item
