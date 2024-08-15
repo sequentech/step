@@ -366,6 +366,8 @@ const spanishTranslation: TranslationType = {
                     noLogs: "No hay registros disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Ceremonia de Recuento no puede comenzar hasta que la Ceremonia de Claves se haya completado con éxito.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },

@@ -366,6 +366,8 @@ const catalanTranslation: TranslationType = {
                     noLogs: "No hi ha registres disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissari no s'hagi completat amb èxit.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
