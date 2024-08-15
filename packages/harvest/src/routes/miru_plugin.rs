@@ -15,7 +15,6 @@ use windmill::{
         miru_plugin_tasks::{
             create_transmission_package_task, send_transmission_package_task,
         },
-        send_eml::send_eml_task,
     },
 };
 

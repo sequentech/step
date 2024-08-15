@@ -24,7 +24,6 @@ pub mod render_report;
 pub mod review_boards;
 pub mod scheduled_events;
 pub mod send_communication;
-pub mod send_eml;
 pub mod set_public_key;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;

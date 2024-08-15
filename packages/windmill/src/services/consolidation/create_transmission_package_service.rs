@@ -6,7 +6,6 @@ use super::eml_generator::{
     MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
-use super::send_eml_service::download_to_file;
 use super::transmission_package::generate_base_compressed_xml;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
@@ -23,6 +22,10 @@ use crate::{
     postgres::election_event::get_election_event_by_election_area,
     types::miru_plugin::MiruTallySessionData,
 };
+use crate::postgres::document::get_document;
+use crate::postgres::results_event::get_results_event_by_id;
+use crate::postgres::tally_session_execution::get_tally_session_executions;
+use crate::services::documents::get_document_as_temp_file;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -31,6 +34,61 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::util::date_time::get_system_timezone;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
+use uuid::Uuid;
+use tempfile::NamedTempFile;
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn download_to_file(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<NamedTempFile> {
+    let tally_session_executions = get_tally_session_executions(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session executions")?;
+
+    // the first execution is the latest one
+    let tally_session_execution = tally_session_executions
+        .first()
+        .ok_or_else(|| anyhow!("No tally session executions found"))?;
+
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .clone()
+        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
+
+    let results_event = get_results_event_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &results_event_id,
+    )
+    .await
+    .with_context(|| "Error fetching results event")?;
+
+    let document_id = results_event
+        .documents
+        .ok_or_else(|| anyhow!("Missing documents in results_event"))?
+        .tar_gz_original
+        .ok_or_else(|| anyhow!("Missing tar_gz_original in results_event"))?;
+
+    let document = get_document(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id.to_string()),
+        &document_id,
+    )
+    .await?
+    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
+
+    get_document_as_temp_file(tenant_id, &document).await
+}
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_transmission_package_annotations(
@@ -169,8 +227,8 @@ pub async fn create_transmission_package_service(
 
     let results = state.get_results(true)?;
 
-    let tally_id = 1;
-    let transaction_id = 1;
+    let tally_id = tally_session_id;
+    let transaction_id = Uuid::new_v4().to_string();
     let time_zone = get_system_timezone();
     let now_utc = Utc::now();
     let now_local = now_utc.with_timezone(&Local);
@@ -195,7 +253,7 @@ pub async fn create_transmission_package_service(
     let report: ReportData = report_computed.into();
     let base_compressed_xml = generate_base_compressed_xml(
         tally_id,
-        transaction_id,
+        &transaction_id,
         time_zone.clone(),
         now_utc.clone(),
         &election_event_annotations,

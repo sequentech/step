@@ -42,8 +42,8 @@ pub fn read_temp_file(mut temp_file: NamedTempFile) -> Result<Vec<u8>> {
 
 #[instrument(skip(report), err)]
 pub async fn generate_base_compressed_xml(
-    tally_id: i64,
-    transaction_id: i64,
+    tally_id: &str,
+    transaction_id: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,

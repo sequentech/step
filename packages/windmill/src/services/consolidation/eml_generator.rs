@@ -453,8 +453,8 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
 
 #[instrument(err)]
 pub fn render_eml_file(
-    tally_id: i64,
-    transaction_id: i64,
+    tally_id: &str,
+    transaction_id: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &Annotations,
