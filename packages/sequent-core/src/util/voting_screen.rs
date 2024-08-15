@@ -95,6 +95,7 @@ pub fn check_voting_error_dialog_util(
 }
 
 pub fn get_contest_plurality(
+    over_vote_policy: EOverVotePolicy,
     blank_vote_policy: EBlankVotePolicy,
     invalid_vote_policy: InvalidVotePolicy,
     min_votes: Option<i64>,
@@ -276,6 +277,7 @@ pub fn get_contest_plurality(
             under_vote_alert: Some(false),
             invalid_vote_policy: Some(invalid_vote_policy),
             blank_vote_policy: Some(blank_vote_policy),
+            over_vote_policy: Some(over_vote_policy),
         }),
     }
 }
