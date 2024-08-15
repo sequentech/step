@@ -22,7 +22,6 @@ pub fn compress_folder(folder_path: &Path) -> Result<(TempPath, String, u64)> {
         .with_context(|| "Couldn't reopen file for writing")?;
     let tar_file_temp_path = tar_temp_file.into_temp_path();
     let tar_file_str = tar_file_temp_path.to_string_lossy().to_string();
-    event!(Level::INFO, " Path: {tar_file_str}");
     if !folder_path.is_dir() {
         return Err(format!(
             "Path doesn't exist or it's not a folder: {}",

@@ -9,6 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.text.Collator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -208,10 +212,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {
         // context.failureChallenge(
-        //	AuthenticationFlowError.INVALID_CREDENTIALS,
-        //	getBaseForm(context)
-        //		.setError(Utils.FTL_ERROR_AUTH_INVALID)
-        //		.createForm(Utils.INETUM_ERROR)
+        // AuthenticationFlowError.INVALID_CREDENTIALS,
+        // getBaseForm(context)
+        // .setError(Utils.FTL_ERROR_AUTH_INVALID)
+        // .createForm(Utils.INETUM_ERROR)
         // );
         context.failure(AuthenticationFlowError.INVALID_CREDENTIALS);
         context.attempted();
@@ -269,8 +273,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       // TODO: I don't know why I'm getting "processing" instead of
       // "verificationOk"
       // if (!idStatus.equals("verificationOk") && !idStatus.equals("processing")) {
-      // 	log.error("verifyResults: Error calling transaction/status, idStatus = " + idStatus);
-      // 	return false;
+      // log.error("verifyResults: Error calling transaction/status, idStatus = " +
+      // idStatus);
+      // return false;
       // }
 
       // The status is verification OK. Now we need to retrieve the
@@ -294,34 +299,56 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       }
       String responseStr = response.asString();
       log.info("verifyResults: response Str = " + responseStr);
-      String personalNumber = null;
-      try {
-        personalNumber =
-            response.asJson().get("response").get("mrz").get("personal_number").asText();
-        log.info("verifyResults: personalNumber = " + personalNumber);
-      } catch (Exception error) {
-        // ignore, we'll try the ocr
-      }
-      if (personalNumber == null) {
-        // try ocr
-        log.info("verifyResults: personalNumber is null, trying ocr");
 
-        try {
-          personalNumber =
-              response.asJson().get("response").get("ocr").get("personal_number").asText();
-        } catch (Exception error) {
-          log.error("verifyResults: ocr is also null, return false");
+      String attributesToValidate = configMap.get(Utils.ATTRIBUTES_TO_VALIDATE);
+      List<String> attributesToCheck = new ArrayList<>();
+
+      if (attributesToValidate != null) {
+        attributesToCheck = Arrays.asList(attributesToValidate.split(Utils.MULTIVALUE_SEPARATOR));
+      }
+
+      for (String attributeToCheck : attributesToCheck) {
+        String[] split = attributeToCheck.split(Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR);
+
+        if (split.length != 2) {
+          log.warnv("verifyResults: Invalid attribute to check {0}, ignoring", attributeToCheck);
+          continue;
+        }
+
+        String attribute = split[0];
+        String inetumField = split[1];
+
+        // Get attribute from authentication notes
+        String attributeValue = context.getAuthenticationSession().getAuthNote(attribute);
+
+        if (attributeValue == null) {
+          log.errorv("verifyResults: could not find value in auth notes {0}", attribute);
           return false;
         }
 
-        if (personalNumber == null) {
-          log.error("verifyResults: ocr is also null, return false");
+        // Get inetum value from response
+        String inetumValue = getValueFromInetumResponse(response, inetumField);
+
+        if (inetumValue == null) {
+          log.errorv("verifyResults: could not find value in inetum response {0}", inetumField);
+          return false;
+        }
+
+        // Compare and return false if different
+        Collator collator = Collator.getInstance();
+        collator.setDecomposition(2);
+        collator.setStrength(0);
+
+        if (collator.compare(attributeValue.trim(), inetumValue.trim()) != 0) {
+          log.errorv(
+              "verifyResults: FALSE; attribute: {0}, inetumField: {1}, attributeValue: {2}, inetumValue: {3}",
+              attribute, inetumField, attributeValue, inetumValue);
           return false;
         }
       }
-      log.info("verifyResults: TRUE, personalNumber = " + personalNumber);
 
-      sessionModel.setAuthNote(configMap.get(Utils.DOC_ID_ATTRIBUTE), personalNumber);
+      log.info("verifyResults: TRUE");
+
       sessionModel.setAuthNote(
           configMap.get(Utils.USER_STATUS_ATTRIBUTE), Utils.USER_STATUS_VERIFIED);
 
@@ -330,6 +357,35 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       log.error("verifyResults(): FALSE; Exception: " + error.toString());
       return false;
     }
+  }
+
+  private String getValueFromInetumResponse(SimpleHttp.Response response, String inetumField) {
+    String inetumValue = null;
+    try {
+      inetumValue = response.asJson().get("response").get("mrz").get(inetumField).asText();
+      log.infov("getValueFromInetumResponse: {0} = {1}", inetumField, inetumValue);
+    } catch (Exception error) {
+      // ignore, we'll try the ocr
+    }
+    if (inetumValue == null) {
+      // try ocr
+      log.infov("getValueFromInetumResponse: {0} is null, trying ocr", inetumField);
+
+      try {
+        inetumValue = response.asJson().get("response").get("ocr").get(inetumField).asText();
+      } catch (Exception error) {
+        log.error("getValueFromInetumResponse: ocr is also null, return false");
+        return null;
+      }
+
+      if (inetumValue == null) {
+        log.error("getValueFromInetumResponse: ocr is also null, return false");
+        return null;
+      }
+    }
+
+    log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
+    return inetumValue;
   }
 
   protected LoginFormsProvider getBaseForm(AuthenticationFlowContext context) {
@@ -430,6 +486,20 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.STRING_TYPE,
             "sequent.read-only.id-card-number-validated"),
         new ProviderConfigProperty(
+            Utils.ATTRIBUTES_TO_VALIDATE,
+            "Attributes to validate using inetum data",
+            "A list of attributes to be validated against inetum data. Every entry must 2 values separated by the separator '"
+                + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                + "', where the first value is the user profile attribute and the second the inetum data field. For example firstName"
+                + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                + "given_names",
+            ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
+            Collections.unmodifiableCollection(
+                Arrays.asList(
+                    "sequent.read-only.id-card-number"
+                        + Utils.ATTRIBUTE_TO_VALIDATE_SEPARATOR
+                        + "personal_number"))),
+        new ProviderConfigProperty(
             Utils.SDK_ATTRIBUTE,
             "Configuration for the SDK",
             "-",
@@ -441,30 +511,30 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Uses FreeMarker template, see example",
             ProviderConfigProperty.TEXT_TYPE,
             """
-{
-	environment: 0,
-	customTextsConfig: myStrings,
-	baseAssetsUrl: "../../../",
-	uploadAndCheckIdentifiers: ["ESP"],
-	showLogs: false,
-	logTypes: ['ERROR', 'INFO'],
-	design: design,
-	bamEnabled: true,
-	ocrCountdown: false,
-	videoSelfieShowDNI: true,
-	cancelProcessButton: true,
-	showPermissionsHelp: true,
-	qrEnabled: false,
-	voiceEnabled: true,
-	voiceLanguage: VoiceLanguage.spanishSpain,
-	customIOSBrowsersConfig: [IOSBrowser.safari],
-	otpEmailAddress: 'xxxxxxx@inetum.com',
-	otpPhoneNumber: 'xxxxxxxx',
-	countryCode: CountryCode.españa,
-	applicationId: window.DOB_APP_ID,
-	broadcast: new LocalBroadcastManager()
-}
-				"""),
+                {
+                	environment: 0,
+                	customTextsConfig: myStrings,
+                	baseAssetsUrl: "../../../",
+                	uploadAndCheckIdentifiers: ["ESP"],
+                	showLogs: false,
+                	logTypes: ['ERROR', 'INFO'],
+                	design: design,
+                	bamEnabled: true,
+                	ocrCountdown: false,
+                	videoSelfieShowDNI: true,
+                	cancelProcessButton: true,
+                	showPermissionsHelp: true,
+                	qrEnabled: false,
+                	voiceEnabled: true,
+                	voiceLanguage: VoiceLanguage.spanishSpain,
+                	customIOSBrowsersConfig: [IOSBrowser.safari],
+                	otpEmailAddress: 'xxxxxxx@inetum.com',
+                	otpPhoneNumber: 'xxxxxxxx',
+                	countryCode: CountryCode.españa,
+                	applicationId: window.DOB_APP_ID,
+                	broadcast: new LocalBroadcastManager()
+                }
+                				"""),
         new ProviderConfigProperty(
             Utils.BASE_URL_ATTRIBUTE,
             "Base URL for Inetum API",
@@ -477,28 +547,28 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
             "Uses FreeMarker template, see example",
             ProviderConfigProperty.TEXT_TYPE,
             """
-{
-	"wFtype_Facial": true,
-	"wFtype_OCR": true,
-	"wFtype_Video": false,
-	"wFtype_Anti_Spoofing": false,
-	"wFtype_Sign": false,
-	"wFtype_VerifAvan": false,
-	"wFtype_UECertificate": false,
-	"docID": "${doc_id}",
-	"name": "",
-	"lastname1": "",
-	"lastname2": "",
-	"country": "",
-	"mobilePhone": "",
-	"eMail": "",
-	"priority": 3,
-	"maxRetries": 3,
-	"maxProcessTime": 30,
-	"application": "sequent-keycloak",
-	"clienteID": "${client_id}"
-}
-				"""));
+                {
+                	"wFtype_Facial": true,
+                	"wFtype_OCR": true,
+                	"wFtype_Video": false,
+                	"wFtype_Anti_Spoofing": false,
+                	"wFtype_Sign": false,
+                	"wFtype_VerifAvan": false,
+                	"wFtype_UECertificate": false,
+                	"docID": "${doc_id}",
+                	"name": "",
+                	"lastname1": "",
+                	"lastname2": "",
+                	"country": "",
+                	"mobilePhone": "",
+                	"eMail": "",
+                	"priority": 3,
+                	"maxRetries": 3,
+                	"maxProcessTime": 30,
+                	"application": "sequent-keycloak",
+                	"clienteID": "${client_id}"
+                }
+                				"""));
   }
 
   @Override

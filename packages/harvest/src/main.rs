@@ -8,9 +8,11 @@ extern crate rocket;
 
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
-use windmill::services::probe::{setup_probe, AppName};
+use windmill::services::{
+    celery_app::set_is_app_active,
+    probe::{setup_probe, AppName},
+};
 
-mod pdf;
 mod routes;
 mod services;
 mod types;
@@ -21,6 +23,7 @@ async fn rocket() -> _ {
     init_log(true);
 
     setup_probe(AppName::HARVEST).await;
+    set_is_app_active(true);
 
     rocket::build()
         .register(

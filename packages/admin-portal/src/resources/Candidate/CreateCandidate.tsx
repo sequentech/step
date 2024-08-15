@@ -24,7 +24,7 @@ import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
-import {ICandidatePresentation} from "@sequentech/ui-essentials"
+import {ICandidatePresentation} from "@sequentech/ui-core"
 
 const Hidden = styled(Box)`
     display: none;

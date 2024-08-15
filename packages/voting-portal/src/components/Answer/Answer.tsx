@@ -4,14 +4,14 @@
 import React, {useContext} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
-    Candidate,
     stringToHtml,
     isUndefined,
     normalizeWriteInText,
     translate,
     ICandidate,
     IContest,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {Candidate} from "@sequentech/ui-essentials"
 import Image from "mui-image"
 import {
     resetBallotSelection,
@@ -31,7 +31,7 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
-import {checkIsBlank} from "../../services/BallotService"
+import {provideBallotService} from "../../services/BallotService"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -73,12 +73,13 @@ export const Answer: React.FC<IAnswerProps> = ({
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
+    const ballotService = provideBallotService()
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {
             return !isUndefined(questionState) && questionState.is_explicit_invalid
         } else if (isExplicitBlankVote) {
-            return !isUndefined(questionState) && !!checkIsBlank(questionState)
+            return !isUndefined(questionState) && !!ballotService.checkIsBlank(questionState)
         } else {
             return !isUndefined(selectionState) && selectionState.selected > -1
         }

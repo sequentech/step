@@ -11,17 +11,45 @@ use crate::interpret_plaintext::{
     check_is_blank, get_layout_properties, get_points,
 };
 use crate::plaintext::*;
-use crate::services::generate_urls::get_login_url;
+use crate::services::generate_urls::get_auth_url;
+use crate::services::generate_urls::AuthAction;
 //use crate::serialization::base64::Base64Deserialize;
 use crate::util::normalize_vote::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
+use crate::util::voting_screen::{
+    check_voting_error_dialog_util, check_voting_not_allowed_next_util,
+};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct ErrorStatus {
+    pub error_type: BallotError,
+    pub error_msg: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, JsonSchema, Clone, Eq)]
+pub enum BallotError {
+    PARSE_ERROR,
+    DESERIALIZE_AUDITABLE_ERROR,
+    DESERIALIZE_HASHABLE_ERROR,
+    CONVERT_ERROR,
+    SERIALIZE_ERROR,
+}
+
+impl From<ErrorStatus> for JsValue {
+    fn from(error: ErrorStatus) -> JsValue {
+        serde_wasm_bindgen::to_value(&error).unwrap()
+    }
+}
 
 pub trait IntoResult<T> {
     fn into_json(self) -> Result<T, JsValue>;
@@ -58,38 +86,63 @@ pub fn set_hooks() {
 pub fn to_hashable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
-    // parse input
-    let auditable_ballot: AuditableBallot =
-        serde_wasm_bindgen::from_value(auditable_ballot_json).map_err(
-            |err| format!("Error reading javascript auditable ballot: {}", err),
-        )?;
-    // test deserializing auditable ballot contests
+    // Parse input
+    let auditable_ballot: AuditableBallot = serde_wasm_bindgen::from_value(
+        auditable_ballot_json,
+    )
+    .map_err(|err| {
+        JsValue::from(ErrorStatus {
+            error_type: BallotError::PARSE_ERROR,
+            error_msg: format!("Failed to parse auditable ballot: {}", err),
+        })
+    })?;
+
+    // Test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
-            format!("Error deserializing auditable ballot contests: {:?}", err)
-        })
-        .into_json()?;
-    let deserialized_ballot: HashableBallot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
-            format!(
-                "Error converting auditable ballot to hashable ballot: {:?}",
-                err
-            )
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize auditable ballot contests: {}",
+                    err
+                ),
+            })
         })?;
 
-    // test deserializing hashable ballot contests
+    // Convert auditable ballot to hashable ballot
+    let deserialized_ballot: HashableBallot =
+        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::CONVERT_ERROR,
+                error_msg: format!(
+                    "Failed to convert auditable ballot to hashable ballot: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Test deserializing hashable ballot contests
     let _hashable_ballot_contests = deserialized_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
-            format!("Error deserializing hashable ballot contests: {:?}", err)
-        })
-        .into_json()?;
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize hashable ballot contests: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Serialize the hashable ballot
     let serializer = Serializer::json_compatible();
-    deserialized_ballot
-        .serialize(&serializer)
-        .map_err(|err| format!("{:?}", err))
-        .into_json()
+    deserialized_ballot.serialize(&serializer).map_err(|err| {
+        JsValue::from(ErrorStatus {
+            error_type: BallotError::SERIALIZE_ERROR,
+            error_msg: format!("Failed to serialize hashable ballot: {}", err),
+        })
+    })
 }
 
 #[allow(clippy::all)]
@@ -180,6 +233,204 @@ pub fn decode_auditable_ballot_js(
         .map_err(|err| {
             format!("Error converting decoded ballot to json {:?}", err)
         })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sort_candidates_list_js(
+    candidates: JsValue,
+    order: JsValue,
+    apply_random: JsValue,
+) -> Result<JsValue, JsValue> {
+    let mut all_candidates: Vec<Candidate> =
+        serde_wasm_bindgen::from_value(candidates).map_err(|err| {
+            JsValue::from_str(&format!("Error parsing candidates: {}", err))
+        })?;
+    let order_field: CandidatesOrder =
+        serde_wasm_bindgen::from_value(order.clone())
+            .unwrap_or(CandidatesOrder::default());
+
+    let should_apply_random: bool =
+        serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
+
+    match order_field {
+        CandidatesOrder::Alphabetical => {
+            all_candidates.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        CandidatesOrder::Custom => {
+            all_candidates.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        CandidatesOrder::Random => {
+            if should_apply_random {
+                let mut rng = thread_rng();
+                all_candidates.shuffle(&mut rng);
+            }
+        }
+    }
+
+    let serializer = Serializer::json_compatible();
+    all_candidates
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting array to json {:?}", err))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sort_contests_list_js(
+    contests: JsValue,
+    order: JsValue,
+    apply_random: JsValue,
+) -> Result<JsValue, JsValue> {
+    let mut all_contests: Vec<Contest> =
+        serde_wasm_bindgen::from_value(contests).map_err(|err| {
+            JsValue::from_str(&format!("Error parsing contests: {}", err))
+        })?;
+    let order_field: ContestsOrder =
+        serde_wasm_bindgen::from_value(order.clone())
+            .unwrap_or(ContestsOrder::default());
+
+    let should_apply_random: bool =
+        serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
+
+    match order_field {
+        ContestsOrder::Alphabetical => {
+            all_contests.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        ContestsOrder::Custom => {
+            all_contests.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        ContestsOrder::Random => {
+            if should_apply_random {
+                let mut rng = thread_rng();
+                all_contests.shuffle(&mut rng);
+            }
+        }
+    }
+
+    let serializer = Serializer::json_compatible();
+    all_contests
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting array to json {:?}", err))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sort_elections_list_js(
+    elections: JsValue,
+    order: JsValue,
+    apply_random: JsValue,
+) -> Result<JsValue, JsValue> {
+    let mut all_elections: Vec<Election> =
+        serde_wasm_bindgen::from_value(elections).map_err(|err| {
+            JsValue::from_str(&format!("Error parsing elections: {}", err))
+        })?;
+    let order_field: ElectionsOrder =
+        serde_wasm_bindgen::from_value(order.clone())
+            .unwrap_or(ElectionsOrder::default());
+
+    let should_apply_random: bool =
+        serde_wasm_bindgen::from_value(apply_random.clone()).unwrap_or(false);
+
+    match order_field {
+        ElectionsOrder::Alphabetical => {
+            all_elections.sort_by(|a, b| {
+                let name_a = a
+                    .alias
+                    .as_ref()
+                    .or(a.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .alias
+                    .as_ref()
+                    .or(b.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        ElectionsOrder::Custom => {
+            all_elections.sort_by(|a, b| {
+                let sort_order_a = a
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        ElectionsOrder::Random => {
+            if should_apply_random {
+                let mut rng = thread_rng();
+                all_elections.shuffle(&mut rng);
+            }
+        }
+    }
+
+    let serializer = Serializer::json_compatible();
+    all_elections
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting array to json {:?}", err))
         .into_json()
 }
 
@@ -376,42 +627,8 @@ pub fn check_voting_not_allowed_next(
             ))
         })?;
 
-    let voting_not_allowed = all_contests.iter().any(|contest| {
-        let default_vote_policy = InvalidVotePolicy::default();
-        let vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_vote_policy);
-
-        let default_blank_policy = EBlankVotePolicy::default();
-        let blank_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.blank_vote_policy.as_ref())
-            .unwrap_or(&default_blank_policy);
-
-        if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
-            let choices_selected = decoded_contest
-                .choices
-                .iter()
-                .any(|choice| choice.selected == 0);
-            let invalid_errors: Vec<InvalidPlaintextError> =
-                decoded_contest.invalid_errors.clone();
-            invalid_errors.iter().any(|error| {
-                matches!(
-                    error.error_type,
-                    InvalidPlaintextErrorType::Explicit
-                        | InvalidPlaintextErrorType::EncodingError
-                )
-            }) || (invalid_errors.len() > 0
-                && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
-                || (!choices_selected
-                    && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
-        } else {
-            false
-        }
-    });
+    let voting_not_allowed =
+        check_voting_not_allowed_next_util(all_contests, all_decoded_contests);
 
     Ok(JsValue::from_bool(voting_not_allowed))
 }
@@ -433,50 +650,19 @@ pub fn check_voting_error_dialog(
             ))
         })?;
 
-    let show_voting_alert = all_contests.iter().any(|contest| {
-        let default_vote_policy = InvalidVotePolicy::default();
-        let vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_vote_policy);
-
-        let default_blank_policy = EBlankVotePolicy::default();
-        let blank_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.blank_vote_policy.as_ref())
-            .unwrap_or(&default_blank_policy);
-
-        if let Some(decoded_contest) = all_decoded_contests.get(&contest.id) {
-            let choices_selected = decoded_contest
-                .choices
-                .iter()
-                .any(|choice| choice.selected == 0);
-            let invalid_errors: Vec<InvalidPlaintextError> =
-                decoded_contest.invalid_errors.clone();
-            let explicit_invalid = decoded_contest.is_explicit_invalid;
-            (invalid_errors.len() > 0
-                && *vote_policy != InvalidVotePolicy::ALLOWED)
-                || (*vote_policy
-                    == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
-                    && explicit_invalid)
-                || (*blank_policy == EBlankVotePolicy::WARN
-                    && !choices_selected)
-        } else {
-            false
-        }
-    });
+    let show_voting_alert =
+        check_voting_error_dialog_util(all_contests, all_decoded_contests);
 
     Ok(JsValue::from_bool(show_voting_alert))
 }
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn get_login_url_js(
+pub fn get_auth_url_js(
     base_url_json: JsValue,
     tenant_id_json: JsValue,
     event_id_json: JsValue,
+    auth_action_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse input
     let base_url: String = serde_wasm_bindgen::from_value(base_url_json)
@@ -488,9 +674,21 @@ pub fn get_login_url_js(
     let event_id: String = serde_wasm_bindgen::from_value(event_id_json)
         .map_err(|err| format!("Error deserializing event_id: {err}",))
         .into_json()?;
+    let auth_action_str: String =
+        serde_wasm_bindgen::from_value(auth_action_json)
+            .map_err(|err| format!("Error deserializing auth_action: {err}",))
+            .into_json()?;
+
+    let auth_action = match auth_action_str.as_str() {
+        "login" => AuthAction::Login,
+        "enroll" => AuthAction::Enroll,
+        _ => return Err(JsValue::from_str("Invalid auth action")),
+    };
+
     // return result
-    let login_url: String = get_login_url(&base_url, &tenant_id, &event_id);
-    serde_wasm_bindgen::to_value(&login_url)
+    let auth_url: String =
+        get_auth_url(&base_url, &tenant_id, &event_id, auth_action);
+    serde_wasm_bindgen::to_value(&auth_url)
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

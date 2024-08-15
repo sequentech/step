@@ -2,14 +2,14 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {
     Link as RouterLink,
     useNavigate,
     useParams,
-    useSubmit,
     redirect,
     useLocation,
+    useSubmit,
 } from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -19,14 +19,16 @@ import {
     Icon,
     IconButton,
     theme,
-    stringToHtml,
     BallotHash,
     Dialog,
+    WarnBox,
+} from "@sequentech/ui-essentials"
+import {
+    stringToHtml,
     EVotingStatus,
     IElectionEventStatus,
     IAuditableBallot,
-    sortContestList,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {
@@ -43,15 +45,20 @@ import {useMutation, useQuery} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation} from "../gql/graphql"
 import {CircularProgress} from "@mui/material"
-import {hashBallot, provideBallotService} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
-import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
+import {
+    CastBallotsErrorType,
+    VotingPortalErrorType,
+    WasmCastBallotsErrorType,
+} from "../services/VotingPortalError"
+import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
-import {AuthContext} from "../providers/AuthContextProvider"
+import {sortContestList, hashBallot} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -92,6 +99,7 @@ interface ActionButtonProps {
     hideAudit: boolean
     castVoteConfirmModal: boolean
     ballotId: string
+    setErrorMsg: (msg: CastBallotsErrorType) => void
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -100,6 +108,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     hideAudit,
     castVoteConfirmModal,
     ballotId,
+    setErrorMsg,
 }) => {
     const dispatch = useAppDispatch()
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
@@ -118,6 +127,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         variables: {
             electionEventId: eventId,
             tenantId,
+        },
+        onError: (error) => {
+            if (error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            }
         },
     })
 
@@ -167,17 +183,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             if (!(data && data.sequent_backend_election_event.length > 0)) {
                 setIsCastingBallot(false)
-                console.error("Cannot load election event")
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
                 return submit({error: errorType}, {method: "post"})
             }
 
             const record = data?.sequent_backend_election_event?.[0]
-
             const eventStatus = record?.status as IElectionEventStatus | undefined
 
             if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
                 setIsCastingBallot(false)
-                console.warn("Election event is not open")
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
@@ -190,6 +205,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     content: JSON.stringify(hashableBallot),
                 },
             })
+            if (result.errors) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+            }
+
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
@@ -199,8 +218,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         } catch (error) {
             setIsCastingBallot(false)
             // dispatch(clearBallot())
-            console.log(`error casting vote: ${error}`)
+            const ballotError = error as IBallotError
+            if (ballotError.error_type) {
+                setErrorMsg(
+                    t(`reviewScreen.error.${WasmCastBallotsErrorType[ballotError.error_type]}`)
+                )
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNKNOWN_ERROR}`))
+            }
             console.log(`error casting vote: ${ballotStyle.election_id}`)
+            console.log(ballotError?.error_msg || error)
             return submit({error: errorType}, {method: "post"})
         }
     }
@@ -280,16 +307,22 @@ export const ReviewScreen: React.FC = () => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
-    const {tenantId, eventId} = useParams<TenantEventType>()
     const submit = useSubmit()
+    const {tenantId, eventId} = useParams<TenantEventType>()
+    const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
+
     const hideAudit = ballotStyle?.ballot_eml?.election_event_presentation?.hide_audit ?? false
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
-    const {logout} = useContext(AuthContext)
     const ballotId = auditableBallot && hashBallot(auditableBallot)
+
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
-        console.log(`ballotId: ${ballotId}\n auditable Ballot Hash: ${auditableBallot.ballot_hash}`)
-        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+        setErrorMsg(
+            t("errors.encoding.writeInCharsExceeded", {
+                ballotId,
+                auditableBallotHash: auditableBallot.ballot_hash,
+            })
+        )
     }
 
     const selectionState = useAppSelector(
@@ -305,24 +338,49 @@ export const ReviewScreen: React.FC = () => {
                     `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
                 )
             } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
                 return submit({error: VotingPortalErrorType.NO_BALLOT_STYLE}, {method: "post"})
             }
         }
     }
 
     useEffect(() => {
-        if (!ballotStyle || !auditableBallot) {
-            navigate(backLink)
+        if (!ballotStyle) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_STYLE}`))
+        } else if (!auditableBallot) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_AUDITABLE_BALLOT}`))
         } else if (!selectionState) {
-            logout()
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NO_BALLOT_SELECTION}`))
         }
-    })
+    }, [])
 
     if (!ballotStyle || !auditableBallot) {
-        return <CircularProgress />
+        return errorMsg ? (
+            <Box sx={{margin: "auto 0"}}>
+                <WarnBox variant="error">{errorMsg}</WarnBox>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        width: "100%",
+                        marginTop: "16px",
+                    }}
+                >
+                    <StyledLink to={backLink} sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                            <Icon icon={faAngleLeft} size="sm" />
+                            <Box>{t("reviewScreen.backButton")}</Box>
+                        </StyledButton>
+                    </StyledLink>
+                </Box>
+            </Box>
+        ) : (
+            <CircularProgress />
+        )
     }
 
-    const contests = sortContestList(ballotStyle.ballot_eml.contests)
+    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
+    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
@@ -360,6 +418,7 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
+            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     hideAudit ? t("reviewScreen.descriptionNoAudit") : t("reviewScreen.description")
@@ -380,6 +439,7 @@ export const ReviewScreen: React.FC = () => {
                 hideAudit={hideAudit}
                 castVoteConfirmModal={castVoteConfirmModal}
                 ballotId={ballotId ?? ""}
+                setErrorMsg={setErrorMsg}
             />
         </PageLimit>
     )
@@ -391,11 +451,9 @@ export async function action({request}: {request: Request}) {
     const data = await request.formData()
     const error = data.get("error")
 
-    if (error) {
-        throw new VotingPortalError(
-            VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
-        )
+    if (!error) {
+        return redirect("../confirmation")
     }
 
-    return redirect(`../confirmation`)
+    return null
 }

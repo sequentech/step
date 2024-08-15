@@ -36,6 +36,10 @@ enum CeleryOpt {
         acks_late: bool,
         #[structopt(short, long, default_value = "4")]
         task_max_retries: u32,
+        #[structopt(short, long, default_value = "5")]
+        broker_connection_max_retries: u32,
+        #[structopt(short, long, default_value = "10")]
+        heartbeat: u16,
     },
     Produce,
 }
@@ -55,16 +59,22 @@ async fn main() -> Result<()> {
             prefetch_count,
             acks_late,
             task_max_retries,
+            broker_connection_max_retries,
+            heartbeat,
         } => {
             set_prefetch_count(prefetch_count);
             set_acks_late(acks_late);
             set_task_max_retries(task_max_retries);
+            set_broker_connection_max_retries(broker_connection_max_retries);
+            set_heartbeat(heartbeat);
             let celery_app = get_celery_app().await;
             celery_app.display_pretty().await;
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
 
+            set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
+            set_is_app_active(false);
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {
@@ -73,6 +83,5 @@ async fn main() -> Result<()> {
             celery_app.close().await?;
         }
     };
-
     Ok(())
 }

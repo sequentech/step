@@ -83,6 +83,38 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull EMETRE el meu vot",
                 cancel: "Cancel·lar",
             },
+            error: {
+                NETWORK_ERROR:
+                    "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                UNABLE_TO_FETCH_DATA:
+                    "Hi ha hagut un problema en recuperar les dades. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                LOAD_ELECTION_EVENT:
+                    "No es pot carregar l'esdeveniment electoral. Si us plau, torna-ho a intentar més tard.",
+                CAST_VOTE:
+                    "Hi ha hagut un error amb GraphQL durant l'emissió del vot. Si us plau, torni-ho a intentar més tard o contacti amb el suport per obtenir ajuda.",
+                NO_BALLOT_SELECTION:
+                    "No es troba l'estat de selecció per aquesta elecció. Si us plau, assegura't d'haver seleccionat les teves opcions correctament o contacta amb el servei d'assistència.",
+                NO_BALLOT_STYLE:
+                    "L'estil de la papereta no està disponible. Si us plau, contacta amb el servei d'assistència.",
+                NO_AUDITABLE_BALLOT:
+                    "No hi ha cap papereta auditable disponible. Si us plau, contacta amb el servei d'assistència.",
+                INCONSISTENT_HASH:
+                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informa d'aquest problema al servei d'assistència.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "L'esdeveniment electoral està tancat. Si us plau, contacta amb el servei d'assistència.",
+                PARSE_ERROR:
+                    "Hi ha hagut un error en analitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Hi ha hagut un error en deserialitzar la papereta auditable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Hi ha hagut un error en deserialitzar la papereta hashable. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                CONVERT_ERROR:
+                    "Hi ha hagut un error en convertir la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                SERIALIZE_ERROR:
+                    "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                UNKNOWN_ERROR:
+                    "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+            },
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
@@ -172,8 +204,26 @@ const catalanTranslation: TranslationType = {
                     "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
                 ok: "Accepto que el meu vot NO serà comptabilitzat",
             },
-            noVotingAreaError:
-                "L'àrea de votació no s'ha assignat a l'elector. Si us plau, contacti amb el seu administrador per obtenir assistència.",
+            errors: {
+                noVotingArea:
+                    "Àrea de votació no assignada al votant. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                networkError:
+                    "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                unableToFetchData:
+                    "Hi ha hagut un problema a l'obtenció de les dades. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                noElectionEvent:
+                    "L'esdeveniment electoral no existeix. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                ballotStylesEmlError:
+                    "Hi ha hagut un error amb la publicació de l'estil de la papereta. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                obtainingElectionFromID:
+                    "Hi ha hagut un error a l'obtenció de les eleccions associades amb les següents IDs d'eleccions: {{electionIds}}. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+            },
+            alerts: {
+                noElections:
+                    "No hi ha eleccions en les quals pugueu votar. Això podria ser perquè l'àrea no té cap concurs associat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                electionEventNotPublished:
+                    "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+            },
         },
         errors: {
             encoding: {

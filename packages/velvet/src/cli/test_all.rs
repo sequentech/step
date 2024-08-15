@@ -6,8 +6,15 @@ use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
 use crate::pipes::pipe_inputs::BALLOTS_FILE;
 use anyhow::{Error, Result};
+use sequent_core::ballot::*;
 use sequent_core::ballot_codec::BigUIntCodec;
+use sequent_core::plaintext::*;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::util::voting_screen::{
+    check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality,
+    get_decoded_contest_plurality,
+};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::str::FromStr;
@@ -1238,14 +1245,14 @@ mod tests {
     }
 
     // #[test]
-    // fn test_hierarchical_area_aggregation() -> Result<()> {        
+    // fn test_hierarchical_area_aggregation() -> Result<()> {
     //     let fixture = TestFixture::new()?;
 
     //     let election_event_id = Uuid::new_v4();
     //     let areas: Vec<Uuid> = (0..3).map(|_| Uuid::new_v4()).collect();
 
     //     let mut election = fixture.create_election_config(&election_event_id, areas.clone())?;
-    //     election.ballot_styles.clear(); 
+    //     election.ballot_styles.clear();
 
     //     // Create three contests: Grandfather, parent, child hierarchy
     //     let contests: Vec<_> = (0..3).map(|_| {
@@ -1312,7 +1319,7 @@ mod tests {
     //             };
 
     //             // For each contest: assigns selections to the choices
-    //             // TODO: make the votes different for each contest 
+    //             // TODO: make the votes different for each contest
     //             // TODO: decide if i need to vote for every contest or just the grandpa one
     //             match j {
     //                 1 => choices[0].selected = 0,
@@ -1389,9 +1396,8 @@ mod tests {
     //     Ok(())
     // }
 
-
     #[test]
-    fn test_hierarchical_area_aggregation() -> Result<()> {      
+    fn test_hierarchical_area_aggregation() -> Result<()> {
         // Step 1: Creating Election event, election, contest, 2 areas wi parent-child relation
         // Conect contest to parent area
         let fixture = TestFixture::new()?;
@@ -1400,41 +1406,51 @@ mod tests {
         let area_ids: Vec<Uuid> = (0..2).map(|_| Uuid::new_v4()).collect();
 
         let mut election = fixture.create_election_config(&election_event_id, area_ids.clone())?;
-        election.ballot_styles.clear(); 
+        election.ballot_styles.clear();
 
-        let contest = fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+        let contest =
+            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // Create hierarchical area structure and associate parent area with the contest
-        let areas_config = area_ids.iter().enumerate().map(|(i, area_id)| {
-            let parent_id = if i == 0 { None } else { Some(area_ids[i - 1]) }; // TODO: 
-            fixture.create_area_config(
-                &election.tenant_id,
-                &election_event_id,
-                &election.id,
-                &Uuid::from_str(&contest.id).unwrap(), // TODO: to do it only for the first area
-                100,
-                0,
-                parent_id,
-                Some((*area_id).to_string()),
-            ).unwrap()
-        }).collect::<Vec<_>>();
+        let areas_config = area_ids
+            .iter()
+            .enumerate()
+            .map(|(i, area_id)| {
+                let parent_id = if i == 0 { None } else { Some(area_ids[i - 1]) }; // TODO:
+                fixture
+                    .create_area_config(
+                        &election.tenant_id,
+                        &election_event_id,
+                        &election.id,
+                        &Uuid::from_str(&contest.id).unwrap(), // TODO: to do it only for the first area
+                        100,
+                        0,
+                        parent_id,
+                        Some((*area_id).to_string()),
+                    )
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
 
         // Assign each contest to the corresponding area
         // TODO: understand if this affects the connection between parent areas-contests
         // for (i, area) in areas_config.iter().enumerate() {
-            election.ballot_styles.push(generate_ballot_style(
-                &election.tenant_id,
-                &election.election_event_id,
-                &election.id,
-                &areas_config[0].id,
-                vec![contest.clone()],
-            ));
+        election.ballot_styles.push(generate_ballot_style(
+            &election.tenant_id,
+            &election.election_event_id,
+            &election.id,
+            &areas_config[0].id,
+            vec![contest.clone()],
+        ));
         // }
 
         // Step 2: Create ballot to vote from parent area and another one for child area
         // Generate ballots for the voter associated with area 3 for all contests
         for i in 0..2 {
-            println!(" ----- i {} Area {} Contest {}", i, areas_config[i].id, contest.id);
+            println!(
+                " ----- i {} Area {} Contest {}",
+                i, areas_config[i].id, contest.id
+            );
             let ballot_file = fixture
                 .input_dir_ballots
                 .join(format!("election__{}", &election.id))
@@ -1449,11 +1465,31 @@ mod tests {
 
             (0..10).try_for_each(|j| {
                 let mut choices = vec![
-                    DecodedVoteChoice { id: "0".to_owned(), selected: -1, write_in_text: None },
-                    DecodedVoteChoice { id: "1".to_owned(), selected: -1, write_in_text: None },
-                    DecodedVoteChoice { id: "2".to_owned(), selected: -1, write_in_text: None },
-                    DecodedVoteChoice { id: "3".to_owned(), selected: -1, write_in_text: None },
-                    DecodedVoteChoice { id: "4".to_owned(), selected: -1, write_in_text: None },
+                    DecodedVoteChoice {
+                        id: "0".to_owned(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
+                    DecodedVoteChoice {
+                        id: "1".to_owned(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
+                    DecodedVoteChoice {
+                        id: "2".to_owned(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
+                    DecodedVoteChoice {
+                        id: "3".to_owned(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
+                    DecodedVoteChoice {
+                        id: "4".to_owned(),
+                        selected: -1,
+                        write_in_text: None,
+                    },
                 ];
 
                 let mut plaintext_prepare = DecodedVoteContest {
@@ -1465,7 +1501,7 @@ mod tests {
                 };
 
                 // For each contest: assigns selections to the choices
-                // TODO: make the votes different for each contest 
+                // TODO: make the votes different for each contest
                 // TODO: decide if i need to vote for every contest or just the grandpa one
                 match j {
                     1 => choices[0].selected = 0,
@@ -1479,7 +1515,9 @@ mod tests {
 
                 plaintext_prepare.choices = choices;
 
-                let plaintext = contest.encode_plaintext_contest_bigint(&plaintext_prepare).unwrap();
+                let plaintext = contest
+                    .encode_plaintext_contest_bigint(&plaintext_prepare)
+                    .unwrap();
                 writeln!(file, "{}", plaintext)?;
 
                 Ok::<(), Error>(())
@@ -1541,5 +1579,99 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_check_voting_not_allowed_next() {
+        // Case 1: InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
+        let contest1 = get_contest_plurality(
+            EBlankVotePolicy::ALLOWED,
+            InvalidVotePolicy::NOT_ALLOWED,
+            None,
+        );
+        let mut decoded_contests1: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest1);
+        decoded_contests1.insert(contest1.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest1], decoded_contests1);
+        assert_eq!(result, false);
+
+        // Case 2: EBlankVotePolicy::NOT_ALLOWED and there aren't any votes cast -> true
+        let contest2: Contest = get_contest_plurality(
+            EBlankVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::ALLOWED,
+            None,
+        );
+        let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        decoded_contests2.insert(contest2.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest2], decoded_contests2);
+        assert_eq!(result, true);
+
+        // Case 3: EBlankVotePolicy::NOT_ALLOWED but minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
+        let contest3 = get_contest_plurality(
+            EBlankVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::NOT_ALLOWED,
+            Some(0),
+        );
+        let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        decoded_contests3.insert(contest3.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest3], decoded_contests3);
+        assert_eq!(result, true);
+
+        // Case 4: EBlankVotePolicy::NOT_ALLOWED and InvalidVotePolicy::NOT_ALLOWED with invalid errors -> true
+        let contest4 = get_contest_plurality(
+            EBlankVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::NOT_ALLOWED,
+            None,
+        );
+        let mut decoded_contests4: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest4);
+        decoded_contests4.insert(contest4.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_check_voting_error_dialog() {
+        // Case 1: InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT and is_explicit_invalid = true -> true
+        let contest1 = get_contest_plurality(
+            EBlankVotePolicy::ALLOWED,
+            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+            None,
+        );
+        let mut decoded_contests1: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest1);
+        decoded_contests1.insert(contest1.id.clone(), decoded_contest);
+
+        let result = check_voting_error_dialog_util(vec![contest1], decoded_contests1);
+        assert_eq!(result, true);
+
+        // Case 2: EBlankVotePolicy::WARN and choices_selected = 0 -> true
+        let contest2 =
+            get_contest_plurality(EBlankVotePolicy::WARN, InvalidVotePolicy::ALLOWED, None);
+        let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        decoded_contests2.insert(contest2.id.clone(), decoded_contest);
+
+        let result = check_voting_error_dialog_util(vec![contest2], decoded_contests2);
+        assert_eq!(result, true);
+
+        // Case 3: EBlankVotePolicy::ALLOWED and minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED -> false
+        let contest3 = get_contest_plurality(
+            EBlankVotePolicy::ALLOWED,
+            InvalidVotePolicy::NOT_ALLOWED,
+            Some(0),
+        );
+        let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        decoded_contests3.insert(contest3.id.clone(), decoded_contest);
+
+        let result = check_voting_error_dialog_util(vec![contest3], decoded_contests3);
+        assert_eq!(result, false);
     }
 }

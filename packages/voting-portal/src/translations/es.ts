@@ -83,6 +83,38 @@ const spanishTranslation: TranslationType = {
                 ok: "Sí, quiero EMITIR mi voto",
                 cancel: "Cancelar",
             },
+            error: {
+                NETWORK_ERROR:
+                    "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                UNABLE_TO_FETCH_DATA:
+                    "Hubo un problema al recuperar los datos. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                LOAD_ELECTION_EVENT:
+                    "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
+                CAST_VOTE:
+                    "Hubo un error con GraphQL al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                NO_BALLOT_SELECTION:
+                    "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
+                NO_BALLOT_STYLE:
+                    "El estilo de la papeleta no está disponible. Por favor, contacta con el soporte.",
+                NO_AUDITABLE_BALLOT:
+                    "No hay una papeleta verificable disponible. Por favor, contacta con el soporte.",
+                INCONSISTENT_HASH:
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informa de este problema al soporte.",
+                ELECTION_EVENT_NOT_OPEN:
+                    "El evento electoral está cerrado. Por favor, contacta con el soporte.",
+                PARSE_ERROR:
+                    "Hubo un error al analizar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                DESERIALIZE_AUDITABLE_ERROR:
+                    "Hubo un error al deserializar la papeleta verificable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                DESERIALIZE_HASHABLE_ERROR:
+                    "Hubo un error al deserializar la papeleta hashable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                CONVERT_ERROR:
+                    "Hubo un error al convertir la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                SERIALIZE_ERROR:
+                    "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                UNKNOWN_ERROR:
+                    "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+            },
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
@@ -172,8 +204,26 @@ const spanishTranslation: TranslationType = {
                     "Está entrando en una cabina de votación de demostración. <strong>Su voto NO será registrado.</strong> Esta cabina de votación es solo para fines de demostración.",
                 ok: "Acepto que mi voto NO será registrado",
             },
-            noVotingAreaError:
-                "Área de votación no asignada al votante. Por favor, contacte con su administrador para obtener asistencia.",
+            errors: {
+                noVotingArea:
+                    "Área electoral no asignada al votante. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                networkError:
+                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                unableToFetchData:
+                    "Hubo un problema al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                noElectionEvent:
+                    "El evento electoral no existe. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                ballotStylesEmlError:
+                    "Hubo un error con la publicación del estilo de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                obtainingElectionFromID:
+                    "Hubo un error al obtener las elecciones asociadas con los siguientes IDs de elecciones: {{electionIds}}. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+            },
+            alerts: {
+                noElections:
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                electionEventNotPublished:
+                    "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+            },
         },
         errors: {
             encoding: {

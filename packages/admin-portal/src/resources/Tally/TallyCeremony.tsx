@@ -2,13 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {
-    BreadCrumbSteps,
-    BreadCrumbStepsVariant,
-    Dialog,
-    sleep,
-    theme,
-} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog, theme} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -185,12 +179,12 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            // if (tally?.last_updated_at !== data.last_updated_at) {
             setPage(
-                !tallyId
+                !tallyId && data.execution_status !== ITallyExecutionStatus.CANCELLED
                     ? WizardSteps.Start
                     : data.execution_status === ITallyExecutionStatus.STARTED ||
-                      data.execution_status === ITallyExecutionStatus.CONNECTED
+                      data.execution_status === ITallyExecutionStatus.CONNECTED ||
+                      data.execution_status === ITallyExecutionStatus.CANCELLED
                     ? WizardSteps.Ceremony
                     : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
                     ? WizardSteps.Tally
@@ -199,7 +193,6 @@ export const TallyCeremony: React.FC = () => {
                     : WizardSteps.Start
             )
             setTally(data)
-            // }
         }
     }, [data])
 
@@ -575,31 +568,32 @@ export const TallyCeremony: React.FC = () => {
                             {t("tally.common.cancel")}
                         </CancelButton>
                     )}
-                    {page < WizardSteps.Results && (
-                        <NextButton
-                            color="primary"
-                            onClick={handleNext}
-                            disabled={isButtonDisabled}
-                        >
-                            <>
-                                {page === WizardSteps.Start
-                                    ? t("tally.common.ceremony")
-                                    : page === WizardSteps.Ceremony
-                                    ? t("tally.common.start")
-                                    : page === WizardSteps.Tally
-                                    ? t("tally.common.results")
-                                    : t("tally.common.next")}
-                                <ChevronRightIcon
-                                    style={{
-                                        transform:
-                                            i18n.dir(i18n.language) === "rtl"
-                                                ? "rotate(180deg)"
-                                                : "rotate(0)",
-                                    }}
-                                />
-                            </>
-                        </NextButton>
-                    )}
+                    {page < WizardSteps.Results &&
+                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
+                            <NextButton
+                                color="primary"
+                                onClick={handleNext}
+                                disabled={isButtonDisabled}
+                            >
+                                <>
+                                    {page === WizardSteps.Start
+                                        ? t("tally.common.ceremony")
+                                        : page === WizardSteps.Ceremony
+                                        ? t("tally.common.start")
+                                        : page === WizardSteps.Tally
+                                        ? t("tally.common.results")
+                                        : t("tally.common.next")}
+                                    <ChevronRightIcon
+                                        style={{
+                                            transform:
+                                                i18n.dir(i18n.language) === "rtl"
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0)",
+                                        }}
+                                    />
+                                </>
+                            </NextButton>
+                        )}
                 </TallyStyles.StyledFooter>
             </WizardStyles.WizardWrapper>
 

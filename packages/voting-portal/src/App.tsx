@@ -6,13 +6,8 @@
 import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {
-    EVotingPortalCountdownPolicy,
-    Footer,
-    Header,
-    IElectionEventPresentation,
-    PageBanner,
-} from "@sequentech/ui-essentials"
+import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {EVotingPortalCountdownPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -101,7 +96,11 @@ const App = () => {
 
     useEffect(() => {
         if (!isAuthenticated && !!tenantId && !!eventId) {
-            setTenantEvent(tenantId, eventId)
+            setTenantEvent(
+                tenantId,
+                eventId,
+                location.pathname.includes("/enroll") ? "register" : "login"
+            )
         }
     }, [tenantId, eventId, isAuthenticated, setTenantEvent])
 

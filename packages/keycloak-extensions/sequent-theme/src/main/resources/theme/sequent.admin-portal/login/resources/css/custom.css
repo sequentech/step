@@ -33,6 +33,9 @@ html, body {
     padding: 16px 0;
 }
 
+.iti {
+    width: 100%;
+}
 
 @media (max-width: 1170px) {
     .login-pf-page-header {
@@ -237,6 +240,11 @@ button#kc-current-locale-link img {
 .pf-c-form-control {
     border: 1px solid var(--pf-global--palette--black-200);
     border-radius: 4px;
+    font-size: 12px;
+}
+
+.pf-c-check__label{
+    font-size: 12px;
 }
 
 .footer {
@@ -258,4 +266,8 @@ button#kc-current-locale-link img {
     font-weight: 500;
     color: rgb(25, 29, 35);
     font-family: Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pf-c-form__label-text {
+    font-weight: bold;
 }

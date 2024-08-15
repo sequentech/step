@@ -1,21 +1,21 @@
-use crate::hasura::election_event::{get_election_event, get_election_event_helper};
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::{get_election_by_id, update_election_voting_status};
-use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
+
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::date::ISO8601;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
+use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::{CronConfig, EventProcessors};
-use anyhow::{anyhow, Context};
+use crate::types::scheduled_event::EventProcessors;
+use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::{ElectionEventStatus, ElectionStatus, VotingStatus};
+use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{event, Level};
@@ -61,9 +61,6 @@ pub async fn manage_election_date(
         return Ok(());
     };
 
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
-
     let Some(_election) = get_election_by_id(
         &hasura_transaction,
         &tenant_id,
@@ -91,30 +88,25 @@ pub async fn manage_election_date(
         VotingStatus::CLOSED
     };
 
-    // update the database
-    update_election_voting_status(
+    election_status.voting_status = match event_processor {
+        EventProcessors::START_ELECTION => VotingStatus::OPEN,
+        EventProcessors::END_ELECTION => VotingStatus::CLOSED,
+        _ => {
+            lock.release().await?;
+            return Err(Error::Anyhow(anyhow!(
+                "Invalid scheduled event type: {event_processor:?}"
+            )));
+        }
+    };
+
+    voting_status::update_election_status(
+        tenant_id.clone(),
         &hasura_transaction,
-        &tenant_id,
         &election_event_id,
         &election_id,
-        serde_json::to_value(election_status)?,
+        &election_status.voting_status,
     )
     .await?;
-    let mut elsection_event_status: ElectionEventStatus =
-        get_election_event_status(election_event.status).unwrap_or(Default::default());
-
-    if (event_processor == EventProcessors::START_ELECTION
-        && elsection_event_status.voting_status == VotingStatus::NOT_STARTED)
-    {
-        elsection_event_status.voting_status = VotingStatus::OPEN;
-        update_election_event_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            serde_json::to_value(elsection_event_status)?,
-        )
-        .await?;
-    }
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 

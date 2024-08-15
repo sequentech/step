@@ -6,17 +6,15 @@ import React, {useContext, useEffect, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
+import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
+    check_voting_error_dialog_bool,
+    check_voting_not_allowed_next_bool,
     stringToHtml,
     isUndefined,
-    Dialog,
     translateElection,
-    sortContestList,
-} from "@sequentech/ui-essentials"
+    IContest,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -29,11 +27,7 @@ import {
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
-import {
-    check_voting_error_dialog_bool,
-    check_voting_not_allowed_next_bool,
-    provideBallotService,
-} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -43,7 +37,8 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {IDecodedVoteContest} from "sequent-core"
+import {IDecodedVoteContest} from "@sequentech/ui-core"
+import {sortContestList} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -84,16 +79,24 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     handleNext: () => void
+    handlePrev: () => void
+    handleClearCustom?: () => void
+    pageIndex?: number
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({
+    handleNext,
+    handlePrev,
+    handleClearCustom,
+    pageIndex,
+}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
 
-    function handleClearSelection() {
+    function handleClear() {
         if (ballotStyle) {
             dispatch(
                 resetBallotSelection({
@@ -105,10 +108,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
         }
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     return (
         <>
             <StyledButton
@@ -117,14 +116,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     width: "100%",
                 }}
                 variant="secondary"
-                onClick={() => handleClearSelection()}
+                onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
             >
                 <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
             <ActionsContainer>
                 <StyledLink
-                    to={backLink}
+                    to={pageIndex && pageIndex > 0 ? "" : backLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
@@ -140,7 +139,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                         width: {xs: "100%", sm: "200px"},
                     }}
                     variant="secondary"
-                    onClick={() => handleClearSelection()}
+                    onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
                 >
                     <Box>{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
@@ -159,6 +158,82 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
     )
 }
 
+interface ContestPaginationProps {
+    ballotStyle: any
+    contests: IContest[][]
+    onSetDisableNext: (contest: any) => void
+    onSetDecodedContests: (contest: any) => void
+    encryptAndReview: () => void
+}
+
+const ContestPagination: React.FC<ContestPaginationProps> = ({
+    ballotStyle,
+    contests,
+    onSetDisableNext,
+    onSetDecodedContests,
+    encryptAndReview,
+}) => {
+    const dispatch = useAppDispatch()
+
+    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
+    const [pageIndex, setPageIndex] = useState(0)
+    const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
+
+    const handleNext = () => {
+        if (pageIndex === contests.length - 1) {
+            encryptAndReview()
+        } else {
+            setPageIndex(pageIndex + 1)
+        }
+    }
+
+    const handlePrev = () => {
+        if (pageIndex > 0) {
+            setPageIndex(pageIndex - 1)
+        } else {
+            dispatch(clearIsVoted())
+        }
+    }
+
+    function handleClear() {
+        if (ballotStyle) {
+            contests[pageIndex].forEach((contest) => {
+                dispatch(
+                    resetBallotSelection({
+                        ballotStyle,
+                        force: true,
+                        contestId: contest.id,
+                    })
+                )
+            })
+            if (pageIndex === 0) dispatch(clearIsVoted())
+        }
+    }
+
+    return (
+        <>
+            {sortedContests &&
+                sortedContests.map((contest) => (
+                    <div key={contest.id}>
+                        <Question
+                            ballotStyle={ballotStyle}
+                            question={contest}
+                            isReview={false}
+                            setDisableNext={() => onSetDisableNext(contest)}
+                            setDecodedContests={() => onSetDecodedContests(contest)}
+                        />
+                    </div>
+                ))}
+            <ActionButtons
+                handleNext={handleNext}
+                handlePrev={handlePrev}
+                handleClearCustom={handleClear}
+                pageIndex={pageIndex}
+            />
+        </>
+    )
+}
+
 const VotingScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {logout} = useContext(AuthContext)
@@ -170,10 +245,12 @@ const VotingScreen: React.FC = () => {
     let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
+    const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
@@ -205,6 +282,10 @@ const VotingScreen: React.FC = () => {
 
     const showNextDialog = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
+    }
+
+    function handlePrev() {
+        dispatch(clearIsVoted())
     }
 
     const encryptAndReview = () => {
@@ -259,6 +340,7 @@ const VotingScreen: React.FC = () => {
 
     useEffect(() => {
         let minMaxGlobal = false
+        let contestsPages = new Map<String, IContest[]>()
 
         for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
             let countVotes = 0
@@ -270,7 +352,16 @@ const VotingScreen: React.FC = () => {
             }
             let outOfRange = countVotes < contest.min_votes || countVotes > contest.max_votes
             minMaxGlobal = minMaxGlobal || outOfRange
+
+            // Calculate contests pagination using the pagination_policy string identifier
+            const contestPageName = contest.presentation?.pagination_policy || ""
+            if (!contestsPages.has(contestPageName)) {
+                contestsPages.set(contestPageName, [])
+            }
+            contestsPages.get(contestPageName)!.push(contest)
         }
+        const contestsAsArrays = Array.from(contestsPages.values())
+        setContestsPerPage(contestsAsArrays)
 
         setDisableNext((state) => ({
             ...state,
@@ -281,8 +372,6 @@ const VotingScreen: React.FC = () => {
     if (!ballotStyle || !election) {
         return <CircularProgress />
     }
-
-    const contests = sortContestList(ballotStyle.ballot_eml.contests)
 
     const warnAllowContinue = (value: boolean) => {
         setOpenNonVoted(false)
@@ -321,17 +410,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {contests.map((contest, index) => (
-                <Question
-                    ballotStyle={ballotStyle}
-                    question={contest}
-                    key={index}
-                    isReview={false}
-                    setDisableNext={onSetDisableNext(contest.id)}
-                    setDecodedContests={onSetDecodedContests(contest.id)}
-                />
-            ))}
-            <ActionButtons handleNext={encryptAndReview} />
+
+            <ContestPagination
+                ballotStyle={ballotStyle}
+                contests={contestsPerPage}
+                onSetDisableNext={onSetDisableNext}
+                onSetDecodedContests={onSetDecodedContests}
+                encryptAndReview={encryptAndReview}
+            />
 
             {disableNextButton() ? (
                 <Dialog

@@ -139,6 +139,7 @@ const catalanTranslation: TranslationType = {
                     'Benvingut a la cabina de votació, aquesta pantalla mostra la llista d\'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert. En el cas que una elecció estigui tancada i el seu administrador electoral hagi publicat el resultat, veurà un botó "Resultat electoral" que el portarà a la pàgina pública de resultats.',
                 ok: "D'acord",
             },
+            closedEventError: "L'esdeveniment electoral està actualment tancat",
         },
         areas: {
             common: {
@@ -224,6 +225,7 @@ const catalanTranslation: TranslationType = {
             voteByDay: "Vots per dia",
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
+            voterEnrollURL: "URL d'inscripció de votants",
         },
         electionEventScreen: {
             common: {
@@ -235,9 +237,11 @@ const catalanTranslation: TranslationType = {
                 general: "General",
                 dates: "Dates",
                 language: "Idiomes",
+                votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
             },
@@ -288,8 +292,9 @@ const catalanTranslation: TranslationType = {
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
-                noResult: "Encara no hi ha Esdeveniment Electoral",
                 startDate: "La data d'inici ha de ser en el futur",
+                noResult: "Encara no hi ha Esdeveniment Electoral",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             voters: {
                 title: "Votants",
@@ -361,6 +366,8 @@ const catalanTranslation: TranslationType = {
                     noLogs: "No hi ha registres disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissari no s'hagi completat amb èxit.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
                 },
@@ -412,6 +419,7 @@ const catalanTranslation: TranslationType = {
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Període de votació",
                 language: "Idioma",
                 allowed: "Canals de Vot Permesos",
                 default: "Per defecte",
@@ -420,6 +428,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
             },
             field: {
@@ -434,9 +443,11 @@ const catalanTranslation: TranslationType = {
                 description: "Descripció",
             },
             error: {
-                endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 fileError: "Error al carregar el fitxer",
                 fileLoaded: "Fitxer carregat",
+                endDate: "La data de finalització ha de ser posterior a la data d'inici",
+                startDate: "La data d'inici ha de ser en el futur",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             createElectionEventSuccess: "Creada l'elecció",
             createElectionEventError: "Error Creant l'elecció",
@@ -818,6 +829,9 @@ const catalanTranslation: TranslationType = {
                 "warn": "Advertir",
                 "not-allowed": "No permès",
             },
+            paginationPolicy: {
+                label: "Nom de la pàgina",
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",
@@ -1009,9 +1023,9 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
-                start: "Començar elecció",
-                stop: "Aturar elecció",
-                pause: "Pausar",
+                startVotingPeriod: "Començar el període de votació",
+                stopVotingPeriod: "Detenir el període de votació",
+                pauseVotingPeriod: "Pausar el període de votació",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",
@@ -1023,6 +1037,12 @@ const catalanTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
+                startInfo:
+                    "Està a punt de començar el període de votació. Està segur que vol continuar?",
+                stopInfo:
+                    "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                pauseInfo:
+                    "Està a punt de pausar el període de votació. Està segur que vol continuar?",
                 ok: "Confirmar",
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
