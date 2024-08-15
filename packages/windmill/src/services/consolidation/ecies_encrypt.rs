@@ -103,9 +103,7 @@ pub fn ecies_sign_data(
     let hash_bytes = hash_sha256(data)?;
     let sha256_hash_base64 = STANDARD.encode(hash_bytes.clone());
 
-    let encrypted_data = ecies_encrypt_string(public_key_pem_str, acm_key_pair, &hash_bytes)?;
-    // Encode the encrypted data in base64
-    let encrypted_base64 = STANDARD.encode(&encrypted_data);
+    let encrypted_base64 = ecies_encrypt_string(public_key_pem_str, acm_key_pair, &hash_bytes)?;
 
     Ok((sha256_hash_base64, encrypted_base64))
 }

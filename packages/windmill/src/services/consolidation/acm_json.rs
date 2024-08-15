@@ -25,7 +25,7 @@ const MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
 #[instrument(skip(election_event_annotations), err)]
 pub fn generate_acm_json(
     sha256_hash: &str,
-    encrypted_key: &str,
+    encrypted_key_base64: &str,
     signature: &str,
     publickey: &str,
     time_zone: TimeZone,
@@ -66,7 +66,7 @@ pub fn generate_acm_json(
         event_id: election_event_id,
         event_name: election_event_name,
         sha256_hash: sha256_hash.into(),
-        encrypted_key: encrypted_key.into(),
+        encrypted_key: encrypted_key_base64.into(),
         members: vec![],
         ip_address: IP_ADDRESS.into(),
         mac_address: MAC_ADDRESS.into(),
