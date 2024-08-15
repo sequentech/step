@@ -316,3 +316,20 @@ pub struct TallySessionExecution {
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TasksExecution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub name: Option<String>,
+    pub task_type: Option<String>,
+    pub execution_status: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub start_at: Option<DateTime<Local>>,
+    pub end_at: Option<DateTime<Local>>,
+    pub annotations: Option<Value>,
+    pub labels: Option<Value>,
+    pub logs: Option<Value>,
+    pub executed_by_user_id: Option<String>,
+}

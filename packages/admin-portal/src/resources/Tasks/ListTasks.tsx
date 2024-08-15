@@ -127,7 +127,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({aside}) => {
     return (
         <>
             <List
-                resource="tasks-execution"
+                resource="sequent_backend_tasks_execution"
                 actions={<ListActions withImport={false} doExport={handleExport} />}
                 filters={filters}
                 filter={{

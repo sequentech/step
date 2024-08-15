@@ -15353,12 +15353,12 @@ export type Sequent_Backend_Tasks_Execution = {
   election_event_id: Scalars['uuid']['output'];
   end_at?: Maybe<Scalars['timestamptz']['output']>;
   executed_by_user_id: Scalars['uuid']['output'];
+  execution_status: Scalars['String']['output'];
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   logs?: Maybe<Scalars['json']['output']>;
   name: Scalars['String']['output'];
   start_at?: Maybe<Scalars['timestamptz']['output']>;
-  status: Scalars['String']['output'];
   /** An object relationship */
   tenant: Sequent_Backend_Tenant;
   tenant_id: Scalars['uuid']['output'];
@@ -15421,12 +15421,12 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   end_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   executed_by_user_id?: InputMaybe<Uuid_Comparison_Exp>;
+  execution_status?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   logs?: InputMaybe<Json_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   start_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  status?: InputMaybe<String_Comparison_Exp>;
   tenant?: InputMaybe<Sequent_Backend_Tenant_Bool_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   type?: InputMaybe<String_Comparison_Exp>;
@@ -15463,12 +15463,12 @@ export type Sequent_Backend_Tasks_Execution_Insert_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   end_at?: InputMaybe<Scalars['timestamptz']['input']>;
   executed_by_user_id?: InputMaybe<Scalars['uuid']['input']>;
+  execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   logs?: InputMaybe<Scalars['json']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  status?: InputMaybe<Scalars['String']['input']>;
   tenant?: InputMaybe<Sequent_Backend_Tenant_Obj_Rel_Insert_Input>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -15481,10 +15481,10 @@ export type Sequent_Backend_Tasks_Execution_Max_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   end_at?: Maybe<Scalars['timestamptz']['output']>;
   executed_by_user_id?: Maybe<Scalars['uuid']['output']>;
+  execution_status?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   start_at?: Maybe<Scalars['timestamptz']['output']>;
-  status?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -15496,10 +15496,10 @@ export type Sequent_Backend_Tasks_Execution_Min_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   end_at?: Maybe<Scalars['timestamptz']['output']>;
   executed_by_user_id?: Maybe<Scalars['uuid']['output']>;
+  execution_status?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   start_at?: Maybe<Scalars['timestamptz']['output']>;
-  status?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -15527,12 +15527,12 @@ export type Sequent_Backend_Tasks_Execution_Order_By = {
   election_event_id?: InputMaybe<Order_By>;
   end_at?: InputMaybe<Order_By>;
   executed_by_user_id?: InputMaybe<Order_By>;
+  execution_status?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   logs?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   start_at?: InputMaybe<Order_By>;
-  status?: InputMaybe<Order_By>;
   tenant?: InputMaybe<Sequent_Backend_Tenant_Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
@@ -15564,6 +15564,8 @@ export enum Sequent_Backend_Tasks_Execution_Select_Column {
   /** column name */
   ExecutedByUserId = 'executed_by_user_id',
   /** column name */
+  ExecutionStatus = 'execution_status',
+  /** column name */
   Id = 'id',
   /** column name */
   Labels = 'labels',
@@ -15573,8 +15575,6 @@ export enum Sequent_Backend_Tasks_Execution_Select_Column {
   Name = 'name',
   /** column name */
   StartAt = 'start_at',
-  /** column name */
-  Status = 'status',
   /** column name */
   TenantId = 'tenant_id',
   /** column name */
@@ -15588,12 +15588,12 @@ export type Sequent_Backend_Tasks_Execution_Set_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   end_at?: InputMaybe<Scalars['timestamptz']['input']>;
   executed_by_user_id?: InputMaybe<Scalars['uuid']['input']>;
+  execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   logs?: InputMaybe<Scalars['json']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -15613,12 +15613,12 @@ export type Sequent_Backend_Tasks_Execution_Stream_Cursor_Value_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   end_at?: InputMaybe<Scalars['timestamptz']['input']>;
   executed_by_user_id?: InputMaybe<Scalars['uuid']['input']>;
+  execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   logs?: InputMaybe<Scalars['json']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   start_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -15636,6 +15636,8 @@ export enum Sequent_Backend_Tasks_Execution_Update_Column {
   /** column name */
   ExecutedByUserId = 'executed_by_user_id',
   /** column name */
+  ExecutionStatus = 'execution_status',
+  /** column name */
   Id = 'id',
   /** column name */
   Labels = 'labels',
@@ -15645,8 +15647,6 @@ export enum Sequent_Backend_Tasks_Execution_Update_Column {
   Name = 'name',
   /** column name */
   StartAt = 'start_at',
-  /** column name */
-  Status = 'status',
   /** column name */
   TenantId = 'tenant_id',
   /** column name */

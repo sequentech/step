@@ -25,7 +25,7 @@ insert_permissions:
     - logs
     - name
     - start_at
-    - status
+    - execution_status
     - tenant_id
     - type
   role: service-account
@@ -38,7 +38,7 @@ select_permissions:
     - annotations
     - labels
     - name
-    - status
+    - execution_status
     - type
     - created_at
     - end_at
@@ -64,7 +64,7 @@ select_permissions:
     - logs
     - name
     - start_at
-    - status
+    - execution_status
     - tenant_id
     - type
     filter: {}
@@ -84,7 +84,7 @@ update_permissions:
     - logs
     - name
     - start_at
-    - status
+    - execution_status
     - tenant_id
     - type
     filter: {}

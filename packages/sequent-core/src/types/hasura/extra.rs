@@ -9,7 +9,11 @@ use crate::ballot::{
     ElectionPresentation, ElectionStatistics, ElectionStatus,
 };
 use anyhow::{anyhow, Result};
-use serde::Deserialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::default::Default;
+use strum_macros::{Display, EnumString};
+
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct VotingChannels {
     pub online: Option<bool>,
@@ -111,4 +115,24 @@ impl Candidate {
 
         Ok(())
     }
+}
+
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TasksExecutionStatus {
+    #[default]
+    IN_PROGRESS,
+    SUCCESS,
+    FAILED,
+    CANCELLED,
 }
