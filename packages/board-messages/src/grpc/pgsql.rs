@@ -267,6 +267,15 @@ impl PgsqlBoardClient {
         }
         Ok(messages)
     }
+    
+    /// Get one messages matching id.
+    pub async fn get_one_message(
+        &mut self,
+        board_name: &str,
+        id: i64,
+    ) -> Result<Option<B3MessageRow>> {
+        self.get_one(board_name, id).await
+    }
 
     async fn get(
         &mut self,
@@ -423,15 +432,6 @@ impl PgsqlBoardClient {
         Ok(())
     }
 
-    /// Get one messages matching id.
-    pub async fn get_one_message(
-        &mut self,
-        board_name: &str,
-        id: i64,
-    ) -> Result<Option<B3MessageRow>> {
-        self.get_one(board_name, id).await
-    }
-
     async fn get_one(&mut self, board_name: &str, id: i64) -> Result<Option<B3MessageRow>> {
         let sql = format!(
             r#"
@@ -498,6 +498,25 @@ impl PgsqlBoardClient {
     }
 }
 
+/// Utility function to create a database (will not pass a database parameter in the connection string).
+async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+    let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
+        .await
+        .unwrap();
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    client
+        .execute(&format!("CREATE DATABASE {}", dbname), &[])
+        .await?;
+
+    Ok(())
+}
+
 /// Utility function to drop a database (will not pass a database parameter in the connection string).
 async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
@@ -518,23 +537,6 @@ async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     Ok(())
 }
 
-async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
-    let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
-        .await
-        .unwrap();
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
-
-    client
-        .execute(&format!("CREATE DATABASE {}", dbname), &[])
-        .await?;
-
-    Ok(())
-}
 
 // Run ignored tests with
 // cargo test <test_name> -- --include-ignored

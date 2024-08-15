@@ -7,8 +7,8 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use strand::shuffler_product::CiphertextRectangle;
 use strand::zkp::{ChaumPedersen, Schnorr};
+use strand::shuffler_product::StrandRectangle;
 
 use crate::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::braid::newtypes::{BatchNumber, MixNumber};
@@ -140,10 +140,10 @@ impl<C: Ctx> Ballots<C> {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct BallotsWide<C: Ctx> {
-    pub ciphertexts: CiphertextRectangle<C>,
+    pub ciphertexts: StrandRectangle<Ciphertext<C>>,
 }
 impl<C: Ctx> BallotsWide<C> {
-    pub fn new(ciphertexts: CiphertextRectangle<C>) -> BallotsWide<C> {
+    pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
         BallotsWide {
             ciphertexts,
         }

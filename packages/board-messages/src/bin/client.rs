@@ -1,5 +1,5 @@
-use board_messages::grpc::server::B3Client;
-use board_messages::grpc::server::GetMessagesRequest;
+use board_messages::grpc::B3Client;
+use board_messages::grpc::GetMessagesRequest;
 
 
 #[tokio::main]

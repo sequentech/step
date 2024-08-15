@@ -5,6 +5,14 @@ package b3;
 service B3 {
   rpc GetMessages (GetMessagesRequest) returns (GetMessagesReply);
   rpc PutMessages (PutMessagesRequest) returns (PutMessagesReply);
+  rpc GetBoards (GetBoardsRequest) returns (GetBoardsReply);
+}
+
+message GetBoardsRequest {
+}
+
+message GetBoardsReply {
+  repeated string boards = 1;
 }
 
 message GetMessagesRequest {

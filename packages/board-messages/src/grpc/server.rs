@@ -1,19 +1,10 @@
-pub mod proto {
-    tonic::include_proto!("b3"); // The string specified here must match the proto package name
-}
-
-pub use proto::GetMessagesRequest;
-pub use proto::GetMessagesReply;
-pub use proto::GrpcB3Message;
-pub use proto::PutMessagesRequest;
-pub use proto::PutMessagesReply;
-pub use proto::b3_server::B3;
-pub use proto::b3_server::B3Server;
-pub use proto::b3_client::B3Client;
 
 use tonic::{Request, Response, Status};
 use anyhow::{anyhow, Result};
 use tracing::{info, warn};
+
+use crate::grpc::{GrpcB3Message, GetBoardsRequest, GetBoardsReply, GetMessagesRequest, GetMessagesReply};
+use crate::grpc::{PutMessagesRequest, PutMessagesReply};
 
 use crate::braid::message::Message;
 use crate::grpc::pgsql::PgsqlBoardClient;
@@ -59,7 +50,7 @@ impl PgsqlB3 {
 }
 
 #[tonic::async_trait]
-impl B3 for PgsqlB3 {
+impl super::proto::b3_server::B3 for PgsqlB3 {
     
     async fn get_messages(
         &self,
@@ -110,6 +101,18 @@ impl B3 for PgsqlB3 {
         };
         Ok(Response::new(reply))
     }
+
+    async fn get_boards(
+        &self,
+        request: Request<GetBoardsRequest>,
+    ) -> Result<Response<GetBoardsReply>, Status> {
+        let ret: Vec<String> = vec![];
+
+        let reply = GetBoardsReply {
+            boards: ret
+        };
+        Ok(Response::new(reply))
+    }
 }
 
 fn validate_board_name(board: &str) -> Result<()> {
@@ -122,9 +125,9 @@ fn validate_board_name(board: &str) -> Result<()> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::grpc::proto::b3_server::B3;
     use serial_test::serial;
     use tonic::{client::GrpcService, service::Routes, transport::{server::Router, Server}, IntoRequest};
-    use B3;
 
     const PG_DATABASE: &'static str = "protocoldb";
     const PG_HOST: &'static str = "localhost";

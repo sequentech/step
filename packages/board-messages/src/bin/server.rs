@@ -2,7 +2,7 @@ use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use tonic::{transport::Server, Request, Response, Status};
 
 use board_messages::grpc::server::PgsqlB3;
-use board_messages::grpc::server::B3Server;
+use board_messages::grpc::B3Server;
 
 const PG_DATABASE: &'static str = "protocoldb";
 const PG_HOST: &'static str = "localhost";
