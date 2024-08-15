@@ -46,12 +46,12 @@ pub async fn get_document(
 ) -> Result<Option<Document>> {
     let tenant_uuid: uuid::Uuid =
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-        let election_event_uuid: Option<uuid::Uuid> = match election_event_id {
-            Some(ref id) if !id.is_empty() => {
-                Some(Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?)
-            }
-            _ => None,
-        };
+    let election_event_uuid: Option<uuid::Uuid> = match election_event_id {
+        Some(ref id) if !id.is_empty() => {
+            Some(Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?)
+        }
+        _ => None,
+    };
     let document_uuid: uuid::Uuid =
         Uuid::parse_str(document_id).with_context(|| "Error parsing document_id as UUID")?;
 

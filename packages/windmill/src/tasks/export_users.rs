@@ -132,12 +132,12 @@ fn get_user_record(
 #[celery::task(max_retries = 0)]
 pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     let realm = match &body {
-        ExportBody::Users { tenant_id, election_event_id, .. } => {
-            get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or(""))
-        },
-        ExportBody::AllUsers { tenant_id } => {
-            get_tenant_realm(tenant_id)
-        },
+        ExportBody::Users {
+            tenant_id,
+            election_event_id,
+            ..
+        } => get_event_realm(tenant_id, election_event_id.as_deref().unwrap_or("")),
+        ExportBody::AllUsers { tenant_id } => get_tenant_realm(tenant_id),
     };
 
     let mut hasura_db_client = get_hasura_pool()
@@ -163,11 +163,15 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         .map_err(|err| anyhow!("Error starting keycloak transaction: {err}"))?;
 
     let (elections, areas_by_id) = match &body {
-        ExportBody::Users { tenant_id, election_event_id, .. } => {
+        ExportBody::Users {
+            tenant_id,
+            election_event_id,
+            ..
+        } => {
             let elections = Some(
                 get_election_event_elections(
-                    &hasura_transaction, 
-                    tenant_id, 
+                    &hasura_transaction,
+                    tenant_id,
                     election_event_id.as_deref().unwrap_or(""),
                 )
                 .await
@@ -176,8 +180,8 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
 
             let areas_by_id = Some(
                 get_areas_by_id(
-                    &hasura_transaction, 
-                    tenant_id, 
+                    &hasura_transaction,
+                    tenant_id,
                     election_event_id.as_deref().unwrap_or(""),
                 )
                 .await
@@ -193,8 +197,8 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
     let mut offset: i32 = 0;
     let mut total_count: Option<i32> = None;
-    let file = generate_temp_file("export-users-", ".csv")
-        .with_context(|| "Error creating temp file")?;
+    let file =
+        generate_temp_file("export-users-", ".csv").with_context(|| "Error creating temp file")?;
     let file2 = file
         .reopen()
         .with_context(|| "Couldn't reopen file for writing")?;
@@ -211,7 +215,9 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
                 ExportBody::AllUsers { tenant_id } => tenant_id.to_string(),
             },
             election_event_id: match &body {
-                ExportBody::Users { election_event_id, .. } => election_event_id.clone(),
+                ExportBody::Users {
+                    election_event_id, ..
+                } => election_event_id.clone(),
                 ExportBody::AllUsers { .. } => None,
             },
             election_id: match &body {
@@ -231,24 +237,18 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         };
 
         let (users, count) = match &body {
-            ExportBody::Users { election_event_id, .. } if election_event_id.is_some() => {
-                list_users_with_vote_info(
-                    &hasura_transaction,
-                    &keycloak_transaction,
-                    filter.clone(),
-                )
+            ExportBody::Users {
+                election_event_id, ..
+            } if election_event_id.is_some() => list_users_with_vote_info(
+                &hasura_transaction,
+                &keycloak_transaction,
+                filter.clone(),
+            )
+            .await
+            .map_err(|error| anyhow!("Error listing users with vote info: {error:?}"))?,
+            _ => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
                 .await
-                .map_err(|error| anyhow!("Error listing users with vote info: {error:?}"))?
-            },
-            _ => {
-                list_users(
-                    &hasura_transaction, 
-                    &keycloak_transaction, 
-                    filter.clone()
-                )
-                .await
-                .map_err(|error| anyhow!("Error listing users: {error:?}"))?
-            }
+                .map_err(|error| anyhow!("Error listing users: {error:?}"))?,
         };
 
         if total_count.is_none() {
@@ -267,7 +267,9 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         }
     }
 
-    writer.flush().with_context(|| "Error flushing CSV writer")?;
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
 
     let size = file2.metadata()?.len();
     let temp_path = file.into_temp_path();
@@ -280,16 +282,13 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     };
 
     let election_event_id = match &body {
-        ExportBody::Users { election_event_id, .. } => election_event_id.clone().unwrap_or_else(|| "".to_string()),
+        ExportBody::Users {
+            election_event_id, ..
+        } => election_event_id.clone().unwrap_or_else(|| "".to_string()),
         ExportBody::AllUsers { .. } => "".to_string(),
     };
 
-    let key = s3::get_document_key(
-        &tenant_id,
-        Some(&election_event_id),
-        &document_id,
-        &name,
-    );
+    let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
 
     let media_type = "text/csv".to_string();
 
@@ -304,7 +303,9 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
     .await
     .with_context(|| "Error uploading file to s3")?;
 
-    temp_path.close().with_context(|| "Error closing temp file path")?;
+    temp_path
+        .close()
+        .with_context(|| "Error closing temp file path")?;
 
     if size > get_max_upload_size()? as u64 {
         return Err(anyhow!(
@@ -319,25 +320,27 @@ pub async fn export_users(body: ExportBody, document_id: String) -> Result<()> {
         .await
         .map_err(|error| anyhow!("Error acquiring client credentials: {error:?}"))?;
 
-        let _document = &hasura::document::insert_document(
-            auth_headers,
-            tenant_id,
-            match &body {
-                ExportBody::Users { election_event_id, .. } => election_event_id.clone(),
-                ExportBody::AllUsers { .. } => None,
-            },
-            name.clone(),
-            media_type.clone(),
-            size as i64,
-            false,
-            Some(document_id),
-        )
-        .await?
-        .data
-        .ok_or(anyhow!("expected data"))?
-        .insert_sequent_backend_document
-        .ok_or(anyhow!("expected document"))?
-        .returning[0];
+    let _document = &hasura::document::insert_document(
+        auth_headers,
+        tenant_id,
+        match &body {
+            ExportBody::Users {
+                election_event_id, ..
+            } => election_event_id.clone(),
+            ExportBody::AllUsers { .. } => None,
+        },
+        name.clone(),
+        media_type.clone(),
+        size as i64,
+        false,
+        Some(document_id),
+    )
+    .await?
+    .data
+    .ok_or(anyhow!("expected data"))?
+    .insert_sequent_backend_document
+    .ok_or(anyhow!("expected document"))?
+    .returning[0];
 
     Ok(())
 }

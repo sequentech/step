@@ -39,12 +39,13 @@ pub async fn fetch_document(
 
     let input = body.into_inner();
 
-    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error getting hasura db pool: {err}"),
-        )
-    })?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
 
     let hasura_transaction = hasura_db_client.transaction().await.map_err(
         |err: tokio_postgres::Error| {
@@ -58,7 +59,7 @@ pub async fn fetch_document(
     let url = documents::get_document_url(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
-        input.election_event_id.as_deref(), 
+        input.election_event_id.as_deref(),
         &input.document_id,
     )
     .await

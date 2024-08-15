@@ -473,14 +473,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 if (errors || !exportUsersData) {
                     setExporting(false)
                     setOpenExport(false)
-                    notify(
-                        t(
-                            `usersAndRolesScreen.${
-                              "voters"
-                            }.notifications.exportError`
-                        ),
-                        {type: "error"}
-                    )
+                    notify(t(`usersAndRolesScreen.${"voters"}.notifications.exportError`), {
+                        type: "error",
+                    })
                     return
                 }
                 let documentId = exportUsersData.export_users?.document_id
@@ -493,14 +488,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 if (errors || !exportUsersData) {
                     setExporting(false)
                     setOpenExport(false)
-                    notify(
-                        t(
-                            `usersAndRolesScreen.${
-                            "users"
-                            }.notifications.exportError`
-                        ),
-                        {type: "error"}
-                    )
+                    notify(t(`usersAndRolesScreen.${"users"}.notifications.exportError`), {
+                        type: "error",
+                    })
                     return
                 }
                 let documentId = exportUsersData.export_all_users?.document_id

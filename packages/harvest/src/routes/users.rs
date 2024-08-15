@@ -464,7 +464,7 @@ pub async fn export_users_f(
     input: Json<export_users::ExportUsersBody>,
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    
+
     let required_perm = if body.election_event_id.is_some() {
         Permissions::VOTER_READ
     } else {
@@ -477,17 +477,17 @@ pub async fn export_users_f(
         Some(body.tenant_id.clone()),
         vec![required_perm],
     )?;
-    
+
     let document_id = Uuid::new_v4().to_string();
-    
+
     let celery_app = get_celery_app().await;
-    
+
     let task = celery_app
         .send_task(export_users::export_users::new(
             export_users::ExportBody::Users {
                 tenant_id: body.tenant_id,
-                election_event_id: body.election_event_id, 
-                election_id: body.election_id,          
+                election_event_id: body.election_event_id,
+                election_id: body.election_id,
             },
             document_id.clone(),
         ))
@@ -498,18 +498,16 @@ pub async fn export_users_f(
                 format!("Error sending export_users task: {error:?}"),
             )
         })?;
-    
+
     let output = export_users::ExportUsersOutput {
         document_id,
         task_id: task.task_id.clone(),
     };
-    
+
     info!("Sent EXPORT_USERS task {}", task.task_id);
 
     Ok(Json(output))
 }
-
-
 
 #[instrument(skip(claims))]
 #[post("/export-all-users", format = "json", data = "<input>")]
@@ -520,7 +518,7 @@ pub async fn export_all_users_f(
     let body = input.into_inner();
     let required_perm = Permissions::USER_READ;
     info!("input-users {:?}", body);
-    
+
     authorize(
         &claims,
         true,
@@ -530,12 +528,12 @@ pub async fn export_all_users_f(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let task = celery_app
-    .send_task(export_users::export_users::new(
-        export_users::ExportBody::AllUsers {
-            tenant_id: body.tenant_id,
-        },
-        document_id.clone(),
-    ))
+        .send_task(export_users::export_users::new(
+            export_users::ExportBody::AllUsers {
+                tenant_id: body.tenant_id,
+            },
+            document_id.clone(),
+        ))
         .await
         .map_err(|error| {
             (

@@ -76,7 +76,7 @@ pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
 #[instrument]
 pub fn get_document_key(
     tenant_id: &str,
-    election_event_id: Option<&str>, 
+    election_event_id: Option<&str>,
     document_id: &str,
     name: &str,
 ) -> String {
