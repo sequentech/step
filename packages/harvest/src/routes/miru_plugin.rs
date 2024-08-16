@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -84,6 +84,7 @@ pub async fn send_transmission_package(
     input: Json<SendTransmissionPackageInput>,
 ) -> Result<Json<SendTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
+    info!("FFF claims {:?}", claims);
     let authorizations = vec![
         authorize(
             &claims,
@@ -147,6 +148,13 @@ pub async fn upload_signature(
         vec![Permissions::TRUSTEE_WRITE],
     )?;
 
+    let Some(username) = claims.preferred_username.clone() else {
+        return Err((
+            Status::InternalServerError,
+            "missing username in claims".into(),
+        ));
+    };
+
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -161,6 +169,7 @@ pub async fn upload_signature(
     upload_transmission_package_signature_service(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
+        &username,
         &body.election_id,
         &body.area_id,
         &body.tally_session_id,

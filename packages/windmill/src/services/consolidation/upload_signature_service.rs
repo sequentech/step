@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::find_miru_annotation;
 use super::eml_generator::ValidateAnnotations;
+use crate::postgres::trustee::get_trustee_by_name;
 use crate::{
     postgres::{
         election_event::get_election_event_by_election_area, tally_session::get_tally_session_by_id,
@@ -18,6 +19,7 @@ use tracing::{info, instrument};
 #[instrument(err)]
 pub async fn upload_transmission_package_signature_service(
     hasura_transaction: &Transaction<'_>,
+    trustee_name: &str,
     tenant_id: &str,
     election_id: &str,
     area_id: &str,
@@ -56,8 +58,11 @@ pub async fn upload_transmission_package_signature_service(
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
     }) else {
-        info!("transmission package not found, skipping");
-        return Ok(());
+        return Err(anyhow!("transmission package not found, skipping"));
     };
+
+    let trustee = get_trustee_by_name(&hasura_transaction, tenant_id, trustee_name)
+        .await
+        .with_context(|| format!("trustee with name '{}' not found", trustee_name))?;
     Ok(())
 }
