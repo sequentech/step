@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
-use openssl::base64;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use openssl::rsa::{Padding, Rsa};
+use strand::hash::hash_sha256;
 use tracing::instrument;
 
 // Function to generate RSA public/private key pair in PEM format
@@ -51,6 +52,9 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
 }
 
 #[instrument(skip_all, err)]
-pub fn rsa_private_sign() -> Result<String> {
-    Ok("".into())
+pub fn rsa_private_sign(private_key_pem: &str, data: &[u8]) -> Result<String> {
+    let hash_bytes = hash_sha256(data)?;
+    let encrypted = encrypt_with_rsa_private_key(private_key_pem, &hash_bytes)?;
+    let encrypted_base64 = STANDARD.encode(encrypted.clone());
+    Ok(encrypted_base64)
 }
