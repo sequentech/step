@@ -4,9 +4,11 @@
 use anyhow::{Context, Result};
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
+use tracing::instrument;
 
 // Function to generate RSA public/private key pair in PEM format
-fn generate_rsa_keys() -> Result<(String, String)> {
+#[instrument(skip_all, err)]
+pub fn generate_rsa_keys() -> Result<(String, String)> {
     // Generate a 2048-bit RSA key pair
     let rsa = Rsa::generate(2048).context("Failed to generate RSA key pair")?;
 
@@ -28,7 +30,8 @@ fn generate_rsa_keys() -> Result<(String, String)> {
 }
 
 // Function to encrypt data using the RSA private key extracted from a private key PEM string
-fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Result<Vec<u8>> {
+#[instrument(skip_all, err)]
+pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Result<Vec<u8>> {
     // Parse the private key PEM string to get the RSA structure
     let rsa = Rsa::private_key_from_pem(private_key_pem.as_bytes())
         .context("Failed to parse private key from PEM format")?;
@@ -45,4 +48,9 @@ fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Result<Ve
     encrypted_data.truncate(encrypted_len);
 
     Ok(encrypted_data)
+}
+
+#[instrument(skip_all, err)]
+pub fn rsa_private_sign() -> Result<String> {
+    Ok("".into())
 }
