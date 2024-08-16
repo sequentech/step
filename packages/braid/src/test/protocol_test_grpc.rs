@@ -36,11 +36,11 @@ use crate::protocol::trustee::Trustee;
 
 const B3_URL: &'static str = "http://[::1]:50051";
 const TEST_BOARD: &'static str = "protocoltest";
-const PG_HOST: &'static str = "postgres";
+const PG_HOST: &'static str = "localhost";
 const PG_DATABASE: &'static str = "protocoldb";
 const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespassword";
-const PG_PORT: u32 = 5432;
+const PG_PASSW: &'static str = "postgrespw";
+const PG_PORT: u32 = 49153;
 
 pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
@@ -277,6 +277,7 @@ pub async fn create_protocol_test<C: Ctx>(
 
     let c = c.with_database(PG_DATABASE);
     let mut b = PgsqlB3Client::new(&c).await?;
+    b.create_index_ine().await.unwrap();
     b.create_board_ine(TEST_BOARD).await.unwrap();
 
     let message = Message::bootstrap_msg(&cfg, &pm)?;

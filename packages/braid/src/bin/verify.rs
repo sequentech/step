@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::immudb::ImmudbBoard;
+use braid::protocol::board::grpc::GrpcB3;
 use braid::protocol::trustee::Trustee;
 use braid::verify::verifier::Verifier;
 use sequent_core::util::init_log::init_log;
@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
     let trustee: Trustee<RistrettoCtx> =
         Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key);
     let board =
-        ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, args.board, None).await?;
+        GrpcB3::new(&args.server_url, &args.board, None);
     let mut session = Verifier::new(trustee, board);
     session.run().await?;
 

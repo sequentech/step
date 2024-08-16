@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+use braid::protocol::board::grpc::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
@@ -11,8 +12,8 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol::board::immudb::ImmudbBoardIndex;
-use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardParams};
+// use braid::protocol::board::immudb::ImmudbBoardIndex;
+// use braid::protocol::board::immudb::{ImmudbBoard, ImmudbBoardParams};
 use braid::protocol::board::BoardFactory;
 use braid::protocol::session::Session;
 use braid::protocol::trustee::Trustee;
@@ -31,9 +32,6 @@ const IMMUDB_URL: &str = "http://immudb:3322";
 struct Cli {
     #[arg(short, long, default_value_t = IMMUDB_URL.to_string())]
     server_url: String,
-
-    #[arg(short, long)]
-    board_index: String,
 
     #[arg(short, long)]
     trustee_config: PathBuf,
@@ -80,11 +78,6 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
 
-    let name = args
-        .trustee_config
-        .to_str()
-        .expect("impossible")
-        .to_string();
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
 
@@ -102,20 +95,14 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, ImmudbBoard>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
     let mut loop_count = 0;
     loop {
         info!("{}>", loop_count);
 
-        let mut board_index: ImmudbBoardIndex = ImmudbBoardIndex::new(
-            &args.server_url,
-            &args.user,
-            &args.password,
-            args.board_index.clone(),
-        )
-        .await?;
+        let b3index = GrpcB3Index::new(&args.server_url);
 
-        let boards_result = board_index.get_board_names().await;
+        let boards_result = b3index.get_boards().await;
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
@@ -146,10 +133,8 @@ async fn main() -> Result<()> {
                 sk.clone(),
                 ek.clone(),
             );
-            let board = ImmudbBoardParams::new(
+            let board = GrpcB3BoardParams::new(
                 &args.server_url,
-                &args.user,
-                &args.password,
                 &board_name,
                 Some(store_root.clone()),
             );

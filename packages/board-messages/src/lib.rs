@@ -7,6 +7,7 @@ pub mod electoral_log;
 pub mod grpc;
 
 use std::{alloc::System, time::{Duration, SystemTime, UNIX_EPOCH}};
+
 use crate::braid::newtypes::Timestamp;
 
 pub(crate) fn timestamp() -> Timestamp {

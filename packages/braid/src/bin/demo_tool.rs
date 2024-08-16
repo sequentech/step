@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
+use board_messages::grpc::pgsql::B3IndexRow;
+use board_messages::grpc::pgsql::B3MessageRow;
+use braid::protocol::board::grpc::GrpcB3;
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
@@ -11,9 +14,12 @@ use std::marker::PhantomData;
 use std::path::Path;
 use tracing::{info, instrument};
 
-use immu_board::{Board, BoardClient, BoardMessage};
+// use immu_board::{Board, BoardClient, BoardMessage};
 use sequent_core::util::init_log::init_log;
 
+use board_messages::grpc::pgsql::PgsqlB3Client;
+use board_messages::grpc::pgsql;
+use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use board_messages::braid::artifact::Configuration;
 use board_messages::braid::artifact::DkgPublicKey;
 use board_messages::braid::message::Message;
@@ -30,24 +36,31 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-const IMMUDB_USER: &str = "immudb";
-const IMMUDB_PW: &str = "immudb";
-const IMMUDB_URL: &str = "http://immudb:3322";
-const INDEXDB: &str = "demoboardindex";
-const DBNAME: &str = "demoboard";
+const PG_HOST: &'static str = "postgres";
+const PG_DATABASE: &'static str = "protocoldb";
+const PG_USER: &'static str = "postgres";
+const PG_PASSW: &'static str = "postgrespassword";
+const PG_PORT: u32 = 5432;
+const TEST_BOARD: &'static str = "testboard";
 const DEMO_DIR: &str = "./demo";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 const CONFIG: &str = "config.bin";
 #[derive(Parser)]
 struct Cli {
-    #[arg(long, default_value_t = IMMUDB_URL.to_string())]
-    server_url: String,
+    #[arg(long, default_value_t = PG_HOST.to_string())]
+    host: String,
 
-    #[arg(short, long, default_value_t = DBNAME.to_string())]
-    dbname: String,
+    #[arg(long, default_value_t = PG_PORT)]
+    port: u32,
 
-    #[arg(short, long, default_value_t = INDEXDB.to_string())]
-    indexdb: String,
+    #[arg(long, default_value_t = PG_USER.to_string())]
+    user: String,
+
+    #[arg(long, default_value_t = PG_PASSW.to_string())]
+    password: String,
+
+    #[arg(short, long, default_value_t = TEST_BOARD.to_string())]
+    board_name: String,
 
     #[arg(short, long, default_value_t = 1)]
     count: u32,
@@ -139,54 +152,48 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
-            create_boards(
-                &args.server_url,
-                IMMUDB_USER,
-                IMMUDB_PW,
-                &args.indexdb,
-                &args.dbname,
-                args.count,
-            )
-            .await?;
+            let c = PgsqlConnectionParams::new(&args.host, args.port, &args.user, &args.password);
+            pgsql::drop_database(&c, PG_DATABASE).await?;
+        
+            pgsql::create_database(&c, PG_DATABASE)
+                .await?;
+        
+            let c = c.with_database(PG_DATABASE);
+            let mut client = PgsqlB3Client::new(&c).await?;
+            client.create_index_ine().await?;
+            
+
             for i in 0..args.count {
                 let name = if i == 0 {
-                    args.dbname.to_string()
+                    &args.board_name
                 } else {
-                    format!("{}_{}", &args.dbname, i + 1)
+                    &format!("{}_{}", args.board_name, i + 1)
                 };
-                init(&mut board, &name, configuration.clone()).await?;
+                client.create_board_ine(name).await?;
+                init(&mut client, &name, configuration.clone()).await?;
             }
         }
         Command::PostBallots => {
-            let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
+            let mut board = get_client(&args.host, args.port, &args.user, &args.password).await?;
             for i in 0..args.count {
                 let name = if i == 0 {
-                    args.dbname.to_string()
+                    args.board_name.to_string()
                 } else {
-                    format!("{}_{}", &args.dbname, i + 1)
+                    format!("{}_{}", &args.board_name, i + 1)
                 };
                 post_ballots(&mut board, &name, args.batches, &ctx).await?;
             }
         }
         Command::ListMessages => {
-            let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
-            list_messages(&mut board, &args.dbname).await?;
+            let mut client = get_client(&args.host, args.port, &args.user, &args.password).await?;
+            list_messages(&mut client, &args.board_name).await?;
         }
         Command::ListBoards => {
-            let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
-            list_boards(&mut board, &args.indexdb).await?;
+            let mut client = get_client(&args.host, args.port, &args.user, &args.password).await?;
+            list_boards(&mut client).await?;
         }
         Command::DeleteBoards => {
-            delete_boards(
-                &args.server_url,
-                IMMUDB_USER,
-                IMMUDB_PW,
-                &args.indexdb,
-                &args.dbname,
-                args.count,
-            )
-            .await?;
+            delete_boards(&args.host, args.port, &args.user, &args.password).await?;
         }
     }
 
@@ -276,16 +283,17 @@ tables will be created (and removed if they already existed). These are
     * demoboardindex    The index board used to query which protocols to run
     * demoboard         The specific artifact board for a protocol run
 */
-#[instrument]
+
+#[instrument(skip(client))]
 async fn init<C: Ctx>(
-    board: &mut BoardClient,
+    client: &mut PgsqlB3Client,
     board_name: &str,
     configuration: Configuration<C>,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
-    let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    let message: B3MessageRow = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");
-    board.insert_messages(board_name, &vec![message]).await
+    client.insert_messages(board_name, &vec![message]).await
 }
 
 /*
@@ -296,9 +304,9 @@ This operation can only be carried out once the distributed key generation phase
 public key is present on the board and can be downloaded to allow the encryption of random ballots. The ballot plaintexts
 are randomly generated.
 */
-#[instrument(skip(board))]
+#[instrument(skip(client))]
 async fn post_ballots<C: Ctx>(
-    board: &mut BoardClient,
+    client: &mut PgsqlB3Client,
     board_name: &str,
     batches: u32,
     ctx: &C,
@@ -306,13 +314,11 @@ async fn post_ballots<C: Ctx>(
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
     let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk = sender_pk.to_der_b64_string()?;
-    let ballots = board
-        .get_messages_filtered(
+    let ballots = client
+        .get_with_kind(
             &board_name,
             &StatementType::Ballots.to_string(),
             &sender_pk,
-            None,
-            None,
         )
         .await?;
     if ballots.len() > 0 {
@@ -328,13 +334,11 @@ async fn post_ballots<C: Ctx>(
 
     let sender_pk = configuration.trustees.get(0).unwrap();
     let sender_pk = sender_pk.to_der_b64_string()?;
-    let pk = board
-        .get_messages_filtered(
+    let pk = client
+        .get_with_kind(
             &board_name,
             &StatementType::PublicKey.to_string(),
             &sender_pk,
-            None,
-            None,
         )
         .await?;
 
@@ -378,8 +382,8 @@ async fn post_ballots<C: Ctx>(
             )?;
 
             info!("Adding ballots to the board..");
-            let bm: BoardMessage = message.try_into()?;
-            board.insert_messages(board_name, &vec![bm]).await?;
+            let bm: B3MessageRow = message.try_into()?;
+            client.insert_messages(board_name, &vec![bm]).await?;
         }
     } else {
         return Err(anyhow!(
@@ -391,12 +395,12 @@ async fn post_ballots<C: Ctx>(
 }
 
 #[instrument(skip(board))]
-async fn list_messages(board: &mut BoardClient, board_name: &str) -> Result<()> {
+async fn list_messages(board: &mut PgsqlB3Client, board_name: &str) -> Result<()> {
     let messages: Result<Vec<Message>> = board
         .get_messages(board_name, 0)
         .await?
         .iter()
-        .map(|board_message: &BoardMessage| {
+        .map(|board_message: &B3MessageRow| {
             Ok(Message::strand_deserialize(&board_message.message)?)
         })
         .collect();
@@ -408,12 +412,12 @@ async fn list_messages(board: &mut BoardClient, board_name: &str) -> Result<()> 
 }
 
 #[instrument(skip(board))]
-async fn list_boards(board: &mut BoardClient, indexdb: &str) -> Result<()> {
+async fn list_boards(board: &mut PgsqlB3Client) -> Result<()> {
     let boards: Result<Vec<String>> = board
-        .get_boards(&indexdb)
+        .get_boards()
         .await?
         .iter()
-        .map(|board: &Board| Ok(board.database_name.clone()))
+        .map(|board: &B3IndexRow| Ok(board.board_name.clone()))
         .collect();
 
     for board in boards? {
@@ -439,51 +443,23 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
 }
 
 #[instrument()]
-async fn create_boards(
-    server_url: &str,
-    immudb_user: &str,
-    immudb_pw: &str,
-    indexdb: &str,
-    dbname: &str,
-    count: u32,
+async fn delete_boards(
+    host: &str,
+    port: u32,
+    username: &str,
+    password: &str,
 ) -> Result<()> {
-    let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
-    board.delete_database(indexdb).await?;
-    board.upsert_index_db(indexdb).await?;
-
-    for i in 0..count {
-        let name = if i == 0 {
-            dbname.to_string()
-        } else {
-            format!("{}_{}", dbname, i + 1)
-        };
-        board.delete_database(&name).await?;
-        board.create_board(indexdb, &name).await?;
-    }
+    let c = get_connection(host, port, username, password);
+    pgsql::drop_database(&c, PG_DATABASE).await?;
 
     Ok(())
 }
 
-#[instrument()]
-async fn delete_boards(
-    server_url: &str,
-    immudb_user: &str,
-    immudb_pw: &str,
-    indexdb: &str,
-    dbname: &str,
-    count: u32,
-) -> Result<()> {
-    let mut board = BoardClient::new(server_url, immudb_user, immudb_pw).await?;
-    board.delete_database(indexdb).await?;
-
-    for i in 0..count {
-        let name = if i == 0 {
-            dbname.to_string()
-        } else {
-            format!("{}_{}", dbname, i + 1)
-        };
-        board.delete_database(&name).await?;
-    }
-
-    Ok(())
+fn get_connection(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
+    PgsqlConnectionParams::new(host, port, username, password)
+}
+async fn get_client(host: &str, port: u32, username: &str, password: &str) -> Result<PgsqlB3Client> {
+    let c = get_connection(host, port, username, password);
+    let c = c.with_database(PG_DATABASE);
+    PgsqlB3Client::new(&c).await
 }

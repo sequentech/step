@@ -1,6 +1,7 @@
 use crate::braid::message::Message;
 
 use strand::serialization::StrandSerialize;
+use tonic::transport::Endpoint;
 
 use super::GetMessagesReply;
 use super::{B3Client as B3ClientInner, GetBoardsReply, GetBoardsRequest, GetMessagesRequest, GrpcB3Message, PutMessagesReply, PutMessagesRequest};
@@ -9,13 +10,13 @@ use tonic::Request;
 use tonic::{transport::Channel, Response};
 
 pub struct B3Client {
-    url: &'static str
+    url: String
 }
 
 impl B3Client {
-    pub fn new(url: &'static str) -> B3Client {
+    pub fn new(url: &str) -> B3Client {
         B3Client {
-            url,
+            url: url.to_string(),
         }
     }
 
@@ -78,7 +79,8 @@ impl B3Client {
     }
 
     pub(crate) async fn get_grpc_client(&self) -> Result<B3ClientInner<Channel>> {
-        let client = B3ClientInner::connect(self.url).await?;
+        let endpoint = Endpoint::from_shared(self.url.clone())?;
+        let client = B3ClientInner::connect(endpoint).await?;
 
         Ok(client)
     }

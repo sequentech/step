@@ -17,34 +17,64 @@ impl super::Board for GrpcB3 {
     type Factory = GrpcB3BoardParams;
 
     async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
-        let messages = self.client.get_messages(&self.board_name, last_id.unwrap_or(-1)).await?;
-        let messages = messages.get_ref();
+        let messages = if self.store_root.is_some() {
+            // When using a store, only the messages not previously received will be requested
+            self.store_and_return_messages(last_id).await?
+        } else {
+            // If last_id is None, use -1 as last_id
+            let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;
 
-        messages.messages
-            .iter()
-            .map(|m| {
-                let message = Message::strand_deserialize(&m.message)?;
-                let id = m.id;
-                Ok((message, id))
-            })
-            .collect::<Result<Vec<(Message, i64)>>>()
+            messages
+                .iter()
+                .map(|m| {
+                    let message = Message::strand_deserialize(&m.message)?;
+                    let id = m.id;
+                    Ok((message, id))
+                })
+                .collect::<Result<Vec<(Message, i64)>>>()?
+        };
+
+        Ok(messages)
     }
 
     async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
-        let _ = self.client.put_messages(&self.board_name, &messages).await?;
+        if messages.len() > 0 {
+            self.client.put_messages(&self.board_name, &messages).await?;
+        } 
         
         Ok(())
+        
     }
 
+}
+
+pub struct GrpcB3Index {
+    client: B3Client,
+}
+impl GrpcB3Index {
+    pub fn new(url: &str) -> GrpcB3Index {
+        let client = B3Client::new(url);
+
+        GrpcB3Index {
+            client,
+        }
+    }
+
+    pub async fn get_boards(&self) -> Result<Vec<String>> {
+        let boards = self.client.get_boards().await?;
+        let boards = boards.into_inner();
+
+        Ok(boards.boards)
+    }
 }
 
 pub struct GrpcB3 {
     client: B3Client,
-    board_name: String,
+    pub(crate) board_name: String,
     store_root: Option<PathBuf>,
 }
 impl GrpcB3 {
-    pub fn new(url: &'static str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3 {
+    pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3 {
         let client = B3Client::new(url);
 
         GrpcB3 {
@@ -144,21 +174,21 @@ impl GrpcB3 {
 
 
 pub struct GrpcB3BoardParams {
-    url: &'static str,
+    url: String,
     board_name: String,
     store_root: Option<PathBuf>,
 }
 impl GrpcB3BoardParams {
-    pub(crate) fn new(url: &'static str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3BoardParams {
+    pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3BoardParams {
         GrpcB3BoardParams {
-            url, board_name: board_name.to_string(), store_root
+            url: url.to_string(), board_name: board_name.to_string(), store_root
         }
     }
 }
 
 impl super::BoardFactory<GrpcB3> for GrpcB3BoardParams {
     async fn get_board(&self) -> Result<GrpcB3> {
-        Ok(GrpcB3::new(self.url, &self.board_name, self.store_root.clone()))
+        Ok(GrpcB3::new(&self.url, &self.board_name, self.store_root.clone()))
     }
 }
 

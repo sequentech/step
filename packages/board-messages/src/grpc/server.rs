@@ -1,7 +1,7 @@
 
 use tonic::{Request, Response, Status};
 use anyhow::{anyhow, Result};
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 use crate::grpc::{GrpcB3Message, GetBoardsRequest, GetBoardsReply, GetMessagesRequest, GetMessagesReply};
 use crate::grpc::{PutMessagesRequest, PutMessagesReply};
@@ -57,16 +57,25 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         request: Request<GetMessagesRequest>,
     ) -> Result<Response<GetMessagesReply>, Status> {
-        
+
         let r = request.get_ref();
+        info!("get_messages: returning messages with id > {} for board '{}'", r.last_id, r.board);
+        
+        
         validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlB3Client::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
-
-        let messages = c.get_messages(&r.board, r.last_id).await
-            .map_err(|e| Status::internal(format!("Failed to retrieve messages from database: {e}")))?;
-
+        let c = PgsqlB3Client::new(&c).await;
+        let Ok(mut c) = c else {
+            error!("Pgsql connection failed: {:?}", c.err());
+            return Err(Status::internal(format!("Pgsql connection failed")));
+        };
+        let messages =  c.get_messages(&r.board, r.last_id).await;
+        let Ok(messages) = messages else {
+            error!("Failed to retrieve messages from database: {:?}", messages.err());
+            return Err(Status::internal(format!("Failed to retrieve messages from database")));
+        };
+            
         let messages: Vec<GrpcB3Message> = messages.into_iter().map(|m| {
             GrpcB3Message {
                 id: m.id,
@@ -87,16 +96,27 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<PutMessagesReply>, Status> {
         
         let r = request.get_ref();
+        info!("put_messages: inserting {} messages into board '{}'", r.messages.len(), r.board);
+        
         validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlB3Client::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
+        let c = PgsqlB3Client::new(&c).await;
+        let Ok(mut c) = c else {
+            error!("Pgsql connection failed: {:?}", c.err());
+            return Err(Status::internal(format!("Pgsql connection failed")));
+        };
+        
         let messages = r.messages.iter()
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
             .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
 
-        c.insert_messages(&r.board, &messages).await.map_err(|e| Status::internal(format!("Failed to insert messages in database: {e}")))?;
+        let reply = c.insert_messages(&r.board, &messages).await;
+        let Ok(_) = reply else {
+            error!("Failed to insert messages in database: {:?}", reply.err());
+            return Err(Status::internal(format!("Failed to insert messages in database")));
+        };
         
         let reply = PutMessagesReply {
         };
@@ -107,10 +127,22 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
         &self,
         _request: Request<GetBoardsRequest>,
     ) -> Result<Response<GetBoardsReply>, Status> {
+
+        info!("get_boards");
         
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlB3Client::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
-        let boards = c.get_boards().await.map_err(|e| Status::internal(format!("Failed to retrieve boards from database: {e}")))?;
+        let c = PgsqlB3Client::new(&c).await;
+        let Ok(mut c) = c else {
+            error!("Pgsql connection failed: {:?}", c.err());
+            return Err(Status::internal(format!("Pgsql connection failed")));
+        };
+        
+        let boards = c.get_boards().await;
+        let Ok(boards) = boards else {
+            error!("Failed to retrieve boards from database: {:?}", boards.err());
+            return Err(Status::internal(format!("Failed to retrieve boards from database")));
+        };
+        
         let boards = boards.into_iter().map(|b| b.board_name).collect();
 
         let reply = GetBoardsReply {

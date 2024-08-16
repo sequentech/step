@@ -17,6 +17,7 @@ use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 
 // use crate::protocol::board::immudb::ImmudbBoard;
+use crate::protocol::board::grpc::GrpcB3;
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
@@ -115,15 +116,15 @@ enum Check {
 
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
-    board: ImmudbBoard,
+    board: GrpcB3,
 }
 impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: ImmudbBoard) -> Verifier<C> {
+    pub fn new(trustee: Trustee<C>, board: GrpcB3) -> Verifier<C> {
         Verifier { trustee, board }
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut vr = VerificationResult::new(&self.board.board_dbname);
+        let mut vr = VerificationResult::new(&self.board.board_name);
         vr.add_target(Check::CONFIGURATION_VALID);
         vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
         vr.add_target(Check::MESSAGES_CFG_VALID);
@@ -131,7 +132,7 @@ impl<C: Ctx> Verifier<C> {
 
         info!(
             "{}",
-            format!("Verifying board '{}'", self.board.board_dbname).bold()
+            format!("Verifying board '{}'", self.board.board_name).bold()
         );
 
         let messages = self.board.get_messages(None).await?;
