@@ -41,6 +41,8 @@ import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     CreateTallyCeremonyMutation,
+    CreateTransmissionPackageMutation,
+    SendTransmissionPackageMutation,
     Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
@@ -48,6 +50,7 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
+    UploadSignatureMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
@@ -57,10 +60,16 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
 import {ICommunicationType} from "@/types/communications"
-import miru_data from "./miru-sample.json"
-import {Logs} from "@/components/Logs"
-import {MiruServers} from "@/components/MiruServers"
-import {MiruSignatures} from "@/components/MiruSignatures"
+import {
+    IMiruTallySessionData,
+    IMiruTransmissionPackageData,
+    MIRU_TALLY_SESSION_ANNOTATION_KEY,
+} from "@/types/miru"
+import {SEND_TRANSMISSION_PACKAGE} from "@/queries/SendTransmissionPackage"
+import {IPermissions} from "@/types/keycloak"
+import {UPLOAD_SIGNATURE} from "@/queries/UploadSignature"
+import {MiruExportWizard} from "@/components/MiruExportWizard"
+import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 
 const WizardSteps = {
     Start: 0,
@@ -70,13 +79,12 @@ const WizardSteps = {
     Export: 4,
 }
 
-interface IExpanded {
+export interface IExpanded {
     [key: string]: boolean
 }
 
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-
     const {t, i18n} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
@@ -84,7 +92,8 @@ export const TallyCeremony: React.FC = () => {
 
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
-    const [page, setPage] = useState<number>(WizardSteps.Export)
+    const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
+    const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
     const [templateId, setTemplateId] = useState<string | undefined>(undefined)
@@ -99,6 +108,25 @@ export const TallyCeremony: React.FC = () => {
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
+
+    const [SendTransmissionPackage] = useMutation<SendTransmissionPackageMutation>(
+        SEND_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TALLY_WRITE, //probably not necessary since we are reading not writing
+                },
+            },
+        }
+    )
+
+    const [uploadSignature] = useMutation<UploadSignatureMutation>(UPLOAD_SIGNATURE, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TALLY_WRITE,
+            },
+        },
+    })
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -161,6 +189,23 @@ export const TallyCeremony: React.FC = () => {
     )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+
+    const [selectedTallySessionData, setSelectedTallySessionData] =
+        useState<IMiruTransmissionPackageData | null>(null)
+
+    const tallySessionData: IMiruTallySessionData = useMemo(() => {
+        try {
+            console.log({resultsEventId, tallySessionExecutions})
+            let strData = tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+            if (!strData) {
+                return []
+            }
+            return JSON.parse(strData) as IMiruTallySessionData
+        } catch (e) {
+            return []
+        }
+    }, [tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+
 
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
@@ -306,10 +351,182 @@ export const TallyCeremony: React.FC = () => {
     )
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
-    const handleMiruExportSuccess = () => {
+    const handleMiruExportSuccess = (e: {
+        election_id?: string
+        area_id?: string
+        existingPackage?: IMiruTransmissionPackageData
+    }) => {
         //check for task completion and fetch data
         //set new page status(navigate to miru wizard)
-        setPage(WizardSteps.Export)
+
+        if (e.existingPackage) {
+            setSelectedTallySessionData(e.existingPackage)
+            setPage(WizardSteps.Export)
+        } else {
+            let packageData = null
+            let retry = 0
+
+            while (!packageData && retry < 5) {
+                setTimeout(() => {
+                    const found = tallySessionData.find(
+                        (datum) =>
+                            datum.area_id === e.area_id && datum.election_id === e.election_id
+                    )
+
+                    if (found) {
+                        packageData = found
+                    } else {
+                        retry = retry + 1
+                    }
+                }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }
+
+            if (!packageData) {
+                notify("Error getting transmission package data", {type: "error"})
+            } else {
+                setSelectedTallySessionData(packageData)
+            }
+        }
+    }
+
+    const handleSendTransmissionPackage = async () => {
+		//create component for wizard √
+        //find tally session data for specific election and area √
+        //get document name and extension when downloading √
+		///////hasura schema update
+        //fix rerenders
+		//implement eduardo requirements and suggestions
+		//cleanup and setup translations
+
+        try {
+            setTransmissionLoading(true)
+
+            const {data: nextStatus, errors} = await SendTransmissionPackage({
+                variables: {
+                    electionId: selectedTallySessionData?.election_id,
+                    tallySessionId: tally?.id,
+                    areaId: selectedTallySessionData?.area_id,
+                },
+            })
+
+            if (errors) {
+                setTransmissionLoading(false)
+                notify("Error sending transmission package", {type: "error"})
+                return
+            }
+
+            if (nextStatus) {
+                setTransmissionLoading(false)
+                notify("Success sending transmission package", {type: "success"})
+                // onSuccess?.()
+            }
+        } catch (error) {
+            notify("Error creating transmission package", {type: "error"})
+        }
+    }
+
+    const [uploading, setUploading] = useState<boolean>(false)
+    const [errors, setErrors] = useState<String | null>(null)
+
+    const handleUploadSignature = async (files: FileList | null) => {
+        setErrors(null)
+        setUploading(false)
+        if (!files || files.length === 0) {
+            setErrors("No file selected")
+            return
+        }
+        const firstFile = files[0]
+        const readFileContent = (file: File) => {
+            return new Promise<string>((resolve, reject) => {
+                const fileReader = new FileReader()
+                fileReader.onload = () => resolve(fileReader.result as string)
+                fileReader.onerror = (error) => reject(error)
+                // Read the file as a data URL (base64 encoded string)
+                fileReader.readAsText(file)
+            })
+        }
+        try {
+            const fileContent = await readFileContent(firstFile)
+            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
+            if (fileContent == null) {
+                setErrors(t("Error uploading signature"))
+                return
+            }
+            setUploading(true)
+            const {data, errors} = await uploadSignature({
+                variables: {
+                    electionId: selectedTallySessionData?.election_id,
+                    tallySessionId: tally?.id,
+                    areaId: selectedTallySessionData?.area_id,
+                    signature: fileContent,
+                },
+            })
+            setUploading(false)
+            if (errors) {
+                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
+                return
+            }
+        } catch (exception: any) {
+            setUploading(false)
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+        }
+    }
+
+    const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
+        CREATE_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TALLY_WRITE,
+                },
+            },
+        }
+    )
+
+    const handleCreateTransmissionPackage = async ({
+        area_id,
+        election_id,
+    }: {
+        area_id: string
+        election_id: string | null
+    }) => {
+        const found = tallySessionData.find(
+            (datum) => datum.area_id === area_id && datum.election_id === election_id
+        )
+
+        if (!election_id) {
+            notify("Unable to get election id. Please try again", {type: "error"})
+            return
+        }
+
+        if (found) {
+            notify("Already exists: transmission package", {type: "success"})//should we really notify if already exists?
+            handleMiruExportSuccess?.({existingPackage: found})
+
+            return
+        }
+
+        try {
+            const {data: nextStatus, errors} = await CreateTransmissionPackage({
+                variables: {
+                    electionId: election_id,
+                    tallySessionId: tally?.id,
+                    areaId: area_id,
+                },
+            })
+
+            if (errors) {
+                notify("Error creating transmission package", {type: "error"})
+                return
+            }
+
+            if (nextStatus) {
+                notify("Success creating transmission package", {type: "success"})
+                handleMiruExportSuccess?.({area_id, election_id})
+            }
+        } catch (error) {
+            notify("Error creating transmission package", {type: "error"})
+        }
     }
 
     return (
@@ -470,7 +687,11 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={resultsEventId}
+                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -571,7 +792,7 @@ export const TallyCeremony: React.FC = () => {
                                 <TallyResults
                                     tally={tally}
                                     resultsEventId={resultsEventId}
-                                    onMiruExportSuccess={handleMiruExportSuccess}
+                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -579,125 +800,18 @@ export const TallyCeremony: React.FC = () => {
                 )}
 
                 {page === WizardSteps.Export && (
-                    <>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-download-package"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-download-package": !prev["tally-download-package"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary>
-                                <WizardStyles.AccordionTitle>
-                                    Download Package
-                                </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    {resultsEvent?.[0] && documents ? (
-                                        <ExportElectionMenu
-                                            buttonTitle={"Download"}
-                                            documents={documents}
-                                            electionEventId={resultsEvent?.[0].election_event_id}
-                                            itemName={resultsEvent?.[0]?.name ?? "event"}
-                                        />
-                                    ) : null}
-                                </TallyStyles.StyledSpacing>
-                            </AccordionSummary>
-                        </Accordion>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-miru-servers"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-miru-servers": !prev["tally-miru-servers"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}
-                            >
-                                <WizardStyles.AccordionTitle>Servers</WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <MiruServers servers={miru_data.servers} />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-download-package"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-download-package": !prev["tally-download-package"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary>
-                                <WizardStyles.AccordionTitle>
-                                    Send to Servers
-                                </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    {resultsEvent?.[0] && documents ? (
-                                        <ExportElectionMenu
-                                            buttonTitle={"Upload"}
-                                            documents={documents}
-                                            electionEventId={resultsEvent?.[0].election_event_id}
-                                            itemName={resultsEvent?.[0]?.name ?? "event"}
-                                        />
-                                    ) : null}
-                                </TallyStyles.StyledSpacing>
-                            </AccordionSummary>
-                        </Accordion>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-miru-signatures"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-miru-signatures": !prev["tally-miru-signatures"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}
-                            >
-                                <WizardStyles.AccordionTitle>
-                                    Signatures
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <MiruSignatures
-                                    signatures={
-                                        miru_data.documents[miru_data.documents.length - 1]
-                                            .signatures
-                                    }
-                                />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-upload"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-upload": !prev["tally-upload"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                            // expandIcon={<ExpandMoreIcon id="tally-data-results" />}
-                            >
-                                <WizardStyles.AccordionTitle>Upload</WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <DropFile handleFiles={(e) => console.log({e})} />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
-                        <Logs logs={miru_data.logs} />
-                    </>
+                    <MiruExportWizard
+                        expandedResults={expandedResults}
+                        resultsEvent={resultsEvent}
+                        documents={documents}
+                        setExpandedResults={setExpandedResults}
+                        transmissionLoading={transmissionLoading}
+                        handleSendTransmissionPackage={handleSendTransmissionPackage}
+                        selectedTallySessionData={selectedTallySessionData}
+                        uploading={uploading}
+                        errors={errors}
+                        handleUploadSignature={handleUploadSignature}
+                    />
                 )}
 
                 <TallyStyles.StyledFooter>
