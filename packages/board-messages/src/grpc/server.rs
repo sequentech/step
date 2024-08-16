@@ -89,7 +89,7 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
         validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlBoardClient::new(&c).await.map_err(|_| Status::internal(format!("Pgsql connection failed")))?;
+        let mut c = PgsqlBoardClient::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
         let messages = r.messages.iter()
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
@@ -106,10 +106,14 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
         &self,
         request: Request<GetBoardsRequest>,
     ) -> Result<Response<GetBoardsReply>, Status> {
-        let ret: Vec<String> = vec![];
+        
+        let c = self.params.with_database(&self.dbname);
+        let mut c = PgsqlBoardClient::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
+        let boards = c.get_boards().await.map_err(|e| Status::internal(format!("Failed to retrieve boards from database: {e}")))?;
+        let boards = boards.into_iter().map(|b| b.board_name).collect();
 
         let reply = GetBoardsReply {
-            boards: ret
+            boards
         };
         Ok(Response::new(reply))
     }
@@ -201,6 +205,25 @@ pub(crate) mod tests {
         let verified = cfg_msg.verify(&cfg_artifact).unwrap();
         assert_eq!(verified.signer_position, PROTOCOL_MANAGER_INDEX);
 
+    }
+
+    #[tokio::test]
+    #[ignore]
+    #[serial]
+    async fn test_get_boards() {
+        let _ = set_up().await;
+
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        let b3_impl = PgsqlB3::new(c, "protocoldb");
+
+        let request = GetBoardsRequest {
+        };
+        let request = tonic::Request::new(request);
+        let boards = b3_impl.get_boards(request).await.unwrap();
+        let boards = boards.get_ref();
+
+        assert_eq!(boards.boards.len(), 1);
+        assert_eq!(boards.boards[0], TEST_BOARD);
     }
 
     fn get_test_configuration<C: Ctx>(n_trustees: usize, threshold: usize) -> Message {
