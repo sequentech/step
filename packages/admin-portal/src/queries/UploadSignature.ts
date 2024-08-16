@@ -8,13 +8,13 @@ export const UPLOAD_SIGNATURE = gql`
         $electionId: uuid!
         $tallySessionId: uuid!
         $areaId: uuid!
-        $publicKey: String!
+        $privateKey: String!
     ) {
         upload_signature(
             election_id: $electionId
             tally_session_id: $tallySessionId
             area_id: $areaId
-            public_key: $publicKey
+            private_key: $privateKey
         ) {
             id
         }

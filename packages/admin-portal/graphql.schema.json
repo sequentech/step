@@ -20901,7 +20901,7 @@
                 "deprecationReason": null
               },
               {
-                "name": "public_key",
+                "name": "private_key",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
