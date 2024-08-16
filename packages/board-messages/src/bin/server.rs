@@ -1,7 +1,7 @@
 use board_messages::grpc::pgsql::PgsqlConnectionParams;
 use tonic::{transport::Server, Request, Response, Status};
 
-use board_messages::grpc::server::PgsqlB3;
+use board_messages::grpc::server::PgsqlB3Server;
 use board_messages::grpc::B3Server;
 
 const PG_DATABASE: &'static str = "protocoldb";
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
     
     let addr = "[::1]:50051".parse()?;
-    let b3_impl = PgsqlB3::new(c, "protocoldb");
+    let b3_impl = PgsqlB3Server::new(c, "protocoldb");
 
     Server::builder()
         .add_service(B3Server::new(b3_impl))

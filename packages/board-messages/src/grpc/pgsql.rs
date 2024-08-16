@@ -5,6 +5,8 @@ use tracing::{info, warn};
 use std::time::SystemTime;
 
 use crate::braid::newtypes::Timestamp;
+use crate::braid::message::Message;
+use strand::serialization::StrandSerialize;
 
 ///////////////////////////////////////////////////////////////////////////
 // PostgreSql client
@@ -51,6 +53,22 @@ impl TryFrom<&Row> for B3MessageRow {
             statement_kind,
             message,
             version,
+        })
+    }
+}
+
+impl TryFrom<Message> for B3MessageRow {
+    type Error = anyhow::Error;
+
+    fn try_from(message: Message) -> Result<B3MessageRow> {
+        Ok(B3MessageRow {
+            id: 0,
+            created: crate::timestamp(),
+            statement_timestamp: message.statement.get_timestamp(),
+            statement_kind: message.statement.get_kind().to_string(),
+            message: message.strand_serialize()?,
+            sender_pk: message.sender.pk.to_der_b64_string()?,
+            version: crate::get_schema_version(),
         })
     }
 }
@@ -127,13 +145,13 @@ impl PgsqlDbConnectionParams {
 }
 
 
-pub struct PgsqlBoardClient {
+pub struct PgsqlB3Client {
     client: tokio_postgres::Client,
 }
 
-impl PgsqlBoardClient {
-    /// Creates a new BoardClient. The underlying connection will be closed when the client is dropped.
-    pub async fn new(connection: &PgsqlDbConnectionParams) -> Result<PgsqlBoardClient> {
+impl PgsqlB3Client {
+    /// Creates a new PgsqlB3Client using a direct db connection. The underlying connection will be closed when the client is dropped.
+    pub async fn new(connection: &PgsqlDbConnectionParams) -> Result<PgsqlB3Client> {
         let (client, connection) =
             tokio_postgres::connect(&connection.connection_string(), NoTls).await?;
 
@@ -145,7 +163,7 @@ impl PgsqlBoardClient {
             }
         });
 
-        let ret = PgsqlBoardClient { client };
+        let ret = PgsqlB3Client { client };
 
         Ok(ret)
     }
@@ -505,7 +523,7 @@ impl PgsqlBoardClient {
 }
 
 /// Utility function to create a database (will not pass a database parameter in the connection string).
-pub(crate) async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
         .unwrap();
@@ -524,7 +542,7 @@ pub(crate) async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> 
 }
 
 /// Utility function to drop a database (will not pass a database parameter in the connection string).
-pub(crate) async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+pub async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
         .unwrap();
@@ -558,12 +576,12 @@ pub(crate) mod tests {
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
 
-    async fn set_up() -> PgsqlBoardClient {
+    async fn set_up() -> PgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
-        let mut client = PgsqlBoardClient::new(&c.with_database(PG_DATABASE))
+        let mut client = PgsqlB3Client::new(&c.with_database(PG_DATABASE))
             .await
             .unwrap();
         client.create_index_ine().await.unwrap();

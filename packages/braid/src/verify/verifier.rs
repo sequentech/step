@@ -16,7 +16,7 @@ use board_messages::braid::message::VerifiedMessage;
 use board_messages::braid::newtypes::*;
 use board_messages::braid::statement::StatementType;
 
-use crate::protocol::board::immudb::ImmudbBoard;
+// use crate::protocol::board::immudb::ImmudbBoard;
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;

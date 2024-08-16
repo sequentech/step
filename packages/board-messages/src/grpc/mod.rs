@@ -15,3 +15,8 @@ pub use proto::PutMessagesReply;
 pub mod client;
 pub mod server;
 pub mod pgsql;
+
+pub(crate) fn validate_board_name(board: &str) -> anyhow::Result<()> {
+    // FIXME
+    Ok(())
+}

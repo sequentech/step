@@ -16,6 +16,7 @@ use crate::braid::statement::Statement;
 use crate::braid::statement::StatementType;
 
 use crate::braid::newtypes::*;
+use crate::grpc::pgsql::B3MessageRow;
 
 ///////////////////////////////////////////////////////////////////////////
 // Message
@@ -412,7 +413,7 @@ fn verify_artifact<C: Ctx>(
     Ok(())
 }
 
-use immu_board::BoardMessage;
+/*use immu_board::BoardMessage;
 // Immudb uses timestamps with microsecond precision
 const MICROSECOND_FACTOR: u64 = 1000000;
 
@@ -430,7 +431,7 @@ impl TryFrom<Message> for BoardMessage {
             version: crate::get_schema_version(),
         })
     }
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////
 // VerifiedMessage

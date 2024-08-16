@@ -1326,8 +1326,6 @@ dependencies = [
  "criterion 0.4.0",
  "getrandom 0.2.11",
  "hex",
- "immu-board",
- "immudb-rs",
  "log",
  "rand 0.8.5",
  "rayon",

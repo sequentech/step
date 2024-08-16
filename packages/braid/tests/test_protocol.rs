@@ -31,27 +31,26 @@ fn test_protocol_memory() {
 
 #[tokio::test]
 #[ignore]
-async fn test_protocol_immudb() {
+async fn test_protocol_pgsql() {
     init_log(true);
-
     let ctx = RistrettoCtx;
-    // maximum size limit is currently 135295
-    braid::test::protocol_test_immudb::run(1000, 1, ctx).await;
+
+    braid::test::protocol_test_pgsql::run(1000, 1, ctx).await;
     cfg_if::cfg_if! {
         if #[cfg(feature = "rug")] {
             let ctx = RugCtx::<RUGP2048>::default();
-            braid::test::protocol_test_immudb::run(100, 1, ctx).await;
+            braid::test::protocol_test_pgsql::run(100, 1, ctx).await;
         }
     }
 }
 
 #[tokio::test]
 #[ignore]
-async fn test_protocol_pgsql() {
+async fn test_protocol_grpc() {
     init_log(true);
     let ctx = RistrettoCtx;
 
-    braid::test::protocol_test_pgsql::run(1000, 1, ctx).await;
+    braid::test::protocol_test_grpc::run(1000, 1, ctx).await;
     cfg_if::cfg_if! {
         if #[cfg(feature = "rug")] {
             let ctx = RugCtx::<RUGP2048>::default();

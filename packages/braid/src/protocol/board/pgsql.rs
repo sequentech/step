@@ -61,7 +61,7 @@ impl PgsqlBoard {
         Ok(connection)
     }
 
-    async fn store_and_get_messages(
+    async fn store_and_return_messages(
         &mut self,
         last_id: Option<i64>,
     ) -> Result<Vec<(Message, i64)>> {
@@ -137,7 +137,7 @@ impl super::Board for PgsqlBoard {
     async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
         let messages = if self.store_root.is_some() {
             // When using a store, only the messages not previously received will be requested
-            self.store_and_get_messages(last_id).await?
+            self.store_and_return_messages(last_id).await?
         } else {
             // If last_id is None, use -1 as last_id
             let messages = self.get_remote_messages(last_id.unwrap_or(-1)).await?;

@@ -20,8 +20,8 @@ strand = { path="../strand", features=["rayon"] }
 board-messages = { path="../board-messages" }
 borsh = "0.9.3"
 crepe = "0.1.5"
-immu-board = { path="../immu-board" }
-immudb-rs = { path="../immudb-rs" }
+# immu-board = { path="../immu-board" }
+# immudb-rs = { path="../immudb-rs" }
 tokio-postgres = "0.7.10"
 strum = { version = "0.24.1", features = ["derive"] }
 rayon = { version = "1.5" }

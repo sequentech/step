@@ -7,10 +7,11 @@ use crate::grpc::{GrpcB3Message, GetBoardsRequest, GetBoardsReply, GetMessagesRe
 use crate::grpc::{PutMessagesRequest, PutMessagesReply};
 
 use crate::braid::message::Message;
-use crate::grpc::pgsql::PgsqlBoardClient;
+use crate::grpc::pgsql::PgsqlB3Client;
 use crate::grpc::pgsql::B3MessageRow;
 use crate::grpc::pgsql::PgsqlConnectionParams;
 use strand::serialization::{StrandSerialize, StrandDeserialize};
+use super::validate_board_name;
 
 impl TryFrom<&GrpcB3Message> for B3MessageRow {
     type Error = anyhow::Error;
@@ -36,13 +37,13 @@ impl TryFrom<&GrpcB3Message> for B3MessageRow {
     }
 }
 
-pub struct PgsqlB3 {
+pub struct PgsqlB3Server {
     params: PgsqlConnectionParams,
     dbname: String,
 }
-impl PgsqlB3 {
-    pub fn new(params: PgsqlConnectionParams, dbname: &str) -> PgsqlB3 {
-        PgsqlB3 {
+impl PgsqlB3Server {
+    pub fn new(params: PgsqlConnectionParams, dbname: &str) -> PgsqlB3Server {
+        PgsqlB3Server {
             params,
             dbname: dbname.to_string()
         }
@@ -50,7 +51,7 @@ impl PgsqlB3 {
 }
 
 #[tonic::async_trait]
-impl super::proto::b3_server::B3 for PgsqlB3 {
+impl super::proto::b3_server::B3 for PgsqlB3Server {
     
     async fn get_messages(
         &self,
@@ -61,7 +62,7 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
         validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlBoardClient::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
+        let mut c = PgsqlB3Client::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
 
         let messages = c.get_messages(&r.board, r.last_id).await
             .map_err(|e| Status::internal(format!("Failed to retrieve messages from database: {e}")))?;
@@ -89,7 +90,7 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
         validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlBoardClient::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
+        let mut c = PgsqlB3Client::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
         let messages = r.messages.iter()
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
@@ -104,11 +105,11 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
 
     async fn get_boards(
         &self,
-        request: Request<GetBoardsRequest>,
+        _request: Request<GetBoardsRequest>,
     ) -> Result<Response<GetBoardsReply>, Status> {
         
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlBoardClient::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
+        let mut c = PgsqlB3Client::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
         let boards = c.get_boards().await.map_err(|e| Status::internal(format!("Failed to retrieve boards from database: {e}")))?;
         let boards = boards.into_iter().map(|b| b.board_name).collect();
 
@@ -119,11 +120,6 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
     }
 }
 
-fn validate_board_name(board: &str) -> Result<()> {
-    // FIXME
-    Ok(())
-}
-
 // use tonic_mock::
 
 #[cfg(test)]
@@ -131,11 +127,10 @@ pub(crate) mod tests {
     use std::marker::PhantomData;
 
     use super::*;
-    use crate::{braid::{artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX, protocol_manager::ProtocolManager}, grpc::proto::b3_server::B3};
+    use crate::{braid::{artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX, protocol_manager::ProtocolManager}, grpc::{client::B3Client, proto::b3_server::B3}};
     use serial_test::serial;
     use strand::{backend::ristretto::RistrettoCtx, context::Ctx, signature::{StrandSignaturePk, StrandSignatureSk}};
-    use strand::serialization::StrandSerialize;
-    use tonic::{client::GrpcService, service::Routes, transport::{server::Router, Server}, IntoRequest};
+    
     use crate::grpc::pgsql::{create_database, drop_database};
 
     const PG_DATABASE: &'static str = "protocoldb";
@@ -145,12 +140,12 @@ pub(crate) mod tests {
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
     
-    async fn set_up() -> PgsqlBoardClient {
+    async fn set_up() -> PgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         drop_database(&c, PG_DATABASE).await.unwrap();
         create_database(&c, PG_DATABASE).await.unwrap();
 
-        let mut client = PgsqlBoardClient::new(&c.with_database(PG_DATABASE))
+        let mut client = PgsqlB3Client::new(&c.with_database(PG_DATABASE))
             .await
             .unwrap();
         client.create_index_ine().await.unwrap();
@@ -167,11 +162,13 @@ pub(crate) mod tests {
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let b3_impl = PgsqlB3::new(c, "protocoldb");
+        let b3_impl = PgsqlB3Server::new(c, "protocoldb");
         
-        let mut messages = vec![];
+        
         let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
-        let message = GrpcB3Message{
+        let messages = vec![cfg];
+        let request = B3Client::put_messages_request(TEST_BOARD, &messages).unwrap();
+        /*let message = GrpcB3Message{
             // does not matter when putting messages
             id: 1,
             message: cfg.strand_serialize().unwrap(),
@@ -182,21 +179,21 @@ pub(crate) mod tests {
             messages,
             board: TEST_BOARD.to_string(),
         };
-        let request = tonic::Request::new(request);
+        let request = tonic::Request::new(request);*/
         let put = b3_impl.put_messages(request).await.unwrap();
         let _ = put.get_ref();
         
-        let request = GetMessagesRequest {
+        /*let request = GetMessagesRequest {
             board: TEST_BOARD.to_string(),
             last_id: -1,
         };
         let request = tonic::Request::new(request);
+        let messages_returned = b3_impl.get_messages(request).await.unwrap();*/
+        let request = B3Client::get_messages_request(TEST_BOARD, -1);
         let messages_returned = b3_impl.get_messages(request).await.unwrap();
         let messages_returned = messages_returned.get_ref();
 
         assert_eq!(messages_returned.messages.len(), 1);
-        assert_eq!(messages_returned.messages[0].message, message.message);
-        assert_eq!(messages_returned.messages[0].version, message.version);
 
         let cfg_msg = Message::strand_deserialize(&messages_returned.messages[0].message).unwrap();
         let bytes = cfg_msg.artifact.clone().unwrap();
@@ -214,11 +211,9 @@ pub(crate) mod tests {
         let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let b3_impl = PgsqlB3::new(c, "protocoldb");
+        let b3_impl = PgsqlB3Server::new(c, "protocoldb");
 
-        let request = GetBoardsRequest {
-        };
-        let request = tonic::Request::new(request);
+        let request = B3Client::get_boards_request();
         let boards = b3_impl.get_boards(request).await.unwrap();
         let boards = boards.get_ref();
 
@@ -233,7 +228,7 @@ pub(crate) mod tests {
             phantom: PhantomData,
         };
         let trustee_pks: Vec<StrandSignaturePk> = (0..n_trustees)
-            .map(|i| {
+            .map(|_| {
                 let sk = StrandSignatureSk::gen().unwrap();
                 // let encryption_key = strand::symm::gen_key();
                 let pk = StrandSignaturePk::from_sk(&sk).unwrap();
