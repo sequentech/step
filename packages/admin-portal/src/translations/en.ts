@@ -905,7 +905,7 @@ const englishTranslation = {
             },
         },
         tally: {
-            exportElectionArea: "Send transmission package for area '{{name}}'",
+            exportElectionArea: "Send Transmission Package for area '{{name}}'",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
             ceremonyTitle: "Elections to Tally",

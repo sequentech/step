@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -206,7 +206,6 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
 
-
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
         {
@@ -390,13 +389,13 @@ export const TallyCeremony: React.FC = () => {
     }
 
     const handleSendTransmissionPackage = async () => {
-		//create component for wizard √
+        //create component for wizard √
         //find tally session data for specific election and area √
         //get document name and extension when downloading √
-		///////hasura schema update
-        //fix rerenders
-		//implement eduardo requirements and suggestions
-		//cleanup and setup translations
+        ///////hasura schema update √
+        //fix rerenders √
+        //implement eduardo requirements and suggestions
+        //cleanup and setup translations
 
         try {
             setTransmissionLoading(true)
@@ -483,7 +482,7 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const handleCreateTransmissionPackage = async ({
+	const handleCreateTransmissionPackage = useCallback(async ({
         area_id,
         election_id,
     }: {
@@ -500,7 +499,7 @@ export const TallyCeremony: React.FC = () => {
         }
 
         if (found) {
-            notify("Already exists: transmission package", {type: "success"})//should we really notify if already exists?
+            notify("Already exists: transmission package", {type: "success"}) //should we really notify if already exists?
             handleMiruExportSuccess?.({existingPackage: found})
 
             return
@@ -527,7 +526,7 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify("Error creating transmission package", {type: "error"})
         }
-    }
+	}, [tallySessionData])
 
     return (
         <>
