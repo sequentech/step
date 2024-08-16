@@ -912,6 +912,12 @@ const catalanTranslation: TranslationType = {
             },
         },
         tally: {
+			errorUploadingSignature: "S'ha produït un error en carregar la signatura",
+			downloadTransmissionPackage: "Descarregar paquet",
+			TransmissionPackageServers: "Servidors",
+			sendToTransmissionPackageServers: "Enviar paquet de transmissió per a l'àrea '{{name}}'",
+			transmissionPackageSignatures: "Signatures",
+			uploadTransmissionPackage: "Carregar",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",

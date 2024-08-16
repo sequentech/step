@@ -1,8 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
-import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog, theme} from "@sequentech/ui-essentials"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import {
+    BreadCrumbSteps,
+    BreadCrumbStepsVariant,
+    Dialog,
+    DropFile,
+    theme,
+} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -32,9 +38,11 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
+import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     CreateTallyCeremonyMutation,
+    CreateTransmissionPackageMutation,
+    SendTransmissionPackageMutation,
     Sequent_Backend_Communication_Template,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
@@ -42,6 +50,7 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
+    UploadSignatureMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
@@ -51,21 +60,31 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
 import {ICommunicationType} from "@/types/communications"
+import {
+    IMiruTallySessionData,
+    IMiruTransmissionPackageData,
+    MIRU_TALLY_SESSION_ANNOTATION_KEY,
+} from "@/types/miru"
+import {SEND_TRANSMISSION_PACKAGE} from "@/queries/SendTransmissionPackage"
+import {IPermissions} from "@/types/keycloak"
+import {UPLOAD_SIGNATURE} from "@/queries/UploadSignature"
+import {MiruExportWizard} from "@/components/MiruExportWizard"
+import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 
 const WizardSteps = {
     Start: 0,
     Ceremony: 1,
     Tally: 2,
     Results: 3,
+    Export: 4,
 }
 
-interface IExpanded {
+export interface IExpanded {
     [key: string]: boolean
 }
 
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-
     const {t, i18n} = useTranslation()
     const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
@@ -73,6 +92,7 @@ export const TallyCeremony: React.FC = () => {
 
     const [openModal, setOpenModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
+    const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
@@ -89,6 +109,25 @@ export const TallyCeremony: React.FC = () => {
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
+    const [SendTransmissionPackage] = useMutation<SendTransmissionPackageMutation>(
+        SEND_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TALLY_WRITE, //probably not necessary since we are reading not writing
+                },
+            },
+        }
+    )
+
+    const [uploadSignature] = useMutation<UploadSignatureMutation>(UPLOAD_SIGNATURE, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TALLY_WRITE,
+            },
+        },
+    })
+
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
         "tally-data-logs": true,
@@ -101,6 +140,13 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-logs": true,
         "tally-results-general": true,
         "tally-results-results": true,
+    })
+
+    const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
+        "tally-miru-upload": false,
+        "tally-miru-signatures": false,
+        "tally-download-package": false,
+        "tally-miru-servers": false,
     })
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
@@ -150,6 +196,22 @@ export const TallyCeremony: React.FC = () => {
     )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+
+    const [selectedTallySessionData, setSelectedTallySessionData] =
+        useState<IMiruTransmissionPackageData | null>(null)
+
+    const tallySessionData: IMiruTallySessionData = useMemo(() => {
+        try {
+            console.log({resultsEventId, tallySessionExecutions})
+            let strData = tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+            if (!strData) {
+                return []
+            }
+            return JSON.parse(strData) as IMiruTallySessionData
+        } catch (e) {
+            return []
+        }
+    }, [tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
 
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
@@ -294,6 +356,181 @@ export const TallyCeremony: React.FC = () => {
         [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
     )
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
+
+    const handleMiruExportSuccess = (e: {
+        election_id?: string
+        area_id?: string
+        existingPackage?: IMiruTransmissionPackageData
+    }) => {
+        //check for task completion and fetch data
+        //set new page status(navigate to miru wizard)
+
+        if (e.existingPackage) {
+            setSelectedTallySessionData(e.existingPackage)
+            setPage(WizardSteps.Export)
+        } else {
+            let packageData = null
+            let retry = 0
+
+            while (!packageData && retry < 5) {
+                setTimeout(() => {
+                    const found = tallySessionData.find(
+                        (datum) =>
+                            datum.area_id === e.area_id && datum.election_id === e.election_id
+                    )
+
+                    if (found) {
+                        packageData = found
+                    } else {
+                        retry = retry + 1
+                    }
+                }, globalSettings.QUERY_POLL_INTERVAL_MS)
+            }
+
+            if (!packageData) {
+                notify("Error getting transmission package data", {type: "error"})
+            } else {
+                setSelectedTallySessionData(packageData)
+            }
+        }
+    }
+
+    const handleSendTransmissionPackage = async () => {
+        //create component for wizard √
+        //find tally session data for specific election and area √
+        //get document name and extension when downloading √
+        ///////hasura schema update √
+        //fix rerenders √
+        //implement eduardo requirements and suggestions
+        //cleanup and setup translations √
+
+        try {
+            setTransmissionLoading(true)
+
+            const {data: nextStatus, errors} = await SendTransmissionPackage({
+                variables: {
+                    electionId: selectedTallySessionData?.election_id,
+                    tallySessionId: tally?.id,
+                    areaId: selectedTallySessionData?.area_id,
+                },
+            })
+
+            if (errors) {
+                setTransmissionLoading(false)
+                notify("Error sending transmission package", {type: "error"})
+                return
+            }
+
+            if (nextStatus) {
+                setTransmissionLoading(false)
+                notify("Success sending transmission package", {type: "success"})
+                // onSuccess?.()
+            }
+        } catch (error) {
+            notify("Error creating transmission package", {type: "error"})
+        }
+    }
+
+    const [uploading, setUploading] = useState<boolean>(false)
+    const [errors, setErrors] = useState<String | null>(null)
+
+    const handleUploadSignature = async (files: FileList | null) => {
+        setErrors(null)
+        setUploading(false)
+        if (!files || files.length === 0) {
+            setErrors("No file selected")
+            return
+        }
+        const firstFile = files[0]
+        const readFileContent = (file: File) => {
+            return new Promise<string>((resolve, reject) => {
+                const fileReader = new FileReader()
+                fileReader.onload = () => resolve(fileReader.result as string)
+                fileReader.onerror = (error) => reject(error)
+                // Read the file as a data URL (base64 encoded string)
+                fileReader.readAsText(file)
+            })
+        }
+        try {
+            const fileContent = await readFileContent(firstFile)
+            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
+            if (fileContent == null) {
+                setErrors(t("Error uploading signature"))
+                return
+            }
+            setUploading(true)
+            const {data, errors} = await uploadSignature({
+                variables: {
+                    electionId: selectedTallySessionData?.election_id,
+                    tallySessionId: tally?.id,
+                    areaId: selectedTallySessionData?.area_id,
+                    signature: fileContent,
+                },
+            })
+            setUploading(false)
+            if (errors) {
+                setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
+                return
+            }
+        } catch (exception: any) {
+            setUploading(false)
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+        }
+    }
+
+    const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
+        CREATE_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.TALLY_WRITE,
+                },
+            },
+        }
+    )
+
+    const handleCreateTransmissionPackage = useCallback(
+        async ({area_id, election_id}: {area_id: string; election_id: string | null}) => {
+            const found = tallySessionData.find(
+                (datum) => datum.area_id === area_id && datum.election_id === election_id
+            )
+
+            if (!election_id) {
+                notify("Unable to get election id. Please try again", {type: "error"})
+                return
+            }
+
+            if (found) {
+                notify("Already exists: transmission package", {type: "success"}) //should we really notify if already exists?
+                handleMiruExportSuccess?.({existingPackage: found})
+
+                return
+            }
+
+            try {
+                const {data: nextStatus, errors} = await CreateTransmissionPackage({
+                    variables: {
+                        electionId: election_id,
+                        tallySessionId: tally?.id,
+                        areaId: area_id,
+                    },
+                })
+
+                if (errors) {
+                    notify("Error creating transmission package", {type: "error"})
+                    return
+                }
+
+                if (nextStatus) {
+                    notify("Success creating transmission package", {type: "success"})
+                    handleMiruExportSuccess?.({area_id, election_id})
+                }
+            } catch (error) {
+                notify("Error creating transmission package", {type: "error"})
+            }
+        },
+        [tallySessionData]
+    )
 
     return (
         <>
@@ -453,7 +690,11 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={resultsEventId}
+                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -551,10 +792,29 @@ export const TallyCeremony: React.FC = () => {
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={resultsEventId}
+                                    onCreateTransmissionPackage={handleCreateTransmissionPackage}
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
+                )}
+
+                {page === WizardSteps.Export && (
+                    <MiruExportWizard
+                        expandedExports={expandedExports}
+                        resultsEvent={resultsEvent}
+                        setExpandedDataExports={setExpandedDataExports}
+                        transmissionLoading={transmissionLoading}
+                        handleSendTransmissionPackage={handleSendTransmissionPackage}
+                        selectedTallySessionData={selectedTallySessionData}
+                        uploading={uploading}
+                        documents={documents}
+                        errors={errors}
+                        handleUploadSignature={handleUploadSignature}
+                    />
                 )}
 
                 <TallyStyles.StyledFooter>

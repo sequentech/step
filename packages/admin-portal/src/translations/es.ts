@@ -911,6 +911,12 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+			errorUploadingSignature: "Hubo un error al subir la firma",
+			downloadTransmissionPackage: "Descargar paquete",
+			TransmissionPackageServers: "Servidores",
+			sendToTransmissionPackageServers: "Enviar paquete de transmisión para el área '{{name}}'",
+			transmissionPackageSignatures: "Firmas",
+			uploadTransmissionPackage: "Subir",
             exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",

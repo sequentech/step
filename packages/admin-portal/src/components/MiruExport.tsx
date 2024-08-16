@@ -21,7 +21,11 @@ import {useMutation} from "@apollo/client"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {IMiruTallySessionData, MIRU_TALLY_SESSION_ANNOTATION_KEY} from "@/types/miru"
 import {useNotify} from "react-admin"
+<<<<<<< HEAD
 import { SEND_TRANSMISSION_PACKAGE } from "@/queries/SendTransmissionPackage"
+=======
+import {SEND_TRANSMISSION_PACKAGE} from "@/queries/SendTransmissionPackage"
+>>>>>>> feat/meta-1503b/main
 
 export const ExportButton = styled.div`
     cursor: pointer;
@@ -48,12 +52,20 @@ export const ExportButton = styled.div`
 interface MiruExportProps {
     electionId: string | null
     tally: Sequent_Backend_Tally_Session | undefined
+    // onSuccess?: () => void
+    onCreateTransmissionPackage: (v: {area_id: string; election_id: string | null}) => void
 }
 
-export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
+export const MiruExport: React.FC<MiruExportProps> = ({
+    electionId,
+    tally,
+    // onSuccess,
+    onCreateTransmissionPackage,
+}) => {
     const {t} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+<<<<<<< HEAD
     const notify = useNotify()
 
     const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
@@ -89,6 +101,8 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
             return []
         }
     }, [tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+=======
+>>>>>>> feat/meta-1503b/main
 
     const resultsAreaContests: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
         () =>
@@ -117,6 +131,7 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
         setAnchorEl(null)
     }
 
+<<<<<<< HEAD
     const handleCreateTransmissionPackage = async (areaId: string) => {
         const found = tallySessionData.find(
             (datum) => datum.area_id === areaId && datum.election_id === electionId
@@ -168,6 +183,8 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
         }
     }
 
+=======
+>>>>>>> feat/meta-1503b/main
     return (
         <Box>
             <ExportButton
@@ -202,8 +219,7 @@ export const MiruExport: React.FC<MiruExportProps> = ({electionId, tally}) => {
                             e.preventDefault()
                             e.stopPropagation()
                             handleClose()
-                            handleCreateTransmissionPackage(area.id)
-                            //handleExport(format.value)
+                            onCreateTransmissionPackage({area_id: area.id, election_id: electionId})
                         }}
                     >
                         <Box

@@ -22,11 +22,12 @@ import {MiruExport} from "@/components/MiruExport"
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
+    onCreateTransmissionPackage: (v: {area_id: string; election_id: string | null}) => void
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage} = props
 
         const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
@@ -146,7 +147,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             itemName={resultsElection?.[0]?.name ?? "election"}
                         />
                     ) : null}
-                    <MiruExport electionId={electionId} tally={tally} />
+                    <MiruExport
+                        electionId={electionId}
+                        tally={tally}
+                        onCreateTransmissionPackage={onCreateTransmissionPackage}
+                    />
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>

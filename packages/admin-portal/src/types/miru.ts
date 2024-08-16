@@ -29,7 +29,7 @@ export interface IMiruDocument {
 export interface IMiruCcsServer {
     name: string
     address: string
-    publick_key_pem: string
+    public_key_pem: string
 }
 
 // MiruTransmissionPackageData interface

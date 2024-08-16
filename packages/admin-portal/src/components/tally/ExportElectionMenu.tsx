@@ -74,13 +74,14 @@ interface IDocumentData {
 }
 
 interface ExportElectionMenuProps {
+    buttonTitle?: string
     documents: IResultDocuments | null
     electionEventId: string
     itemName: string
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {itemName, documents, electionEventId} = props
+    const {itemName, documents, electionEventId, buttonTitle} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
@@ -156,7 +157,9 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={t("common.label.export")}>{t("common.label.export")}</span>
+                <span title={buttonTitle ?? t("common.label.export")}>
+                    {buttonTitle ?? t("common.label.export")}
+                </span>
                 {performDownload ? (
                     <PerformDownload
                         onDownload={() => {
