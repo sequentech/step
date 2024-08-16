@@ -9,6 +9,7 @@ pub mod ecies_encrypt;
 pub mod eml_generator;
 pub mod eml_types;
 pub mod logs;
+pub mod rsa;
 pub mod send_transmission_package_service;
 pub mod transmission_package;
 pub mod upload_signature_service;
