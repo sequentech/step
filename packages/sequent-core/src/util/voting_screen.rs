@@ -27,23 +27,41 @@ pub fn check_voting_not_allowed_next_util(
             .and_then(|p| p.blank_vote_policy.as_ref())
             .unwrap_or(&default_blank_policy);
 
+        let over_vote_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.over_vote_policy)
+            .unwrap_or_default();
+
+        let max = contest.max_votes;
+
         if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
             let choices_selected = decoded_contest
                 .choices
                 .iter()
-                .any(|choice| choice.selected == 0);
+                .filter(|choice| choice.selected == 0)
+                .count();
+
             let invalid_errors: Vec<InvalidPlaintextError> =
                 decoded_contest.invalid_errors.clone();
+
             invalid_errors.iter().any(|error| {
                 matches!(
                     error.error_type,
                     InvalidPlaintextErrorType::Explicit
                         | InvalidPlaintextErrorType::EncodingError
                 )
-            }) || (invalid_errors.len() > 0
+            }) || (!invalid_errors.is_empty()
                 && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
-                || (!choices_selected
+                || (choices_selected == 0
                     && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
+                || (choices_selected as i64 > max
+                    && over_vote_policy
+                        == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
+            // TODO: On the case
+            // EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE we must disable
+            // further selections with React but no need to return
+            // true here that will show the Dialog
         } else {
             false
         }
@@ -71,21 +89,33 @@ pub fn check_voting_error_dialog_util(
             .and_then(|p| p.blank_vote_policy.as_ref())
             .unwrap_or(&default_blank_policy);
 
+        let over_vote_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.over_vote_policy)
+            .unwrap_or_default();
+
+        let max = contest.max_votes;
+
         if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
             let choices_selected = decoded_contest
                 .choices
                 .iter()
-                .any(|choice| choice.selected == 0);
+                .filter(|choice| choice.selected == 0)
+                .count();
             let invalid_errors: Vec<InvalidPlaintextError> =
                 decoded_contest.invalid_errors.clone();
             let explicit_invalid = decoded_contest.is_explicit_invalid;
-            (invalid_errors.len() > 0
+            (!invalid_errors.is_empty()
                 && *vote_policy != InvalidVotePolicy::ALLOWED)
                 || (*vote_policy
                     == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
                     && explicit_invalid)
                 || (*blank_policy == EBlankVotePolicy::WARN
-                    && !choices_selected)
+                    && choices_selected == 0)
+                || (choices_selected as i64 > max
+                    && over_vote_policy
+                        == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
         } else {
             false
         }

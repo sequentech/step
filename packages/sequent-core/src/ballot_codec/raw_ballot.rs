@@ -344,6 +344,7 @@ impl RawBallotCodec for Contest {
             handle_over_vote_policy(
                 &mut decoded_contest,
                 presentation.over_vote_policy,
+                presentation.invalid_vote_policy,
                 num_selected_candidates,
                 max_votes,
             );
@@ -430,6 +431,7 @@ impl RawBallotCodec for Contest {
 fn handle_over_vote_policy(
     decoded_contest: &mut DecodedVoteContest,
     pol: Option<EOverVotePolicy>,
+    ipol: Option<InvalidVotePolicy>,
     num_selected_candidates: usize,
     max_votes: usize,
 ) {
@@ -446,21 +448,28 @@ fn handle_over_vote_policy(
         ]),
     };
 
-    match pol {
-        Some(EOverVotePolicy::ALLOWED) => (),
-        Some(EOverVotePolicy::ALLOWED_WITH_MSG) => {
+    match (pol, ipol) {
+        (
+            Some(EOverVotePolicy::ALLOWED),
+            Some(InvalidVotePolicy::NOT_ALLOWED), /* InvalidVotePolicy has
+                                                   * priority so push an
+                                                   * error when it is not
+                                                   * allowed */
+        ) => decoded_contest.invalid_errors.push(text_error()),
+        (Some(EOverVotePolicy::ALLOWED), Some(_)) => (),
+        (Some(EOverVotePolicy::ALLOWED_WITH_MSG), Some(_)) => {
             decoded_contest.invalid_alerts.push(text_error())
         }
-        Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT) => {
+        (Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT), Some(_)) => {
             decoded_contest.invalid_alerts.push(text_error())
         }
-        Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT) => {
+        (Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT), Some(_)) => {
             decoded_contest.invalid_errors.push(text_error())
         }
-        Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE) => {
+        (Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE), Some(_)) => {
             decoded_contest.invalid_errors.push(text_error())
         }
-        None => (),
+        _ => (),
     };
 }
 
