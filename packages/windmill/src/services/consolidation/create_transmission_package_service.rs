@@ -287,6 +287,7 @@ pub async fn create_transmission_package_service(
         servers: ccs_servers.clone(),
         documents: vec![MiruDocument {
             document_id: document.id.clone(),
+            transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
             created_at: ISO8601::to_string(&now_local),
             signatures: vec![],

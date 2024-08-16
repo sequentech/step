@@ -20,6 +20,7 @@ pub struct MiruServerDocument {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruDocument {
     pub document_id: String,
+    pub transaction_id: String,
     pub servers_sent_to: Vec<MiruServerDocument>,
     pub created_at: String,
     pub signatures: Vec<MiruSignature>,

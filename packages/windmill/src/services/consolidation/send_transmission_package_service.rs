@@ -210,7 +210,7 @@ pub async fn send_transmission_package_service(
         .servers_sent_to
         .clone()
         .iter()
-        .map(|value| value.name)
+        .map(|value| value.name.clone())
         .collect();
 
     for ccs_server in &transmission_area_election.servers {
@@ -228,7 +228,7 @@ pub async fn send_transmission_package_service(
         .await?;
         match send_package_to_ccs_server(transmission_package, ccs_server).await {
             Ok(tmp_file_zip) => {
-                let name = format!("er_{}.zip", transaction_id);
+                let name = format!("er_{}.zip", miru_document.transaction_id);
 
                 let temp_path = tmp_file_zip.into_temp_path();
                 let temp_path_string = temp_path.to_string_lossy().to_string();

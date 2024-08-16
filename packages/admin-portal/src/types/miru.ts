@@ -10,10 +10,16 @@ export interface IMiruSignature {
     signature: string
 }
 
+export interface IMiruServersSentTo {
+    name: string
+    document_id: string
+}
+
 // MiruDocument interface
 export interface IMiruDocument {
     document_id: string
-    servers_sent_to: Array<string>
+    servers_sent_to: Array<IMiruServersSentTo>
+    transaction_id: string
     created_at: string
     signatures: Array<IMiruSignature>
 }
