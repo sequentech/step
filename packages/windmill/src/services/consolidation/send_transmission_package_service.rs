@@ -267,6 +267,7 @@ pub async fn send_transmission_package_service(
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
                     document_id: document.id.clone(),
+                    sent_at: ISO8601::to_string(&Local::now()),
                 });
             }
             Err(err) => {
