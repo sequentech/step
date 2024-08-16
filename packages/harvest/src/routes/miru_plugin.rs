@@ -2,15 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use windmill::services::database::get_hasura_pool;
 use windmill::{
-    services::celery_app::get_celery_app,
+    services::{
+        celery_app::get_celery_app,
+        consolidation::upload_signature_service::upload_transmission_package_signature_service,
+    },
     tasks::miru_plugin_tasks::{
         create_transmission_package_task, send_transmission_package_task,
     },
@@ -141,6 +146,34 @@ pub async fn upload_signature(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TRUSTEE_WRITE],
     )?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    upload_transmission_package_signature_service(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &body.election_id,
+        &body.area_id,
+        &body.tally_session_id,
+        &body.public_key,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(UploadSignatureOutput {}))
 }

@@ -111,7 +111,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Abstentions".into(),
                 id: "AB".into(),
-                datum: self.total_blank_votes,
+                datum: self.total_blank_votes as i64,
             },
             EMLCountMetric {
                 kind: "Total Number of Invalid Ballots".into(),
