@@ -1,3 +1,4 @@
+use super::acm_transaction::generate_transaction_id;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -228,7 +229,7 @@ pub async fn create_transmission_package_service(
     let results = state.get_results(true)?;
 
     let tally_id = tally_session_id;
-    let transaction_id = Uuid::new_v4().to_string();
+    let transaction_id = generate_transaction_id().to_string();
     let time_zone = get_system_timezone();
     let now_utc = Utc::now();
     let now_local = now_utc.with_timezone(&Local);

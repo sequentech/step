@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod acm_json;
+pub mod acm_transaction;
 pub mod aes_256_cbc_encrypt;
 pub mod create_transmission_package_service;
 pub mod ecies_encrypt;

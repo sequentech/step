@@ -12,9 +12,15 @@ pub struct MiruSignature {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MiruServerDocument {
+    pub name: String,
+    pub document_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruDocument {
     pub document_id: String,
-    pub servers_sent_to: Vec<String>,
+    pub servers_sent_to: Vec<MiruServerDocument>,
     pub created_at: String,
     pub signatures: Vec<MiruSignature>,
 }
