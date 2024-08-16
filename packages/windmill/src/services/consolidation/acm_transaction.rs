@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use chrono::Datelike;
 use chrono::Utc;
 use rand::Rng;
-use chrono::Datelike;
 
 pub fn generate_transaction_id() -> u32 {
     let now = Utc::now();

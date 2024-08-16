@@ -17,8 +17,15 @@ use crate::{
         election_event::get_election_event_by_election_area,
         tally_session::get_tally_session_by_id,
     },
-    services::{database::get_hasura_pool, date::ISO8601, documents::{get_document_as_temp_file, upload_and_return_document_postgres}, temp_path::get_file_size},
-    types::miru_plugin::{MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData},
+    services::{
+        database::get_hasura_pool,
+        date::ISO8601,
+        documents::{get_document_as_temp_file, upload_and_return_document_postgres},
+        temp_path::get_file_size,
+    },
+    types::miru_plugin::{
+        MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
+    },
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
@@ -199,7 +206,8 @@ pub async fn send_transmission_package_service(
     let mut new_miru_document = miru_document.clone();
     let mut new_transmission_area_election = transmission_area_election.clone();
 
-    let servers_sent_to: Vec<String> = miru_document.servers_sent_to
+    let servers_sent_to: Vec<String> = miru_document
+        .servers_sent_to
         .clone()
         .iter()
         .map(|value| value.name)
@@ -220,13 +228,12 @@ pub async fn send_transmission_package_service(
         .await?;
         match send_package_to_ccs_server(transmission_package, ccs_server).await {
             Ok(tmp_file_zip) => {
-
                 let name = format!("er_{}.zip", transaction_id);
 
                 let temp_path = tmp_file_zip.into_temp_path();
                 let temp_path_string = temp_path.to_string_lossy().to_string();
-                let file_size =
-                    get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
+                let file_size = get_file_size(temp_path_string.as_str())
+                    .with_context(|| "Error obtaining file size")?;
 
                 let document = upload_and_return_document_postgres(
                     &hasura_transaction,
@@ -257,12 +264,10 @@ pub async fn send_transmission_package_service(
                             .map(|signature| signature.trustee_name.clone())
                             .collect(),
                     ));
-                new_miru_document
-                    .servers_sent_to
-                    .push(MiruServerDocument {
-                        name: ccs_server.name.clone(),
-                        document_id: document.id.clone(),
-                    });
+                new_miru_document.servers_sent_to.push(MiruServerDocument {
+                    name: ccs_server.name.clone(),
+                    document_id: document.id.clone(),
+                });
             }
             Err(err) => {
                 let error_str = format!("{}", err);
