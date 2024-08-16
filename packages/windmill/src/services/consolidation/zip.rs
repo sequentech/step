@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
-use tracing::instrument;
+use tracing::{info, instrument};
 use walkdir::WalkDir;
 use zip::write::{FileOptions, SimpleFileOptions};
 
@@ -26,6 +26,8 @@ pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
         let name = entry_path
             .strip_prefix(Path::new(path))
             .with_context(|| format!("Failed to strip prefix from path: {:?}", entry_path))?;
+
+        info!("Adding entry to zip :{}", name.display());
 
         if entry_path.is_file() {
             zip.start_file_from_path(name, options)
