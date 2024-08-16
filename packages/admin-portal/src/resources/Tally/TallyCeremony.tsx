@@ -141,6 +141,13 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-general": true,
         "tally-results-results": true,
     })
+	
+	const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
+		"tally-miru-upload": false,
+		"tally-miru-signatures": false,
+		"tally-download-package": false,
+		"tally-miru-servers": false,
+	})
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -800,14 +807,14 @@ export const TallyCeremony: React.FC = () => {
 
                 {page === WizardSteps.Export && (
                     <MiruExportWizard
-                        expandedResults={expandedResults}
+                        expandedExports={expandedExports}
                         resultsEvent={resultsEvent}
-                        documents={documents}
-                        setExpandedResults={setExpandedResults}
+                        setExpandedDataExports={setExpandedDataExports}
                         transmissionLoading={transmissionLoading}
                         handleSendTransmissionPackage={handleSendTransmissionPackage}
                         selectedTallySessionData={selectedTallySessionData}
                         uploading={uploading}
+                        documents={documents}
                         errors={errors}
                         handleUploadSignature={handleUploadSignature}
                     />

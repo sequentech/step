@@ -127,7 +127,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={"Download"}>Download</span>
+				<span title={"Download"}>{t("auditScreen.downloadButton")}</span>
                 {performDownload ? (
                     <PerformDownload
                         onDownload={() => {
@@ -174,7 +174,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = (props) =
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={"Download Document"}>Download Document</span>
+							<span title={"Download Document"}>{t("usersAndRolesScreen.permissions.document-download")}</span>
                         </Box>
                     </MenuItem>
                 ))}
