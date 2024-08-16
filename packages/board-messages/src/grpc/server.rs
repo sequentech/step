@@ -58,13 +58,13 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
     ) -> Result<Response<GetMessagesReply>, Status> {
         
         let r = request.get_ref();
-        validate_board_name(&r.board).map_err(|_| Status::invalid_argument("Invalid board"))?;
+        validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlBoardClient::new(&c).await.map_err(|_| Status::internal("Pgsql connection failed"))?;
+        let mut c = PgsqlBoardClient::new(&c).await.map_err(|e| Status::internal(format!("Pgsql connection failed: {e}")))?;
 
         let messages = c.get_messages(&r.board, r.last_id).await
-            .map_err(|_| Status::internal("Failed to retrieve messages from database"))?;
+            .map_err(|e| Status::internal(format!("Failed to retrieve messages from database: {e}")))?;
 
         let messages: Vec<GrpcB3Message> = messages.into_iter().map(|m| {
             GrpcB3Message {
@@ -86,16 +86,16 @@ impl super::proto::b3_server::B3 for PgsqlB3 {
     ) -> Result<Response<PutMessagesReply>, Status> {
         
         let r = request.get_ref();
-        validate_board_name(&r.board).map_err(|_| Status::invalid_argument("Invalid board"))?;
+        validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 
         let c = self.params.with_database(&self.dbname);
-        let mut c = PgsqlBoardClient::new(&c).await.map_err(|_| Status::internal("Pgsql connection failed"))?;
+        let mut c = PgsqlBoardClient::new(&c).await.map_err(|_| Status::internal(format!("Pgsql connection failed")))?;
         let messages = r.messages.iter()
             .map(|m| B3MessageRow::try_from(m))
             .collect::<Result<Vec<B3MessageRow>>>()
-            .map_err(|_| Status::internal("Failed to parse grpc messages"))?;
+            .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
 
-        c.insert_messages(&r.board, &messages).await.map_err(|_| Status::internal("Failed to insert messages in database"))?;
+        c.insert_messages(&r.board, &messages).await.map_err(|e| Status::internal(format!("Failed to insert messages in database: {e}")))?;
         
         let reply = PutMessagesReply {
         };
@@ -124,32 +124,108 @@ fn validate_board_name(board: &str) -> Result<()> {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use std::marker::PhantomData;
+
     use super::*;
-    use crate::grpc::proto::b3_server::B3;
+    use crate::{braid::{artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX, protocol_manager::ProtocolManager}, grpc::proto::b3_server::B3};
     use serial_test::serial;
+    use strand::{backend::ristretto::RistrettoCtx, context::Ctx, signature::{StrandSignaturePk, StrandSignatureSk}};
+    use strand::serialization::StrandSerialize;
     use tonic::{client::GrpcService, service::Routes, transport::{server::Router, Server}, IntoRequest};
+    use crate::grpc::pgsql::{create_database, drop_database};
 
     const PG_DATABASE: &'static str = "protocoldb";
     const PG_HOST: &'static str = "localhost";
     const PG_USER: &'static str = "postgres";
     const PG_PASSW: &'static str = "postgrespw";
-    const PG_PORT: u32 = 49154;
+    const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
     
+    async fn set_up() -> PgsqlBoardClient {
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        drop_database(&c, PG_DATABASE).await.unwrap();
+        create_database(&c, PG_DATABASE).await.unwrap();
+
+        let mut client = PgsqlBoardClient::new(&c.with_database(PG_DATABASE))
+            .await
+            .unwrap();
+        client.create_index_ine().await.unwrap();
+        client.create_board_ine(TEST_BOARD).await.unwrap();
+
+        client
+    }
+
     #[tokio::test]
     #[ignore]
     #[serial]
-    async fn test_get_messages() {
+    async fn test_put_get_messages() {
         
-        let request = GetMessagesRequest {
-            board: "default".to_string(),
-            last_id: -1,
-        };
-        let request = tonic::Request::new(request);
+        let _ = set_up().await;
 
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
         let b3_impl = PgsqlB3::new(c, "protocoldb");
+        
+        let mut messages = vec![];
+        let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
+        let message = GrpcB3Message{
+            // does not matter when putting messages
+            id: 1,
+            message: cfg.strand_serialize().unwrap(),
+            version: crate::get_schema_version(),
+        };
+        messages.push(message.clone());
+        let request = PutMessagesRequest {
+            messages,
+            board: TEST_BOARD.to_string(),
+        };
+        let request = tonic::Request::new(request);
+        let put = b3_impl.put_messages(request).await.unwrap();
+        let _ = put.get_ref();
+        
+        let request = GetMessagesRequest {
+            board: TEST_BOARD.to_string(),
+            last_id: -1,
+        };
+        let request = tonic::Request::new(request);
+        let messages_returned = b3_impl.get_messages(request).await.unwrap();
+        let messages_returned = messages_returned.get_ref();
 
-        let messages = b3_impl.get_messages(request).await.unwrap();
+        assert_eq!(messages_returned.messages.len(), 1);
+        assert_eq!(messages_returned.messages[0].message, message.message);
+        assert_eq!(messages_returned.messages[0].version, message.version);
+
+        let cfg_msg = Message::strand_deserialize(&messages_returned.messages[0].message).unwrap();
+        let bytes = cfg_msg.artifact.clone().unwrap();
+        let cfg_artifact = Configuration::<RistrettoCtx>::strand_deserialize(&bytes).unwrap();
+
+        let verified = cfg_msg.verify(&cfg_artifact).unwrap();
+        assert_eq!(verified.signer_position, PROTOCOL_MANAGER_INDEX);
+
+    }
+
+    fn get_test_configuration<C: Ctx>(n_trustees: usize, threshold: usize) -> Message {
+        let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+        let pm: ProtocolManager<C> = ProtocolManager {
+            signing_key: pmkey,
+            phantom: PhantomData,
+        };
+        let trustee_pks: Vec<StrandSignaturePk> = (0..n_trustees)
+            .map(|i| {
+                let sk = StrandSignatureSk::gen().unwrap();
+                // let encryption_key = strand::symm::gen_key();
+                let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+                pk
+            })
+            .collect();
+
+        let cfg = Configuration::<C>::new(
+            0,
+            StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+            trustee_pks,
+            threshold,
+            PhantomData,
+        );
+
+        Message::bootstrap_msg(&cfg, &pm).unwrap()
     }
 }

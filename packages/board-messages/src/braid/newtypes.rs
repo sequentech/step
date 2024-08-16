@@ -137,6 +137,7 @@ pub type TrusteeSet = [usize; MAX_TRUSTEES];
 pub type MixNumber = usize;
 
 pub type BatchNumber = usize;
+// Seconds elapsed since the std::time::UNIX_EPOCH
 pub type Timestamp = u64;
 
 pub type THashes = [Hash; MAX_TRUSTEES];

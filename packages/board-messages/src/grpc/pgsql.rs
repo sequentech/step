@@ -33,18 +33,21 @@ impl TryFrom<&Row> for B3MessageRow {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let id = row.get("id");
-        let created: i64 = row.get("created");
+        let created: SystemTime = row.get("created");
         let sender_pk = row.get("sender_pk");
-        let statement_timestamp: i64 = row.get("statement_timestamp");
+        let statement_timestamp: SystemTime = row.get("statement_timestamp");
         let statement_kind = row.get("statement_kind");
         let message = row.get("message");
         let version = row.get("version");
 
+        let created = crate::timestamp_from_system_time(&created);
+        let statement_timestamp = crate::timestamp_from_system_time(&statement_timestamp);
+
         Ok(B3MessageRow {
             id,
-            created: u64::try_from(created)?,
+            created,
             sender_pk,
-            statement_timestamp: u64::try_from(statement_timestamp)?,
+            statement_timestamp,
             statement_kind,
             message,
             version,
@@ -277,6 +280,73 @@ impl PgsqlBoardClient {
         self.get_one(board_name, id).await
     }
 
+    pub async fn get_with_kind(
+        &mut self,
+        board: &str,
+        kind: &str,
+        sender_pk: &str,
+    ) -> Result<Vec<B3MessageRow>> {
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            created,
+            sender_pk,
+            statement_timestamp,
+            statement_kind,
+            message,
+            version
+        FROM {}
+        WHERE sender_pk = $1 AND statement_kind = $2
+        ORDER BY id;
+        "#,
+            board
+        );
+
+        let sql_query_response = self.client.query(&sql, &[&sender_pk, &kind]).await?;
+        let messages = sql_query_response
+            .iter()
+            .map(B3MessageRow::try_from)
+            .collect::<Result<Vec<B3MessageRow>>>()?;
+
+        Ok(messages)
+    }
+
+    /// Get all boards in the index
+    pub async fn get_boards(&mut self) -> Result<Vec<B3IndexRow>> {
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            board_name,
+            is_archived
+        FROM bulletin_boards
+        WHERE is_archived = {}
+        "#,
+            false
+        );
+        let sql_query_response = self.client.query(&sql, &[]).await?;
+        let boards = sql_query_response
+            .iter()
+            .map(B3IndexRow::try_from)
+            .collect::<Result<Vec<B3IndexRow>>>()?;
+
+        Ok(boards)
+    }
+
+    /// Inserts messages into the requested board table.
+    pub async fn insert_messages(
+        &mut self,
+        board_name: &str,
+        messages: &Vec<B3MessageRow>,
+    ) -> Result<()> {
+        for chunk in messages.chunks(PG_DEFAULT_ENTRIES_TX_LIMIT) {
+            let chunk_vec: Vec<B3MessageRow> = chunk.to_vec();
+            self.insert(board_name, &chunk_vec).await?;
+        }
+        Ok(())
+    }
+
     async fn get(
         &mut self,
         board: &str,
@@ -314,72 +384,6 @@ impl PgsqlBoardClient {
         Ok(messages)
     }
 
-    /// Get all boards in the index
-    pub async fn get_boards(&mut self) -> Result<Vec<B3IndexRow>> {
-        let sql = format!(
-            r#"
-        SELECT
-            id,
-            board_name,
-            is_archived
-        FROM bulletin_boards
-        WHERE is_archived = {}
-        "#,
-            false
-        );
-        let sql_query_response = self.client.query(&sql, &[]).await?;
-        let boards = sql_query_response
-            .iter()
-            .map(B3IndexRow::try_from)
-            .collect::<Result<Vec<B3IndexRow>>>()?;
-
-        Ok(boards)
-    }
-
-    pub async fn get_with_kind(
-        &mut self,
-        board: &str,
-        kind: &str,
-        sender_pk: &str,
-    ) -> Result<Vec<B3MessageRow>> {
-        let sql = format!(
-            r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            version
-        FROM {}
-        WHERE sender_pk = $1 AND statement_kind = $2
-        ORDER BY id;
-        "#,
-            board
-        );
-
-        let sql_query_response = self.client.query(&sql, &[&sender_pk, &kind]).await?;
-        let messages = sql_query_response
-            .iter()
-            .map(B3MessageRow::try_from)
-            .collect::<Result<Vec<B3MessageRow>>>()?;
-
-        Ok(messages)
-    }
-
-    /// Inserts messages into the requested board table.
-    pub async fn insert_messages(
-        &mut self,
-        board_name: &str,
-        messages: &Vec<B3MessageRow>,
-    ) -> Result<()> {
-        for chunk in messages.chunks(PG_DEFAULT_ENTRIES_TX_LIMIT) {
-            let chunk_vec: Vec<B3MessageRow> = chunk.to_vec();
-            self.insert(board_name, &chunk_vec).await?;
-        }
-        Ok(())
-    }
 
     async fn insert(&mut self, board_name: &str, messages: &Vec<B3MessageRow>) -> Result<()> {
         info!("Insert {} messages..", messages.len());
@@ -409,8 +413,10 @@ impl PgsqlBoardClient {
                 board_name
             );
 
-            let created = i64::try_from(message.created)?;
-            let statement_timestamp = i64::try_from(message.statement_timestamp)?;
+            let created = crate::system_time_from_timestamp(message.created)
+                .ok_or(anyhow!("Could not extract system time from 'created' value"))?;
+            let statement_timestamp = crate::system_time_from_timestamp(message.created)
+                .ok_or(anyhow!("Could not extract system time from 'statement_timestamp' value"))?;
 
             transaction
                 .execute(
@@ -499,7 +505,7 @@ impl PgsqlBoardClient {
 }
 
 /// Utility function to create a database (will not pass a database parameter in the connection string).
-async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+pub(crate) async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
         .unwrap();
@@ -518,7 +524,7 @@ async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> 
 }
 
 /// Utility function to drop a database (will not pass a database parameter in the connection string).
-async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+pub(crate) async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
         .unwrap();
@@ -549,7 +555,7 @@ pub(crate) mod tests {
     const PG_HOST: &'static str = "localhost";
     const PG_USER: &'static str = "postgres";
     const PG_PASSW: &'static str = "postgrespw";
-    const PG_PORT: u32 = 49154;
+    const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
 
     async fn set_up() -> PgsqlBoardClient {

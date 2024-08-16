@@ -6,12 +6,25 @@ pub mod braid;
 pub mod electoral_log;
 pub mod grpc;
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{alloc::System, time::{Duration, SystemTime, UNIX_EPOCH}};
 use crate::braid::newtypes::Timestamp;
 
 pub(crate) fn timestamp() -> Timestamp {
     let start = SystemTime::now();
     let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Impossible with respect to UNIX_EPOCH");
+
+    since_the_epoch.as_secs()
+}
+
+pub(crate) fn system_time_from_timestamp(seconds: Timestamp) -> Option<SystemTime> {
+    let duration = Duration::from_secs(seconds);
+    UNIX_EPOCH.checked_add(duration)
+}
+
+pub(crate) fn timestamp_from_system_time(system_time: &SystemTime) -> Timestamp {
+    let since_the_epoch = system_time
         .duration_since(UNIX_EPOCH)
         .expect("Impossible with respect to UNIX_EPOCH");
 
