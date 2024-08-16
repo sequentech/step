@@ -24,8 +24,8 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": true,
 
-	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh' && devenv shell bash -- -c './.devcontainer/scripts/init.cli.sh'",
-	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh' && devenv shell bash -- -c './.devcontainer/scripts/init.cli.sh'",
+	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
