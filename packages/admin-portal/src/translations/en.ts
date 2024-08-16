@@ -905,6 +905,7 @@ const englishTranslation = {
             },
         },
         tally: {
+			errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Package",
             TransmissionPackageServers: "Servers",
             sendToTransmissionPackageServers: "Send Transmission Package for area '{{name}}'",

@@ -469,7 +469,7 @@ export const TallyCeremony: React.FC = () => {
             })
             setUploading(false)
             if (errors) {
-                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
+                setErrors(t("tally.errorUploadingSignature", {error: errors.toString()}))
                 return
             }
         } catch (exception: any) {
