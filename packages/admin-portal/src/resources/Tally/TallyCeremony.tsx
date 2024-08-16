@@ -141,13 +141,13 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-general": true,
         "tally-results-results": true,
     })
-	
-	const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
-		"tally-miru-upload": false,
-		"tally-miru-signatures": false,
-		"tally-download-package": false,
-		"tally-miru-servers": false,
-	})
+
+    const [expandedExports, setExpandedDataExports] = useState<IExpanded>({
+        "tally-miru-upload": false,
+        "tally-miru-signatures": false,
+        "tally-download-package": false,
+        "tally-miru-servers": false,
+    })
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -402,7 +402,7 @@ export const TallyCeremony: React.FC = () => {
         ///////hasura schema update √
         //fix rerenders √
         //implement eduardo requirements and suggestions
-        //cleanup and setup translations
+        //cleanup and setup translations √
 
         try {
             setTransmissionLoading(true)
@@ -489,51 +489,48 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-	const handleCreateTransmissionPackage = useCallback(async ({
-        area_id,
-        election_id,
-    }: {
-        area_id: string
-        election_id: string | null
-    }) => {
-        const found = tallySessionData.find(
-            (datum) => datum.area_id === area_id && datum.election_id === election_id
-        )
+    const handleCreateTransmissionPackage = useCallback(
+        async ({area_id, election_id}: {area_id: string; election_id: string | null}) => {
+            const found = tallySessionData.find(
+                (datum) => datum.area_id === area_id && datum.election_id === election_id
+            )
 
-        if (!election_id) {
-            notify("Unable to get election id. Please try again", {type: "error"})
-            return
-        }
-
-        if (found) {
-            notify("Already exists: transmission package", {type: "success"}) //should we really notify if already exists?
-            handleMiruExportSuccess?.({existingPackage: found})
-
-            return
-        }
-
-        try {
-            const {data: nextStatus, errors} = await CreateTransmissionPackage({
-                variables: {
-                    electionId: election_id,
-                    tallySessionId: tally?.id,
-                    areaId: area_id,
-                },
-            })
-
-            if (errors) {
-                notify("Error creating transmission package", {type: "error"})
+            if (!election_id) {
+                notify("Unable to get election id. Please try again", {type: "error"})
                 return
             }
 
-            if (nextStatus) {
-                notify("Success creating transmission package", {type: "success"})
-                handleMiruExportSuccess?.({area_id, election_id})
+            if (found) {
+                notify("Already exists: transmission package", {type: "success"}) //should we really notify if already exists?
+                handleMiruExportSuccess?.({existingPackage: found})
+
+                return
             }
-        } catch (error) {
-            notify("Error creating transmission package", {type: "error"})
-        }
-	}, [tallySessionData])
+
+            try {
+                const {data: nextStatus, errors} = await CreateTransmissionPackage({
+                    variables: {
+                        electionId: election_id,
+                        tallySessionId: tally?.id,
+                        areaId: area_id,
+                    },
+                })
+
+                if (errors) {
+                    notify("Error creating transmission package", {type: "error"})
+                    return
+                }
+
+                if (nextStatus) {
+                    notify("Success creating transmission package", {type: "success"})
+                    handleMiruExportSuccess?.({area_id, election_id})
+                }
+            } catch (error) {
+                notify("Error creating transmission package", {type: "error"})
+            }
+        },
+        [tallySessionData]
+    )
 
     return (
         <>

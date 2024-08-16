@@ -10,22 +10,22 @@ import {Logs} from "./Logs"
 import {MiruPackageDownload} from "./MiruPackageDownload"
 import {IExpanded} from "@/resources/Tally/TallyCeremony"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import { Sequent_Backend_Results_Event } from "@/gql/graphql"
-import { IMiruTransmissionPackageData } from "@/types/miru"
-import { IResultDocuments } from "@/types/results"
-import { useTranslation } from "react-i18next"
+import {Sequent_Backend_Results_Event} from "@/gql/graphql"
+import {IMiruTransmissionPackageData} from "@/types/miru"
+import {IResultDocuments} from "@/types/results"
+import {useTranslation} from "react-i18next"
 
 interface IMiruExportWizardProps {
-	expandedExports: IExpanded
-	resultsEvent: Sequent_Backend_Results_Event[]
-	setExpandedDataExports: React.Dispatch<React.SetStateAction<IExpanded>>;
-	transmissionLoading: boolean
-	documents: IResultDocuments | null
-	handleSendTransmissionPackage: () => void
-	selectedTallySessionData: IMiruTransmissionPackageData
-	uploading: boolean
-	errors: string | null
-	handleUploadSignature: ()=>void
+    expandedExports: IExpanded
+    resultsEvent: Sequent_Backend_Results_Event[] | undefined
+    setExpandedDataExports: React.Dispatch<React.SetStateAction<IExpanded>>
+    transmissionLoading: boolean
+    documents: IResultDocuments | null
+    handleSendTransmissionPackage: () => void
+    selectedTallySessionData: IMiruTransmissionPackageData | null
+    uploading: boolean
+    errors: String | null
+    handleUploadSignature: (files: FileList | null) => Promise<void>
 }
 
 export const MiruExportWizard = ({
@@ -36,11 +36,11 @@ export const MiruExportWizard = ({
     handleSendTransmissionPackage,
     selectedTallySessionData,
     uploading,
-	documents,
+    documents,
     errors,
     handleUploadSignature,
 }: IMiruExportWizardProps) => {
-	const { t, i18n } = useTranslation()
+    const {t, i18n} = useTranslation()
 
     return (
         <>
@@ -55,11 +55,13 @@ export const MiruExportWizard = ({
                 }
             >
                 <AccordionSummary>
-					<WizardStyles.AccordionTitle>{t("tally.downloadTransmissionPackage")}</WizardStyles.AccordionTitle>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.downloadTransmissionPackage")}
+                    </WizardStyles.AccordionTitle>
                     <TallyStyles.StyledSpacing>
                         {resultsEvent?.[0] && documents ? (
                             <MiruPackageDownload
-                                documents={selectedTallySessionData.documents}
+                                documents={selectedTallySessionData?.documents ?? []}
                                 electionEventId={resultsEvent?.[0].election_event_id}
                             />
                         ) : null}
@@ -77,10 +79,12 @@ export const MiruExportWizard = ({
                 }
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-servers" />}>
-					<WizardStyles.AccordionTitle>{t("tally.TransmissionPackageServers")}</WizardStyles.AccordionTitle>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.TransmissionPackageServers")}
+                    </WizardStyles.AccordionTitle>
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                    <MiruServers servers={selectedTallySessionData.servers} />
+                    <MiruServers servers={selectedTallySessionData?.servers ?? []} />
                 </WizardStyles.AccordionDetails>
             </Accordion>
             <Accordion
@@ -94,7 +98,9 @@ export const MiruExportWizard = ({
                 }
             >
                 <AccordionSummary>
-					<WizardStyles.AccordionTitle>{t("tally.sendToTransmissionPackageServers")}</WizardStyles.AccordionTitle>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.sendToTransmissionPackageServers")}
+                    </WizardStyles.AccordionTitle>
                     <TallyStyles.StyledSpacing>
                         {transmissionLoading ? (
                             <CircularProgress />
@@ -122,14 +128,16 @@ export const MiruExportWizard = ({
                 }
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-miru-signatures" />}>
-					<WizardStyles.AccordionTitle>{t("tally.transmissionPackageSignatures")}</WizardStyles.AccordionTitle>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.transmissionPackageSignatures")}
+                    </WizardStyles.AccordionTitle>
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
                     <MiruSignatures
                         signatures={
-                            selectedTallySessionData.documents[
-                                selectedTallySessionData.documents.length - 1
-                            ].signatures
+                            selectedTallySessionData?.documents[
+                                selectedTallySessionData?.documents.length - 1
+                            ].signatures ?? []
                         }
                     />
                 </WizardStyles.AccordionDetails>
@@ -145,7 +153,9 @@ export const MiruExportWizard = ({
                 }
             >
                 <AccordionSummary>
-					<WizardStyles.AccordionTitle>{t("tally.uploadTransmissionPackage")}</WizardStyles.AccordionTitle>
+                    <WizardStyles.AccordionTitle>
+                        {t("tally.uploadTransmissionPackage")}
+                    </WizardStyles.AccordionTitle>
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
                     <DropFile handleFiles={handleUploadSignature} />
@@ -159,7 +169,7 @@ export const MiruExportWizard = ({
                     </WizardStyles.StatusBox>
                 </WizardStyles.AccordionDetails>
             </Accordion>
-            <Logs logs={selectedTallySessionData.logs} />
+            <Logs logs={selectedTallySessionData?.logs} />
         </>
     )
 }
