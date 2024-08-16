@@ -128,7 +128,7 @@ pub struct UploadSignatureInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
-    public_key: String,
+    private_key: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -173,7 +173,7 @@ pub async fn upload_signature(
         &body.election_id,
         &body.area_id,
         &body.tally_session_id,
-        &body.public_key,
+        &body.private_key,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

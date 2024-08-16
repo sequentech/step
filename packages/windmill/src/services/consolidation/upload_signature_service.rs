@@ -24,7 +24,7 @@ pub async fn upload_transmission_package_signature_service(
     election_id: &str,
     area_id: &str,
     tally_session_id: &str,
-    public_key: &str,
+    private_key: &str,
 ) -> Result<()> {
     let election_event =
         get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
