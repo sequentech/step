@@ -15,9 +15,6 @@ use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 
-const IMMUDB_USER: &str = "immudb";
-const IMMUDB_PW: &str = "immudb";
-
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
 struct Cli {

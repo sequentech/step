@@ -59,8 +59,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<GetMessagesReply>, Status> {
 
         let r = request.get_ref();
-        info!("get_messages: returning messages with id > {} for board '{}'", r.last_id, r.board);
-        
+        info!("get_messages: getting messages with id > {} for board '{}'", r.last_id, r.board);
         
         validate_board_name(&r.board).map_err(|e| Status::invalid_argument(format!("Invalid board: {e}")))?;
 

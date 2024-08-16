@@ -1,6 +1,7 @@
-use board_messages::grpc::pgsql::PgsqlConnectionParams;
+use tracing::info;
 use tonic::{transport::Server, Request, Response, Status};
 
+use board_messages::grpc::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use board_messages::grpc::server::PgsqlB3Server;
 use board_messages::grpc::B3Server;
 
@@ -9,8 +10,6 @@ const PG_HOST: &'static str = "localhost";
 const PG_USER: &'static str = "postgres";
 const PG_PASSW: &'static str = "postgrespw";
 const PG_PORT: u32 = 49153;
-const TEST_BOARD: &'static str = "testboard";
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,18 +18,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let host = PG_HOST;
     let port = PG_PORT;
     let user = PG_USER;
+    let database = &PG_DATABASE;
     let socket = "[::1]:50051";
     
     info!("Starting b3");
-    info!("pgsql host: {host}");
-    info!("pgsql port: {port}");
-    info!("pgsql user: {user}");
-    info!("grpc socket: {socket}");
+    info!("pgsql host: '{host}'");
+    info!("pgsql port: '{port}'");
+    info!("pgsql user: '{user}'");
+    info!("pgsql database: '{database}'");
+    info!("grpc socket: '{socket}'");
 
     let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+    let c_db = c.with_database(database);
+    let test = PgsqlB3Client::new(&c_db).await?;
+    drop(test);
+
+    info!("pgsql connection ok");
     
     let addr = socket.parse()?;
-    let b3_impl = PgsqlB3Server::new(c, "protocoldb");
+    let b3_impl = PgsqlB3Server::new(c, database);
 
     Server::builder()
         .add_service(B3Server::new(b3_impl))

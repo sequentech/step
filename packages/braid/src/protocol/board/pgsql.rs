@@ -365,8 +365,6 @@ impl TryFrom<Message> for BoardMessage {
 // cargo test <test_name> -- --include-ignored
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::alloc::System;
-
     use super::*;
     use serial_test::serial;
 

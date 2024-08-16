@@ -404,8 +404,6 @@ impl PgsqlB3Client {
 
 
     async fn insert(&mut self, board_name: &str, messages: &Vec<B3MessageRow>) -> Result<()> {
-        info!("Insert {} messages..", messages.len());
-
         // Start a new transaction
         let transaction = self.client.transaction().await?;
 
