@@ -343,8 +343,8 @@ impl RawBallotCodec for Contest {
         if num_selected_candidates > max_votes {
             handle_over_vote_policy(
                 &mut decoded_contest,
-                presentation.over_vote_policy,
-                presentation.invalid_vote_policy,
+                &presentation.over_vote_policy,
+                &presentation.invalid_vote_policy,
                 num_selected_candidates,
                 max_votes,
             );
@@ -430,8 +430,8 @@ impl RawBallotCodec for Contest {
 
 fn handle_over_vote_policy(
     decoded_contest: &mut DecodedVoteContest,
-    pol: Option<EOverVotePolicy>,
-    ipol: Option<InvalidVotePolicy>,
+    pol: &Option<EOverVotePolicy>,
+    ipol: &Option<InvalidVotePolicy>,
     num_selected_candidates: usize,
     max_votes: usize,
 ) {
