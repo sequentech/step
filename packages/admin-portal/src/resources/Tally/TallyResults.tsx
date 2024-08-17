@@ -149,7 +149,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                     ) : null}
                     <MiruExport
                         electionId={electionId}
-                        tally={tally}
                         onCreateTransmissionPackage={onCreateTransmissionPackage}
                     />
                 </Box>
