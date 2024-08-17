@@ -30,7 +30,7 @@ interface IMiruExportWizardProps {
     handleUploadSignature: (files: FileList | null) => Promise<void>
 }
 
-export const MiruExportWizard = ({
+export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({
     expandedExports,
     resultsEvent,
     setExpandedDataExports,
@@ -41,7 +41,7 @@ export const MiruExportWizard = ({
     documents,
     errors,
     handleUploadSignature,
-}: IMiruExportWizardProps) => {
+}) => {
     const {t, i18n} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
 

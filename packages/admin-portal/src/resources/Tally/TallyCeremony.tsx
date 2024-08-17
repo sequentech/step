@@ -202,7 +202,6 @@ export const TallyCeremony: React.FC = () => {
 
     const tallySessionData: IMiruTallySessionData = useMemo(() => {
         try {
-            console.log({resultsEventId, tallySessionExecutions})
             let strData = tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
             if (!strData) {
                 return []
@@ -212,6 +211,20 @@ export const TallyCeremony: React.FC = () => {
             return []
         }
     }, [tally?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+
+    useEffect(() => {
+        if (!selectedTallySessionData || !tallySessionData) {
+            return
+        }
+        let found = tallySessionData.find(
+            (el) =>
+                el.area_id === selectedTallySessionData.area_id &&
+                el.election_id === selectedTallySessionData.election_id
+        )
+        if (found && JSON.stringify(found) !== JSON.stringify(selectedTallySessionData)) {
+            setSelectedTallySessionData(found ?? null)
+        }
+    }, [tallySessionData, selectedTallySessionData])
 
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
@@ -362,6 +375,7 @@ export const TallyCeremony: React.FC = () => {
         area_id?: string
         existingPackage?: IMiruTransmissionPackageData
     }) => {
+        console.log("FF handleMiruExportSuccess")
         //check for task completion and fetch data
         //set new page status(navigate to miru wizard)
 
@@ -369,29 +383,30 @@ export const TallyCeremony: React.FC = () => {
             setSelectedTallySessionData(e.existingPackage)
             setPage(WizardSteps.Export)
         } else {
-            let packageData = null
+            let packageData: IMiruTransmissionPackageData | null = null
             let retry = 0
 
-            while (!packageData && retry < 5) {
-                setTimeout(() => {
-                    const found = tallySessionData.find(
+            let intervalId = setInterval(() => {
+                if (!!packageData || retry >= 5) {
+                    notify("Error getting transmission package data", {type: "error"})
+                    clearInterval(intervalId)
+                    return
+                }
+                const found =
+                    tallySessionData.find(
                         (datum) =>
                             datum.area_id === e.area_id && datum.election_id === e.election_id
-                    )
+                    ) ?? null
 
-                    if (found) {
-                        packageData = found
-                    } else {
-                        retry = retry + 1
-                    }
-                }, globalSettings.QUERY_POLL_INTERVAL_MS)
-            }
-
-            if (!packageData) {
-                notify("Error getting transmission package data", {type: "error"})
-            } else {
-                setSelectedTallySessionData(packageData)
-            }
+                if (found) {
+                    setSelectedTallySessionData(packageData)
+                    packageData = found
+                    clearInterval(intervalId)
+                } else {
+                    notify(`FF Retried ${retry}`, {type: "error"})
+                    retry = retry + 1
+                }
+            }, globalSettings.QUERY_POLL_INTERVAL_MS)
         }
     }
 
@@ -402,24 +417,25 @@ export const TallyCeremony: React.FC = () => {
             const {data: nextStatus, errors} = await SendTransmissionPackage({
                 variables: {
                     electionId: selectedTallySessionData?.election_id,
-                    tallySessionId: tally?.id,
+                    tallySessionId: tallyId,
                     areaId: selectedTallySessionData?.area_id,
                 },
             })
 
             if (errors) {
                 setTransmissionLoading(false)
-                notify("Error sending transmission package", {type: "error"})
+                notify(t("miruExport.send.error"), {type: "error"})
                 return
             }
 
             if (nextStatus) {
                 setTransmissionLoading(false)
-                notify("Success sending transmission package", {type: "success"})
+                notify("miruExport.send.success", {type: "success"})
                 // onSuccess?.()
             }
         } catch (error) {
-            notify("Error creating transmission package", {type: "error"})
+            console.log(`Caught error: ${error}`)
+            notify("miruExport.send.error", {type: "error"})
         }
     }
 
@@ -488,12 +504,12 @@ export const TallyCeremony: React.FC = () => {
             )
 
             if (!election_id) {
-                notify("Unable to get election id. Please try again", {type: "error"})
+                notify(t("miruExport.create.error"), {type: "error"})
+                console.log("Unable to get election id.")
                 return
             }
 
             if (found) {
-                notify("Already exists: transmission package", {type: "success"})
                 handleMiruExportSuccess?.({existingPackage: found})
 
                 return
@@ -503,25 +519,26 @@ export const TallyCeremony: React.FC = () => {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
                         electionId: election_id,
-                        tallySessionId: tally?.id,
+                        tallySessionId: tallyId,
                         areaId: area_id,
                     },
                 })
 
                 if (errors) {
-                    notify("Error creating transmission package", {type: "error"})
+                    notify(t("miruExport.create.error"), {type: "error"})
                     return
                 }
 
                 if (nextStatus) {
-                    notify("Success creating transmission package", {type: "success"})
+                    notify(t("miruExport.create.success"), {type: "success"})
                     handleMiruExportSuccess?.({area_id, election_id})
                 }
             } catch (error) {
-                notify("Error creating transmission package", {type: "error"})
+                console.log(`Caught error: ${error}`)
+                notify(t("miruExport.create.error"), {type: "error"})
             }
         },
-        [tallySessionData]
+        [tallySessionData, tally]
     )
 
     return (
