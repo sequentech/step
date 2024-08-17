@@ -1,5 +1,5 @@
 import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
-import React from "react"
+import React, { useMemo } from "react"
 import {WizardStyles} from "./styles/WizardStyles"
 import {TallyStyles} from "./styles/TallyStyles"
 import {MiruServers} from "./MiruServers"
@@ -10,10 +10,12 @@ import {Logs} from "./Logs"
 import {MiruPackageDownload} from "./MiruPackageDownload"
 import {IExpanded} from "@/resources/Tally/TallyCeremony"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {Sequent_Backend_Results_Event} from "@/gql/graphql"
+import {Sequent_Backend_Area, Sequent_Backend_Results_Event} from "@/gql/graphql"
 import {IMiruTransmissionPackageData} from "@/types/miru"
 import {IResultDocuments} from "@/types/results"
 import {useTranslation} from "react-i18next"
+import { useAtomValue } from "jotai"
+import { tallyQueryData } from "@/atoms/tally-candidates"
 
 interface IMiruExportWizardProps {
     expandedExports: IExpanded
@@ -41,6 +43,12 @@ export const MiruExportWizard = ({
     handleUploadSignature,
 }: IMiruExportWizardProps) => {
     const {t, i18n} = useTranslation()
+    const tallyData = useAtomValue(tallyQueryData)
+
+    const area: Sequent_Backend_Area | null = useMemo(
+        () => tallyData?.sequent_backend_area?.find((area) => selectedTallySessionData?.area_id === area.id) ?? null,
+        [selectedTallySessionData?.area_id, tallyData?.sequent_backend_area]
+    )
 
     return (
         <>
@@ -99,7 +107,9 @@ export const MiruExportWizard = ({
             >
                 <AccordionSummary>
                     <WizardStyles.AccordionTitle>
-                        {t("tally.sendToTransmissionPackageServers")}
+                        {t("tally.sendToTransmissionPackageServers", {
+                            name: area?.name
+                        })}
                     </WizardStyles.AccordionTitle>
                     <TallyStyles.StyledSpacing>
                         {transmissionLoading ? (

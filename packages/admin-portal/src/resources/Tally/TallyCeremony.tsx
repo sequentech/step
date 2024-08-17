@@ -114,7 +114,7 @@ export const TallyCeremony: React.FC = () => {
         {
             context: {
                 headers: {
-                    "x-hasura-role": IPermissions.TALLY_WRITE, //probably not necessary since we are reading not writing
+                    "x-hasura-role": IPermissions.TALLY_WRITE,
                 },
             },
         }
