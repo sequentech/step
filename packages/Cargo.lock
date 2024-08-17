@@ -1244,7 +1244,6 @@ dependencies = [
  "cfg-if",
  "config",
  "hex",
- "immu-board",
  "log",
  "prost 0.13.1",
  "serde",
