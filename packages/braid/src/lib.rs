@@ -4,7 +4,6 @@
 extern crate cfg_if;
 
 pub mod protocol;
-pub mod run;
 pub mod test;
 pub mod util;
 pub mod verify;
