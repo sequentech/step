@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
 import React, {useMemo} from "react"
 import {WizardStyles} from "./styles/WizardStyles"
